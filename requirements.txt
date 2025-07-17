@@ -1,0 +1,17 @@
+# Core dependencies for Obby - Note Change Tracker
+
+# OpenAI API client (for AI-assisted summarization)
+openai>=1.0.0
+
+# Development and testing dependencies (optional)
+# pytest>=7.0.0
+# black>=22.0.0
+# flake8>=4.0.0
+
+# Note: This project is designed to use minimal dependencies
+# Most functionality relies on Python's standard library:
+# - pathlib (file operations)
+# - difflib (diff generation)
+# - datetime (timestamps)
+# - os (environment variables)
+# - time (interval checking)
