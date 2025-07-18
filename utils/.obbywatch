@@ -1,0 +1,15 @@
+# Obby watch file
+# This file specifies directories that Obby should monitor for changes
+# Use glob patterns (* and ?) and one pattern per line
+# Lines starting with # are comments
+
+# Default directories to watch
+notes/
+docs/
+*.md
+
+# Example patterns:
+# project_notes/
+# research/
+# writing/
+# *.txt

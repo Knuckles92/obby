@@ -24,8 +24,9 @@ def main():
     diff_tracker = DiffTracker(NOTES_FOLDER / "test.md", SNAPSHOT_PATH, DIFF_PATH)  # Initial dummy file
     ai_client = OpenAIClient()
     
-    # Initialize file watcher with the notes folder
-    file_watcher = FileWatcher(NOTES_FOLDER, diff_tracker, ai_client, LIVING_NOTE_PATH)
+    # Initialize file watcher with the notes folder and utils folder
+    utils_folder = NOTES_FOLDER.parent / "utils"  # Assuming utils is in the project root
+    file_watcher = FileWatcher(NOTES_FOLDER, diff_tracker, ai_client, LIVING_NOTE_PATH, utils_folder)
     
     try:
         # Start watching for file changes

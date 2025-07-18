@@ -8,12 +8,13 @@ from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from .ignore_handler import IgnoreHandler
+from .watch_handler import WatchHandler
 
 
 class NoteChangeHandler(FileSystemEventHandler):
     """Handles file system events for note changes."""
     
-    def __init__(self, notes_folder, diff_tracker, ai_client, living_note_path):
+    def __init__(self, notes_folder, diff_tracker, ai_client, living_note_path, utils_folder=None):
         """
         Initialize the note change handler.
         
@@ -22,6 +23,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             diff_tracker: DiffTracker instance for processing changes
             ai_client: OpenAIClient instance for generating summaries
             living_note_path: Path to the living note file
+            utils_folder: Path to the utils folder (defaults to notes_folder/utils)
         """
         self.notes_folder = Path(notes_folder)
         self.diff_tracker = diff_tracker
@@ -29,22 +31,34 @@ class NoteChangeHandler(FileSystemEventHandler):
         self.living_note_path = living_note_path
         self.last_event_times = {}  # Track debounce per file
         self.debounce_delay = 0.5  # 500ms debounce to prevent duplicate events
-        self.ignore_handler = IgnoreHandler(self.notes_folder)
+        
+        # Set up utils folder path
+        if utils_folder is None:
+            self.utils_folder = self.notes_folder / "utils"
+        else:
+            self.utils_folder = Path(utils_folder)
+        
+        # Initialize handlers
+        self.ignore_handler = IgnoreHandler(self.utils_folder, self.notes_folder)
+        self.watch_handler = WatchHandler(self.utils_folder)
         
     def on_modified(self, event):
         """Handle file modification events."""
         if event.is_directory:
             return
             
-        # Check if the modified file is a markdown file in our target folder
+        # Check if the modified file should be watched and is not ignored
         file_path = Path(event.src_path)
         
         # Check if this file should be ignored based on .obbyignore patterns
         if self.ignore_handler.should_ignore(file_path):
             return
+        
+        # Check if this file should be watched based on .obbywatch patterns
+        if not self.watch_handler.should_watch(file_path):
+            return
             
-        if (file_path.suffix.lower() == '.md' and 
-            file_path.parent.resolve() == self.notes_folder.resolve()):
+        if file_path.suffix.lower() == '.md':
             
             # Debounce rapid-fire events per file (editors often save multiple times)
             current_time = time.time()
@@ -62,15 +76,18 @@ class NoteChangeHandler(FileSystemEventHandler):
             self._process_tree_change("created", event.src_path, is_directory=True)
             return
             
-        # If a markdown file is created in our folder, process it
+        # If a markdown file is created and should be watched, process it
         file_path = Path(event.src_path)
         
         # Check if this file should be ignored based on .obbyignore patterns
         if self.ignore_handler.should_ignore(file_path):
             return
+        
+        # Check if this file should be watched based on .obbywatch patterns
+        if not self.watch_handler.should_watch(file_path):
+            return
             
-        if (file_path.suffix.lower() == '.md' and 
-            file_path.parent.resolve() == self.notes_folder.resolve()):
+        if file_path.suffix.lower() == '.md':
             print(f"[!] Note file created: {file_path}")
             self._process_note_change(file_path)
         
@@ -84,15 +101,18 @@ class NoteChangeHandler(FileSystemEventHandler):
             self._process_tree_change("deleted", event.src_path, is_directory=True)
             return
             
-        # If a markdown file is deleted from our folder, log it
+        # If a markdown file is deleted and should be watched, log it
         file_path = Path(event.src_path)
         
         # Check if this file should be ignored based on .obbyignore patterns
         if self.ignore_handler.should_ignore(file_path):
             return
+        
+        # Check if this file should be watched based on .obbywatch patterns
+        if not self.watch_handler.should_watch(file_path):
+            return
             
-        if (file_path.suffix.lower() == '.md' and 
-            file_path.parent.resolve() == self.notes_folder.resolve()):
+        if file_path.suffix.lower() == '.md':
             print(f"[!] Note file deleted: {file_path}")
             # For deleted files, we can't process content but we should log the event
             self._process_tree_change("deleted", event.src_path, is_directory=False)
@@ -116,11 +136,16 @@ class NoteChangeHandler(FileSystemEventHandler):
             self.ignore_handler.should_ignore(dest_path)):
             return
         
-        # Check if either source or destination is a markdown file in our folder
-        src_is_md = (src_path.suffix.lower() == '.md' and 
-                     src_path.parent.resolve() == self.notes_folder.resolve())
-        dest_is_md = (dest_path.suffix.lower() == '.md' and 
-                      dest_path.parent.resolve() == self.notes_folder.resolve())
+        # Check if either source or destination should be watched based on .obbywatch patterns
+        src_should_watch = self.watch_handler.should_watch(src_path)
+        dest_should_watch = self.watch_handler.should_watch(dest_path)
+        
+        if not (src_should_watch or dest_should_watch):
+            return
+        
+        # Check if either source or destination is a markdown file
+        src_is_md = src_path.suffix.lower() == '.md'
+        dest_is_md = dest_path.suffix.lower() == '.md'
         
         if src_is_md or dest_is_md:
             print(f"[!] Note file moved: {src_path} → {dest_path}")
@@ -173,7 +198,7 @@ class NoteChangeHandler(FileSystemEventHandler):
 class FileWatcher:
     """Main file watcher class for managing the observer."""
     
-    def __init__(self, notes_folder, diff_tracker, ai_client, living_note_path):
+    def __init__(self, notes_folder, diff_tracker, ai_client, living_note_path, utils_folder=None):
         """
         Initialize the file watcher.
         
@@ -182,9 +207,17 @@ class FileWatcher:
             diff_tracker: DiffTracker instance
             ai_client: OpenAIClient instance
             living_note_path: Path to the living note file
+            utils_folder: Path to the utils folder (defaults to notes_folder/utils)
         """
         self.notes_folder = Path(notes_folder)
-        self.handler = NoteChangeHandler(notes_folder, diff_tracker, ai_client, living_note_path)
+        
+        # Set up utils folder path
+        if utils_folder is None:
+            self.utils_folder = self.notes_folder / "utils"
+        else:
+            self.utils_folder = Path(utils_folder)
+        
+        self.handler = NoteChangeHandler(notes_folder, diff_tracker, ai_client, living_note_path, self.utils_folder)
         self.observer = Observer()
         self.is_running = False
         
@@ -192,10 +225,23 @@ class FileWatcher:
         """Start watching for file changes."""
         if self.is_running:
             return
-            
-        # Watch the notes folder
-        watch_dir = str(self.notes_folder)
-        self.observer.schedule(self.handler, watch_dir, recursive=False)
+        
+        # Get directories to watch from .obbywatch file
+        watch_dirs = self.handler.watch_handler.get_watch_directories()
+        
+        if not watch_dirs:
+            # If no watch directories specified, fall back to notes folder
+            watch_dirs = [self.notes_folder]
+            print(f"[!] No watch directories specified in .obbywatch, watching default: {self.notes_folder}")
+        
+        # Schedule watching for each directory
+        for watch_dir in watch_dirs:
+            if watch_dir.exists():
+                print(f"[✓] Watching directory: {watch_dir}")
+                self.observer.schedule(self.handler, str(watch_dir), recursive=True)
+            else:
+                print(f"[!] Watch directory does not exist: {watch_dir}")
+        
         self.observer.start()
         self.is_running = True
         

@@ -11,15 +11,17 @@ from typing import List, Set
 class IgnoreHandler:
     """Handles .obbyignore file parsing and pattern matching."""
     
-    def __init__(self, notes_folder: Path):
+    def __init__(self, utils_folder: Path, notes_folder: Path = None):
         """
         Initialize the ignore handler.
         
         Args:
-            notes_folder: Path to the folder containing notes and .obbyignore file
+            utils_folder: Path to the utils folder containing .obbyignore file
+            notes_folder: Path to the folder containing notes (for relative path calculation)
         """
-        self.notes_folder = Path(notes_folder)
-        self.ignore_file = self.notes_folder / ".obbyignore"
+        self.utils_folder = Path(utils_folder)
+        self.notes_folder = Path(notes_folder) if notes_folder else self.utils_folder.parent
+        self.ignore_file = self.utils_folder / ".obbyignore"
         self.ignore_patterns: Set[str] = set()
         self.load_ignore_patterns()
     
