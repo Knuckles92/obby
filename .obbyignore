@@ -1,0 +1,24 @@
+# Obby ignore file
+# This file specifies patterns for files and directories that Obby should ignore
+# Use glob patterns (* and ?) and one pattern per line
+# Lines starting with # are comments
+
+# Living note file (to prevent feedback loops)
+living_note.md
+
+# Temporary files
+*.tmp
+*.temp
+*~
+.DS_Store
+Thumbs.db
+
+# Version control
+.git/
+.svn/
+
+# Common editor files
+.vscode/
+.idea/
+*.swp
+*.swo

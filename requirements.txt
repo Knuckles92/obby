@@ -3,6 +3,9 @@
 # OpenAI API client (for AI-assisted summarization)
 openai>=1.0.0
 
+# File system monitoring for instant change detection
+watchdog>=3.0.0
+
 # Development and testing dependencies (optional)
 # pytest>=7.0.0
 # black>=22.0.0

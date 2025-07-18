@@ -7,15 +7,24 @@
 
 ## 🎯 Features
 
-### ✅ Automated Note Tracking
-- Monitors `notes/test.md` every 20 seconds for changes
-- Creates timestamped snapshots on every change
-- Generates human-readable diffs using Python's `difflib`
+### ✅ Comprehensive File Monitoring
+- **Real-time tracking**: Instant detection of file changes using `watchdog`
+- **File content changes**: Monitors markdown files for content modifications
+- **File tree changes**: Tracks file/directory creation, deletion, and moves
+- **Smart filtering**: Configurable ignore patterns via `.obbyignore`
+- **Prevents feedback loops**: Automatically ignores living note updates
 
-### ✅ AI-Managed Living Note
-- Sends diffs (not full notes) to OpenAI API for summarization
-- Maintains a living summary in `notes/living_note.md`
-- Keeps your knowledge organized and concise over time
+### ✅ AI-Enhanced Summaries
+- **Content summaries**: AI-generated summaries of file content changes
+- **Tree change summaries**: AI analysis of file structure changes
+- **Context-aware**: AI understands it's part of a comprehensive monitoring system
+- **Dual tracking**: Maintains complete picture of both content and organizational changes
+
+### ✅ Flexible Ignore System
+- **`.obbyignore` file**: Gitignore-style pattern matching
+- **Glob patterns**: Support for wildcards (`*`, `?`) and directory patterns
+- **Default protection**: Automatically ignores common temp files and living note
+- **User customizable**: Easy to add/remove ignore patterns
 
 ### ✅ Local-First & Minimal
 - No server, no database, no web UI
@@ -66,16 +75,19 @@ obby/
 ├── config/
 │   └── settings.py         # Configuration settings
 ├── ai/
-│   └── openai_client.py    # OpenAI integration
+│   └── openai_client.py    # OpenAI integration with dual summary support
 ├── diffing/
 │   └── diff_tracker.py     # Diff generation and tracking
 ├── utils/
-│   └── file_helpers.py     # File utilities
+│   ├── file_helpers.py     # File utilities
+│   ├── file_watcher.py     # Real-time file monitoring
+│   └── ignore_handler.py   # .obbyignore pattern matching
 ├── notes/
 │   ├── test.md            # Your note file (created on first run)
 │   └── living_note.md     # AI-generated summary
 ├── snapshots/             # Timestamped snapshots
 ├── diffs/                 # Human-readable diffs
+├── .obbyignore            # File ignore patterns
 └── README.md
 ```
 
@@ -109,8 +121,19 @@ OPENAI_MODEL = "gpt-4.1-mini"
    - Make changes and save
    - Obby will automatically detect changes and create summaries
 
-3. **Monitor output**
-   - Terminal shows real-time diff output
+3. **Manage file structure**
+   - Create new files and directories
+   - Move or rename files
+   - Delete files
+   - Obby tracks all file tree changes automatically
+
+4. **Customize ignore patterns**
+   - Edit `.obbyignore` to specify files/patterns to ignore
+   - Use glob patterns like `*.tmp`, `draft_*.md`, `archive/`
+   - Comments supported with `#` prefix
+
+5. **Monitor output**
+   - Terminal shows real-time monitoring of both content and tree changes
    - Check `notes/living_note.md` for AI-generated summaries
    - Browse `snapshots/` for historical versions
 

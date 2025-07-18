@@ -1,7 +1,7 @@
 from pathlib import Path
 
 # File paths
-NOTE_PATH = Path("notes/test.md")
+NOTES_FOLDER = Path("notes")  # Folder containing all markdown files to monitor
 SNAPSHOT_PATH = Path("snapshots")
 DIFF_PATH = Path("diffs")
 LIVING_NOTE_PATH = Path("notes/living_note.md")
