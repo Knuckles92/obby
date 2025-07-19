@@ -110,7 +110,7 @@ class OpenAIClient:
         
         # Append summary with timestamp
         from datetime import datetime
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         
         with open(living_note_path, "a") as f:
             f.write(f"## {timestamp}\n\n{summary}\n\n---\n\n")

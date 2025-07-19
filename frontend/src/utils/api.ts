@@ -11,7 +11,7 @@ const getApiBaseUrl = (): string => {
   
   // In production mode, we need to specify the full backend URL
   // You can customize this URL based on your production setup
-  return import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  return import.meta.env.VITE_API_URL || 'http://localhost:8001'
 }
 
 const API_BASE_URL = getApiBaseUrl()

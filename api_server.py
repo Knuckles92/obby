@@ -591,6 +591,6 @@ def serve_frontend(path):
     })
 
 if __name__ == '__main__':
-    logger.info("Starting Obby API server on http://localhost:8000")
+    logger.info("Starting Obby API server on http://localhost:8001")
     logger.info("Web interface will be available once the server starts")
-    app.run(debug=False, port=8000, host='0.0.0.0', threaded=True)
+    app.run(debug=False, port=8001, host='0.0.0.0', threaded=True)

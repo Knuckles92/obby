@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
 import { FileText, Clock, BarChart3, Trash2 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { LivingNote as LivingNoteType } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import { apiFetch } from '../utils/api'
@@ -148,11 +152,33 @@ export default function LivingNote() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : note.content ? (
-          <div className="prose max-w-none">
-            <div className="bg-gray-50 p-6 rounded-md">
-              <pre className="whitespace-pre-wrap text-sm text-gray-800 font-mono">
+          <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100">
+            <div className="bg-white border border-gray-200 p-6 rounded-lg">
+              <ReactMarkdown 
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  code({ node, inline, className, children, ...props }) {
+                    const match = /language-(\w+)/.exec(className || '')
+                    return !inline && match ? (
+                      <SyntaxHighlighter
+                        style={oneDark}
+                        language={match[1]}
+                        PreTag="div"
+                        className="rounded-md !mt-0 !mb-4"
+                        {...props}
+                      >
+                        {String(children).replace(/\n$/, '')}
+                      </SyntaxHighlighter>
+                    ) : (
+                      <code className={className} {...props}>
+                        {children}
+                      </code>
+                    )
+                  }
+                }}
+              >
                 {note.content}
-              </pre>
+              </ReactMarkdown>
             </div>
           </div>
         ) : (
