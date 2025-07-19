@@ -137,8 +137,9 @@ def get_recent_diffs():
     try:
         limit = max(1, min(request.args.get('limit', 20, type=int), 100))  # Limit between 1-100
         
-        # Use absolute path to ensure we're looking in the right place
-        diffs_dir = Path(__file__).parent / 'diffs'
+        # Use DIFF_PATH from the global settings so we look in the *same* folder that DiffTracker writes to
+        # DIFF_PATH may be relative (e.g. "diffs") or absolute; resolve it against the current working directory
+        diffs_dir = Path(DIFF_PATH).resolve()
         diff_files = []
         
         print(f"DIFFS API CALLED - Looking in: {diffs_dir.resolve()}")

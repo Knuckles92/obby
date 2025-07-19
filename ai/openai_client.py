@@ -108,11 +108,18 @@ class OpenAIClient:
             living_note_path.parent.mkdir(exist_ok=True)
             living_note_path.write_text("# Living Note\n\nThis file contains AI-generated summaries of changes to your notes.\n\n---\n\n")
         
-        # Append summary with timestamp
+        # Prepend summary with timestamp (newer messages at top)
         from datetime import datetime
         timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
         
-        with open(living_note_path, "a") as f:
-            f.write(f"## {timestamp}\n\n{summary}\n\n---\n\n")
+        # Read existing content
+        existing_content = ""
+        if living_note_path.exists() and living_note_path.stat().st_size > 0:
+            existing_content = living_note_path.read_text(encoding='utf-8')
+        
+        # Write new entry at the beginning, followed by existing content
+        new_entry = f"## {timestamp}\n\n{summary}\n\n---\n\n"
+        with open(living_note_path, "w", encoding='utf-8') as f:
+            f.write(new_entry + existing_content)
         
         logging.info(f"Living note updated: {living_note_path}")
