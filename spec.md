@@ -31,11 +31,13 @@ The project is intentionally **simple and local-first**, so it’s easy to learn
 - All diffs are printed in a clear `+ added / - removed` style using Python's standard `difflib` module.
 - Everything is readable and portable — just text files.
 
-### ✅ Minimal Dependencies
+### ✅ Web Interface & API
 
-- No server, no database, no web UI (yet).
-- All data lives in the local filesystem (`notes/`, `diffs/`).
-- The only external call is to the OpenAI API.
+- Flask API server (`api_server.py`) provides REST endpoints for monitoring and data access
+- React-based web frontend for modern UI experience
+- Legacy CLI interface preserved in `legacy/` directory for backward compatibility
+- All data still lives in the local filesystem (`notes/`, `diffs/`)
+- The only external call is to the OpenAI API
 
 ---
 

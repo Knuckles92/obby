@@ -1,7 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(python:*)",
+      "Bash(copy \"D:\\Python Projects\\obby\\main.py\" \"D:\\Python Projects\\obby\\legacy\\main_cli.py\")",
+      "Bash(cp:*)",
+      "Bash(curl:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   }
