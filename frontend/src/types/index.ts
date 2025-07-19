@@ -25,8 +25,8 @@ export interface ConfigSettings {
   checkInterval: number;
   openaiApiKey: string;
   aiModel: string;
-  watchPaths: string[];
   ignorePatterns: string[];
+  periodicCheckEnabled?: boolean;
 }
 
 export interface LivingNote {

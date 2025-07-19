@@ -15,7 +15,9 @@
 - **Settings management**: Visual configuration editor with live validation
 
 ### ✅ Comprehensive File Monitoring
+- **Dual monitoring modes**: Combines real-time event detection with periodic scanning
 - **Real-time tracking**: Instant detection of file changes using `watchdog`
+- **Periodic checking**: Optional interval-based scanning for comprehensive coverage
 - **File content changes**: Monitors markdown files for content modifications
 - **File tree changes**: Tracks file/directory creation, deletion, and moves
 - **Smart filtering**: Configurable ignore patterns via `.obbyignore`
@@ -161,7 +163,8 @@ obby/
 - **Watch paths**: Add/remove directories to monitor
 - **Ignore patterns**: Configure files and directories to skip
 - **AI configuration**: OpenAI API key and model selection
-- **System settings**: Check interval and other preferences
+- **Monitoring modes**: Toggle real-time and periodic checking
+- **System settings**: Check interval for periodic scanning and other preferences
 
 ## ⚙️ Configuration
 
@@ -173,11 +176,27 @@ DIFF_PATH = Path("diffs")
 LIVING_NOTE_PATH = Path("notes/living_note.md")
 
 # Timing settings
-CHECK_INTERVAL = 20  # seconds
+CHECK_INTERVAL = 20  # seconds (for periodic checking)
 
 # OpenAI settings
 OPENAI_MODEL = "gpt-4o-mini"  # Default AI model
 ```
+
+### Monitoring Modes
+Obby uses a dual monitoring approach for maximum reliability:
+
+1. **Real-time Event Detection** (Primary)
+   - Instant file system event detection using `watchdog`
+   - Zero-latency response to file changes
+   - Handles create, modify, delete, and move operations
+
+2. **Periodic Scanning** (Secondary)
+   - Optional interval-based checking of all watched files
+   - Catches any changes that might be missed by event detection
+   - Configurable interval (default: 20 seconds)
+   - Can be enabled/disabled via settings
+
+This dual approach ensures no changes are missed while maintaining efficient performance.
 
 ### Watch Configuration (`.obbywatch`)
 ```
@@ -211,7 +230,8 @@ Automatically managed through the web interface:
   "openaiApiKey": "sk-...",
   "aiModel": "gpt-4o-mini",
   "watchPaths": ["notes/", "documents/"],
-  "ignorePatterns": ["*.tmp", "*.bak"]
+  "ignorePatterns": ["*.tmp", "*.bak"],
+  "periodicCheckEnabled": true
 }
 ```
 

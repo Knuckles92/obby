@@ -192,6 +192,59 @@ def get_living_note():
             'wordCount': 0
         })
 
+@app.route('/api/living-note/clear', methods=['POST'])
+def clear_living_note():
+    """Clear the living note content"""
+    try:
+        living_note_path = Path('notes/living_note.md')
+        
+        if living_note_path.exists():
+            # Create backup before clearing
+            backup_path = living_note_path.with_suffix('.md.backup')
+            try:
+                content = living_note_path.read_text(encoding='utf-8')
+                backup_path.write_text(content, encoding='utf-8')
+                logger.info(f"Created backup of living note at {backup_path}")
+            except Exception as e:
+                logger.warning(f"Could not create backup: {e}")
+            
+            # Clear the file
+            living_note_path.write_text('', encoding='utf-8')
+            logger.info("Living note cleared successfully")
+            
+            return jsonify({
+                'message': 'Living note cleared successfully',
+                'backup_created': backup_path.exists()
+            })
+        else:
+            return jsonify({'message': 'Living note file does not exist'}), 404
+            
+    except PermissionError:
+        logger.error(f"Permission denied clearing living note: {living_note_path}")
+        return jsonify({'error': 'Permission denied accessing living note file'}), 403
+    except Exception as e:
+        logger.error(f"Error clearing living note: {e}")
+        return jsonify({'error': f'Failed to clear living note: {str(e)}'}), 500
+
+@app.route('/api/events/clear', methods=['POST'])
+def clear_recent_events():
+    """Clear the recent events list"""
+    global recent_events
+    
+    try:
+        events_count = len(recent_events)
+        recent_events.clear()
+        
+        logger.info(f"Cleared {events_count} recent events")
+        return jsonify({
+            'message': f'Cleared {events_count} recent events successfully',
+            'clearedCount': events_count
+        })
+        
+    except Exception as e:
+        logger.error(f"Error clearing recent events: {e}")
+        return jsonify({'error': f'Failed to clear recent events: {str(e)}'}), 500
+
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """Get current configuration"""
@@ -202,7 +255,8 @@ def get_config():
         'openaiApiKey': os.getenv('OPENAI_API_KEY', ''),
         'aiModel': OPENAI_MODEL,
         'watchPaths': [str(NOTES_FOLDER)],  # Default to notes folder
-        'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store']
+        'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
+        'periodicCheckEnabled': True  # Default to enabled
     }
     
     # Load from config file if it exists
@@ -241,7 +295,7 @@ def update_config():
     
     try:
         # Validate the configuration data
-        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'watchPaths', 'ignorePatterns']
+        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'ignorePatterns', 'periodicCheckEnabled']
         config_data = {}
         
         for field in valid_fields:
@@ -257,13 +311,13 @@ def update_config():
             except (ValueError, TypeError):
                 return jsonify({'error': 'Invalid check interval value'}), 400
         
-        if 'watchPaths' in config_data:
-            if not isinstance(config_data['watchPaths'], list):
-                return jsonify({'error': 'Watch paths must be a list'}), 400
-        
         if 'ignorePatterns' in config_data:
             if not isinstance(config_data['ignorePatterns'], list):
                 return jsonify({'error': 'Ignore patterns must be a list'}), 400
+        
+        if 'periodicCheckEnabled' in config_data:
+            if not isinstance(config_data['periodicCheckEnabled'], bool):
+                return jsonify({'error': 'periodicCheckEnabled must be a boolean'}), 400
         
         # Save configuration to file
         config_file = Path('config.json')
@@ -273,6 +327,14 @@ def update_config():
         # Update environment variable if API key is provided
         if 'openaiApiKey' in config_data and config_data['openaiApiKey']:
             os.environ['OPENAI_API_KEY'] = config_data['openaiApiKey']
+        
+        # Update running monitor if applicable
+        global monitor_instance
+        if monitor_instance and monitoring_active:
+            if 'checkInterval' in config_data:
+                monitor_instance.set_check_interval(config_data['checkInterval'])
+            if 'periodicCheckEnabled' in config_data:
+                monitor_instance.set_periodic_check_enabled(config_data['periodicCheckEnabled'])
         
         return jsonify({'message': 'Configuration updated successfully'})
     
@@ -414,6 +476,23 @@ class APIAwareNoteChangeHandler(NoteChangeHandler):
 class APIObbyMonitor(ObbyMonitor):
     """Extended ObbyMonitor that uses API-aware event handler"""
     
+    def __init__(self):
+        super().__init__()
+        # Load check interval from config if available
+        self._load_config()
+    
+    def _load_config(self):
+        """Load configuration from config.json"""
+        config_file = Path('config.json')
+        if config_file.exists():
+            try:
+                with open(config_file, 'r') as f:
+                    config = json.load(f)
+                    self.check_interval = config.get('checkInterval', CHECK_INTERVAL)
+                    logger.info(f"Loaded check interval from config: {self.check_interval}s")
+            except Exception as e:
+                logger.error(f"Error loading config: {e}")
+    
     def start(self):
         """Start the monitoring system with API integration"""
         if self.is_running:
@@ -454,6 +533,10 @@ class APIObbyMonitor(ObbyMonitor):
         
         self.file_watcher.start()
         self.is_running = True
+        
+        # Start periodic checking thread if enabled
+        if self.periodic_check_enabled:
+            self.start_periodic_checking()
 
 def run_monitor():
     """Run the monitor in a separate thread"""

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { GitBranch, Clock, FileText } from 'lucide-react'
 import { DiffEntry } from '../types'
+import { apiFetch } from '../utils/api'
 
 export default function DiffViewer() {
   const [diffs, setDiffs] = useState<DiffEntry[]>([])
@@ -13,7 +14,7 @@ export default function DiffViewer() {
 
   const fetchDiffs = async () => {
     try {
-      const response = await fetch('/api/diffs?limit=50')
+      const response = await apiFetch('/api/diffs?limit=50')
       const data = await response.json()
       setDiffs(data)
     } catch (error) {

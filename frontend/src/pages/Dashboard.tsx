@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react'
-import { 
-  Activity, 
-  FileText, 
-  FolderOpen, 
-  GitBranch, 
-  Play, 
+import {
+  Activity,
+  FileText,
+  FolderOpen,
+  GitBranch,
+  Play,
   Square,
   AlertCircle,
   CheckCircle,
-  Clock
+  Clock,
+  Trash2
 } from 'lucide-react'
 import { MonitoringStatus, FileEvent, DiffEntry } from '../types'
+import ConfirmationDialog from '../components/ConfirmationDialog'
+import { apiFetch, apiRequest } from '../utils/api'
 
 export default function Dashboard() {
   const [status, setStatus] = useState<MonitoringStatus>({
@@ -22,6 +25,9 @@ export default function Dashboard() {
   const [recentEvents, setRecentEvents] = useState<FileEvent[]>([])
   const [recentDiffs, setRecentDiffs] = useState<DiffEntry[]>([])
   const [loading, setLoading] = useState(true)
+  const [clearEventsDialogOpen, setClearEventsDialogOpen] = useState(false)
+  const [clearEventsLoading, setClearEventsLoading] = useState(false)
+  const [monitoringLoading, setMonitoringLoading] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -32,9 +38,9 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       const [statusRes, eventsRes, diffsRes] = await Promise.all([
-        fetch('/api/status'),
-        fetch('/api/events?limit=10'),
-        fetch('/api/diffs?limit=5')
+        apiFetch('/api/status'),
+        apiFetch('/api/events?limit=10'),
+        apiFetch('/api/diffs?limit=5')
       ])
 
       const statusData = await statusRes.json()
@@ -53,14 +59,50 @@ export default function Dashboard() {
 
   const toggleMonitoring = async () => {
     try {
+      setMonitoringLoading(true)
       const endpoint = status.isActive ? '/api/monitor/stop' : '/api/monitor/start'
-      const response = await fetch(endpoint, { method: 'POST' })
+      const response = await apiFetch(endpoint, { method: 'POST' })
       
       if (response.ok) {
+        // Add a small delay to show the loading state
+        await new Promise(resolve => setTimeout(resolve, 500))
         fetchDashboardData()
+      } else {
+        const error = await response.json()
+        console.error('Error toggling monitoring:', error.error)
+        alert('Failed to toggle monitoring: ' + error.error)
       }
     } catch (error) {
       console.error('Error toggling monitoring:', error)
+      alert('Failed to toggle monitoring. Please try again.')
+    } finally {
+      setMonitoringLoading(false)
+    }
+  }
+
+  const handleClearEvents = async () => {
+    try {
+      setClearEventsLoading(true)
+      const response = await apiFetch('/api/events/clear', {
+        method: 'POST'
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log(result.message)
+        // Refresh the dashboard data
+        await fetchDashboardData()
+        setClearEventsDialogOpen(false)
+      } else {
+        const error = await response.json()
+        console.error('Error clearing events:', error.error)
+        alert('Failed to clear events: ' + error.error)
+      }
+    } catch (error) {
+      console.error('Error clearing events:', error)
+      alert('Failed to clear events. Please try again.')
+    } finally {
+      setClearEventsLoading(false)
     }
   }
 
@@ -95,13 +137,19 @@ export default function Dashboard() {
         
         <button
           onClick={toggleMonitoring}
-          className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors ${
+          disabled={monitoringLoading}
+          className={`flex items-center px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 ${
             status.isActive
               ? 'bg-red-600 hover:bg-red-700 text-white'
               : 'bg-green-600 hover:bg-green-700 text-white'
           }`}
         >
-          {status.isActive ? (
+          {monitoringLoading ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              {status.isActive ? 'Stopping...' : 'Starting...'}
+            </>
+          ) : status.isActive ? (
             <>
               <Square className="h-4 w-4 mr-2" />
               Stop Monitoring
@@ -192,8 +240,19 @@ export default function Dashboard() {
         {/* Recent Events */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Recent Events</h3>
-            <Activity className="h-5 w-5 text-gray-400" />
+            <div className="flex items-center">
+              <h3 className="text-lg font-medium text-gray-900">Recent Events</h3>
+              <Activity className="h-5 w-5 text-gray-400 ml-2" />
+            </div>
+            {recentEvents.length > 0 && (
+              <button
+                onClick={() => setClearEventsDialogOpen(true)}
+                className="flex items-center px-3 py-1 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                Clear
+              </button>
+            )}
           </div>
           
           {recentEvents.length > 0 ? (
@@ -251,6 +310,19 @@ export default function Dashboard() {
           )}
         </div>
       </div>
+
+      {/* Clear Events Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={clearEventsDialogOpen}
+        onClose={() => setClearEventsDialogOpen(false)}
+        onConfirm={handleClearEvents}
+        title="Clear Recent Events"
+        message="Are you sure you want to clear all recent events? This will remove the event history from the dashboard."
+        confirmText="Clear Events"
+        cancelText="Cancel"
+        danger={true}
+        loading={clearEventsLoading}
+      />
     </div>
   )
 }

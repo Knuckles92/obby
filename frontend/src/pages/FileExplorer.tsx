@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FolderTree, File, Folder } from 'lucide-react'
+import { apiFetch } from '../utils/api'
 
 interface FileNode {
   name: string
@@ -18,7 +19,7 @@ export default function FileExplorer() {
 
   const fetchFileTree = async () => {
     try {
-      const response = await fetch('/api/files/tree')
+      const response = await apiFetch('/api/files/tree')
       const data = await response.json()
       setFileTree(data)
     } catch (error) {

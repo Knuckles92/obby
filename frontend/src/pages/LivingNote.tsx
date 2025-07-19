@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { FileText, Clock, BarChart3 } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2 } from 'lucide-react'
 import { LivingNote as LivingNoteType } from '../types'
+import ConfirmationDialog from '../components/ConfirmationDialog'
+import { apiFetch } from '../utils/api'
 
 export default function LivingNote() {
   const [note, setNote] = useState<LivingNoteType>({
@@ -9,6 +11,8 @@ export default function LivingNote() {
     wordCount: 0
   })
   const [loading, setLoading] = useState(true)
+  const [clearDialogOpen, setClearDialogOpen] = useState(false)
+  const [clearLoading, setClearLoading] = useState(false)
 
   useEffect(() => {
     fetchLivingNote()
@@ -16,13 +20,40 @@ export default function LivingNote() {
 
   const fetchLivingNote = async () => {
     try {
-      const response = await fetch('/api/living-note')
+      setLoading(true)
+      const response = await apiFetch('/api/living-note')
       const data = await response.json()
       setNote(data)
     } catch (error) {
       console.error('Error fetching living note:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleClearNote = async () => {
+    try {
+      setClearLoading(true)
+      const response = await apiFetch('/api/living-note/clear', {
+        method: 'POST'
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log(result.message)
+        // Refresh the note content
+        await fetchLivingNote()
+        setClearDialogOpen(false)
+      } else {
+        const error = await response.json()
+        console.error('Error clearing living note:', error.error)
+        alert('Failed to clear living note: ' + error.error)
+      }
+    } catch (error) {
+      console.error('Error clearing living note:', error)
+      alert('Failed to clear living note. Please try again.')
+    } finally {
+      setClearLoading(false)
     }
   }
 
@@ -41,12 +72,28 @@ export default function LivingNote() {
           </div>
         </div>
         
-        <button
-          onClick={fetchLivingNote}
-          className="btn-secondary"
-        >
-          Refresh
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={fetchLivingNote}
+            disabled={loading}
+            className="btn-secondary flex items-center"
+          >
+            {loading && (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+            )}
+            Refresh
+          </button>
+          
+          {note.content && (
+            <button
+              onClick={() => setClearDialogOpen(true)}
+              className="flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear Note
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Stats */}
@@ -118,6 +165,20 @@ export default function LivingNote() {
           </div>
         )}
       </div>
+
+      {/* Clear Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={clearDialogOpen}
+        onClose={() => setClearDialogOpen(false)}
+        onConfirm={handleClearNote}
+        title="Clear Living Note"
+        message="Are you sure you want to clear the living note? This will permanently delete all AI-generated content."
+        confirmText="Clear Note"
+        cancelText="Cancel"
+        danger={true}
+        loading={clearLoading}
+        extraWarning="This action cannot be undone. A backup will be created automatically."
+      />
     </div>
   )
 }

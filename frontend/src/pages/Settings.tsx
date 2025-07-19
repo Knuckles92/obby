@@ -1,20 +1,20 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, FolderPlus, Trash2 } from 'lucide-react'
+import { Settings as SettingsIcon, Save, Trash2 } from 'lucide-react'
 import { ConfigSettings, ModelsResponse } from '../types'
+import { apiFetch } from '../utils/api'
 
 export default function Settings() {
   const [config, setConfig] = useState<ConfigSettings>({
     checkInterval: 5,
     openaiApiKey: '',
     aiModel: 'gpt-4o',
-    watchPaths: [],
-    ignorePatterns: []
+    ignorePatterns: [],
+    periodicCheckEnabled: true
   })
   const [models, setModels] = useState<Record<string, string>>({})
   const [modelsLoading, setModelsLoading] = useState(true)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
-  const [newWatchPath, setNewWatchPath] = useState('')
   const [newIgnorePattern, setNewIgnorePattern] = useState('')
 
   useEffect(() => {
@@ -24,14 +24,14 @@ export default function Settings() {
 
   const fetchConfig = async () => {
     try {
-      const response = await fetch('/api/config')
+      const response = await apiFetch('/api/config')
       const data = await response.json()
       setConfig({
         checkInterval: data.checkInterval || 5,
         openaiApiKey: data.openaiApiKey || '',
         aiModel: data.openaiModel || 'gpt-4o',
-        watchPaths: data.watchPaths || [],
-        ignorePatterns: data.ignorePatterns || []
+        ignorePatterns: data.ignorePatterns || [],
+        periodicCheckEnabled: data.periodicCheckEnabled ?? true
       })
     } catch (error) {
       console.error('Error fetching config:', error)
@@ -42,7 +42,7 @@ export default function Settings() {
 
   const fetchModels = async () => {
     try {
-      const response = await fetch('/api/models')
+      const response = await apiFetch('/api/models')
       const data: ModelsResponse = await response.json()
       
       if (data.error) {
@@ -76,7 +76,7 @@ export default function Settings() {
   const saveConfig = async () => {
     setSaving(true)
     try {
-      const response = await fetch('/api/config', {
+      const response = await apiFetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
@@ -95,22 +95,7 @@ export default function Settings() {
     }
   }
 
-  const addWatchPath = () => {
-    if (newWatchPath.trim() && !config.watchPaths.includes(newWatchPath.trim())) {
-      setConfig({
-        ...config,
-        watchPaths: [...config.watchPaths, newWatchPath.trim()]
-      })
-      setNewWatchPath('')
-    }
-  }
 
-  const removeWatchPath = (index: number) => {
-    setConfig({
-      ...config,
-      watchPaths: config.watchPaths.filter((_, i) => i !== index)
-    })
-  }
 
   const addIgnorePattern = () => {
     if (newIgnorePattern.trim() && !config.ignorePatterns.includes(newIgnorePattern.trim())) {
@@ -163,16 +148,38 @@ export default function Settings() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Check Interval (seconds)
+                Periodic Check Interval (seconds)
               </label>
+              <p className="text-sm text-gray-500 mb-2">
+                In addition to real-time monitoring, Obby can also periodically scan all files for changes.
+              </p>
               <input
                 type="number"
                 min="1"
                 max="3600"
                 value={config.checkInterval}
                 onChange={(e) => setConfig({ ...config, checkInterval: parseInt(e.target.value) || 5 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                disabled={!config.periodicCheckEnabled}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
               />
+            </div>
+
+            <div>
+              <label className="flex items-center space-x-3">
+                <input
+                  type="checkbox"
+                  checked={config.periodicCheckEnabled}
+                  onChange={(e) => setConfig({ ...config, periodicCheckEnabled: e.target.checked })}
+                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                />
+                <span className="text-sm font-medium text-gray-700">
+                  Enable Periodic Checking
+                </span>
+              </label>
+              <p className="text-sm text-gray-500 mt-1 ml-7">
+                When enabled, Obby will check all watched files at the specified interval,
+                in addition to real-time change detection.
+              </p>
             </div>
 
             <div>
@@ -225,41 +232,17 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Watch Paths */}
+        {/* Watch Paths are now configured in .obbywatch file */}
         <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Watch Paths</h3>
-          
-          <div className="space-y-4">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newWatchPath}
-                onChange={(e) => setNewWatchPath(e.target.value)}
-                placeholder="Enter directory path..."
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                onKeyPress={(e) => e.key === 'Enter' && addWatchPath()}
-              />
-              <button
-                onClick={addWatchPath}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-              >
-                <FolderPlus className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2 max-h-48 overflow-y-auto">
-              {config.watchPaths.map((path, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <span className="text-sm text-gray-700">{path}</span>
-                  <button
-                    onClick={() => removeWatchPath(index)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Watch Configuration</h3>
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <p className="text-sm text-blue-800">
+              <strong>Directory Monitoring:</strong> Watch paths are now configured via the <code className="bg-blue-100 px-1 rounded">.obbywatch</code> file in the utils folder.
+              This file specifies which directories and file patterns to monitor for changes.
+            </p>
+            <p className="text-sm text-blue-700 mt-2">
+              Edit <code className="bg-blue-100 px-1 rounded">utils/.obbywatch</code> to add or remove directories to monitor.
+            </p>
           </div>
         </div>
 

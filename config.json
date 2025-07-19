@@ -1,10 +1,7 @@
 {
-  "checkInterval": 30,
+  "checkInterval": 10,
   "openaiApiKey": "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",
   "aiModel": "gpt-4.1-nano",
-  "watchPaths": [
-    "notes"
-  ],
   "ignorePatterns": [
     ".git/",
     "__pycache__/",
