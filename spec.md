@@ -12,13 +12,12 @@ The project is intentionally **simple and local-first**, so it’s easy to learn
 
 ## 🧱 Features
 
-### ✅ Snapshot & Diff on Interval
+### ✅ Real-time Change Detection & Diffs
 
-- Obby checks `notes/test.md` every **20 seconds** for changes.
-- If the file changed:
+- Obby monitors markdown files in the `notes/` folder using real-time file system events.
+- When a file changes:
   - The diff is printed to the terminal using `difflib`.
-  - A timestamped **snapshot** is saved to `snapshots/`.
-  - A human-readable diff is saved to `diffs/`.
+  - A human-readable, timestamped diff is saved to `diffs/`.
 
 ### ✅ AI-Managed Living Note
 
@@ -35,7 +34,7 @@ The project is intentionally **simple and local-first**, so it’s easy to learn
 ### ✅ Minimal Dependencies
 
 - No server, no database, no web UI (yet).
-- All data lives in the local filesystem (`notes/`, `snapshots/`, `diffs/`).
+- All data lives in the local filesystem (`notes/`, `diffs/`).
 - The only external call is to the OpenAI API.
 
 ---

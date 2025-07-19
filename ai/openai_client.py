@@ -10,10 +10,23 @@ from openai import OpenAI
 class OpenAIClient:
     """Handles OpenAI API calls for diff summarization."""
     
-    def __init__(self, api_key=None, model="gpt-4"):
+    # Latest OpenAI models as of July 2025
+    MODELS = {
+        'gpt-4o': 'gpt-4o',           # Latest GPT-4 model with improved capabilities
+        'gpt-4.1': 'gpt-4.1',         # GPT-4.1 model
+        'gpt-4.1-mini': 'gpt-4.1-mini',  # GPT-4.1 mini model
+        'o4-mini': 'o4-mini',         # O4 mini model
+        'gpt-4.1-nano': 'gpt-4.1-nano'  # GPT-4.1 nano model
+    }
+    
+    def __init__(self, api_key=None, model="gpt-4o"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model = model
         self.client = OpenAI(api_key=self.api_key)
+        
+        # Validate model selection
+        if model not in self.MODELS.values():
+            print(f"Warning: Model '{model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
     
     def summarize_diff(self, diff_content):
         """

@@ -27,15 +27,16 @@
 - **User customizable**: Easy to add/remove ignore patterns
 
 ### ✅ Local-First & Minimal
-- No server, no database, no web UI
 - All data stored locally in text files
 - Only external dependency is OpenAI API
 - Clean, readable terminal output
+- Optional web UI for enhanced user experience
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Python 3.8 or higher
+- Node.js 16+ and npm (for web UI)
 - OpenAI API key (optional, for AI features)
 
 ### Installation
@@ -56,14 +57,27 @@
    export OPENAI_API_KEY="your-api-key-here"
    ```
 
-4. **Run Obby**
+4. **Run Obby (CLI)**
    ```bash
    python main.py
    ```
 
+5. **Run Obby with Web UI**
+   ```bash
+   # Terminal 1: Backend API
+   python api_server.py
+   
+   # Terminal 2: Frontend UI
+   cd frontend
+   npm install
+   npm start
+   ```
+   
+   Then open http://localhost:3000 for the web interface.
+
 ### First Run
 On first run, Obby will:
-- Create necessary directories (`notes/`, `snapshots/`, `diffs/`)
+- Create necessary directories (`notes/`, `diffs/`)
 - Generate a test file at `notes/test.md`
 - Start monitoring for changes
 
@@ -71,7 +85,8 @@ On first run, Obby will:
 
 ```
 obby/
-├── main.py                 # Entry point
+├── main.py                 # CLI entry point
+├── api_server.py           # Flask API server for web UI
 ├── config/
 │   └── settings.py         # Configuration settings
 ├── ai/
@@ -82,10 +97,16 @@ obby/
 │   ├── file_helpers.py     # File utilities
 │   ├── file_watcher.py     # Real-time file monitoring
 │   └── ignore_handler.py   # .obbyignore pattern matching
+├── frontend/               # React + Tailwind web UI
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Main page components
+│   │   └── types/          # TypeScript type definitions
+│   ├── package.json
+│   └── vite.config.ts
 ├── notes/
 │   ├── test.md            # Your note file (created on first run)
 │   └── living_note.md     # AI-generated summary
-├── snapshots/             # Timestamped snapshots
 ├── diffs/                 # Human-readable diffs
 ├── .obbyignore            # File ignore patterns
 └── README.md
@@ -98,7 +119,6 @@ Edit `config/settings.py` to customize:
 ```python
 # File paths
 NOTE_PATH = Path("notes/test.md")
-SNAPSHOT_PATH = Path("snapshots")
 DIFF_PATH = Path("diffs")
 LIVING_NOTE_PATH = Path("notes/living_note.md")
 
@@ -109,33 +129,75 @@ CHECK_INTERVAL = 20  # seconds
 OPENAI_MODEL = "gpt-4.1-mini"
 ```
 
+## 🌐 Web UI Features
+
+The React + Tailwind web interface provides:
+
+### 📊 Dashboard
+- Real-time monitoring status and controls
+- File change statistics and activity feed
+- Recent diffs and AI summaries
+- Start/stop monitoring with one click
+
+### 📁 File Explorer
+- Tree view of watched directories
+- Visual indicators for monitored files
+- File browsing and navigation
+
+### 🔍 Diff Viewer
+- Timeline of all file changes
+- Side-by-side diff visualization
+- Search and filter capabilities
+- Export diff reports
+
+### 📝 Living Note Interface
+- Rich display of AI-generated summaries
+- Word count and update statistics
+- Easy content browsing
+
+### ⚙️ Settings Management
+- Visual configuration editor
+- Watch path management
+- Ignore pattern configuration
+- OpenAI settings and model selection
+
 ## 🎮 Usage
 
-1. **Start Obby**
+1. **Start Obby (CLI)**
    ```bash
    python main.py
    ```
 
-2. **Edit your notes**
+2. **Start Obby (Web UI)**
+   ```bash
+   # Terminal 1: Backend
+   python api_server.py
+   
+   # Terminal 2: Frontend
+   cd frontend
+   npm start
+   ```
+
+3. **Edit your notes**
    - Open `notes/test.md` in your favorite editor
    - Make changes and save
    - Obby will automatically detect changes and create summaries
 
-3. **Manage file structure**
+4. **Manage file structure**
    - Create new files and directories
    - Move or rename files
    - Delete files
    - Obby tracks all file tree changes automatically
 
-4. **Customize ignore patterns**
+5. **Customize ignore patterns**
    - Edit `.obbyignore` to specify files/patterns to ignore
    - Use glob patterns like `*.tmp`, `draft_*.md`, `archive/`
    - Comments supported with `#` prefix
 
-5. **Monitor output**
+6. **Monitor output**
    - Terminal shows real-time monitoring of both content and tree changes
    - Check `notes/living_note.md` for AI-generated summaries
-   - Browse `snapshots/` for historical versions
+   - Browse `diffs/` for change history
 
 ## 🧠 Planned Features
 
@@ -163,8 +225,7 @@ python main.py
 🔍 Starting Obby - Note Change Tracker
 ========================================
 📝 Watching: notes/test.md
-⏰ Check interval: 20 seconds
-📁 Snapshots: snapshots
+⚡ Detection: Real-time file system events
 📄 Diffs: diffs
 🤖 Living Note: notes/living_note.md
 
