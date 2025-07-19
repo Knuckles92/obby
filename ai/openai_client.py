@@ -99,7 +99,7 @@ class OpenAIClient:
         
         Args:
             living_note_path: Path to the living note file
-            summary: AI-generated summary to append
+            summary: AI-generated summary to prepend (newer entries at top)
         """
         living_note_path = Path(living_note_path)
         
@@ -110,16 +110,20 @@ class OpenAIClient:
         
         # Prepend summary with timestamp (newer messages at top)
         from datetime import datetime
-        timestamp = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         
         # Read existing content
         existing_content = ""
         if living_note_path.exists() and living_note_path.stat().st_size > 0:
             existing_content = living_note_path.read_text(encoding='utf-8')
         
-        # Write new entry at the beginning, followed by existing content
+        # Create new entry to add at the top
         new_entry = f"## {timestamp}\n\n{summary}\n\n---\n\n"
+        
+        # Write new entry at the beginning, followed by existing content
+        updated_content = new_entry + existing_content
+        
         with open(living_note_path, "w", encoding='utf-8') as f:
-            f.write(new_entry + existing_content)
+            f.write(updated_content)
         
         logging.info(f"Living note updated: {living_note_path}")
