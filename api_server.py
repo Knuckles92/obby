@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, send_from_directory, send_file
+from flask import Flask, jsonify, request, send_from_directory, send_file, Response
 from flask_cors import CORS
 import threading
 import time
@@ -11,6 +11,9 @@ from datetime import datetime
 import uuid
 import logging
 from functools import lru_cache
+import queue
+from watchdog.observers import Observer
+from watchdog.events import FileSystemEventHandler
 
 from core.monitor import ObbyMonitor
 from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
@@ -42,6 +45,10 @@ monitor_thread = None
 monitoring_active = False
 recent_events = []
 recent_diffs = []
+
+# SSE clients for real-time updates
+sse_clients = []
+living_note_observer = None
 
 @app.route('/api/status', methods=['GET'])
 def get_status():
@@ -130,12 +137,16 @@ def get_recent_diffs():
     try:
         limit = max(1, min(request.args.get('limit', 20, type=int), 100))  # Limit between 1-100
         
-        diffs_dir = Path('diffs')
+        # Use absolute path to ensure we're looking in the right place
+        diffs_dir = Path(__file__).parent / 'diffs'
         diff_files = []
+        
+        logger.info(f"DIFFS API CALLED - Looking in: {diffs_dir.resolve()}")
+        logger.info(f"DIFFS API CALLED - Dir exists: {diffs_dir.exists()}")
         
         if diffs_dir.exists():
             try:
-                diff_file_list = list(diffs_dir.glob('*.diff'))
+                diff_file_list = list(diffs_dir.glob('*.txt'))
                 sorted_files = sorted(diff_file_list, key=lambda f: f.stat().st_mtime, reverse=True)[:limit]
                 
                 for diff_file in sorted_files:
@@ -199,22 +210,15 @@ def clear_living_note():
         living_note_path = Path('notes/living_note.md')
         
         if living_note_path.exists():
-            # Create backup before clearing
-            backup_path = living_note_path.with_suffix('.md.backup')
-            try:
-                content = living_note_path.read_text(encoding='utf-8')
-                backup_path.write_text(content, encoding='utf-8')
-                logger.info(f"Created backup of living note at {backup_path}")
-            except Exception as e:
-                logger.warning(f"Could not create backup: {e}")
-            
             # Clear the file
             living_note_path.write_text('', encoding='utf-8')
             logger.info("Living note cleared successfully")
             
+            # Notify SSE clients of the change
+            notify_living_note_change()
+            
             return jsonify({
-                'message': 'Living note cleared successfully',
-                'backup_created': backup_path.exists()
+                'message': 'Living note cleared successfully'
             })
         else:
             return jsonify({'message': 'Living note file does not exist'}), 404
@@ -225,6 +229,122 @@ def clear_living_note():
     except Exception as e:
         logger.error(f"Error clearing living note: {e}")
         return jsonify({'error': f'Failed to clear living note: {str(e)}'}), 500
+
+@app.route('/api/living-note/events')
+def living_note_events():
+    """SSE endpoint for living note updates"""
+    def event_stream():
+        # Send initial connection message
+        yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+        
+        # Create a queue for this client
+        client_queue = queue.Queue()
+        sse_clients.append(client_queue)
+        
+        try:
+            while True:
+                try:
+                    # Wait for events with timeout to send keepalive
+                    message = client_queue.get(timeout=30)
+                    yield f"data: {json.dumps(message)}\n\n"
+                except queue.Empty:
+                    # Send keepalive
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+        except GeneratorExit:
+            # Client disconnected
+            if client_queue in sse_clients:
+                sse_clients.remove(client_queue)
+    
+    return Response(event_stream(), mimetype='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Cache-Control'
+    })
+
+def notify_living_note_change():
+    """Notify all SSE clients of living note changes"""
+    if not sse_clients:
+        return
+    
+    try:
+        # Get the updated living note data
+        living_note_path = Path('notes/living_note.md')
+        
+        if living_note_path.exists():
+            content = living_note_path.read_text(encoding='utf-8')
+            stat = living_note_path.stat()
+            
+            data = {
+                'type': 'living_note_updated',
+                'content': content,
+                'lastUpdated': datetime.fromtimestamp(stat.st_mtime).isoformat(),
+                'wordCount': len(content.split())
+            }
+        else:
+            data = {
+                'type': 'living_note_updated',
+                'content': '',
+                'lastUpdated': datetime.now().isoformat(),
+                'wordCount': 0
+            }
+        
+        # Send to all connected clients
+        for client_queue in sse_clients[:]:  # Copy list to avoid modification during iteration
+            try:
+                client_queue.put_nowait(data)
+            except:
+                # Remove dead clients
+                sse_clients.remove(client_queue)
+                
+    except Exception as e:
+        logger.error(f"Error notifying living note change: {e}")
+
+class LivingNoteFileHandler(FileSystemEventHandler):
+    """File system event handler for living note changes"""
+    
+    def __init__(self, living_note_path):
+        self.living_note_path = Path(living_note_path)
+        
+    def on_modified(self, event):
+        if not event.is_directory:
+            file_path = Path(event.src_path)
+            if file_path.resolve() == self.living_note_path.resolve():
+                logger.info("Living note file modified, notifying clients")
+                notify_living_note_change()
+
+def start_living_note_watcher():
+    """Start watching the living note file for changes"""
+    global living_note_observer
+    
+    if living_note_observer is not None:
+        return
+    
+    living_note_path = Path('notes/living_note.md')
+    
+    # Ensure the notes directory exists
+    living_note_path.parent.mkdir(exist_ok=True)
+    
+    # Create the file if it doesn't exist
+    if not living_note_path.exists():
+        living_note_path.write_text('')
+    
+    # Set up file watcher
+    event_handler = LivingNoteFileHandler(living_note_path)
+    living_note_observer = Observer()
+    living_note_observer.schedule(event_handler, str(living_note_path.parent), recursive=False)
+    living_note_observer.start()
+    
+    logger.info(f"Started watching living note file: {living_note_path}")
+
+def stop_living_note_watcher():
+    """Stop watching the living note file"""
+    global living_note_observer
+    
+    if living_note_observer is not None:
+        living_note_observer.stop()
+        living_note_observer.join()
+        living_note_observer = None
+        logger.info("Stopped living note file watcher")
 
 @app.route('/api/events/clear', methods=['POST'])
 def clear_recent_events():
@@ -593,4 +713,12 @@ def serve_frontend(path):
 if __name__ == '__main__':
     logger.info("Starting Obby API server on http://localhost:8001")
     logger.info("Web interface will be available once the server starts")
-    app.run(debug=False, port=8001, host='0.0.0.0', threaded=True)
+    
+    # Start the living note file watcher
+    start_living_note_watcher()
+    
+    try:
+        app.run(debug=True, port=8001, host='0.0.0.0', threaded=True)
+    finally:
+        # Clean up on shutdown
+        stop_living_note_watcher()

@@ -1,7 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { 
   Home, 
-  FolderTree, 
   GitBranch, 
   FileText, 
   Settings, 
@@ -16,7 +15,6 @@ interface SidebarProps {
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'File Explorer', href: '/files', icon: FolderTree },
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
   { name: 'Living Note', href: '/living-note', icon: FileText },
   { name: 'Settings', href: '/settings', icon: Settings },

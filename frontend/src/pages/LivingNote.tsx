@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FileText, Clock, BarChart3, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -17,10 +17,75 @@ export default function LivingNote() {
   const [loading, setLoading] = useState(true)
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
   const [clearLoading, setClearLoading] = useState(false)
+  const [isConnected, setIsConnected] = useState(false)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
     fetchLivingNote()
+    connectToSSE()
+    
+    return () => {
+      disconnectSSE()
+    }
   }, [])
+
+  const connectToSSE = () => {
+    if (eventSourceRef.current) {
+      return // Already connected
+    }
+
+    try {
+      const eventSource = new EventSource('/api/living-note/events')
+      eventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        console.log('Connected to living note updates')
+        setIsConnected(true)
+      }
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          
+          if (data.type === 'living_note_updated') {
+            setNote({
+              content: data.content,
+              lastUpdated: data.lastUpdated,
+              wordCount: data.wordCount
+            })
+          } else if (data.type === 'connected') {
+            console.log('SSE connection established')
+          }
+        } catch (error) {
+          console.error('Error parsing SSE message:', error)
+        }
+      }
+
+      eventSource.onerror = (error) => {
+        console.error('SSE connection error:', error)
+        setIsConnected(false)
+        
+        // Reconnect after a delay
+        setTimeout(() => {
+          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+            disconnectSSE()
+            connectToSSE()
+          }
+        }, 5000)
+      }
+    } catch (error) {
+      console.error('Failed to establish SSE connection:', error)
+      setIsConnected(false)
+    }
+  }
+
+  const disconnectSSE = () => {
+    if (eventSourceRef.current) {
+      eventSourceRef.current.close()
+      eventSourceRef.current = null
+      setIsConnected(false)
+    }
+  }
 
   const fetchLivingNote = async () => {
     try {
@@ -77,6 +142,13 @@ export default function LivingNote() {
         </div>
         
         <div className="flex space-x-3">
+          <div className="flex items-center space-x-2">
+            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-sm text-gray-600">
+              {isConnected ? 'Live updates active' : 'Disconnected'}
+            </span>
+          </div>
+          
           <button
             onClick={fetchLivingNote}
             disabled={loading}
@@ -203,7 +275,7 @@ export default function LivingNote() {
         cancelText="Cancel"
         danger={true}
         loading={clearLoading}
-        extraWarning="This action cannot be undone. A backup will be created automatically."
+        extraWarning="This action cannot be undone."
       />
     </div>
   )

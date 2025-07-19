@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
 import { useState } from 'react'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
-import FileExplorer from './pages/FileExplorer'
 import DiffViewer from './pages/DiffViewer'
 import LivingNote from './pages/LivingNote'
 import Settings from './pages/Settings'
@@ -19,7 +18,6 @@ function App() {
           <div className="h-full overflow-auto p-6">
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/files" element={<FileExplorer />} />
               <Route path="/diffs" element={<DiffViewer />} />
               <Route path="/living-note" element={<LivingNote />} />
               <Route path="/settings" element={<Settings />} />

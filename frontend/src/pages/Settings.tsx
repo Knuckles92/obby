@@ -7,7 +7,7 @@ export default function Settings() {
   const [config, setConfig] = useState<ConfigSettings>({
     checkInterval: 5,
     openaiApiKey: '',
-    aiModel: 'gpt-4o',
+    aiModel: 'gpt-4.1-mini',
     ignorePatterns: [],
     periodicCheckEnabled: true
   })
@@ -29,7 +29,7 @@ export default function Settings() {
       setConfig({
         checkInterval: data.checkInterval || 5,
         openaiApiKey: data.openaiApiKey || '',
-        aiModel: data.openaiModel || 'gpt-4o',
+        aiModel: data.aiModel || 'gpt-4.1-mini',
         ignorePatterns: data.ignorePatterns || [],
         periodicCheckEnabled: data.periodicCheckEnabled ?? true
       })

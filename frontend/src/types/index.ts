@@ -11,6 +11,8 @@ export interface DiffEntry {
   filePath: string;
   timestamp: string;
   content: string;
+  size?: number;
+  fullPath?: string;
   summary?: string;
 }
 

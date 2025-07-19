@@ -7,6 +7,7 @@ export default function DiffViewer() {
   const [diffs, setDiffs] = useState<DiffEntry[]>([])
   const [selectedDiff, setSelectedDiff] = useState<DiffEntry | null>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchDiffs()
@@ -14,11 +15,26 @@ export default function DiffViewer() {
 
   const fetchDiffs = async () => {
     try {
+      setError(null)
       const response = await apiFetch('/api/diffs?limit=50')
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch diffs: ${response.status} ${response.statusText}`)
+      }
+      
       const data = await response.json()
-      setDiffs(data)
+      
+      if (Array.isArray(data)) {
+        setDiffs(data)
+      } else if (data.error) {
+        throw new Error(data.error)
+      } else {
+        throw new Error('Invalid response format')
+      }
     } catch (error) {
       console.error('Error fetching diffs:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load diffs')
+      setDiffs([])
     } finally {
       setLoading(false)
     }
@@ -51,6 +67,17 @@ export default function DiffViewer() {
           {loading ? (
             <div className="flex items-center justify-center h-32">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            </div>
+          ) : error ? (
+            <div className="text-center py-8">
+              <p className="text-red-600 mb-2">Error loading diffs</p>
+              <p className="text-sm text-gray-600 mb-4">{error}</p>
+              <button
+                onClick={fetchDiffs}
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : diffs.length > 0 ? (
             <div className="space-y-2">
@@ -92,9 +119,16 @@ export default function DiffViewer() {
                 </div>
               </div>
               
-              <pre className="text-xs bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">
-                {selectedDiff.content}
-              </pre>
+              <div className="space-y-2">
+                {selectedDiff.size && selectedDiff.content.length < selectedDiff.size && (
+                  <div className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
+                    Content truncated. Showing {selectedDiff.content.length} of {selectedDiff.size} characters.
+                  </div>
+                )}
+                <pre className="text-xs bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">
+                  {selectedDiff.content}
+                </pre>
+              </div>
             </div>
           ) : (
             <p className="text-gray-600 text-center py-8">Select a diff to view details</p>

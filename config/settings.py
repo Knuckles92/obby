@@ -9,5 +9,5 @@ LIVING_NOTE_PATH = Path("notes/living_note.md")
 CHECK_INTERVAL = 20  # seconds
 
 # OpenAI settings
-OPENAI_MODEL = "gpt-4o-mini"  # Default model for AI summarization
+OPENAI_MODEL = "gpt-4.1-mini"  # Default model for AI summarization
 OPENAI_API_KEY = None  # Set via environment variable OPENAI_API_KEY

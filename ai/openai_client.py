@@ -20,7 +20,7 @@ class OpenAIClient:
         'gpt-4.1-nano': 'gpt-4.1-nano'  # GPT-4.1 nano model
     }
     
-    def __init__(self, api_key=None, model="gpt-4o"):
+    def __init__(self, api_key=None, model="gpt-4.1-mini"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         self.model = model
         self.client = OpenAI(api_key=self.api_key)
