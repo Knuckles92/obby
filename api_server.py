@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory, send_file
 from flask_cors import CORS
 import threading
 import time
@@ -9,14 +9,32 @@ from config.settings import DIFF_PATH, LIVING_NOTE_PATH
 import json
 from datetime import datetime
 import uuid
+import logging
+from functools import lru_cache
 
 from core.monitor import ObbyMonitor
 from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
 from ai.openai_client import OpenAIClient
 from utils.file_watcher import FileWatcher, NoteChangeHandler
 
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(),
+        logging.FileHandler('obby.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
 app = Flask(__name__)
 CORS(app)
+
+# Disable Flask development server logging in production
+if not app.debug:
+    log = logging.getLogger('werkzeug')
+    log.setLevel(logging.ERROR)
 
 # Global variables for monitoring state
 monitor_instance = None
@@ -99,37 +117,64 @@ def stop_monitoring():
 @app.route('/api/events', methods=['GET'])
 def get_recent_events():
     """Get recent file events"""
-    limit = request.args.get('limit', 50, type=int)
-    return jsonify(recent_events[-limit:])
+    try:
+        limit = max(1, min(request.args.get('limit', 50, type=int), 200))  # Limit between 1-200
+        return jsonify(recent_events[-limit:] if recent_events else [])
+    except Exception as e:
+        logger.error(f"Error retrieving recent events: {e}")
+        return jsonify({'error': 'Failed to retrieve events'}), 500
 
 @app.route('/api/diffs', methods=['GET'])
 def get_recent_diffs():
     """Get recent diff files"""
-    limit = request.args.get('limit', 20, type=int)
-    
-    diffs_dir = Path('diffs')
-    diff_files = []
-    
-    if diffs_dir.exists():
-        for diff_file in sorted(diffs_dir.glob('*.diff'), key=os.path.getmtime, reverse=True)[:limit]:
+    try:
+        limit = max(1, min(request.args.get('limit', 20, type=int), 100))  # Limit between 1-100
+        
+        diffs_dir = Path('diffs')
+        diff_files = []
+        
+        if diffs_dir.exists():
             try:
-                content = diff_file.read_text(encoding='utf-8')
-                diff_files.append({
-                    'id': diff_file.stem,
-                    'filePath': diff_file.stem.split('_')[0] if '_' in diff_file.stem else diff_file.stem,
-                    'timestamp': datetime.fromtimestamp(diff_file.stat().st_mtime).isoformat(),
-                    'content': content[:500] + '...' if len(content) > 500 else content,
-                    'size': len(content)
-                })
-            except Exception as e:
-                print(f"Error reading diff file {diff_file}: {e}")
-    
-    return jsonify(diff_files)
+                diff_file_list = list(diffs_dir.glob('*.diff'))
+                sorted_files = sorted(diff_file_list, key=lambda f: f.stat().st_mtime, reverse=True)[:limit]
+                
+                for diff_file in sorted_files:
+                    try:
+                        content = diff_file.read_text(encoding='utf-8')
+                        file_parts = diff_file.stem.split('.')
+                        base_name = file_parts[0] if file_parts else diff_file.stem
+                        
+                        diff_files.append({
+                            'id': diff_file.stem,
+                            'filePath': base_name,
+                            'timestamp': datetime.fromtimestamp(diff_file.stat().st_mtime).isoformat(),
+                            'content': content[:500] + '...' if len(content) > 500 else content,
+                            'size': len(content),
+                            'fullPath': str(diff_file)
+                        })
+                    except (UnicodeDecodeError, PermissionError) as e:
+                        logger.warning(f"Could not read diff file {diff_file}: {e}")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Error processing diff file {diff_file}: {e}")
+                        continue
+                        
+            except PermissionError:
+                logger.error(f"Permission denied accessing diffs directory: {diffs_dir}")
+                return jsonify({'error': 'Permission denied accessing diffs directory'}), 403
+        else:
+            logger.info(f"Diffs directory does not exist: {diffs_dir}")
+        
+        return jsonify(diff_files)
+        
+    except Exception as e:
+        logger.error(f"Error retrieving diff files: {e}")
+        return jsonify({'error': 'Failed to retrieve diff files'}), 500
 
 @app.route('/api/living-note', methods=['GET'])
 def get_living_note():
     """Get the current living note content"""
-    living_note_path = Path('living_note.md')
+    living_note_path = Path('notes/living_note.md')
     
     if living_note_path.exists():
         content = living_note_path.read_text(encoding='utf-8')
@@ -167,7 +212,7 @@ def get_config():
                 saved_config = json.load(f)
                 config_data.update(saved_config)
         except Exception as e:
-            print(f"Error loading config file: {e}")
+            logger.error(f"Error loading config file: {e}")
     
     return jsonify(config_data)
 
@@ -242,8 +287,15 @@ def get_file_tree():
     try:
         tree = build_file_tree(Path(path))
         return jsonify(tree)
+    except PermissionError:
+        logger.warning(f"Permission denied accessing path: {path}")
+        return jsonify({'error': 'Permission denied'}), 403
+    except FileNotFoundError:
+        logger.warning(f"Path not found: {path}")
+        return jsonify({'error': 'Path not found'}), 404
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error building file tree for {path}: {e}")
+        return jsonify({'error': 'Failed to build file tree'}), 500
 
 def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0) -> Dict[str, Any]:
     """Build a file tree structure focusing on relevant directories and markdown files"""
@@ -413,7 +465,7 @@ def run_monitor():
         try:
             time.sleep(1)
         except Exception as e:
-            print(f"Monitor error: {e}")
+            logger.error(f"Monitor error: {e}")
             break
 
 def is_today(timestamp_str: str) -> bool:
@@ -424,6 +476,38 @@ def is_today(timestamp_str: str) -> bool:
     except:
         return False
 
+# Static file serving for production
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path):
+    """Serve the React frontend"""
+    frontend_dir = Path('frontend/dist')
+    
+    # If frontend build exists, serve it
+    if frontend_dir.exists():
+        if path and (frontend_dir / path).exists():
+            return send_from_directory(frontend_dir, path)
+        # For React Router, serve index.html for any non-API routes
+        elif not path.startswith('api/'):
+            return send_from_directory(frontend_dir, 'index.html')
+    
+    # Fallback for development or missing frontend
+    return jsonify({
+        'message': 'Obby API Server',
+        'version': '1.0.0',
+        'endpoints': {
+            'status': '/api/status',
+            'monitor': '/api/monitor/start|stop',
+            'events': '/api/events',
+            'diffs': '/api/diffs',
+            'living-note': '/api/living-note',
+            'config': '/api/config',
+            'files': '/api/files/tree'
+        },
+        'frontend': 'Build frontend with: cd frontend && npm run build'
+    })
+
 if __name__ == '__main__':
-    print("Starting Obby API server...")
-    app.run(debug=True, port=8000, host='0.0.0.0')
+    logger.info("Starting Obby API server on http://localhost:8000")
+    logger.info("Web interface will be available once the server starts")
+    app.run(debug=False, port=8000, host='0.0.0.0', threaded=True)

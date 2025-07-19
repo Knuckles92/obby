@@ -4,6 +4,7 @@ This module will handle communication with OpenAI API for summarizing diffs.
 """
 
 import os
+import logging
 from pathlib import Path
 from openai import OpenAI
 
@@ -26,7 +27,7 @@ class OpenAIClient:
         
         # Validate model selection
         if model not in self.MODELS.values():
-            print(f"Warning: Model '{model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
+            logging.warning(f"Model '{model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
     
     def summarize_diff(self, diff_content):
         """
@@ -114,4 +115,4 @@ class OpenAIClient:
         with open(living_note_path, "a") as f:
             f.write(f"## {timestamp}\n\n{summary}\n\n---\n\n")
         
-        print(f"    Living note updated: {living_note_path}")
+        logging.info(f"Living note updated: {living_note_path}")

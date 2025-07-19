@@ -4,6 +4,7 @@ Supports glob patterns and basic ignore syntax similar to .gitignore.
 """
 
 import fnmatch
+import logging
 from pathlib import Path
 from typing import List, Set
 
@@ -41,9 +42,9 @@ class IgnoreHandler:
                     if line and not line.startswith('#'):
                         self.ignore_patterns.add(line)
             
-            print(f"[✓] Loaded {len(self.ignore_patterns)} ignore patterns from .obbyignore")
+            logging.info(f"Loaded {len(self.ignore_patterns)} ignore patterns from .obbyignore")
         except Exception as e:
-            print(f"[!] Error loading .obbyignore: {e}")
+            logging.error(f"Error loading .obbyignore: {e}")
     
     def create_default_ignore_file(self):
         """Create a default .obbyignore file with common patterns."""
@@ -76,9 +77,9 @@ Thumbs.db
         try:
             with open(self.ignore_file, 'w', encoding='utf-8') as f:
                 f.write(default_content)
-            print(f"[✓] Created default .obbyignore file")
+            logging.info(f"Created default .obbyignore file")
         except Exception as e:
-            print(f"[!] Error creating .obbyignore: {e}")
+            logging.error(f"Error creating .obbyignore: {e}")
     
     def should_ignore(self, file_path: Path) -> bool:
         """
@@ -129,4 +130,4 @@ Thumbs.db
                     self.load_ignore_patterns()
                     self._last_mtime = current_mtime
             except Exception as e:
-                print(f"[!] Error checking .obbyignore modification time: {e}")
+                logging.error(f"Error checking .obbyignore modification time: {e}")

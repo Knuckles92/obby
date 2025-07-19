@@ -1,4 +1,5 @@
 import difflib
+import logging
 from pathlib import Path
 from utils.file_helpers import read_lines, create_timestamp
 
@@ -25,7 +26,7 @@ class DiffTracker:
     def _process_change(self, current_lines, file_key):
         """Process a detected change by creating diff."""
         file_name = self.note_path.name
-        print(f"[!] Change detected in {file_name}")
+        logging.info(f"Change detected in {file_name}")
         
         # Get previous state for this file
         previous_lines = self.last_file_lines.get(file_key, [])
@@ -45,7 +46,7 @@ class DiffTracker:
         diff_file = self.diff_path / f"{base_name}.diff.{timestamp}.txt"
         diff_content = "\n".join(diff)
         diff_file.write_text(diff_content)
-        print(f"    ↪ Diff saved to {diff_file}")
+        logging.info(f"Diff saved to {diff_file}")
         
         # Update in-memory state for this file
         self.last_file_lines[file_key] = current_lines

@@ -4,6 +4,7 @@ Uses watchdog for instant, efficient file change detection.
 """
 
 import time
+import logging
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -72,7 +73,7 @@ class NoteChangeHandler(FileSystemEventHandler):
     def on_created(self, event):
         """Handle file creation events."""
         if event.is_directory:
-            print(f"[!] Directory created: {event.src_path}")
+            logging.info(f"Directory created: {event.src_path}")
             self._process_tree_change("created", event.src_path, is_directory=True)
             return
             
@@ -88,7 +89,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             return
             
         if file_path.suffix.lower() == '.md':
-            print(f"[!] Note file created: {file_path}")
+            logging.info(f"Note file created: {file_path}")
             self._process_note_change(file_path)
         
         # Also log any file creation for tree tracking
@@ -97,7 +98,7 @@ class NoteChangeHandler(FileSystemEventHandler):
     def on_deleted(self, event):
         """Handle file deletion events."""
         if event.is_directory:
-            print(f"[!] Directory deleted: {event.src_path}")
+            logging.info(f"Directory deleted: {event.src_path}")
             self._process_tree_change("deleted", event.src_path, is_directory=True)
             return
             
@@ -113,7 +114,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             return
             
         if file_path.suffix.lower() == '.md':
-            print(f"[!] Note file deleted: {file_path}")
+            logging.info(f"Note file deleted: {file_path}")
             # For deleted files, we can't process content but we should log the event
             self._process_tree_change("deleted", event.src_path, is_directory=False)
         else:
@@ -123,7 +124,7 @@ class NoteChangeHandler(FileSystemEventHandler):
     def on_moved(self, event):
         """Handle file move/rename events."""
         if event.is_directory:
-            print(f"[!] Directory moved: {event.src_path} → {event.dest_path}")
+            logging.info(f"Directory moved: {event.src_path} → {event.dest_path}")
             self._process_tree_change("moved", event.src_path, dest_path=event.dest_path, is_directory=True)
             return
             
@@ -148,7 +149,7 @@ class NoteChangeHandler(FileSystemEventHandler):
         dest_is_md = dest_path.suffix.lower() == '.md'
         
         if src_is_md or dest_is_md:
-            print(f"[!] Note file moved: {src_path} → {dest_path}")
+            logging.info(f"Note file moved: {src_path} → {dest_path}")
             # If the destination is a markdown file in our folder, process it
             if dest_is_md:
                 self._process_note_change(dest_path)
@@ -164,15 +165,15 @@ class NoteChangeHandler(FileSystemEventHandler):
             changed, diff_content = self.diff_tracker.check_for_changes()
             
             if changed:
-                print(f"[✓] Processing changes in: {file_path.name}")
+                logging.debug(f"Processing changes in: {file_path.name}")
                 # Generate AI summary and update living note
                 summary = self.ai_client.summarize_diff(diff_content)
                 self.ai_client.update_living_note(self.living_note_path, summary)
             else:
-                print(f"[✓] File event detected but no content change in: {file_path.name}")
+                logging.debug(f"File event detected but no content change in: {file_path.name}")
                 
         except Exception as e:
-            print(f"[!] Error processing note change in {file_path.name}: {e}")
+            logging.error(f"Error processing note change in {file_path.name}: {e}")
     
     def _process_tree_change(self, event_type, src_path, dest_path=None, is_directory=False):
         """Process a detected file tree change."""
@@ -185,14 +186,14 @@ class NoteChangeHandler(FileSystemEventHandler):
             else:
                 change_summary = f"File tree change: {path_type} {event_type} at {src_path}"
             
-            print(f"[✓] {change_summary}")
+            logging.info(f"{change_summary}")
             
             # Generate AI summary for the tree change and update living note
             tree_summary = self.ai_client.summarize_tree_change(change_summary)
             self.ai_client.update_living_note(self.living_note_path, tree_summary)
                 
         except Exception as e:
-            print(f"[!] Error processing tree change: {e}")
+            logging.error(f"Error processing tree change: {e}")
 
 
 class FileWatcher:
@@ -232,23 +233,23 @@ class FileWatcher:
         if not watch_dirs:
             # If no watch directories specified, fall back to notes folder
             watch_dirs = [self.notes_folder]
-            print(f"[!] No watch directories specified in .obbywatch, watching default: {self.notes_folder}")
+            logging.warning(f"No watch directories specified in .obbywatch, watching default: {self.notes_folder}")
         
         # Schedule watching for each directory
         for watch_dir in watch_dirs:
             if watch_dir.exists():
-                print(f"[✓] Watching directory: {watch_dir}")
+                logging.info(f"Watching directory: {watch_dir}")
                 self.observer.schedule(self.handler, str(watch_dir), recursive=True)
             else:
-                print(f"[!] Watch directory does not exist: {watch_dir}")
+                logging.warning(f"Watch directory does not exist: {watch_dir}")
         
         self.observer.start()
         self.is_running = True
         
         # Count existing markdown files
         md_files = list(self.notes_folder.glob('*.md'))
-        print(f"[✓] File watcher started - monitoring {len(md_files)} markdown files in {self.notes_folder}")
-        print("    Real-time change detection active for all .md files!")
+        logging.info(f"File watcher started - monitoring {len(md_files)} markdown files in {self.notes_folder}")
+        logging.info("Real-time change detection active for all .md files!")
         
     def stop(self):
         """Stop watching for file changes."""
@@ -258,7 +259,7 @@ class FileWatcher:
         self.observer.stop()
         self.observer.join()
         self.is_running = False
-        print("[✓] File watcher stopped")
+        logging.info("File watcher stopped")
         
     def wait(self):
         """Wait for the observer to finish (blocking)."""

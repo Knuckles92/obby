@@ -4,6 +4,7 @@ Specifies directories that Obby should monitor for changes.
 """
 
 import fnmatch
+import logging
 from pathlib import Path
 from typing import List, Set
 
@@ -39,9 +40,9 @@ class WatchHandler:
                     if line and not line.startswith('#'):
                         self.watch_patterns.add(line)
             
-            print(f"[✓] Loaded {len(self.watch_patterns)} watch patterns from .obbywatch")
+            logging.info(f"Loaded {len(self.watch_patterns)} watch patterns from .obbywatch")
         except Exception as e:
-            print(f"[!] Error loading .obbywatch: {e}")
+            logging.error(f"Error loading .obbywatch: {e}")
     
     def create_default_watch_file(self):
         """Create a default .obbywatch file with common directories."""
@@ -65,9 +66,9 @@ docs/
         try:
             with open(self.watch_file, 'w', encoding='utf-8') as f:
                 f.write(default_content)
-            print(f"[✓] Created default .obbywatch file")
+            logging.info(f"Created default .obbywatch file")
         except Exception as e:
-            print(f"[!] Error creating .obbywatch: {e}")
+            logging.error(f"Error creating .obbywatch: {e}")
     
     def should_watch(self, file_path: Path, base_path: Path = None) -> bool:
         """

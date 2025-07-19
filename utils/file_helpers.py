@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from datetime import datetime
 
@@ -21,4 +22,4 @@ def setup_test_file(note_path):
     if not note_path.exists():
         note_path.parent.mkdir(exist_ok=True)
         note_path.write_text("# My Notes\n\nThis is a test file for obby to watch.\nTry editing this file to see obby in action!\n")
-        print(f"✓ Created {note_path}")
+        logging.info(f"Created {note_path}")
