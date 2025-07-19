@@ -9,7 +9,10 @@
       "Bash(npm install)",
       "Bash(npm run dev:*)",
       "Bash(rg:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(dir)",
+      "Bash(start /b python:*)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }

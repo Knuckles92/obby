@@ -141,12 +141,16 @@ def get_recent_diffs():
         diffs_dir = Path(__file__).parent / 'diffs'
         diff_files = []
         
+        print(f"DIFFS API CALLED - Looking in: {diffs_dir.resolve()}")
+        print(f"DIFFS API CALLED - Dir exists: {diffs_dir.exists()}")
         logger.info(f"DIFFS API CALLED - Looking in: {diffs_dir.resolve()}")
         logger.info(f"DIFFS API CALLED - Dir exists: {diffs_dir.exists()}")
         
         if diffs_dir.exists():
             try:
                 diff_file_list = list(diffs_dir.glob('*.txt'))
+                print(f"Found {len(diff_file_list)} diff files: {[f.name for f in diff_file_list]}")
+                logger.info(f"Found {len(diff_file_list)} diff files")
                 sorted_files = sorted(diff_file_list, key=lambda f: f.stat().st_mtime, reverse=True)[:limit]
                 
                 for diff_file in sorted_files:
@@ -163,6 +167,7 @@ def get_recent_diffs():
                             'size': len(content),
                             'fullPath': str(diff_file)
                         })
+                        print(f"Processed diff file: {diff_file.name}")
                     except (UnicodeDecodeError, PermissionError) as e:
                         logger.warning(f"Could not read diff file {diff_file}: {e}")
                         continue
@@ -174,11 +179,15 @@ def get_recent_diffs():
                 logger.error(f"Permission denied accessing diffs directory: {diffs_dir}")
                 return jsonify({'error': 'Permission denied accessing diffs directory'}), 403
         else:
+            print(f"Diffs directory does not exist: {diffs_dir}")
             logger.info(f"Diffs directory does not exist: {diffs_dir}")
         
+        print(f"Returning {len(diff_files)} diff files")
+        logger.info(f"Returning {len(diff_files)} diff files")
         return jsonify(diff_files)
         
     except Exception as e:
+        print(f"Error retrieving diff files: {e}")
         logger.error(f"Error retrieving diff files: {e}")
         return jsonify({'error': 'Failed to retrieve diff files'}), 500
 
