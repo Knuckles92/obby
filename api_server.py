@@ -526,6 +526,157 @@ def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0) -> D
     
     return tree
 
+@app.route('/api/search', methods=['GET'])
+def search_semantic_index():
+    """Search the semantic index for relevant entries"""
+    query = request.args.get('q', '').strip().lower()
+    limit = request.args.get('limit', 20, type=int)
+    change_type = request.args.get('type', '').strip()  # content, tree, or empty for all
+    
+    if not query:
+        return jsonify({'error': 'Query parameter "q" is required'}), 400
+    
+    try:
+        index_path = Path('notes/semantic_index.json')
+        
+        if not index_path.exists():
+            return jsonify({
+                'results': [],
+                'total': 0,
+                'query': query,
+                'message': 'No semantic index found. Make some changes to build the index.'
+            })
+        
+        # Load semantic index
+        with open(index_path, 'r', encoding='utf-8') as f:
+            index_data = json.load(f)
+        
+        entries = index_data.get('entries', [])
+        
+        # Filter by change type if specified
+        if change_type:
+            entries = [e for e in entries if e.get('type') == change_type]
+        
+        # Simple text-based search in searchable_text, summary, topics, and keywords
+        matched_entries = []
+        for entry in entries:
+            score = 0
+            
+            # Search in searchable_text (comprehensive field)
+            if query in entry.get('searchable_text', ''):
+                score += 3
+            
+            # Search in summary
+            if query in entry.get('summary', '').lower():
+                score += 2
+                
+            # Search in topics
+            for topic in entry.get('topics', []):
+                if query in topic.lower():
+                    score += 2
+            
+            # Search in keywords
+            for keyword in entry.get('keywords', []):
+                if query in keyword.lower():
+                    score += 1
+            
+            # Add partial matches for individual words
+            query_words = query.split()
+            for word in query_words:
+                if len(word) > 2:  # Only consider words longer than 2 chars
+                    if word in entry.get('searchable_text', ''):
+                        score += 0.5
+            
+            if score > 0:
+                entry_with_score = entry.copy()
+                entry_with_score['relevance_score'] = score
+                matched_entries.append(entry_with_score)
+        
+        # Sort by relevance score and timestamp
+        matched_entries.sort(key=lambda x: (-x['relevance_score'], -datetime.fromisoformat(x['timestamp']).timestamp()))
+        
+        # Limit results
+        limited_results = matched_entries[:limit]
+        
+        return jsonify({
+            'results': limited_results,
+            'total': len(matched_entries),
+            'query': query,
+            'change_type_filter': change_type,
+            'index_metadata': index_data.get('metadata', {})
+        })
+        
+    except Exception as e:
+        logger.error(f"Error searching semantic index: {e}")
+        return jsonify({'error': f'Search failed: {str(e)}'}), 500
+
+@app.route('/api/search/topics', methods=['GET'])
+def get_semantic_topics():
+    """Get all available topics from the semantic index"""
+    try:
+        index_path = Path('notes/semantic_index.json')
+        
+        if not index_path.exists():
+            return jsonify({'topics': []})
+        
+        with open(index_path, 'r', encoding='utf-8') as f:
+            index_data = json.load(f)
+        
+        entries = index_data.get('entries', [])
+        
+        # Collect all unique topics
+        topics = set()
+        for entry in entries:
+            for topic in entry.get('topics', []):
+                if topic:
+                    topics.add(topic.lower())
+        
+        # Sort and return
+        sorted_topics = sorted(list(topics))
+        
+        return jsonify({
+            'topics': sorted_topics,
+            'total': len(sorted_topics)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting semantic topics: {e}")
+        return jsonify({'error': f'Failed to get topics: {str(e)}'}), 500
+
+@app.route('/api/search/keywords', methods=['GET'])
+def get_semantic_keywords():
+    """Get all available keywords from the semantic index"""
+    try:
+        index_path = Path('notes/semantic_index.json')
+        
+        if not index_path.exists():
+            return jsonify({'keywords': []})
+        
+        with open(index_path, 'r', encoding='utf-8') as f:
+            index_data = json.load(f)
+        
+        entries = index_data.get('entries', [])
+        
+        # Collect all unique keywords with frequency count
+        keyword_counts = {}
+        for entry in entries:
+            for keyword in entry.get('keywords', []):
+                if keyword:
+                    clean_keyword = keyword.lower().strip()
+                    keyword_counts[clean_keyword] = keyword_counts.get(clean_keyword, 0) + 1
+        
+        # Sort by frequency, then alphabetically
+        sorted_keywords = sorted(keyword_counts.items(), key=lambda x: (-x[1], x[0]))
+        
+        return jsonify({
+            'keywords': [{'keyword': k, 'count': c} for k, c in sorted_keywords],
+            'total': len(sorted_keywords)
+        })
+        
+    except Exception as e:
+        logger.error(f"Error getting semantic keywords: {e}")
+        return jsonify({'error': f'Failed to get keywords: {str(e)}'}), 500
+
 # Custom event handler that integrates with the API
 class APIAwareNoteChangeHandler(NoteChangeHandler):
     """Extended handler that also updates the API's event list"""

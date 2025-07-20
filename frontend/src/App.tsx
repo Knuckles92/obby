@@ -4,6 +4,7 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import DiffViewer from './pages/DiffViewer'
 import LivingNote from './pages/LivingNote'
+import SearchPage from './pages/SearchPage'
 import Settings from './pages/Settings'
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/diffs" element={<DiffViewer />} />
               <Route path="/living-note" element={<LivingNote />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </div>

@@ -20,4 +20,27 @@
   .btn-secondary {
     @apply bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md font-medium transition-colors;
   }
+
+  /* Custom slider styles for relevance filter */
+  .slider::-webkit-slider-thumb {
+    @apply appearance-none w-5 h-5 bg-primary-600 rounded-full cursor-pointer;
+  }
+  
+  .slider::-moz-range-thumb {
+    @apply w-5 h-5 bg-primary-600 rounded-full cursor-pointer border-0;
+  }
+
+  /* Search result highlight styles */
+  mark {
+    @apply bg-yellow-200 text-yellow-900 rounded px-1;
+  }
+
+  /* Filter chip animations */
+  .filter-chip {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  .filter-chip:hover {
+    @apply transform scale-105;
+  }
 }

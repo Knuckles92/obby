@@ -31,10 +31,48 @@ export interface ConfigSettings {
   periodicCheckEnabled?: boolean;
 }
 
+export interface SearchResult {
+  id: string;
+  timestamp: string;
+  summary: string;
+  topics: string[];
+  keywords: string[];
+  impact: string;
+  relevance_score: number;
+}
+
+export interface SemanticMetadata {
+  topics: Record<string, number>;
+  keywords: Record<string, number>;
+  totalEntries: number;
+}
+
+export interface LivingNoteSection {
+  title: string;
+  content: string;
+  type: string;
+  metadata?: Record<string, any>;
+}
+
 export interface LivingNote {
   content: string;
   lastUpdated: string;
   wordCount: number;
+  metadata?: SemanticMetadata;
+  sections?: LivingNoteSection[];
+}
+
+export interface SearchFilters {
+  query?: string;
+  topics?: string[];
+  keywords?: string[];
+  dateFrom?: string;
+  dateTo?: string;
+  minRelevance?: number;
+  limit?: number;
+  offset?: number;
+  impact?: string[];
+  sortBy?: string;
 }
 
 export interface ModelsResponse {

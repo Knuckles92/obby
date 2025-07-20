@@ -1,12 +1,44 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, BarChart3, Trash2 } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Search, Calendar, TrendingUp, List, Grid } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { LivingNote as LivingNoteType } from '../types'
+import { LivingNote as LivingNoteType, LivingNoteSection } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
-import { apiFetch } from '../utils/api'
+import { apiFetch, searchSemanticIndex } from '../utils/api'
+
+interface ParsedSession {
+  id: string
+  title: string
+  timestamp: string
+  content: string
+  metadata?: {
+    topics?: string[]
+    keywords?: string[]
+    impact?: string
+    changes?: number
+    duration?: string
+  }
+}
+
+interface ViewMode {
+  type: 'traditional' | 'structured' | 'timeline'
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+}
+
+const VIEW_MODES: ViewMode[] = [
+  { type: 'traditional', label: 'Traditional', icon: FileText },
+  { type: 'structured', label: 'Structured', icon: Grid },
+  { type: 'timeline', label: 'Timeline', icon: List }
+]
+
+const IMPACT_COLORS = {
+  brief: 'bg-gray-100 text-gray-700 border-gray-200',
+  moderate: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  significant: 'bg-red-100 text-red-700 border-red-200'
+}
 
 export default function LivingNote() {
   const [note, setNote] = useState<LivingNoteType>({
@@ -18,6 +50,10 @@ export default function LivingNote() {
   const [clearDialogOpen, setClearDialogOpen] = useState(false)
   const [clearLoading, setClearLoading] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
+  const [viewMode, setViewMode] = useState<'traditional' | 'structured' | 'timeline'>('traditional')
+  const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showSearch, setShowSearch] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -51,7 +87,9 @@ export default function LivingNote() {
             setNote({
               content: data.content,
               lastUpdated: data.lastUpdated,
-              wordCount: data.wordCount
+              wordCount: data.wordCount,
+              metadata: data.metadata,
+              sections: data.sections
             })
           } else if (data.type === 'connected') {
             console.log('SSE connection established')
@@ -130,6 +168,90 @@ export default function LivingNote() {
     return new Date(timestamp).toLocaleString()
   }
 
+  // Parse structured markdown into sessions
+  const parseStructuredContent = (content: string): ParsedSession[] => {
+    if (!content) return []
+    
+    // Check if content has session structure
+    const sessionPattern = /^## Session \d+: (.+?)\n\*\*Timestamp:\*\* (.+?)\n([\s\S]*?)(?=^## Session \d+:|$)/gm
+    const sessions: ParsedSession[] = []
+    let match
+    
+    while ((match = sessionPattern.exec(content)) !== null) {
+      const [, title, timestamp, sessionContent] = match
+      
+      // Extract metadata from session content
+      const metadata: ParsedSession['metadata'] = {}
+      
+      // Extract topics
+      const topicsMatch = sessionContent.match(/\*\*Topics:\*\* (.+)/)
+      if (topicsMatch) {
+        metadata.topics = topicsMatch[1].split(', ').map(t => t.trim())
+      }
+      
+      // Extract keywords
+      const keywordsMatch = sessionContent.match(/\*\*Keywords:\*\* (.+)/)
+      if (keywordsMatch) {
+        metadata.keywords = keywordsMatch[1].split(', ').map(k => k.trim())
+      }
+      
+      // Extract impact
+      const impactMatch = sessionContent.match(/\*\*Impact:\*\* (\w+)/)
+      if (impactMatch) {
+        metadata.impact = impactMatch[1].toLowerCase()
+      }
+      
+      // Extract changes count
+      const changesMatch = sessionContent.match(/(\d+) changes?/)
+      if (changesMatch) {
+        metadata.changes = parseInt(changesMatch[1])
+      }
+      
+      sessions.push({
+        id: `session-${sessions.length + 1}`,
+        title: title.trim(),
+        timestamp: timestamp.trim(),
+        content: sessionContent.trim(),
+        metadata
+      })
+    }
+    
+    return sessions
+  }
+
+  // Check if content is structured format
+  const isStructuredFormat = (content: string): boolean => {
+    return content.includes('## Session') && content.includes('**Timestamp:**')
+  }
+
+  // Toggle session expansion
+  const toggleSession = (sessionId: string) => {
+    setExpandedSessions(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(sessionId)) {
+        newSet.delete(sessionId)
+      } else {
+        newSet.add(sessionId)
+      }
+      return newSet
+    })
+  }
+
+  // Handle topic/keyword click for search integration
+  const handleTagClick = (type: 'topic' | 'keyword', value: string) => {
+    setSearchQuery(`${type}:${value}`)
+    setShowSearch(true)
+  }
+
+  // Get sessions from content
+  const sessions = parseStructuredContent(note.content)
+  const isStructured = isStructuredFormat(note.content)
+  
+  // Calculate additional stats for structured content
+  const totalSessions = sessions.length
+  const totalTopics = new Set(sessions.flatMap(s => s.metadata?.topics || [])).size
+  const totalKeywords = new Set(sessions.flatMap(s => s.metadata?.keywords || [])).size
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -172,8 +294,73 @@ export default function LivingNote() {
         </div>
       </div>
 
+      {/* View Mode Selector for Structured Content */}
+      {isStructured && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">View Mode</h3>
+            <button
+              onClick={() => setShowSearch(!showSearch)}
+              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                showSearch 
+                  ? 'bg-primary-100 text-primary-700' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Search className="h-4 w-4 mr-2" />
+              Search
+            </button>
+          </div>
+          
+          <div className="flex space-x-2">
+            {VIEW_MODES.map(mode => {
+              const Icon = mode.icon
+              return (
+                <button
+                  key={mode.type}
+                  onClick={() => setViewMode(mode.type)}
+                  className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                    viewMode === mode.type
+                      ? 'bg-primary-100 text-primary-700 border border-primary-200'
+                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100 border border-gray-200'
+                  }`}
+                >
+                  <Icon className="h-4 w-4 mr-2" />
+                  {mode.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Search Panel */}
+      {showSearch && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Search Living Note</h3>
+            <button
+              onClick={() => setShowSearch(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search sessions, topics, keywords..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            />
+          </div>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 ${isStructured ? 'md:grid-cols-5' : 'md:grid-cols-3'} gap-6`}>
         <div className="card">
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-md">
@@ -213,53 +400,229 @@ export default function LivingNote() {
             </div>
           </div>
         </div>
+
+        {isStructured && (
+          <>
+            <div className="card">
+              <div className="flex items-center">
+                <div className="p-2 bg-indigo-100 rounded-md">
+                  <Calendar className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Sessions</p>
+                  <p className="text-lg font-semibold text-gray-900">{totalSessions}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <div className="flex items-center">
+                <div className="p-2 bg-orange-100 rounded-md">
+                  <Tag className="h-6 w-6 text-orange-600" />
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm font-medium text-gray-600">Topics</p>
+                  <p className="text-lg font-semibold text-gray-900">{totalTopics}</p>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Note Content */}
-      <div className="card">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">AI Summary</h3>
-        
+      <div className="space-y-6">
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : note.content ? (
-          <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100">
-            <div className="bg-white border border-gray-200 p-6 rounded-lg">
-              <ReactMarkdown 
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  code({ node, inline, className, children, ...props }) {
-                    const match = /language-(\w+)/.exec(className || '')
-                    return !inline && match ? (
-                      <SyntaxHighlighter
-                        style={oneDark}
-                        language={match[1]}
-                        PreTag="div"
-                        className="rounded-md !mt-0 !mb-4"
-                        {...props}
-                      >
-                        {String(children).replace(/\n$/, '')}
-                      </SyntaxHighlighter>
-                    ) : (
-                      <code className={className} {...props}>
-                        {children}
-                      </code>
-                    )
+          isStructured && viewMode !== 'traditional' ? (
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium text-gray-900">AI Summary - {viewMode === 'structured' ? 'Structured View' : 'Timeline View'}</h3>
+              
+              {sessions.length > 0 ? (
+                <div className={viewMode === 'timeline' ? 'space-y-6' : 'space-y-4'}>
+                  {sessions
+                    .filter(session => {
+                      if (!searchQuery) return true
+                      const query = searchQuery.toLowerCase()
+                      
+                      // Handle special search syntax
+                      if (query.startsWith('topic:')) {
+                        const topic = query.substring(6)
+                        return session.metadata?.topics?.some(t => t.toLowerCase().includes(topic))
+                      }
+                      if (query.startsWith('keyword:')) {
+                        const keyword = query.substring(8)
+                        return session.metadata?.keywords?.some(k => k.toLowerCase().includes(keyword))
+                      }
+                      
+                      // General search in title and content
+                      return session.title.toLowerCase().includes(query) ||
+                             session.content.toLowerCase().includes(query) ||
+                             session.metadata?.topics?.some(t => t.toLowerCase().includes(query)) ||
+                             session.metadata?.keywords?.some(k => k.toLowerCase().includes(query))
+                    })
+                    .map((session) => (
+                      <div key={session.id} className={`card ${viewMode === 'timeline' ? 'border-l-4 border-primary-500 ml-4' : ''}`}>
+                        {/* Session Header */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-3">
+                            <button
+                              onClick={() => toggleSession(session.id)}
+                              className="text-gray-500 hover:text-gray-700 transition-colors"
+                            >
+                              {expandedSessions.has(session.id) ? (
+                                <ChevronDown className="h-5 w-5" />
+                              ) : (
+                                <ChevronRight className="h-5 w-5" />
+                              )}
+                            </button>
+                            <div>
+                              <h4 className="text-lg font-medium text-gray-900">{session.title}</h4>
+                              <div className="flex items-center space-x-4 text-sm text-gray-500">
+                                <span className="flex items-center">
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  {formatDate(session.timestamp)}
+                                </span>
+                                {session.metadata?.changes && (
+                                  <span className="flex items-center">
+                                    <TrendingUp className="h-4 w-4 mr-1" />
+                                    {session.metadata.changes} changes
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-2">
+                            {/* Impact Indicator */}
+                            {session.metadata?.impact && (
+                              <span className={`px-2 py-1 text-xs font-medium rounded-full border ${
+                                IMPACT_COLORS[session.metadata.impact as keyof typeof IMPACT_COLORS] || IMPACT_COLORS.brief
+                              }`}>
+                                {session.metadata.impact}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Session Metadata Tags */}
+                        {(session.metadata?.topics?.length || session.metadata?.keywords?.length) && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {session.metadata.topics?.map(topic => (
+                              <button
+                                key={topic}
+                                onClick={() => handleTagClick('topic', topic)}
+                                className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
+                              >
+                                <Tag className="h-3 w-3 mr-1" />
+                                {topic}
+                              </button>
+                            ))}
+                            {session.metadata.keywords?.map(keyword => (
+                              <button
+                                key={keyword}
+                                onClick={() => handleTagClick('keyword', keyword)}
+                                className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full hover:bg-green-200 transition-colors"
+                              >
+                                {keyword}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Session Content */}
+                        {expandedSessions.has(session.id) && (
+                          <div className="mt-4 prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100">
+                            <div className="bg-gray-50 border border-gray-200 p-4 rounded-lg">
+                              <ReactMarkdown 
+                                remarkPlugins={[remarkGfm]}
+                                components={{
+                                  code({ node, inline, className, children, ...props }) {
+                                    const match = /language-(\w+)/.exec(className || '')
+                                    return !inline && match ? (
+                                      <SyntaxHighlighter
+                                        style={oneDark}
+                                        language={match[1]}
+                                        PreTag="div"
+                                        className="rounded-md !mt-0 !mb-4"
+                                        {...props}
+                                      >
+                                        {String(children).replace(/\n$/, '')}
+                                      </SyntaxHighlighter>
+                                    ) : (
+                                      <code className={className} {...props}>
+                                        {children}
+                                      </code>
+                                    )
+                                  }
+                                }}
+                              >
+                                {session.content}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))
                   }
-                }}
-              >
-                {note.content}
-              </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600">No sessions found</p>
+                  <p className="text-sm text-gray-500 mt-2">
+                    {searchQuery ? 'Try adjusting your search query' : 'Sessions will appear as they are created'}
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            /* Traditional View */
+            <div className="card">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">AI Summary</h3>
+              <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100">
+                <div className="bg-white border border-gray-200 p-6 rounded-lg">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '')
+                        return !inline && match ? (
+                          <SyntaxHighlighter
+                            style={oneDark}
+                            language={match[1]}
+                            PreTag="div"
+                            className="rounded-md !mt-0 !mb-4"
+                            {...props}
+                          >
+                            {String(children).replace(/\n$/, '')}
+                          </SyntaxHighlighter>
+                        ) : (
+                          <code className={className} {...props}>
+                            {children}
+                          </code>
+                        )
+                      }
+                    }}
+                  >
+                    {note.content}
+                  </ReactMarkdown>
+                </div>
+              </div>
+            </div>
+          )
         ) : (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-600">No living note content yet</p>
-            <p className="text-sm text-gray-500 mt-2">
-              The AI will generate summaries as you make changes to your notes
-            </p>
+          <div className="card">
+            <div className="text-center py-12">
+              <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <p className="text-gray-600">No living note content yet</p>
+              <p className="text-sm text-gray-500 mt-2">
+                The AI will generate summaries as you make changes to your notes
+              </p>
+            </div>
           </div>
         )}
       </div>

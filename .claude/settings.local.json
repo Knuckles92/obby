@@ -12,7 +12,8 @@
       "Bash(npm run build:*)",
       "Bash(dir)",
       "Bash(start /b python:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(type:*)"
     ],
     "deny": []
   }

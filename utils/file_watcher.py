@@ -168,7 +168,9 @@ class NoteChangeHandler(FileSystemEventHandler):
                 logging.debug(f"Processing changes in: {file_path.name}")
                 # Generate AI summary and update living note
                 summary = self.ai_client.summarize_diff(diff_content)
-                self.ai_client.update_living_note(self.living_note_path, summary)
+                # Store the file path in AI client for semantic indexing
+                self.ai_client._current_file_path = str(file_path)
+                self.ai_client.update_living_note(self.living_note_path, summary, "content")
             else:
                 logging.debug(f"File event detected but no content change in: {file_path.name}")
                 
@@ -190,7 +192,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             
             # Generate AI summary for the tree change and update living note
             tree_summary = self.ai_client.summarize_tree_change(change_summary)
-            self.ai_client.update_living_note(self.living_note_path, tree_summary)
+            self.ai_client.update_living_note(self.living_note_path, tree_summary, "tree")
                 
         except Exception as e:
             logging.error(f"Error processing tree change: {e}")

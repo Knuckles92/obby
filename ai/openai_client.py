@@ -31,13 +31,13 @@ class OpenAIClient:
     
     def summarize_diff(self, diff_content):
         """
-        Summarize a diff for the living note.
+        Summarize a diff for the living note with semantic indexing optimization.
         
         Args:
             diff_content: The diff content to summarize
             
         Returns:
-            str: AI-generated summary
+            str: AI-generated summary with semantic metadata
         """
         try:
             response = self.client.chat.completions.create(
@@ -45,14 +45,22 @@ class OpenAIClient:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an AI assistant for Obby, a comprehensive note monitoring system that tracks both file content changes and file tree structure changes. When summarizing diffs, provide a concise, human-readable summary focusing on what was changed, added, or removed at a high level. Consider the context that this is part of a living note system that also monitors file creation, deletion, and movement events."
+                        "content": """You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing diffs, provide a structured summary optimized for search and discovery.
+
+Format your response as:
+**Summary**: [Concise human-readable summary]
+**Topics**: [2-3 relevant topic keywords]
+**Keywords**: [4-6 searchable keywords related to the changes]
+**Impact**: [brief/moderate/significant - assess the scope of changes]
+
+Focus on what was changed, added, or removed. Make keywords specific and searchable."""
                     },
                     {
                         "role": "user",
-                        "content": f"Please summarize the following diff:\n\n{diff_content}"
+                        "content": f"Please summarize the following diff with semantic metadata:\n\n{diff_content}"
                     }
                 ],
-                max_tokens=500,
+                max_tokens=600,
                 temperature=0.3
             )
             
@@ -63,13 +71,13 @@ class OpenAIClient:
     
     def summarize_tree_change(self, tree_change_description):
         """
-        Summarize a file tree change for the living note.
+        Summarize a file tree change for the living note with semantic metadata.
         
         Args:
             tree_change_description: Description of the tree change (creation, deletion, move)
             
         Returns:
-            str: AI-generated summary
+            str: AI-generated summary with semantic metadata
         """
         try:
             response = self.client.chat.completions.create(
@@ -77,14 +85,22 @@ class OpenAIClient:
                 messages=[
                     {
                         "role": "system",
-                        "content": "You are an AI assistant for Obby, a comprehensive note monitoring system that tracks both file content changes and file tree structure changes. When summarizing file tree changes (creation, deletion, or movement of files/directories), provide a concise, human-readable summary focusing on the organizational impact and what it means for the project structure. Consider that this works alongside content change monitoring to provide a complete picture of how the knowledge base is evolving."
+                        "content": """You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing file tree changes, provide a structured summary optimized for search and discovery.
+
+Format your response as:
+**Summary**: [Concise human-readable summary of the file/directory change]
+**Topics**: [2-3 relevant topic keywords like "organization", "structure", "cleanup"]
+**Keywords**: [3-5 searchable keywords related to the file operation]
+**Impact**: [brief/moderate/significant - assess organizational impact]
+
+Focus on the organizational impact and what it means for project structure."""
                     },
                     {
                         "role": "user",
-                        "content": f"Please summarize the following file tree change:\n\n{tree_change_description}"
+                        "content": f"Please summarize the following file tree change with semantic metadata:\n\n{tree_change_description}"
                     }
                 ],
-                max_tokens=300,
+                max_tokens=400,
                 temperature=0.3
             )
             
@@ -93,37 +109,340 @@ class OpenAIClient:
         except Exception as e:
             return f"Error generating tree change summary: {str(e)}"
     
-    def update_living_note(self, living_note_path, summary):
+    def update_living_note(self, living_note_path, summary, change_type="content"):
         """
-        Update the living note with the AI summary.
+        Update the living note with the AI summary using structured format.
         
         Args:
             living_note_path: Path to the living note file
-            summary: AI-generated summary to prepend (newer entries at top)
+            summary: AI-generated summary to add
+            change_type: Type of change ("content" or "tree")
         """
         living_note_path = Path(living_note_path)
         
         # Create living note if it doesn't exist
         if not living_note_path.exists():
             living_note_path.parent.mkdir(exist_ok=True)
-            living_note_path.write_text("# Living Note\n\nThis file contains AI-generated summaries of changes to your notes.\n\n---\n\n")
+            from datetime import datetime
+            today = datetime.now().strftime("%Y-%m-%d")
+            initial_content = f"# Living Note - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
+            living_note_path.write_text(initial_content, encoding='utf-8')
         
-        # Prepend summary with timestamp (newer messages at top)
         from datetime import datetime
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%I:%M %p")
+        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
         
         # Read existing content
         existing_content = ""
         if living_note_path.exists() and living_note_path.stat().st_size > 0:
             existing_content = living_note_path.read_text(encoding='utf-8')
         
-        # Create new entry to add at the top
-        new_entry = f"## {timestamp}\n\n{summary}\n\n---\n\n"
+        # Check if we need to start a new session or add to existing one
+        lines = existing_content.split('\n')
+        today_header = f"# Living Note - {date_str}"
         
-        # Write new entry at the beginning, followed by existing content
-        updated_content = new_entry + existing_content
+        # Find if today's session already exists
+        session_exists = False
+        session_start_line = -1
+        for i, line in enumerate(lines):
+            if line.strip() == today_header:
+                session_exists = True
+                session_start_line = i
+                break
+        
+        if session_exists:
+            # Add to existing session's detailed changes
+            self._add_to_existing_session(living_note_path, summary, change_type, lines, session_start_line)
+        else:
+            # Create new session
+            self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content)
+        
+        # Extract semantic metadata and create searchable index entry
+        try:
+            metadata = self.extract_semantic_metadata(summary)
+            # Use the current file path if available, otherwise fall back to notes folder
+            file_path_for_index = getattr(self, '_current_file_path', str(living_note_path.parent))
+            searchable_entry = self.create_searchable_entry(
+                metadata, 
+                timestamp, 
+                change_type,
+                file_path=file_path_for_index
+            )
+            self.save_semantic_index(searchable_entry)
+            # Clear the temporary file path
+            if hasattr(self, '_current_file_path'):
+                delattr(self, '_current_file_path')
+        except Exception as e:
+            logging.warning(f"Failed to create semantic index entry: {e}")
+        
+        logging.info(f"Living note updated with structured format and semantic indexing: {living_note_path}")
+
+    def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content):
+        """Create a new session entry in the structured format."""
+        from datetime import datetime
+        
+        # Generate initial insights
+        insights = self._generate_session_insights([summary], [change_type], is_new_session=True)
+        
+        # Create session header
+        session_header = f"""# Living Note - {date_str}
+
+## Session Summary ({time_str})
+**Focus**: Development Session
+**Changes**: 1 change detected
+**Key Progress**: 
+- {change_type.title()} change: {summary[:100]}{'...' if len(summary) > 100 else ''}
+
+### Detailed Changes:
+- **{datetime.now().strftime('%H:%M:%S')}**: {summary}
+
+## Insights
+{insights}
+
+---
+
+"""
+        
+        # Prepend new session to existing content
+        updated_content = session_header + existing_content
         
         with open(living_note_path, "w", encoding='utf-8') as f:
             f.write(updated_content)
+
+    def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line):
+        """Add to an existing session in the structured format."""
+        from datetime import datetime
         
-        logging.info(f"Living note updated: {living_note_path}")
+        # Find the detailed changes section and collect existing summaries
+        detailed_changes_line = -1
+        insights_line = -1
+        existing_summaries = []
+        existing_change_types = []
+        
+        for i in range(session_start_line, len(lines)):
+            if lines[i].strip() == "### Detailed Changes:":
+                detailed_changes_line = i
+            elif lines[i].strip() == "## Insights":
+                insights_line = i
+                break
+            elif detailed_changes_line != -1 and lines[i].strip().startswith("- **"):
+                # Extract existing summaries for insight generation
+                parts = lines[i].split("**: ", 1)
+                if len(parts) > 1:
+                    existing_summaries.append(parts[1])
+                    # Try to determine change type from summary content
+                    existing_change_types.append("content")  # Default to content
+        
+        if detailed_changes_line != -1:
+            # Add new change to detailed changes section
+            new_change = f"- **{datetime.now().strftime('%H:%M:%S')}**: {summary}"
+            lines.insert(detailed_changes_line + 1, new_change)
+            
+            # Update the changes count in session summary
+            for i in range(session_start_line, detailed_changes_line + 1):
+                if "**Changes**:" in lines[i]:
+                    # Extract current count and increment
+                    parts = lines[i].split("**Changes**: ")
+                    if len(parts) > 1:
+                        try:
+                            current_count = int(parts[1].split()[0])
+                            lines[i] = f"**Changes**: {current_count + 1} changes detected"
+                        except (ValueError, IndexError):
+                            lines[i] = "**Changes**: Multiple changes detected"
+                    break
+            
+            # Update insights with all summaries including the new one
+            all_summaries = existing_summaries + [summary]
+            all_change_types = existing_change_types + [change_type]
+            new_insights = self._generate_session_insights(all_summaries, all_change_types, is_new_session=False)
+            
+            # Replace insights section
+            if insights_line != -1:
+                # Find the end of insights section (next ## or --- or end of file)
+                insights_end = len(lines)
+                for i in range(insights_line + 1, len(lines)):
+                    if lines[i].strip().startswith("##") or lines[i].strip() == "---":
+                        insights_end = i
+                        break
+                
+                # Replace insights content
+                lines[insights_line + 1:insights_end] = [new_insights, ""]
+        
+        # Write updated content back to file
+        with open(living_note_path, "w", encoding='utf-8') as f:
+            f.write('\n'.join(lines))
+
+    def _generate_session_insights(self, summaries, change_types, is_new_session=True):
+        """Generate intelligent insights based on session patterns and changes."""
+        try:
+            # Analyze patterns in the summaries
+            content_changes = sum(1 for ct in change_types if ct == "content")
+            tree_changes = sum(1 for ct in change_types if ct == "tree")
+            total_changes = len(summaries)
+            
+            # Create context for AI insight generation
+            changes_text = "\n".join([f"- {summary}" for summary in summaries])
+            
+            insight_prompt = f"""Analyze this development session with {total_changes} changes ({content_changes} content, {tree_changes} file structure):
+
+{changes_text}
+
+Generate 2-3 concise insights about:
+1. Development patterns or workflow
+2. Project progress or focus areas
+3. Potential next steps or recommendations
+
+Format as bullet points starting with '-'. Be specific and actionable."""
+
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are an AI assistant that analyzes development sessions for patterns and insights. Provide concise, actionable insights about the developer's workflow and progress."
+                    },
+                    {
+                        "role": "user",
+                        "content": insight_prompt
+                    }
+                ],
+                max_tokens=300,
+                temperature=0.4
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            logging.debug(f"AI insight generation failed: {e}")
+            # Fallback insights if AI generation fails
+            if is_new_session:
+                return "- Active development session in progress\n- Monitoring file changes and updates"
+            else:
+                return f"- Development session with {len(summaries)} changes\n- Mix of content and structural modifications\n- Iterative development pattern observed"
+
+    def extract_semantic_metadata(self, summary_text):
+        """
+        Extract semantic metadata from AI-generated summaries for indexing.
+        
+        Args:
+            summary_text: The formatted AI summary with semantic metadata
+            
+        Returns:
+            dict: Extracted metadata with topics, keywords, and impact level
+        """
+        metadata = {
+            'summary': '',
+            'topics': [],
+            'keywords': [],
+            'impact': 'brief'
+        }
+        
+        try:
+            lines = summary_text.split('\n')
+            for line in lines:
+                line = line.strip()
+                if line.startswith('**Summary**:'):
+                    metadata['summary'] = line.replace('**Summary**:', '').strip()
+                elif line.startswith('**Topics**:'):
+                    topics_text = line.replace('**Topics**:', '').strip()
+                    metadata['topics'] = [t.strip() for t in topics_text.split(',') if t.strip()]
+                elif line.startswith('**Keywords**:'):
+                    keywords_text = line.replace('**Keywords**:', '').strip()
+                    metadata['keywords'] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                elif line.startswith('**Impact**:'):
+                    metadata['impact'] = line.replace('**Impact**:', '').strip().lower()
+            
+            # If no structured metadata found, treat entire text as summary
+            if not metadata['summary'] and not metadata['topics']:
+                metadata['summary'] = summary_text
+                
+        except Exception as e:
+            logging.warning(f"Error extracting semantic metadata: {e}")
+            metadata['summary'] = summary_text
+            
+        return metadata
+
+    def create_searchable_entry(self, metadata, timestamp, change_type, file_path=None):
+        """
+        Create a searchable entry combining metadata for future search indexing.
+        
+        Args:
+            metadata: Extracted semantic metadata dictionary
+            timestamp: When the change occurred
+            change_type: Type of change (content/tree)
+            file_path: Path of the changed file (optional)
+            
+        Returns:
+            dict: Searchable entry structure
+        """
+        from datetime import datetime
+        
+        searchable_entry = {
+            'id': f"{timestamp}_{change_type}",
+            'timestamp': timestamp,
+            'date': datetime.fromisoformat(timestamp.replace(' ', 'T')).date().isoformat(),
+            'time': datetime.fromisoformat(timestamp.replace(' ', 'T')).time().isoformat(),
+            'type': change_type,
+            'summary': metadata.get('summary', ''),
+            'topics': metadata.get('topics', []),
+            'keywords': metadata.get('keywords', []),
+            'impact': metadata.get('impact', 'brief'),
+            'file_path': file_path,
+            'searchable_text': self._create_searchable_text(metadata)
+        }
+        
+        return searchable_entry
+
+    def _create_searchable_text(self, metadata):
+        """Create a comprehensive searchable text field combining all metadata."""
+        components = [
+            metadata.get('summary', ''),
+            ' '.join(metadata.get('topics', [])),
+            ' '.join(metadata.get('keywords', [])),
+            metadata.get('impact', '')
+        ]
+        return ' '.join([comp for comp in components if comp]).lower()
+
+    def save_semantic_index(self, searchable_entry, index_path="notes/semantic_index.json"):
+        """
+        Save semantic index entry to a JSON file for future search capabilities.
+        
+        Args:
+            searchable_entry: The searchable entry dictionary
+            index_path: Path to the semantic index file
+        """
+        import json
+        from pathlib import Path
+        
+        index_file = Path(index_path)
+        
+        try:
+            # Load existing index or create new one
+            if index_file.exists():
+                with open(index_file, 'r', encoding='utf-8') as f:
+                    index_data = json.load(f)
+            else:
+                index_data = {'entries': [], 'metadata': {'created': searchable_entry['timestamp'], 'version': '1.0'}}
+                # Ensure parent directory exists
+                index_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Add new entry
+            index_data['entries'].append(searchable_entry)
+            index_data['metadata']['last_updated'] = searchable_entry['timestamp']
+            index_data['metadata']['total_entries'] = len(index_data['entries'])
+            
+            # Keep only last 1000 entries to prevent file from growing too large
+            if len(index_data['entries']) > 1000:
+                index_data['entries'] = index_data['entries'][-1000:]
+                index_data['metadata']['total_entries'] = 1000
+            
+            # Save updated index
+            with open(index_file, 'w', encoding='utf-8') as f:
+                json.dump(index_data, f, indent=2, ensure_ascii=False)
+                
+            logging.debug(f"Semantic index updated: {index_path}")
+            
+        except Exception as e:
+            logging.error(f"Error saving semantic index: {e}")

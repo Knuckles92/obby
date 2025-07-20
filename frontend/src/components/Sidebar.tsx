@@ -3,6 +3,7 @@ import {
   Home, 
   GitBranch, 
   FileText, 
+  Search,
   Settings, 
   Menu,
   Activity
@@ -17,6 +18,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
   { name: 'Living Note', href: '/living-note', icon: FileText },
+  { name: 'Search', href: '/search', icon: Search },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
