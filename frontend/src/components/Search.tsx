@@ -40,8 +40,18 @@ export default function Search({ className = '' }: SearchProps) {
   const [error, setError] = useState<string | null>(null)
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState('relevance')
-  const [availableTopics, setAvailableTopics] = useState<Record<string, number>>({})
-  const [availableKeywords, setAvailableKeywords] = useState<Record<string, number>>({})
+  const [availableTopics, setAvailableTopics] = useState<string[]>([])
+  const [availableKeywords, setAvailableKeywords] = useState<Array<{ keyword: string; count: number }>>([])
+
+  // Helper functions to convert data for FilterPanel
+  const convertTopicsForFilter = (topics: string[]): Record<string, number> => {
+    // For now, assign a default count of 1 to all topics since the backend doesn't provide counts for topics
+    return topics.reduce((acc, topic) => ({ ...acc, [topic]: 1 }), {})
+  }
+
+  const convertKeywordsForFilter = (keywords: Array<{ keyword: string; count: number }>): Record<string, number> => {
+    return keywords.reduce((acc, { keyword, count }) => ({ ...acc, [keyword]: count }), {})
+  }
 
   // Debounced search function
   const debouncedSearch = useCallback(
@@ -51,10 +61,22 @@ export default function Search({ className = '' }: SearchProps) {
         setError(null)
         
         const response = await searchSemanticIndex(searchFilters)
-        setResults(response.results)
-        setTotalResults(response.total)
-        setMetadata(response.metadata)
+        console.log('[Search] API response:', {
+          hasResponse: !!response,
+          responseType: typeof response,
+          hasResults: !!response?.results,
+          resultsType: Array.isArray(response?.results) ? 'array' : typeof response?.results,
+          resultsLength: response?.results?.length,
+          total: response?.total,
+          firstResult: response?.results?.[0]
+        })
+        
+        // Ensure we always set arrays even if the response is malformed
+        setResults(Array.isArray(response?.results) ? response.results : [])
+        setTotalResults(response?.total || 0)
+        setMetadata(response?.metadata || null)
       } catch (err) {
+        console.error('[Search] Search error:', err)
         setError(err instanceof Error ? err.message : 'An error occurred while searching')
         setResults([])
         setTotalResults(0)
@@ -69,12 +91,12 @@ export default function Search({ className = '' }: SearchProps) {
   useEffect(() => {
     const loadFilterOptions = async () => {
       try {
-        const [topics, keywords] = await Promise.all([
+        const [topicsResponse, keywordsResponse] = await Promise.all([
           getTopics(),
           getKeywords()
         ])
-        setAvailableTopics(topics)
-        setAvailableKeywords(keywords)
+        setAvailableTopics(topicsResponse.topics || [])
+        setAvailableKeywords(keywordsResponse.keywords || [])
       } catch (err) {
         console.error('Failed to load filter options:', err)
       }
@@ -166,12 +188,12 @@ export default function Search({ className = '' }: SearchProps) {
     }
   }
 
-  const hasActiveFilters = filters.query || 
-    (filters.topics && filters.topics.length > 0) || 
-    (filters.keywords && filters.keywords.length > 0) || 
-    filters.dateFrom || 
+  const hasActiveFilters = filters.query ||
+    (filters.topics && filters.topics.length > 0) ||
+    (filters.keywords && filters.keywords.length > 0) ||
+    filters.dateFrom ||
     filters.dateTo ||
-    filters.minRelevance > 0
+    (filters.minRelevance !== undefined && filters.minRelevance > 0)
 
   return (
     <div className={`space-y-6 ${className}`}>
@@ -307,8 +329,8 @@ export default function Search({ className = '' }: SearchProps) {
       {showFilters && (
         <FilterPanel
           filters={filters}
-          availableTopics={availableTopics}
-          availableKeywords={availableKeywords}
+          availableTopics={convertTopicsForFilter(availableTopics)}
+          availableKeywords={convertKeywordsForFilter(availableKeywords)}
           onFilterChange={handleFilterChange}
           onClearFilters={handleClearFilters}
         />
@@ -356,7 +378,7 @@ function debounce<T extends (...args: any[]) => any>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
-  let timeout: NodeJS.Timeout
+  let timeout: ReturnType<typeof setTimeout>
   return (...args: Parameters<T>) => {
     clearTimeout(timeout)
     timeout = setTimeout(() => func(...args), wait)

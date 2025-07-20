@@ -76,13 +76,13 @@ export const searchSemanticIndex = async (filters: SearchFilters): Promise<{
 /**
  * Get all available topics with their counts
  */
-export const getTopics = async (): Promise<Record<string, number>> => {
+export const getTopics = async (): Promise<{ topics: string[]; total: number }> => {
   return apiRequest('/api/search/topics')
 }
 
 /**
  * Get all available keywords with their counts
  */
-export const getKeywords = async (): Promise<Record<string, number>> => {
+export const getKeywords = async (): Promise<{ keywords: Array<{ keyword: string; count: number }>; total: number }> => {
   return apiRequest('/api/search/keywords')
 }

@@ -15,6 +15,9 @@ import queue
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
+# Import database layer
+from database.queries import DiffQueries, EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries
+
 from core.monitor import ObbyMonitor
 from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
 from ai.openai_client import OpenAIClient
@@ -43,8 +46,7 @@ if not app.debug:
 monitor_instance = None
 monitor_thread = None
 monitoring_active = False
-recent_events = []
-recent_diffs = []
+# Note: recent_events and recent_diffs now stored in database
 
 # SSE clients for real-time updates
 sse_clients = []
@@ -57,7 +59,13 @@ def get_status():
     
     watched_paths = []
     total_files = 0
-    events_today = len([e for e in recent_events if is_today(e.get('timestamp', ''))])
+    
+    # Get events today from database instead of memory
+    try:
+        events_today = EventQueries.get_events_today_count()
+    except Exception as e:
+        logger.error(f"Failed to get events count from database: {e}")
+        events_today = 0
     
     if monitor_instance and monitoring_active:
         watched_paths = getattr(monitor_instance, 'watched_paths', [])
@@ -123,73 +131,32 @@ def stop_monitoring():
 
 @app.route('/api/events', methods=['GET'])
 def get_recent_events():
-    """Get recent file events"""
+    """Get recent file events from database"""
     try:
         limit = max(1, min(request.args.get('limit', 50, type=int), 200))  # Limit between 1-200
-        return jsonify(recent_events[-limit:] if recent_events else [])
+        events = EventQueries.get_recent_events(limit=limit)
+        logger.info(f"Retrieved {len(events)} events from database")
+        return jsonify(events)
     except Exception as e:
         logger.error(f"Error retrieving recent events: {e}")
         return jsonify({'error': 'Failed to retrieve events'}), 500
 
 @app.route('/api/diffs', methods=['GET'])
 def get_recent_diffs():
-    """Get recent diff files"""
+    """Get recent diff files from database"""
     try:
         limit = max(1, min(request.args.get('limit', 20, type=int), 100))  # Limit between 1-100
         
-        # Use DIFF_PATH from the global settings so we look in the *same* folder that DiffTracker writes to
-        # DIFF_PATH may be relative (e.g. "diffs") or absolute; resolve it against the current working directory
-        diffs_dir = Path(DIFF_PATH).resolve()
-        diff_files = []
+        logger.info(f"DATABASE DIFFS API CALLED - Limit: {limit}")
         
-        print(f"DIFFS API CALLED - Looking in: {diffs_dir.resolve()}")
-        print(f"DIFFS API CALLED - Dir exists: {diffs_dir.exists()}")
-        logger.info(f"DIFFS API CALLED - Looking in: {diffs_dir.resolve()}")
-        logger.info(f"DIFFS API CALLED - Dir exists: {diffs_dir.exists()}")
+        # Use database queries instead of file operations
+        diff_files = DiffQueries.get_recent_diffs(limit=limit)
         
-        if diffs_dir.exists():
-            try:
-                diff_file_list = list(diffs_dir.glob('*.txt'))
-                print(f"Found {len(diff_file_list)} diff files: {[f.name for f in diff_file_list]}")
-                logger.info(f"Found {len(diff_file_list)} diff files")
-                sorted_files = sorted(diff_file_list, key=lambda f: f.stat().st_mtime, reverse=True)[:limit]
-                
-                for diff_file in sorted_files:
-                    try:
-                        content = diff_file.read_text(encoding='utf-8')
-                        file_parts = diff_file.stem.split('.')
-                        base_name = file_parts[0] if file_parts else diff_file.stem
-                        
-                        diff_files.append({
-                            'id': diff_file.stem,
-                            'filePath': base_name,
-                            'timestamp': datetime.fromtimestamp(diff_file.stat().st_mtime).isoformat(),
-                            'content': content[:500] + '...' if len(content) > 500 else content,
-                            'size': len(content),
-                            'fullPath': str(diff_file)
-                        })
-                        print(f"Processed diff file: {diff_file.name}")
-                    except (UnicodeDecodeError, PermissionError) as e:
-                        logger.warning(f"Could not read diff file {diff_file}: {e}")
-                        continue
-                    except Exception as e:
-                        logger.error(f"Error processing diff file {diff_file}: {e}")
-                        continue
-                        
-            except PermissionError:
-                logger.error(f"Permission denied accessing diffs directory: {diffs_dir}")
-                return jsonify({'error': 'Permission denied accessing diffs directory'}), 403
-        else:
-            print(f"Diffs directory does not exist: {diffs_dir}")
-            logger.info(f"Diffs directory does not exist: {diffs_dir}")
-        
-        print(f"Returning {len(diff_files)} diff files")
-        logger.info(f"Returning {len(diff_files)} diff files")
+        logger.info(f"Retrieved {len(diff_files)} diffs from database")
         return jsonify(diff_files)
         
     except Exception as e:
-        print(f"Error retrieving diff files: {e}")
-        logger.error(f"Error retrieving diff files: {e}")
+        logger.error(f"Error retrieving diffs from database: {e}")
         return jsonify({'error': 'Failed to retrieve diff files'}), 500
 
 @app.route('/api/living-note', methods=['GET'])
@@ -358,18 +325,11 @@ def stop_living_note_watcher():
 
 @app.route('/api/events/clear', methods=['POST'])
 def clear_recent_events():
-    """Clear the recent events list"""
-    global recent_events
-    
+    """Clear all events from database"""
     try:
-        events_count = len(recent_events)
-        recent_events.clear()
-        
-        logger.info(f"Cleared {events_count} recent events")
-        return jsonify({
-            'message': f'Cleared {events_count} recent events successfully',
-            'clearedCount': events_count
-        })
+        result = EventQueries.clear_all_events()
+        logger.info(f"Cleared events via database: {result}")
+        return jsonify(result)
         
     except Exception as e:
         logger.error(f"Error clearing recent events: {e}")
@@ -377,28 +337,22 @@ def clear_recent_events():
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    """Get current configuration"""
-    # Load current configuration from settings and any saved config file
-    config_file = Path('config.json')
-    config_data = {
-        'checkInterval': CHECK_INTERVAL,
-        'openaiApiKey': os.getenv('OPENAI_API_KEY', ''),
-        'aiModel': OPENAI_MODEL,
-        'watchPaths': [str(NOTES_FOLDER)],  # Default to notes folder
-        'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
-        'periodicCheckEnabled': True  # Default to enabled
-    }
-    
-    # Load from config file if it exists
-    if config_file.exists():
-        try:
-            with open(config_file, 'r') as f:
-                saved_config = json.load(f)
-                config_data.update(saved_config)
-        except Exception as e:
-            logger.error(f"Error loading config file: {e}")
-    
-    return jsonify(config_data)
+    """Get current configuration from database"""
+    try:
+        config_data = ConfigQueries.get_config()
+        logger.info("Retrieved configuration from database")
+        return jsonify(config_data)
+    except Exception as e:
+        logger.error(f"Error loading config from database: {e}")
+        # Fallback to defaults
+        return jsonify({
+            'checkInterval': CHECK_INTERVAL,
+            'openaiApiKey': os.getenv('OPENAI_API_KEY', ''),
+            'aiModel': OPENAI_MODEL,
+            'watchPaths': [str(NOTES_FOLDER)],
+            'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
+            'periodicCheckEnabled': True
+        })
 
 @app.route('/api/models', methods=['GET'])
 def get_models():
@@ -420,7 +374,7 @@ def get_models():
 
 @app.route('/api/config', methods=['PUT'])
 def update_config():
-    """Update configuration"""
+    """Update configuration in database"""
     data = request.json
     
     try:
@@ -449,10 +403,8 @@ def update_config():
             if not isinstance(config_data['periodicCheckEnabled'], bool):
                 return jsonify({'error': 'periodicCheckEnabled must be a boolean'}), 400
         
-        # Save configuration to file
-        config_file = Path('config.json')
-        with open(config_file, 'w') as f:
-            json.dump(config_data, f, indent=2)
+        # Update configuration in database
+        result = ConfigQueries.update_config(config_data)
         
         # Update environment variable if API key is provided
         if 'openaiApiKey' in config_data and config_data['openaiApiKey']:
@@ -466,7 +418,7 @@ def update_config():
             if 'periodicCheckEnabled' in config_data:
                 monitor_instance.set_periodic_check_enabled(config_data['periodicCheckEnabled'])
         
-        return jsonify({'message': 'Configuration updated successfully'})
+        return jsonify(result)
     
     except Exception as e:
         return jsonify({'error': f'Failed to update configuration: {str(e)}'}), 500
@@ -528,8 +480,8 @@ def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0) -> D
 
 @app.route('/api/search', methods=['GET'])
 def search_semantic_index():
-    """Search the semantic index for relevant entries"""
-    query = request.args.get('q', '').strip().lower()
+    """Search the semantic index from database"""
+    query = request.args.get('q', '').strip()
     limit = request.args.get('limit', 20, type=int)
     change_type = request.args.get('type', '').strip()  # content, tree, or empty for all
     
@@ -537,74 +489,10 @@ def search_semantic_index():
         return jsonify({'error': 'Query parameter "q" is required'}), 400
     
     try:
-        index_path = Path('notes/semantic_index.json')
-        
-        if not index_path.exists():
-            return jsonify({
-                'results': [],
-                'total': 0,
-                'query': query,
-                'message': 'No semantic index found. Make some changes to build the index.'
-            })
-        
-        # Load semantic index
-        with open(index_path, 'r', encoding='utf-8') as f:
-            index_data = json.load(f)
-        
-        entries = index_data.get('entries', [])
-        
-        # Filter by change type if specified
-        if change_type:
-            entries = [e for e in entries if e.get('type') == change_type]
-        
-        # Simple text-based search in searchable_text, summary, topics, and keywords
-        matched_entries = []
-        for entry in entries:
-            score = 0
-            
-            # Search in searchable_text (comprehensive field)
-            if query in entry.get('searchable_text', ''):
-                score += 3
-            
-            # Search in summary
-            if query in entry.get('summary', '').lower():
-                score += 2
-                
-            # Search in topics
-            for topic in entry.get('topics', []):
-                if query in topic.lower():
-                    score += 2
-            
-            # Search in keywords
-            for keyword in entry.get('keywords', []):
-                if query in keyword.lower():
-                    score += 1
-            
-            # Add partial matches for individual words
-            query_words = query.split()
-            for word in query_words:
-                if len(word) > 2:  # Only consider words longer than 2 chars
-                    if word in entry.get('searchable_text', ''):
-                        score += 0.5
-            
-            if score > 0:
-                entry_with_score = entry.copy()
-                entry_with_score['relevance_score'] = score
-                matched_entries.append(entry_with_score)
-        
-        # Sort by relevance score and timestamp
-        matched_entries.sort(key=lambda x: (-x['relevance_score'], -datetime.fromisoformat(x['timestamp']).timestamp()))
-        
-        # Limit results
-        limited_results = matched_entries[:limit]
-        
-        return jsonify({
-            'results': limited_results,
-            'total': len(matched_entries),
-            'query': query,
-            'change_type_filter': change_type,
-            'index_metadata': index_data.get('metadata', {})
-        })
+        # Use database search instead of file operations
+        result = SemanticQueries.search_semantic(query, limit, change_type)
+        logger.info(f"Semantic search returned {len(result.get('results', []))} results")
+        return jsonify(result)
         
     except Exception as e:
         logger.error(f"Error searching semantic index: {e}")
@@ -612,32 +500,12 @@ def search_semantic_index():
 
 @app.route('/api/search/topics', methods=['GET'])
 def get_semantic_topics():
-    """Get all available topics from the semantic index"""
+    """Get all available topics from database"""
+    logger.info("get_semantic_topics route called")
     try:
-        index_path = Path('notes/semantic_index.json')
-        
-        if not index_path.exists():
-            return jsonify({'topics': []})
-        
-        with open(index_path, 'r', encoding='utf-8') as f:
-            index_data = json.load(f)
-        
-        entries = index_data.get('entries', [])
-        
-        # Collect all unique topics
-        topics = set()
-        for entry in entries:
-            for topic in entry.get('topics', []):
-                if topic:
-                    topics.add(topic.lower())
-        
-        # Sort and return
-        sorted_topics = sorted(list(topics))
-        
-        return jsonify({
-            'topics': sorted_topics,
-            'total': len(sorted_topics)
-        })
+        result = SemanticQueries.get_all_topics()
+        logger.info(f"Retrieved {result.get('total', 0)} topics from database")
+        return jsonify(result)
         
     except Exception as e:
         logger.error(f"Error getting semantic topics: {e}")
@@ -645,33 +513,11 @@ def get_semantic_topics():
 
 @app.route('/api/search/keywords', methods=['GET'])
 def get_semantic_keywords():
-    """Get all available keywords from the semantic index"""
+    """Get all available keywords from database"""
     try:
-        index_path = Path('notes/semantic_index.json')
-        
-        if not index_path.exists():
-            return jsonify({'keywords': []})
-        
-        with open(index_path, 'r', encoding='utf-8') as f:
-            index_data = json.load(f)
-        
-        entries = index_data.get('entries', [])
-        
-        # Collect all unique keywords with frequency count
-        keyword_counts = {}
-        for entry in entries:
-            for keyword in entry.get('keywords', []):
-                if keyword:
-                    clean_keyword = keyword.lower().strip()
-                    keyword_counts[clean_keyword] = keyword_counts.get(clean_keyword, 0) + 1
-        
-        # Sort by frequency, then alphabetically
-        sorted_keywords = sorted(keyword_counts.items(), key=lambda x: (-x[1], x[0]))
-        
-        return jsonify({
-            'keywords': [{'keyword': k, 'count': c} for k, c in sorted_keywords],
-            'total': len(sorted_keywords)
-        })
+        result = SemanticQueries.get_all_keywords()
+        logger.info(f"Retrieved {result.get('total', 0)} keywords from database")
+        return jsonify(result)
         
     except Exception as e:
         logger.error(f"Error getting semantic keywords: {e}")
@@ -685,9 +531,7 @@ class APIAwareNoteChangeHandler(NoteChangeHandler):
         super().__init__(*args, **kwargs)
         
     def _add_event(self, event_type, file_path, size=None):
-        """Add an event to the API's recent events list"""
-        global recent_events
-        
+        """Add an event to the database instead of memory"""
         try:
             file_size = size if size is not None else (
                 file_path.stat().st_size if file_path.exists() else 0
@@ -695,19 +539,16 @@ class APIAwareNoteChangeHandler(NoteChangeHandler):
         except:
             file_size = 0
             
-        event = {
-            'id': f"event_{str(uuid.uuid4())[:8]}",
-            'type': event_type,
-            'path': str(file_path.relative_to(self.notes_folder.parent) if file_path.is_relative_to(self.notes_folder.parent) else file_path),
-            'timestamp': datetime.now().isoformat(),
-            'size': file_size
-        }
+        # Store event in database instead of memory
+        path_str = str(file_path.relative_to(self.notes_folder.parent) if file_path.is_relative_to(self.notes_folder.parent) else file_path)
         
-        recent_events.append(event)
-        
-        # Keep only last 100 events
-        if len(recent_events) > 100:
-            recent_events = recent_events[-100:]
+        try:
+            EventQueries.add_event(event_type, path_str, file_size)
+            logger.debug(f"Added event to database: {event_type} {path_str}")
+        except Exception as e:
+            logger.error(f"Failed to add event to database: {e}")
+            # Log fallback error but don't maintain in-memory storage
+            logger.warning(f"Database event storage failed, event lost: {event_type} {path_str}")
     
     def on_modified(self, event):
         """Override to add API event tracking"""
@@ -832,19 +673,21 @@ def run_monitor():
             logger.error(f"Monitor error: {e}")
             break
 
-def is_today(timestamp_str: str) -> bool:
-    """Check if timestamp is from today"""
-    try:
-        timestamp = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-        return timestamp.date() == datetime.now().date()
-    except:
-        return False
+# Legacy function removed - date filtering now handled in database queries
 
 # Static file serving for production
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')
 def serve_frontend(path):
     """Serve the React frontend"""
+    logger.info(f"serve_frontend called with path: '{path}'")
+    
+    # Don't handle API routes here - let them be handled by specific routes
+    if path.startswith('api/'):
+        # This should not happen if routes are registered properly
+        logger.warning(f"API path {path} reached catch-all route - this indicates a routing issue")
+        return jsonify({'error': 'API endpoint not found'}), 404
+    
     frontend_dir = Path('frontend/dist')
     
     # If frontend build exists, serve it
@@ -852,7 +695,7 @@ def serve_frontend(path):
         if path and (frontend_dir / path).exists():
             return send_from_directory(frontend_dir, path)
         # For React Router, serve index.html for any non-API routes
-        elif not path.startswith('api/'):
+        else:
             return send_from_directory(frontend_dir, 'index.html')
     
     # Fallback for development or missing frontend

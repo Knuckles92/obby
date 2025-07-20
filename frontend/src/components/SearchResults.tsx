@@ -27,7 +27,7 @@ const IMPACT_ICONS = {
 }
 
 export default function SearchResults({
-  results,
+  results: rawResults,
   total,
   loading,
   error,
@@ -37,7 +37,37 @@ export default function SearchResults({
   onPageChange,
   sortBy
 }: SearchResultsProps) {
+  // Ensure results is always an array
+  const results = Array.isArray(rawResults) ? rawResults : []
+  
   const [expandedResults, setExpandedResults] = useState<Set<string>>(new Set())
+
+  // Debug logging to diagnose the issue
+  try {
+    console.log('[SearchResults] Component rendered with:', {
+      rawResultsType: rawResults === null ? 'null' : rawResults === undefined ? 'undefined' : Array.isArray(rawResults) ? 'array' : typeof rawResults,
+      resultsCount: results.length,
+      total,
+      loading,
+      error,
+      hasResults: results.length > 0,
+      firstResult: results.length > 0 ? results[0] : null
+    })
+    
+    if (results.length > 0) {
+      console.log('[SearchResults] First result structure:', {
+        id: results[0]?.id,
+        hasTopics: results[0]?.topics !== undefined,
+        topicsType: Array.isArray(results[0]?.topics) ? 'array' : typeof results[0]?.topics,
+        hasKeywords: results[0]?.keywords !== undefined,
+        keywordsType: Array.isArray(results[0]?.keywords) ? 'array' : typeof results[0]?.keywords,
+        impact: results[0]?.impact,
+        relevance_score: results[0]?.relevance_score
+      })
+    }
+  } catch (logError) {
+    console.error('[SearchResults] Error in debug logging:', logError)
+  }
 
   const toggleExpanded = (id: string) => {
     const newExpanded = new Set(expandedResults)
@@ -146,7 +176,9 @@ export default function SearchResults({
       <div className="space-y-4">
         {results.map((result) => {
           const isExpanded = expandedResults.has(result.id)
-          const ImpactIcon = IMPACT_ICONS[result.impact as keyof typeof IMPACT_ICONS] || AlertCircle
+          // Add defensive check for impact
+          const safeImpact = result.impact || 'brief'
+          const ImpactIcon = IMPACT_ICONS[safeImpact as keyof typeof IMPACT_ICONS] || AlertCircle
           
           return (
             <div key={result.id} className="card hover:shadow-md transition-shadow">
@@ -156,10 +188,10 @@ export default function SearchResults({
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
                       <span className={`inline-flex items-center px-2 py-1 text-xs font-medium rounded-full border ${
-                        IMPACT_COLORS[result.impact as keyof typeof IMPACT_COLORS] || IMPACT_COLORS.brief
+                        IMPACT_COLORS[safeImpact as keyof typeof IMPACT_COLORS] || IMPACT_COLORS.brief
                       }`}>
                         <ImpactIcon className="h-3 w-3 mr-1" />
-                        {result.impact}
+                        {safeImpact}
                       </span>
                       
                       <div className="flex items-center space-x-1">
@@ -197,7 +229,7 @@ export default function SearchResults({
 
                 {/* Tags Section */}
                 <div className="flex flex-wrap gap-2">
-                  {result.topics.map((topic, index) => (
+                  {(result.topics || []).map((topic, index) => (
                     <span
                       key={`topic-${index}`}
                       className="inline-flex items-center px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-md"
@@ -207,7 +239,7 @@ export default function SearchResults({
                     </span>
                   ))}
                   
-                  {result.keywords.map((keyword, index) => (
+                  {(result.keywords || []).map((keyword, index) => (
                     <span
                       key={`keyword-${index}`}
                       className="inline-flex items-center px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-md"
@@ -244,11 +276,11 @@ export default function SearchResults({
                           <span className="ml-2 text-sm text-gray-900">{formatDate(result.timestamp)}</span>
                         </div>
                         
-                        {result.topics.length > 0 && (
+                        {(result.topics || []).length > 0 && (
                           <div>
                             <span className="text-sm font-medium text-gray-600">Related Topics:</span>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              {result.topics.map((topic, index) => (
+                              {(result.topics || []).map((topic, index) => (
                                 <span
                                   key={index}
                                   className="inline-block px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded"
@@ -260,11 +292,11 @@ export default function SearchResults({
                           </div>
                         )}
                         
-                        {result.keywords.length > 0 && (
+                        {(result.keywords || []).length > 0 && (
                           <div>
                             <span className="text-sm font-medium text-gray-600">Keywords:</span>
                             <div className="mt-1 flex flex-wrap gap-1">
-                              {result.keywords.map((keyword, index) => (
+                              {(result.keywords || []).map((keyword, index) => (
                                 <span
                                   key={index}
                                   className="inline-block px-2 py-1 text-xs bg-green-50 text-green-700 rounded"

@@ -199,3 +199,4 @@ config/secrets.py
 notes/*
 diffs/*
 snapshots/*
+database/schema.sql

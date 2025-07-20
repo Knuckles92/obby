@@ -27,7 +27,25 @@
 - **Content summaries**: AI-generated summaries of file content changes
 - **Tree change summaries**: AI analysis of file structure changes
 - **Context-aware**: AI understands it's part of a comprehensive monitoring system
-- **Multiple models**: Support for various OpenAI models (GPT-4o, GPT-4o-mini, etc.)
+- **Multiple models**: Support for various OpenAI models (GPT-4o, GPT-4.1, GPT-4.1-mini, etc.)
+- **Structured metadata**: AI extracts topics, keywords, and impact assessments
+- **Session organization**: Groups related changes into development sessions
+
+### ✅ Advanced Search & Discovery
+- **Semantic search**: Full-text search with SQLite FTS5 integration
+- **Topic-based filtering**: Search by automatically extracted AI topics
+- **Keyword search**: Find content by relevant keywords
+- **Date range filtering**: Time-based search capabilities
+- **Impact level filtering**: Search by change significance (brief, moderate, significant)
+- **Search syntax**: Support for special queries (`topic:name`, `keyword:term`, etc.)
+- **Real-time results**: Instant search with debounced input
+
+### ✅ High-Performance Database
+- **SQLite with WAL mode**: High-performance storage with write-ahead logging
+- **Connection pooling**: Thread-safe database access with automatic cleanup
+- **Optimized schema**: Normalized tables with performance indexes
+- **Content deduplication**: Hash-based duplicate detection for efficient storage
+- **Migration system**: Database versioning and automatic schema updates
 
 ### ✅ Production Ready
 - **Robust error handling**: Comprehensive logging and graceful error recovery
@@ -65,7 +83,7 @@
 
 ### Running the Application
 
-**Option 1: Web Interface (Recommended)**
+**Production Mode (Recommended)**
 ```bash
 # Start the API server
 python api_server.py
@@ -73,12 +91,7 @@ python api_server.py
 # Open http://localhost:8000 in your browser
 ```
 
-**Option 2: Legacy CLI Mode**
-```bash
-python legacy/main_cli.py
-```
-
-**Option 3: Development Mode**
+**Development Mode**
 ```bash
 # Terminal 1: Backend API
 python api_server.py
@@ -118,18 +131,23 @@ obby/
 ├── frontend/               # React + TypeScript + Tailwind web UI
 │   ├── src/
 │   │   ├── components/     # Reusable UI components
+│   │   │   ├── Search.tsx  # Search interface component
+│   │   │   ├── SearchResults.tsx # Search results display
+│   │   │   └── ...         # Other UI components
 │   │   ├── pages/          # Main application pages
+│   │   │   ├── SearchPage.tsx # Semantic search page
+│   │   │   └── ...         # Dashboard, settings, etc.
 │   │   ├── hooks/          # Custom React hooks
 │   │   ├── types/          # TypeScript type definitions
-│   │   └── utils/          # Frontend utilities
+│   │   └── utils/          # Frontend utilities (API client, etc.)
 │   ├── dist/              # Built frontend files
 │   └── package.json
-├── legacy/                # Legacy CLI implementation
-│   └── main_cli.py        # Original CLI interface
+├── database/               # SQLite database storage
+│   └── obby.db            # Main database file (auto-created)
 ├── notes/
 │   ├── test.md            # Sample note file
 │   └── living_note.md     # AI-generated summary
-├── diffs/                 # Change history files
+├── diffs/                 # Change history files (legacy)
 ├── .obbyignore            # File ignore patterns
 ├── .obbywatch             # Directory watch configuration
 └── config.json            # Runtime configuration
@@ -165,6 +183,70 @@ obby/
 - **AI configuration**: OpenAI API key and model selection
 - **Monitoring modes**: Toggle real-time and periodic checking
 - **System settings**: Check interval for periodic scanning and other preferences
+
+## 🔄 Backend Workflow
+
+Understanding how Obby processes file changes internally:
+
+### 1. File Change Detection
+```
+File System → watchdog Events → Event Queue → Processing Pipeline
+```
+- **Real-time monitoring**: `watchdog` library detects file system events instantly
+- **Event debouncing**: Rapid successive changes are batched to prevent duplicate processing
+- **Fallback scanning**: Periodic checks ensure no events are missed
+
+### 2. Content Processing Pipeline
+```
+File Change → Diff Generation → AI Analysis → Database Storage → Frontend Update
+```
+
+**Step-by-step process:**
+1. **Change Detection**: File modification triggers event
+2. **Diff Creation**: Content comparison generates unified diff
+3. **Content Hashing**: Duplicate detection prevents redundant storage
+4. **AI Processing**: OpenAI analyzes content for:
+   - Summary generation
+   - Topic extraction
+   - Keyword identification
+   - Impact assessment (brief/moderate/significant)
+5. **Database Storage**: Structured data saved to SQLite with proper indexing
+6. **Real-time Updates**: Server-Sent Events (SSE) push changes to connected clients
+
+### 3. Database Operations
+```
+Events Table ← → Diffs Table ← → Semantic Entries ← → Topics/Keywords
+```
+- **Normalized schema**: Separate tables for events, diffs, semantic data, topics, keywords
+- **Foreign key constraints**: Maintain data integrity across related tables
+- **Full-text search**: FTS5 virtual tables enable fast content search
+- **Connection pooling**: Thread-safe access with automatic cleanup
+
+### 4. AI Integration Flow
+```
+Content → OpenAI API → Structured Response → Database → Living Note Update
+```
+- **Conditional processing**: AI analysis only when API key is configured
+- **Structured prompts**: AI generates JSON responses with topics, keywords, summaries
+- **Error handling**: Graceful degradation when AI services are unavailable
+- **Model flexibility**: Support for multiple OpenAI models with different capabilities
+
+### 5. Real-time Frontend Updates
+```
+Database Change → SSE Stream → Frontend State → UI Update
+```
+- **Server-Sent Events**: Persistent connection for live updates
+- **Event streaming**: Dashboard, living note, and search results update in real-time
+- **Efficient updates**: Only changed data is transmitted to reduce bandwidth
+
+### 6. Search Processing
+```
+User Query → Query Parser → FTS5 Search → Result Ranking → Response
+```
+- **Query parsing**: Special syntax for topic/keyword filters (`topic:ai`, `keyword:function`)
+- **Full-text search**: SQLite FTS5 provides fast content matching
+- **Semantic filtering**: Topic and keyword extraction enables precise filtering
+- **Result ranking**: Relevance scoring based on content match and recency
 
 ## ⚙️ Configuration
 
@@ -228,12 +310,20 @@ Automatically managed through the web interface:
 {
   "checkInterval": 20,
   "openaiApiKey": "sk-...",
-  "aiModel": "gpt-4o-mini",
+  "aiModel": "gpt-4.1-mini",
   "watchPaths": ["notes/", "documents/"],
   "ignorePatterns": ["*.tmp", "*.bak"],
   "periodicCheckEnabled": true
 }
 ```
+
+### Database Configuration
+The SQLite database is automatically configured with optimized settings:
+- **WAL Mode**: Write-Ahead Logging for better concurrency
+- **Connection Pooling**: Thread-safe access with automatic cleanup
+- **Foreign Keys**: Enabled for data integrity
+- **Full-Text Search**: FTS5 virtual tables for content search
+- **Auto-migration**: Schema updates applied automatically on startup
 
 ## 🎮 Usage
 
@@ -275,6 +365,23 @@ Automatically managed through the web interface:
 - **Multiple models**: Switch between different OpenAI models
 - **API integration**: Use the REST API for programmatic access
 
+### Search Functionality
+
+**Semantic Search Examples:**
+- **General search**: Enter any text to find related content across all notes
+- **Topic filtering**: Use `topic:ai` to find content related to artificial intelligence
+- **Keyword search**: Use `keyword:function` to find content with specific keywords
+- **Combined queries**: `topic:python keyword:class` to find Python class-related content
+- **Date filtering**: Use the date picker to search within specific time ranges
+- **Impact filtering**: Filter by change significance (brief, moderate, significant)
+
+**Search Workflow:**
+1. Navigate to the Search page from the sidebar
+2. Enter your search query using natural language or special syntax
+3. Use filters to narrow down results by topic, keyword, or date
+4. Click on results to view full content and context
+5. Export search results for further analysis
+
 ## 🔧 API Reference
 
 The application provides a REST API for programmatic access:
@@ -286,9 +393,19 @@ The application provides a REST API for programmatic access:
 
 ### Data Endpoints
 - `GET /api/events` - Get recent file events
+- `DELETE /api/events` - Clear all events
 - `GET /api/diffs` - Get recent diff files
 - `GET /api/living-note` - Get living note content
+- `DELETE /api/living-note` - Clear living note content
 - `GET /api/files/tree` - Get file tree structure
+
+### Search Endpoints
+- `GET /api/search` - Perform semantic search with query parameters
+  - `q` - Search query (supports topic:name, keyword:term syntax)
+  - `limit` - Number of results (default: 50)
+  - `offset` - Pagination offset
+- `GET /api/search/topics` - Get all available topics with counts
+- `GET /api/search/keywords` - Get all available keywords with counts
 
 ### Configuration
 - `GET /api/config` - Get current configuration

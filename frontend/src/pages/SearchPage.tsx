@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Search as SearchIcon, Database, TrendingUp, Tag, Calendar } from 'lucide-react'
 import Search from '../components/Search'
-import { SearchResult, SemanticMetadata } from '../types'
+import { SemanticMetadata } from '../types'
 import { getTopics, getKeywords } from '../utils/api'
 
 export default function SearchPage() {
   const [metadata, setMetadata] = useState<SemanticMetadata>({
-    topics: [],
-    keywords: [],
+    topics: {},
+    keywords: {},
     totalEntries: 0
   })
   const [loading, setLoading] = useState(true)
@@ -19,17 +19,20 @@ export default function SearchPage() {
   const fetchMetadata = async () => {
     try {
       setLoading(true)
-      const [topicsResponse, keywordsResponse] = await Promise.all([
+      const [topicsData, keywordsData] = await Promise.all([
         getTopics(),
         getKeywords()
       ])
 
-      const topicsData = await topicsResponse.json()
-      const keywordsData = await keywordsResponse.json()
-
       setMetadata({
-        topics: topicsData.topics || [],
-        keywords: keywordsData.keywords || [],
+        topics: topicsData.topics?.reduce((acc: Record<string, number>, topic: string) => {
+          acc[topic] = 1
+          return acc
+        }, {}) || {},
+        keywords: keywordsData.keywords?.reduce((acc: Record<string, number>, keyword: any) => {
+          acc[keyword.keyword || keyword] = keyword.count || 1
+          return acc
+        }, {}) || {},
         totalEntries: topicsData.total || 0
       })
     } catch (error) {
@@ -74,7 +77,7 @@ export default function SearchPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Topics</p>
-                <p className="text-lg font-semibold text-gray-900">{metadata.topics.length}</p>
+                <p className="text-lg font-semibold text-gray-900">{Object.keys(metadata.topics).length}</p>
               </div>
             </div>
           </div>
@@ -86,7 +89,7 @@ export default function SearchPage() {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Keywords</p>
-                <p className="text-lg font-semibold text-gray-900">{metadata.keywords.length}</p>
+                <p className="text-lg font-semibold text-gray-900">{Object.keys(metadata.keywords).length}</p>
               </div>
             </div>
           </div>
@@ -112,11 +115,7 @@ export default function SearchPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
           </div>
         ) : (
-          <Search 
-            availableTopics={metadata.topics}
-            availableKeywords={metadata.keywords.map(k => k.keyword)}
-            onMetadataUpdate={fetchMetadata}
-          />
+          <Search />
         )}
       </div>
 
