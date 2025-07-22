@@ -29,38 +29,52 @@ class OpenAIClient:
         if model not in self.MODELS.values():
             logging.warning(f"Model '{model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
     
-    def summarize_diff(self, diff_content):
+    def summarize_diff(self, diff_content, settings=None):
         """
         Summarize a diff for the living note with semantic indexing optimization.
         
         Args:
             diff_content: The diff content to summarize
+            settings: Optional living note settings for customization
             
         Returns:
             str: AI-generated summary with semantic metadata
         """
         try:
+            # Load settings if not provided
+            if settings is None:
+                settings = self._load_living_note_settings()
+            
+            # Build customized system prompt based on settings
+            system_prompt = self._build_system_prompt(settings, "diff")
+            
+            # Adjust max_tokens based on summary length setting
+            max_tokens_map = {
+                'brief': 300,
+                'moderate': 600,
+                'detailed': 1000
+            }
+            max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 600)
+            
+            # Add focus areas to the user prompt if specified
+            user_content = f"Please summarize the following diff with semantic metadata:\n\n{diff_content}"
+            if settings.get('focusAreas'):
+                focus_areas_text = ", ".join(settings['focusAreas'])
+                user_content += f"\n\nPay special attention to these focus areas: {focus_areas_text}"
+            
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
                         "role": "system",
-                        "content": """You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing diffs, provide a structured summary optimized for search and discovery.
-
-Format your response as:
-**Summary**: [Concise human-readable summary]
-**Topics**: [2-3 relevant topic keywords]
-**Keywords**: [4-6 searchable keywords related to the changes]
-**Impact**: [brief/moderate/significant - assess the scope of changes]
-
-Focus on what was changed, added, or removed. Make keywords specific and searchable."""
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
-                        "content": f"Please summarize the following diff with semantic metadata:\n\n{diff_content}"
+                        "content": user_content
                     }
                 ],
-                max_tokens=600,
+                max_tokens=max_tokens,
                 temperature=0.3
             )
             
@@ -68,6 +82,82 @@ Focus on what was changed, added, or removed. Make keywords specific and searcha
             
         except Exception as e:
             return f"Error generating AI summary: {str(e)}"
+    
+    def _load_living_note_settings(self):
+        """Load living note settings from config file."""
+        import json
+        
+        settings_file = Path('config/living_note_settings.json')
+        if settings_file.exists():
+            try:
+                with open(settings_file, 'r') as f:
+                    return json.load(f)
+            except Exception as e:
+                logging.warning(f"Failed to load living note settings: {e}")
+        
+        # Return default settings
+        return {
+            'updateFrequency': 'realtime',
+            'summaryLength': 'moderate', 
+            'writingStyle': 'technical',
+            'includeMetrics': True,
+            'autoUpdate': True,
+            'maxSections': 10,
+            'focusAreas': []
+        }
+    
+    def _build_system_prompt(self, settings, content_type="diff"):
+        """Build a customized system prompt based on user settings."""
+        writing_style = settings.get('writingStyle', 'technical')
+        summary_length = settings.get('summaryLength', 'moderate')
+        include_metrics = settings.get('includeMetrics', True)
+        
+        # Base prompt
+        base_prompt = "You are an AI assistant for Obby, a comprehensive note monitoring system."
+        
+        # Style-specific instructions
+        style_instructions = {
+            'technical': "Use precise technical language and include technical details.",
+            'casual': "Use conversational tone and explain concepts in accessible terms.",
+            'formal': "Use professional, formal language suitable for documentation.",
+            'bullet-points': "Structure your response using clear bullet points and concise statements."
+        }
+        
+        # Length-specific instructions
+        length_instructions = {
+            'brief': "Keep summaries concise and focus on the most important changes only.",
+            'moderate': "Provide balanced summaries with good detail without being verbose.",
+            'detailed': "Include comprehensive details and provide thorough analysis of changes."
+        }
+        
+        # Content-type specific format
+        if content_type == "diff":
+            format_instruction = """
+Format your response as:
+**Summary**: [Description of what changed]
+**Topics**: [Key technical topics, comma-separated]
+**Keywords**: [Specific technical terms, function names, concepts, comma-separated]
+**Impact**: [brief/moderate/significant - assess the scope of changes]
+"""
+        else:
+            format_instruction = """
+Format your response with clear structure and semantic metadata for search optimization.
+"""
+        
+        # Build complete prompt
+        prompt_parts = [
+            base_prompt,
+            style_instructions.get(writing_style, style_instructions['technical']),
+            length_instructions.get(summary_length, length_instructions['moderate'])
+        ]
+        
+        if include_metrics:
+            prompt_parts.append("Include relevant metrics and quantitative information where applicable.")
+        
+        prompt_parts.append(format_instruction)
+        prompt_parts.append("Focus on what was changed, added, or removed. Make keywords specific and searchable.")
+        
+        return " ".join(prompt_parts)
     
     def summarize_tree_change(self, tree_change_description):
         """

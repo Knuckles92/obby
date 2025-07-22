@@ -1,0 +1,9 @@
+{
+  "autoUpdate": true,
+  "focusAreas": [],
+  "includeMetrics": true,
+  "maxSections": 10,
+  "summaryLength": "moderate",
+  "updateFrequency": "hourly",
+  "writingStyle": "technical"
+}

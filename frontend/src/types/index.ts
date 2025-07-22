@@ -62,6 +62,16 @@ export interface LivingNote {
   sections?: LivingNoteSection[];
 }
 
+export interface LivingNoteSettings {
+  updateFrequency: 'realtime' | 'hourly' | 'daily' | 'weekly' | 'manual';
+  summaryLength: 'brief' | 'moderate' | 'detailed';
+  writingStyle: 'technical' | 'casual' | 'formal' | 'bullet-points';
+  includeMetrics: boolean;
+  autoUpdate: boolean;
+  maxSections: number;
+  focusAreas: string[];
+}
+
 export interface SearchFilters {
   query?: string;
   topics?: string[];

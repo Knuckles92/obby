@@ -48,8 +48,10 @@ monitor_thread = None
 monitoring_active = False
 # Note: recent_events and recent_diffs now stored in database
 
-# SSE clients for real-time updates
+# SSE client management
 sse_clients = []
+
+# SSE clients for real-time updates
 living_note_observer = None
 
 @app.route('/api/status', methods=['GET'])
@@ -207,36 +209,176 @@ def clear_living_note():
         logger.error(f"Error clearing living note: {e}")
         return jsonify({'error': f'Failed to clear living note: {str(e)}'}), 500
 
-@app.route('/api/living-note/events')
+@app.route('/api/living-note/settings', methods=['GET'])
+def get_living_note_settings():
+    """Get living note customization settings"""
+    try:
+        settings_file = Path('config/living_note_settings.json')
+        
+        if settings_file.exists():
+            with open(settings_file, 'r') as f:
+                settings = json.load(f)
+        else:
+            # Return default settings
+            settings = {
+                'updateFrequency': 'realtime',
+                'summaryLength': 'moderate', 
+                'writingStyle': 'technical',
+                'includeMetrics': True,
+                'autoUpdate': True,
+                'maxSections': 10,
+                'focusAreas': []
+            }
+            
+        return jsonify(settings)
+        
+    except Exception as e:
+        logger.error(f"Error getting living note settings: {e}")
+        return jsonify({'error': f'Failed to get settings: {str(e)}'}), 500
+
+@app.route('/api/living-note/settings', methods=['POST'])
+def save_living_note_settings():
+    """Save living note customization settings"""
+    try:
+        settings_data = request.get_json()
+        
+        if not settings_data:
+            return jsonify({'error': 'No settings data provided'}), 400
+            
+        # Validate settings
+        valid_frequencies = ['realtime', 'hourly', 'daily', 'weekly', 'manual']
+        valid_lengths = ['brief', 'moderate', 'detailed']
+        valid_styles = ['technical', 'casual', 'formal', 'bullet-points']
+        
+        if settings_data.get('updateFrequency') not in valid_frequencies:
+            return jsonify({'error': 'Invalid update frequency'}), 400
+            
+        if settings_data.get('summaryLength') not in valid_lengths:
+            return jsonify({'error': 'Invalid summary length'}), 400
+            
+        if settings_data.get('writingStyle') not in valid_styles:
+            return jsonify({'error': 'Invalid writing style'}), 400
+            
+        if not isinstance(settings_data.get('maxSections', 10), int) or settings_data.get('maxSections', 10) < 1:
+            return jsonify({'error': 'Max sections must be a positive integer'}), 400
+            
+        if not isinstance(settings_data.get('focusAreas', []), list):
+            return jsonify({'error': 'Focus areas must be a list'}), 400
+        
+        # Ensure config directory exists
+        config_dir = Path('config')
+        config_dir.mkdir(exist_ok=True)
+        
+        # Save settings
+        settings_file = config_dir / 'living_note_settings.json'
+        with open(settings_file, 'w') as f:
+            json.dump(settings_data, f, indent=2)
+            
+        logger.info(f"Living note settings saved: {settings_data}")
+        return jsonify({
+            'message': 'Settings saved successfully',
+            'settings': settings_data
+        })
+        
+    except Exception as e:
+        logger.error(f"Error saving living note settings: {e}")
+        return jsonify({'error': f'Failed to save settings: {str(e)}'}), 500
+
+@app.route('/api/living-note/update', methods=['POST'])
+def trigger_living_note_update():
+    """Manually trigger a living note update"""
+    try:
+        # Get current settings
+        settings_file = Path('config/living_note_settings.json')
+        if settings_file.exists():
+            with open(settings_file, 'r') as f:
+                settings = json.load(f)
+        else:
+            settings = {'updateFrequency': 'realtime'}
+            
+        # Only allow manual updates if frequency is set to manual
+        if settings.get('updateFrequency') != 'manual':
+            return jsonify({
+                'error': 'Manual updates are only allowed when update frequency is set to manual'
+            }), 400
+            
+        # Trigger AI update using the monitoring system
+        global monitor_instance
+        if monitor_instance and monitor_instance.is_running:
+            # Force a check cycle
+            try:
+                from ai.openai_client import OpenAIClient
+                
+                ai_client = OpenAIClient()
+                living_note_path = Path('notes/living_note.md')
+                
+                # Create a summary based on recent changes
+                summary = "Manual update triggered - summarizing recent activity"
+                ai_client.update_living_note(living_note_path, summary, "manual", settings)
+                
+                logger.info("Manual living note update triggered")
+                return jsonify({
+                    'message': 'Living note update triggered successfully'
+                })
+                
+            except Exception as e:
+                logger.error(f"Error during manual update: {e}")
+                return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
+        else:
+            return jsonify({
+                'error': 'Monitoring system is not active. Start monitoring first.'
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error triggering living note update: {e}")
+        return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
+
+@app.route('/api/living-note/events', methods=['GET'])
 def living_note_events():
     """SSE endpoint for living note updates"""
-    def event_stream():
-        # Send initial connection message
-        yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+    try:
+        logger.info("SSE endpoint called, starting event stream")
         
-        # Create a queue for this client
-        client_queue = queue.Queue()
-        sse_clients.append(client_queue)
+        def event_stream():
+            client_queue = None
+            try:
+                logger.info("Creating event stream generator")
+                # Send initial connection message
+                yield f"data: {json.dumps({'type': 'connected'})}\n\n"
+                
+                # Create a queue for this client
+                client_queue = queue.Queue()
+                sse_clients.append(client_queue)
+                logger.info(f"Added client to SSE clients list. Total clients: {len(sse_clients)}")
+                
+                while True:
+                    try:
+                        # Wait for events with timeout to send keepalive
+                        message = client_queue.get(timeout=30)
+                        yield f"data: {json.dumps(message)}\n\n"
+                    except queue.Empty:
+                        # Send keepalive
+                        yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+            except GeneratorExit:
+                logger.info("Client disconnected from SSE stream")
+                # Client disconnected
+                if client_queue and client_queue in sse_clients:
+                    sse_clients.remove(client_queue)
+                    logger.info(f"Removed client from SSE clients list. Total clients: {len(sse_clients)}")
+            except Exception as e:
+                logger.error(f"Error in SSE event stream: {e}", exc_info=True)
+                if client_queue and client_queue in sse_clients:
+                    sse_clients.remove(client_queue)
+                raise
         
-        try:
-            while True:
-                try:
-                    # Wait for events with timeout to send keepalive
-                    message = client_queue.get(timeout=30)
-                    yield f"data: {json.dumps(message)}\n\n"
-                except queue.Empty:
-                    # Send keepalive
-                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
-        except GeneratorExit:
-            # Client disconnected
-            if client_queue in sse_clients:
-                sse_clients.remove(client_queue)
-    
-    return Response(event_stream(), mimetype='text/event-stream', headers={
-        'Cache-Control': 'no-cache',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Headers': 'Cache-Control'
-    })
+        return Response(event_stream(), mimetype='text/event-stream', headers={
+            'Cache-Control': 'no-cache',
+            'Access-Control-Allow-Origin': '*',
+            'Access-Control-Allow-Headers': 'Cache-Control'
+        })
+    except Exception as e:
+        logger.error(f"Error setting up SSE endpoint: {e}", exc_info=True)
+        return jsonify({'error': f'SSE endpoint error: {str(e)}'}), 500
 
 def notify_living_note_change():
     """Notify all SSE clients of living note changes"""
@@ -683,7 +825,7 @@ def serve_frontend(path):
     logger.info(f"serve_frontend called with path: '{path}'")
     
     # Don't handle API routes here - let them be handled by specific routes
-    if path.startswith('api/'):
+    if path.startswith('/api/'):
         # This should not happen if routes are registered properly
         logger.warning(f"API path {path} reached catch-all route - this indicates a routing issue")
         return jsonify({'error': 'API endpoint not found'}), 404

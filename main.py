@@ -18,11 +18,11 @@ def main():
     print("🔍 Obby - Note Change Tracker")
     print("=" * 40)
     print("\n💡 For the web interface (recommended):")
+    print("cd frontend")
+    print("npm run dev")
     print("   python api_server.py")
-    print("   Then open: http://localhost:8000")
-    print("\n💡 For legacy CLI mode:")
-    print("   python legacy/main_cli.py")
-    print("\n📖 See README.md for detailed setup instructions")
+    print("   Then open: http://localhost:3001")
+    print("\n See README.md for detailed setup instructions")
 
 if __name__ == "__main__":
     main()

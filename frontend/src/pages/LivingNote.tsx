@@ -1,12 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Search, Calendar, TrendingUp, List, Grid } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Search, Calendar, TrendingUp, List, Grid, Settings, Save, RefreshCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { LivingNote as LivingNoteType, LivingNoteSection } from '../types'
+import { LivingNote as LivingNoteType, LivingNoteSection, LivingNoteSettings } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import { apiFetch, searchSemanticIndex } from '../utils/api'
+
+// TypeScript interface for ReactMarkdown code component props
+interface CodeComponentProps {
+  node?: any
+  inline?: boolean
+  className?: string
+  children?: React.ReactNode
+  [key: string]: any
+}
 
 interface ParsedSession {
   id: string
@@ -54,14 +63,37 @@ export default function LivingNote() {
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [settings, setSettings] = useState<LivingNoteSettings>({
+    updateFrequency: 'realtime',
+    summaryLength: 'moderate',
+    writingStyle: 'technical',
+    includeMetrics: true,
+    autoUpdate: true,
+    maxSections: 10,
+    focusAreas: []
+  })
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [newFocusArea, setNewFocusArea] = useState('')
+  const [hasError, setHasError] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
-    fetchLivingNote()
-    connectToSSE()
+    try {
+      fetchLivingNote()
+      fetchSettings()
+      connectToSSE()
+    } catch (error) {
+      console.error('Error initializing LivingNote component:', error)
+      setLoading(false)
+    }
     
     return () => {
-      disconnectSSE()
+      try {
+        disconnectSSE()
+      } catch (error) {
+        console.error('Error disconnecting SSE:', error)
+      }
     }
   }, [])
 
@@ -103,13 +135,16 @@ export default function LivingNote() {
         console.error('SSE connection error:', error)
         setIsConnected(false)
         
-        // Reconnect after a delay
-        setTimeout(() => {
-          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
-            disconnectSSE()
-            connectToSSE()
-          }
-        }, 5000)
+        // Don't attempt aggressive reconnection to avoid infinite loops
+        if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+          disconnectSSE()
+          // Only reconnect if not already attempting
+          setTimeout(() => {
+            if (!eventSourceRef.current) {
+              connectToSSE()
+            }
+          }, 10000) // Increased delay to 10 seconds
+        }
       }
     } catch (error) {
       console.error('Failed to establish SSE connection:', error)
@@ -133,8 +168,76 @@ export default function LivingNote() {
       setNote(data)
     } catch (error) {
       console.error('Error fetching living note:', error)
+      setHasError(true)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchSettings = async () => {
+    try {
+      const response = await apiFetch('/api/living-note/settings')
+      if (response.ok) {
+        const data = await response.json()
+        setSettings(data)
+      }
+    } catch (error) {
+      console.error('Error fetching settings:', error)
+      // Keep default settings if fetch fails - don't set error state for this
+    }
+  }
+
+  const saveSettings = async () => {
+    try {
+      setSettingsLoading(true)
+      const response = await apiFetch('/api/living-note/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      })
+      
+      if (response.ok) {
+        console.log('Settings saved successfully')
+      } else {
+        console.error('Failed to save settings')
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error)
+    } finally {
+      setSettingsLoading(false)
+    }
+  }
+
+  const addFocusArea = () => {
+    if (newFocusArea.trim() && !settings.focusAreas.includes(newFocusArea.trim())) {
+      setSettings({
+        ...settings,
+        focusAreas: [...settings.focusAreas, newFocusArea.trim()]
+      })
+      setNewFocusArea('')
+    }
+  }
+
+  const removeFocusArea = (area: string) => {
+    setSettings({
+      ...settings,
+      focusAreas: settings.focusAreas.filter(a => a !== area)
+    })
+  }
+
+  const triggerManualUpdate = async () => {
+    try {
+      const response = await apiFetch('/api/living-note/update', {
+        method: 'POST'
+      })
+      
+      if (response.ok) {
+        console.log('Manual update triggered')
+      } else {
+        console.error('Failed to trigger manual update')
+      }
+    } catch (error) {
+      console.error('Error triggering manual update:', error)
     }
   }
 
@@ -252,6 +355,36 @@ export default function LivingNote() {
   const totalTopics = new Set(sessions.flatMap(s => s.metadata?.topics || [])).size
   const totalKeywords = new Set(sessions.flatMap(s => s.metadata?.keywords || [])).size
 
+  if (hasError) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <FileText className="h-6 w-6 text-gray-600 mr-3" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Living Note</h1>
+              <p className="text-gray-600">Error loading component</p>
+            </div>
+          </div>
+        </div>
+        <div className="card">
+          <div className="text-center py-12">
+            <p className="text-red-600">Something went wrong loading the Living Note page.</p>
+            <button 
+              onClick={() => {
+                setHasError(false)
+                window.location.reload()
+              }}
+              className="mt-4 btn-primary"
+            >
+              Retry
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -282,17 +415,243 @@ export default function LivingNote() {
             Refresh
           </button>
           
-          {note.content && (
+          <div className="flex items-center space-x-4">
+            <div className={`flex items-center space-x-2 px-3 py-2 rounded-md ${
+              isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+            }`}>
+              <div className={`h-2 w-2 rounded-full ${
+                isConnected ? 'bg-green-500' : 'bg-red-500'
+              }`} />
+              <span className="text-sm font-medium">
+                {isConnected ? 'Connected' : 'Disconnected'}
+              </span>
+            </div>
+            
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                showSettings 
+                  ? 'bg-primary-100 text-primary-700 border border-primary-200' 
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
+              }`}
+            >
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </button>
+            
+            {settings.updateFrequency === 'manual' && (
+              <button
+                onClick={triggerManualUpdate}
+                className="flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Update Now
+              </button>
+            )}
+            
             <button
               onClick={() => setClearDialogOpen(true)}
-              className="flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+              className="flex items-center px-4 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
             >
               <Trash2 className="h-4 w-4 mr-2" />
               Clear Note
             </button>
-          )}
+          </div>
         </div>
       </div>
+
+      {/* Settings Panel */}
+      {showSettings && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-medium text-gray-900">Living Note Settings</h3>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Update Frequency */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Update Frequency
+              </label>
+              <select
+                value={settings.updateFrequency}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  updateFrequency: e.target.value as LivingNoteSettings['updateFrequency']
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="realtime">Real-time (as changes occur)</option>
+                <option value="hourly">Hourly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="manual">Manual only</option>
+              </select>
+            </div>
+
+            {/* Summary Length */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Summary Length
+              </label>
+              <select
+                value={settings.summaryLength}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  summaryLength: e.target.value as LivingNoteSettings['summaryLength']
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="brief">Brief (concise summaries)</option>
+                <option value="moderate">Moderate (balanced detail)</option>
+                <option value="detailed">Detailed (comprehensive)</option>
+              </select>
+            </div>
+
+            {/* Writing Style */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Writing Style
+              </label>
+              <select
+                value={settings.writingStyle}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  writingStyle: e.target.value as LivingNoteSettings['writingStyle']
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              >
+                <option value="technical">Technical (precise, formal)</option>
+                <option value="casual">Casual (conversational)</option>
+                <option value="formal">Formal (professional)</option>
+                <option value="bullet-points">Bullet Points (structured)</option>
+              </select>
+            </div>
+
+            {/* Max Sections */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Maximum Sections
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="50"
+                value={settings.maxSections}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  maxSections: parseInt(e.target.value) || 10
+                })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+            </div>
+          </div>
+
+          {/* Toggles */}
+          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="includeMetrics"
+                checked={settings.includeMetrics}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  includeMetrics: e.target.checked
+                })}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label htmlFor="includeMetrics" className="ml-2 block text-sm text-gray-700">
+                Include metrics and statistics
+              </label>
+            </div>
+
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                id="autoUpdate"
+                checked={settings.autoUpdate}
+                onChange={(e) => setSettings({
+                  ...settings,
+                  autoUpdate: e.target.checked
+                })}
+                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+              />
+              <label htmlFor="autoUpdate" className="ml-2 block text-sm text-gray-700">
+                Enable automatic updates
+              </label>
+            </div>
+          </div>
+
+          {/* Focus Areas */}
+          <div className="mt-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Focus Areas
+              <span className="text-gray-500 text-xs ml-1">(topics to emphasize in summaries)</span>
+            </label>
+            
+            <div className="flex flex-wrap gap-2 mb-3">
+              {settings.focusAreas.map((area, index) => (
+                <span
+                  key={index}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
+                >
+                  {area}
+                  <button
+                    onClick={() => removeFocusArea(area)}
+                    className="ml-2 text-primary-600 hover:text-primary-800"
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            
+            <div className="flex space-x-2">
+              <input
+                type="text"
+                value={newFocusArea}
+                onChange={(e) => setNewFocusArea(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
+                placeholder="Add focus area (e.g., 'API design', 'performance')"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              />
+              <button
+                onClick={addFocusArea}
+                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Save Button */}
+          <div className="mt-6 flex justify-end">
+            <button
+              onClick={saveSettings}
+              disabled={settingsLoading}
+              className="flex items-center px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {settingsLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Settings
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* View Mode Selector for Structured Content */}
       {isStructured && (
@@ -540,7 +899,7 @@ export default function LivingNote() {
                               <ReactMarkdown 
                                 remarkPlugins={[remarkGfm]}
                                 components={{
-                                  code({ node, inline, className, children, ...props }) {
+                                  code({ node, inline, className, children, ...props }: CodeComponentProps) {
                                     const match = /language-(\w+)/.exec(className || '')
                                     return !inline && match ? (
                                       <SyntaxHighlighter
@@ -588,7 +947,7 @@ export default function LivingNote() {
                   <ReactMarkdown 
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code({ node, inline, className, children, ...props }) {
+                      code({ node, inline, className, children, ...props }: CodeComponentProps) {
                         const match = /language-(\w+)/.exec(className || '')
                         return !inline && match ? (
                           <SyntaxHighlighter
