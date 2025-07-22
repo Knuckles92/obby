@@ -6,6 +6,8 @@ import { apiFetch } from '../utils/api'
 export default function DiffViewer() {
   const [diffs, setDiffs] = useState<DiffEntry[]>([])
   const [selectedDiff, setSelectedDiff] = useState<DiffEntry | null>(null)
+  const [fullContent, setFullContent] = useState<string>('')
+  const [loadingContent, setLoadingContent] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -38,6 +40,39 @@ export default function DiffViewer() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchFullDiffContent = async (diffId: string) => {
+    try {
+      setLoadingContent(true)
+      const response = await apiFetch(`/api/diffs/${diffId}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch full diff content: ${response.status} ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.content && typeof data.content === 'string') {
+        setFullContent(data.content)
+      } else if (data.error) {
+        throw new Error(data.error)
+      } else {
+        console.error('Unexpected response format:', data)
+        throw new Error('Invalid response format - expected content string')
+      }
+    } catch (error) {
+      console.error('Error fetching full diff content:', error)
+      setFullContent('Error loading full content')
+    } finally {
+      setLoadingContent(false)
+    }
+  }
+
+  const handleDiffSelection = async (diff: DiffEntry) => {
+    setSelectedDiff(diff)
+    setFullContent('')
+    await fetchFullDiffContent(diff.id)
   }
 
   const formatTimeAgo = (timestamp: string) => {
@@ -84,7 +119,7 @@ export default function DiffViewer() {
               {diffs.map((diff) => (
                 <div
                   key={diff.id}
-                  onClick={() => setSelectedDiff(diff)}
+                  onClick={() => handleDiffSelection(diff)}
                   className={`p-3 rounded-md cursor-pointer transition-colors ${
                     selectedDiff?.id === diff.id ? 'bg-primary-50 border border-primary-200' : 'bg-gray-50 hover:bg-gray-100'
                   }`}
@@ -120,14 +155,18 @@ export default function DiffViewer() {
               </div>
               
               <div className="space-y-2">
-                {selectedDiff.size && selectedDiff.content.length < selectedDiff.size && (
-                  <div className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
-                    Content truncated. Showing {selectedDiff.content.length} of {selectedDiff.size} characters.
+                {loadingContent ? (
+                  <div className="flex items-center justify-center h-32">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                    <span className="ml-2 text-sm text-gray-600">Loading full content...</span>
+                  </div>
+                ) : (
+                  <div className="border border-gray-200 rounded-md">
+                    <pre className="text-xs bg-gray-900 text-gray-100 p-4 rounded-md overflow-auto whitespace-pre-wrap max-h-96 min-h-32">
+                      {fullContent || selectedDiff.content}
+                    </pre>
                   </div>
                 )}
-                <pre className="text-xs bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">
-                  {selectedDiff.content}
-                </pre>
               </div>
             </div>
           ) : (

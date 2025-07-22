@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Search, Calendar, TrendingUp, List, Grid, Settings, Save, RefreshCw } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Search, Calendar, TrendingUp, List, Grid, Settings, Save, RefreshCw, Zap, ChevronUp } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -76,7 +76,10 @@ export default function LivingNote() {
   const [settingsLoading, setSettingsLoading] = useState(false)
   const [newFocusArea, setNewFocusArea] = useState('')
   const [hasError, setHasError] = useState(false)
+  const [manualUpdateLoading, setManualUpdateLoading] = useState(false)
+  const [showManualUpdateOptions, setShowManualUpdateOptions] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const manualUpdateRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     try {
@@ -95,6 +98,18 @@ export default function LivingNote() {
         console.error('Error disconnecting SSE:', error)
       }
     }
+  }, [])
+
+  // Handle click outside for manual update dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (manualUpdateRef.current && !manualUpdateRef.current.contains(event.target as Node)) {
+        setShowManualUpdateOptions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   const connectToSSE = () => {
@@ -238,6 +253,32 @@ export default function LivingNote() {
       }
     } catch (error) {
       console.error('Error triggering manual update:', error)
+    }
+  }
+
+  const triggerComprehensiveUpdate = async (updateType: 'quick' | 'full' | 'smart') => {
+    setManualUpdateLoading(true)
+    try {
+      const response = await apiFetch('/api/living-note/manual-update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ type: updateType })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log(`Comprehensive ${updateType} update completed:`, result.message)
+        setShowManualUpdateOptions(false)
+      } else {
+        const error = await response.json()
+        console.error('Failed to trigger comprehensive update:', error.error)
+      }
+    } catch (error) {
+      console.error('Error triggering comprehensive update:', error)
+    } finally {
+      setManualUpdateLoading(false)
     }
   }
 
@@ -448,6 +489,60 @@ export default function LivingNote() {
                 Update Now
               </button>
             )}
+
+            {/* Comprehensive Manual Update Button - Always Available */}
+            <div className="relative" ref={manualUpdateRef}>
+              <button
+                onClick={() => setShowManualUpdateOptions(!showManualUpdateOptions)}
+                disabled={manualUpdateLoading}
+                className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
+                  manualUpdateLoading 
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
+                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200'
+                }`}
+              >
+                {manualUpdateLoading ? (
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Zap className="h-4 w-4 mr-2" />
+                )}
+                Manually Update Note
+                {!manualUpdateLoading && (
+                  showManualUpdateOptions ? 
+                    <ChevronUp className="h-4 w-4 ml-2" /> : 
+                    <ChevronDown className="h-4 w-4 ml-2" />
+                )}
+              </button>
+
+              {/* Dropdown Options */}
+              {showManualUpdateOptions && !manualUpdateLoading && (
+                <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-10">
+                  <div className="p-2">
+                    <button
+                      onClick={() => triggerComprehensiveUpdate('quick')}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Quick Update</div>
+                      <div className="text-xs text-gray-500">Last 1-2 hours of changes</div>
+                    </button>
+                    <button
+                      onClick={() => triggerComprehensiveUpdate('full')}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Full Regeneration</div>
+                      <div className="text-xs text-gray-500">Complete analysis of today's session</div>
+                    </button>
+                    <button
+                      onClick={() => triggerComprehensiveUpdate('smart')}
+                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-md transition-colors"
+                    >
+                      <div className="font-medium">Smart Refresh</div>
+                      <div className="text-xs text-gray-500">AI-driven content gap analysis</div>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             
             <button
               onClick={() => setClearDialogOpen(true)}

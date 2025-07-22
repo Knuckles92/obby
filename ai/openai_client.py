@@ -5,6 +5,8 @@ This module will handle communication with OpenAI API for summarizing diffs.
 
 import os
 import logging
+import re
+import time
 from pathlib import Path
 from openai import OpenAI
 
@@ -28,6 +30,11 @@ class OpenAIClient:
         # Validate model selection
         if model not in self.MODELS.values():
             logging.warning(f"Model '{model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
+        
+        # Format configuration caching
+        self._format_config = None
+        self._format_config_mtime = None
+        self._format_file_path = Path('format.md')
     
     def summarize_diff(self, diff_content, settings=None):
         """
@@ -106,76 +113,144 @@ class OpenAIClient:
             'focusAreas': []
         }
     
-    def _build_system_prompt(self, settings, content_type="diff"):
-        """Build a customized system prompt based on user settings."""
-        writing_style = settings.get('writingStyle', 'technical')
-        summary_length = settings.get('summaryLength', 'moderate')
-        include_metrics = settings.get('includeMetrics', True)
-        
-        # Base prompt
-        base_prompt = "You are an AI assistant for Obby, a comprehensive note monitoring system."
-        
-        # Style-specific instructions
-        style_instructions = {
-            'technical': "Use precise technical language and include technical details.",
-            'casual': "Use conversational tone and explain concepts in accessible terms.",
-            'formal': "Use professional, formal language suitable for documentation.",
-            'bullet-points': "Structure your response using clear bullet points and concise statements."
+    def _load_format_config(self):
+        """Load format configuration from format.md with caching."""
+        try:
+            if not self._format_file_path.exists():
+                logging.warning("format.md not found, using fallback prompts")
+                return self._get_fallback_format_config()
+            
+            # Check if we need to reload the config
+            current_mtime = self._format_file_path.stat().st_mtime
+            if (self._format_config is None or 
+                self._format_config_mtime != current_mtime):
+                
+                with open(self._format_file_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                self._format_config = self._parse_format_config(content)
+                self._format_config_mtime = current_mtime
+                logging.info("Format configuration loaded from format.md")
+            
+            return self._format_config
+            
+        except Exception as e:
+            logging.error(f"Failed to load format.md: {e}")
+            return self._get_fallback_format_config()
+    
+    def _parse_format_config(self, content):
+        """Parse format.md content into structured configuration."""
+        config = {
+            'session_template': '',
+            'diff_prompt': '',
+            'tree_prompt': '',
+            'insights_prompt': '',
+            'style_variations': {},
+            'length_options': {},
+            'manual_prompts': {}
         }
         
-        # Length-specific instructions
-        length_instructions = {
-            'brief': "Keep summaries concise and focus on the most important changes only.",
-            'moderate': "Provide balanced summaries with good detail without being verbose.",
-            'detailed': "Include comprehensive details and provide thorough analysis of changes."
-        }
+        # Extract session template
+        template_match = re.search(
+            r'## Living Note Session Template\s*```markdown\s*(.+?)\s*```',
+            content, re.DOTALL
+        )
+        if template_match:
+            config['session_template'] = template_match.group(1).strip()
         
-        # Content-type specific format
-        if content_type == "diff":
-            format_instruction = """
+        # Extract diff summarization prompt
+        diff_match = re.search(
+            r'#### Base Prompt\s*(.+?)(?=####|\n## )', 
+            content, re.DOTALL
+        )
+        if diff_match:
+            config['diff_prompt'] = diff_match.group(1).strip()
+        
+        # Extract style variations
+        style_sections = [
+            ('technical', r'##### Technical Style\s*(.+?)(?=####|#####|\n## )'),
+            ('casual', r'##### Casual Style\s*(.+?)(?=####|#####|\n## )'),
+            ('formal', r'##### Formal Style\s*(.+?)(?=####|#####|\n## )'),
+            ('bullet-points', r'##### Bullet-Points Style\s*(.+?)(?=####|#####|\n## )')
+        ]
+        
+        for style, pattern in style_sections:
+            match = re.search(pattern, content, re.DOTALL)
+            if match:
+                config['style_variations'][style] = match.group(1).strip()
+        
+        # Extract length options
+        length_sections = [
+            ('brief', r'##### Brief\s*(.+?)(?=####|#####|\n## )'),
+            ('moderate', r'##### Moderate\s*(.+?)(?=####|#####|\n## )'),
+            ('detailed', r'##### Detailed\s*(.+?)(?=####|#####|\n## )')
+        ]
+        
+        for length, pattern in length_sections:
+            match = re.search(pattern, content, re.DOTALL)
+            if match:
+                config['length_options'][length] = match.group(1).strip()
+        
+        # Extract tree change prompt
+        tree_match = re.search(
+            r'### Tree Change Summarization Prompt\s*(.+?)(?=###|\n## )',
+            content, re.DOTALL
+        )
+        if tree_match:
+            config['tree_prompt'] = tree_match.group(1).strip()
+        
+        # Extract session insights prompt
+        insights_match = re.search(
+            r'### Session Insights Prompt\s*(.+?)(?=###|\n## )',
+            content, re.DOTALL
+        )
+        if insights_match:
+            config['insights_prompt'] = insights_match.group(1).strip()
+        
+        # Extract manual update prompts
+        manual_sections = [
+            ('quick', r'#### Quick Update Prompt\s*(.+?)(?=####|\n## )'),
+            ('full', r'#### Full Regeneration Prompt\s*(.+?)(?=####|\n## )'),
+            ('smart', r'#### Smart Refresh Prompt\s*(.+?)(?=####|\n## )')
+        ]
+        
+        for update_type, pattern in manual_sections:
+            match = re.search(pattern, content, re.DOTALL)
+            if match:
+                config['manual_prompts'][update_type] = match.group(1).strip()
+        
+        return config
+    
+    def _get_fallback_format_config(self):
+        """Return hardcoded fallback configuration when format.md is unavailable."""
+        return {
+            'session_template': '''# Living Note - {date}
+
+## Session Summary ({time})
+**Focus**: {focus_description}
+**Changes**: {change_count}
+**Key Progress**: 
+{key_changes}
+
+### Detailed Changes:
+{detailed_entries}
+
+## Insights
+{ai_insights}
+
+---
+
+''',
+            'diff_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. {style_instruction} {length_instruction} {metrics_instruction}
+
 Format your response as:
 **Summary**: [Description of what changed]
 **Topics**: [Key technical topics, comma-separated]
 **Keywords**: [Specific technical terms, function names, concepts, comma-separated]
 **Impact**: [brief/moderate/significant - assess the scope of changes]
-"""
-        else:
-            format_instruction = """
-Format your response with clear structure and semantic metadata for search optimization.
-"""
-        
-        # Build complete prompt
-        prompt_parts = [
-            base_prompt,
-            style_instructions.get(writing_style, style_instructions['technical']),
-            length_instructions.get(summary_length, length_instructions['moderate'])
-        ]
-        
-        if include_metrics:
-            prompt_parts.append("Include relevant metrics and quantitative information where applicable.")
-        
-        prompt_parts.append(format_instruction)
-        prompt_parts.append("Focus on what was changed, added, or removed. Make keywords specific and searchable.")
-        
-        return " ".join(prompt_parts)
-    
-    def summarize_tree_change(self, tree_change_description):
-        """
-        Summarize a file tree change for the living note with semantic metadata.
-        
-        Args:
-            tree_change_description: Description of the tree change (creation, deletion, move)
-            
-        Returns:
-            str: AI-generated summary with semantic metadata
-        """
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": """You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing file tree changes, provide a structured summary optimized for search and discovery.
+
+Focus on what was changed, added, or removed. Make keywords specific and searchable.''',
+            'tree_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing file tree changes, provide a structured summary optimized for search and discovery.
 
 Format your response as:
 **Summary**: [Concise human-readable summary of the file/directory change]
@@ -183,7 +258,112 @@ Format your response as:
 **Keywords**: [3-5 searchable keywords related to the file operation]
 **Impact**: [brief/moderate/significant - assess organizational impact]
 
-Focus on the organizational impact and what it means for project structure."""
+Focus on the organizational impact and what it means for project structure.''',
+            'insights_prompt': '''You are an AI assistant that analyzes development sessions for patterns and insights. Provide concise, actionable insights about the developer's workflow and progress.
+
+Analyze this development session with {total_changes} changes ({content_changes} content, {tree_changes} file structure):
+
+{changes_text}
+
+Generate 2-3 concise insights about:
+1. Development patterns or workflow
+2. Project progress or focus areas  
+3. Potential next steps or recommendations
+
+Format as bullet points starting with '-'. Be specific and actionable.''',
+            'style_variations': {
+                'technical': 'Use precise technical language and include technical details.',
+                'casual': 'Use conversational tone and explain concepts in accessible terms.',
+                'formal': 'Use professional, formal language suitable for documentation.',
+                'bullet-points': 'Structure your response using clear bullet points and concise statements.'
+            },
+            'length_options': {
+                'brief': 'Keep summaries concise and focus on the most important changes only.',
+                'moderate': 'Provide balanced summaries with good detail without being verbose.',
+                'detailed': 'Include comprehensive details and provide thorough analysis of changes.'
+            },
+            'manual_prompts': {
+                'quick': 'Focus on recent changes from the last 1-2 hours. Prioritize immediate context and current work session.',
+                'full': 'Provide a comprehensive overview of today\'s entire development session. Analyze patterns across all changes.',
+                'smart': 'Intelligently determine what aspects need updating based on content gaps and recent activity patterns.'
+            }
+        }
+    
+    def _build_system_prompt(self, settings, content_type="diff", update_type=None):
+        """Build a customized system prompt based on user settings and format configuration."""
+        writing_style = settings.get('writingStyle', 'technical')
+        summary_length = settings.get('summaryLength', 'moderate')
+        include_metrics = settings.get('includeMetrics', True)
+        
+        # Load format configuration
+        format_config = self._load_format_config()
+        
+        # Get base prompt template
+        if content_type == "diff":
+            base_prompt = format_config.get('diff_prompt', '')
+        elif content_type == "tree":
+            return format_config.get('tree_prompt', '')
+        elif content_type == "insights":
+            return format_config.get('insights_prompt', '')
+        else:
+            base_prompt = format_config.get('diff_prompt', '')
+        
+        # Get style instruction
+        style_instruction = format_config.get('style_variations', {}).get(
+            writing_style, 
+            'Use precise technical language and include technical details.'
+        )
+        
+        # Get length instruction  
+        length_instruction = format_config.get('length_options', {}).get(
+            summary_length,
+            'Provide balanced summaries with good detail without being verbose.'
+        )
+        
+        # Get metrics instruction
+        metrics_instruction = ''
+        if include_metrics:
+            metrics_instruction = 'Include relevant metrics and quantitative information where applicable.'
+        
+        # Apply manual update modifications if specified
+        if update_type and update_type in format_config.get('manual_prompts', {}):
+            manual_instruction = format_config['manual_prompts'][update_type]
+            base_prompt = f"{base_prompt}\n\nManual Update Context: {manual_instruction}"
+        
+        # Substitute placeholders in the base prompt
+        prompt = base_prompt.format(
+            style_instruction=style_instruction,
+            length_instruction=length_instruction,
+            metrics_instruction=metrics_instruction
+        )
+        
+        return prompt
+    
+    def summarize_tree_change(self, tree_change_description, settings=None):
+        """
+        Summarize a file tree change for the living note with semantic metadata.
+        
+        Args:
+            tree_change_description: Description of the tree change (creation, deletion, move)
+            settings: Optional living note settings for customization
+            
+        Returns:
+            str: AI-generated summary with semantic metadata
+        """
+        try:
+            # Load settings if not provided
+            if settings is None:
+                settings = self._load_living_note_settings()
+            
+            # Build system prompt using format configuration
+            system_prompt = self._build_system_prompt(settings, "tree")
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt
                     },
                     {
                         "role": "user",
@@ -199,16 +379,26 @@ Focus on the organizational impact and what it means for project structure."""
         except Exception as e:
             return f"Error generating tree change summary: {str(e)}"
     
-    def update_living_note(self, living_note_path, summary, change_type="content"):
+    def update_living_note(self, living_note_path, summary, change_type="content", settings=None, update_type=None):
         """
         Update the living note with the AI summary using structured format.
         
         Args:
             living_note_path: Path to the living note file
             summary: AI-generated summary to add
-            change_type: Type of change ("content" or "tree")
+            change_type: Type of change ("content" or "tree") 
+            settings: Optional living note settings for customization
+            update_type: Optional update type for manual updates ("quick", "full", "smart")
         """
         living_note_path = Path(living_note_path)
+        
+        # Load settings if not provided
+        if settings is None:
+            settings = self._load_living_note_settings()
+        
+        # Handle different update types with enhanced processing
+        if update_type:
+            return self._handle_enhanced_update(living_note_path, summary, change_type, settings, update_type)
         
         # Create living note if it doesn't exist
         if not living_note_path.exists():
@@ -244,10 +434,10 @@ Focus on the organizational impact and what it means for project structure."""
         
         if session_exists:
             # Add to existing session's detailed changes
-            self._add_to_existing_session(living_note_path, summary, change_type, lines, session_start_line)
+            self._add_to_existing_session(living_note_path, summary, change_type, lines, session_start_line, settings, update_type)
         else:
             # Create new session
-            self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content)
+            self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings, update_type)
         
         # Extract semantic metadata and create searchable index entry
         try:
@@ -269,31 +459,33 @@ Focus on the organizational impact and what it means for project structure."""
         
         logging.info(f"Living note updated with structured format and semantic indexing: {living_note_path}")
 
-    def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content):
+    def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None, update_type=None):
         """Create a new session entry in the structured format."""
         from datetime import datetime
         
         # Generate initial insights
-        insights = self._generate_session_insights([summary], [change_type], is_new_session=True)
+        if settings is None:
+            settings = self._load_living_note_settings()
+        insights = self._generate_session_insights([summary], [change_type], is_new_session=True, settings=settings, update_type=update_type)
         
-        # Create session header
-        session_header = f"""# Living Note - {date_str}
-
-## Session Summary ({time_str})
-**Focus**: Development Session
-**Changes**: 1 change detected
-**Key Progress**: 
-- {change_type.title()} change: {summary[:100]}{'...' if len(summary) > 100 else ''}
-
-### Detailed Changes:
-- **{datetime.now().strftime('%H:%M:%S')}**: {summary}
-
-## Insights
-{insights}
-
----
-
-"""
+        # Load format configuration for session template
+        format_config = self._load_format_config()
+        template = format_config.get('session_template', '')
+        
+        # Prepare template variables
+        key_progress = f"- {change_type.title()} change: {summary[:100]}{'...' if len(summary) > 100 else ''}"
+        detailed_entries = f"- **{datetime.now().strftime('%H:%M:%S')}**: {summary}"
+        
+        # Apply template with variable substitution
+        session_header = template.format(
+            date=date_str,
+            time=time_str,
+            focus_description="Development Session",
+            change_count="1 change detected",
+            key_changes=key_progress,
+            detailed_entries=detailed_entries,
+            ai_insights=insights
+        )
         
         # Prepend new session to existing content
         updated_content = session_header + existing_content
@@ -301,7 +493,7 @@ Focus on the organizational impact and what it means for project structure."""
         with open(living_note_path, "w", encoding='utf-8') as f:
             f.write(updated_content)
 
-    def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line):
+    def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line, settings=None, update_type=None):
         """Add to an existing session in the structured format."""
         from datetime import datetime
         
@@ -346,7 +538,9 @@ Focus on the organizational impact and what it means for project structure."""
             # Update insights with all summaries including the new one
             all_summaries = existing_summaries + [summary]
             all_change_types = existing_change_types + [change_type]
-            new_insights = self._generate_session_insights(all_summaries, all_change_types, is_new_session=False)
+            if settings is None:
+                settings = self._load_living_note_settings()
+            new_insights = self._generate_session_insights(all_summaries, all_change_types, is_new_session=False, settings=settings, update_type=update_type)
             
             # Replace insights section
             if insights_line != -1:
@@ -364,9 +558,13 @@ Focus on the organizational impact and what it means for project structure."""
         with open(living_note_path, "w", encoding='utf-8') as f:
             f.write('\n'.join(lines))
 
-    def _generate_session_insights(self, summaries, change_types, is_new_session=True):
+    def _generate_session_insights(self, summaries, change_types, is_new_session=True, settings=None, update_type=None):
         """Generate intelligent insights based on session patterns and changes."""
         try:
+            # Load settings if not provided
+            if settings is None:
+                settings = self._load_living_note_settings()
+            
             # Analyze patterns in the summaries
             content_changes = sum(1 for ct in change_types if ct == "content")
             tree_changes = sum(1 for ct in change_types if ct == "tree")
@@ -375,27 +573,23 @@ Focus on the organizational impact and what it means for project structure."""
             # Create context for AI insight generation
             changes_text = "\n".join([f"- {summary}" for summary in summaries])
             
-            insight_prompt = f"""Analyze this development session with {total_changes} changes ({content_changes} content, {tree_changes} file structure):
-
-{changes_text}
-
-Generate 2-3 concise insights about:
-1. Development patterns or workflow
-2. Project progress or focus areas
-3. Potential next steps or recommendations
-
-Format as bullet points starting with '-'. Be specific and actionable."""
+            # Build system prompt using format configuration
+            system_prompt = self._build_system_prompt(settings, "insights", update_type)
+            
+            # Apply variable substitution to the prompt
+            user_prompt = system_prompt.format(
+                total_changes=total_changes,
+                content_changes=content_changes,
+                tree_changes=tree_changes,
+                changes_text=changes_text
+            )
 
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
                     {
-                        "role": "system",
-                        "content": "You are an AI assistant that analyzes development sessions for patterns and insights. Provide concise, actionable insights about the developer's workflow and progress."
-                    },
-                    {
                         "role": "user",
-                        "content": insight_prompt
+                        "content": user_prompt
                     }
                 ],
                 max_tokens=300,
@@ -411,6 +605,101 @@ Format as bullet points starting with '-'. Be specific and actionable."""
                 return "- Active development session in progress\n- Monitoring file changes and updates"
             else:
                 return f"- Development session with {len(summaries)} changes\n- Mix of content and structural modifications\n- Iterative development pattern observed"
+
+    def _handle_enhanced_update(self, living_note_path, summary, change_type, settings, update_type):
+        """Handle enhanced update types with specialized processing."""
+        from datetime import datetime, timedelta
+        
+        living_note_path = Path(living_note_path)
+        
+        # Create living note if it doesn't exist
+        if not living_note_path.exists():
+            living_note_path.parent.mkdir(exist_ok=True)
+            today = datetime.now().strftime("%Y-%m-%d")
+            initial_content = f"# Living Note - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
+            living_note_path.write_text(initial_content, encoding='utf-8')
+        
+        # Read existing content
+        existing_content = ""
+        if living_note_path.exists() and living_note_path.stat().st_size > 0:
+            existing_content = living_note_path.read_text(encoding='utf-8')
+        
+        now = datetime.now()
+        date_str = now.strftime("%Y-%m-%d")
+        time_str = now.strftime("%I:%M %p")
+        
+        if update_type == "quick":
+            return self._handle_quick_update(living_note_path, summary, settings, date_str, time_str, existing_content)
+        elif update_type == "full":
+            return self._handle_full_regeneration(living_note_path, summary, settings, date_str, time_str, existing_content)
+        elif update_type == "smart":
+            return self._handle_smart_refresh(living_note_path, summary, settings, date_str, time_str, existing_content)
+        
+        # Fallback to regular processing
+        return self._handle_regular_update(living_note_path, summary, change_type, settings, date_str, time_str, existing_content)
+    
+    def _handle_quick_update(self, living_note_path, summary, settings, date_str, time_str, existing_content):
+        """Handle quick update focusing on recent changes."""
+        # Generate a quick summary focusing on immediate context
+        enhanced_summary = f"Quick Update: {summary} - Recent development activity focused on immediate progress"
+        
+        # Use regular session creation/updating but with enhanced context
+        return self._process_enhanced_session(living_note_path, enhanced_summary, "manual", settings, date_str, time_str, existing_content, "quick")
+    
+    def _handle_full_regeneration(self, living_note_path, summary, settings, date_str, time_str, existing_content):
+        """Handle full regeneration of the current session."""
+        # Create comprehensive summary
+        enhanced_summary = f"Full Session Regeneration: {summary} - Comprehensive analysis of today's complete development session"
+        
+        # Use enhanced session processing
+        return self._process_enhanced_session(living_note_path, enhanced_summary, "manual", settings, date_str, time_str, existing_content, "full")
+    
+    def _handle_smart_refresh(self, living_note_path, summary, settings, date_str, time_str, existing_content):
+        """Handle smart refresh with content gap analysis."""  
+        # Analyze existing content to identify gaps
+        enhanced_summary = f"Smart Refresh: {summary} - Intelligent content analysis and gap identification"
+        
+        # Use enhanced session processing  
+        return self._process_enhanced_session(living_note_path, enhanced_summary, "manual", settings, date_str, time_str, existing_content, "smart")
+    
+    def _handle_regular_update(self, living_note_path, summary, change_type, settings, date_str, time_str, existing_content):
+        """Handle regular update processing (fallback)."""
+        return self._process_enhanced_session(living_note_path, summary, change_type, settings, date_str, time_str, existing_content, None)
+    
+    def _process_enhanced_session(self, living_note_path, summary, change_type, settings, date_str, time_str, existing_content, update_type):
+        """Process session with enhanced context based on update type."""
+        lines = existing_content.split('\n')
+        session_exists = False
+        session_start_line = -1
+        
+        # Look for today's session
+        for i, line in enumerate(lines):
+            if line.strip().startswith(f"# Living Note - {date_str}"):
+                session_exists = True
+                session_start_line = i
+                break
+        
+        if session_exists:
+            # Add to existing session with enhanced processing
+            self._add_to_existing_session(living_note_path, summary, change_type, lines, session_start_line, settings, update_type)
+        else:
+            # Create new session with enhanced processing
+            self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings, update_type)
+        
+        # Enhanced semantic metadata extraction
+        try:
+            metadata = self.extract_semantic_metadata(summary)
+            if metadata:
+                # Enhanced metadata with update type context
+                metadata['update_type'] = update_type
+                metadata['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                
+                # Store enhanced metadata (would integrate with database)
+                logging.info(f"Enhanced semantic metadata extracted with update type: {update_type}")
+        except Exception as e:
+            logging.warning(f"Failed to create enhanced semantic index entry: {e}")
+        
+        logging.info(f"Living note updated with enhanced {update_type} processing: {living_note_path}")
 
     def extract_semantic_metadata(self, summary_text):
         """

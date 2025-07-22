@@ -161,6 +161,29 @@ def get_recent_diffs():
         logger.error(f"Error retrieving diffs from database: {e}")
         return jsonify({'error': 'Failed to retrieve diff files'}), 500
 
+@app.route('/api/diffs/<diff_id>', methods=['GET'])
+def get_full_diff_content(diff_id):
+    """Get full diff content by ID"""
+    try:
+        logger.info(f"FULL DIFF CONTENT API CALLED - ID: {diff_id}")
+        
+        # Get full diff content from database
+        diff_data = DiffQueries.get_diff_content(diff_id)
+        
+        if diff_data is None:
+            logger.warning(f"Diff not found: {diff_id}")
+            return jsonify({'error': 'Diff not found'}), 404
+        
+        logger.info(f"Retrieved full diff content for ID: {diff_id}")
+        return jsonify({
+            'id': diff_id,
+            'content': diff_data['content']  # Extract just the content string
+        })
+        
+    except Exception as e:
+        logger.error(f"Error retrieving full diff content: {e}")
+        return jsonify({'error': 'Failed to retrieve diff content'}), 500
+
 @app.route('/api/living-note', methods=['GET'])
 def get_living_note():
     """Get the current living note content"""
@@ -332,6 +355,56 @@ def trigger_living_note_update():
     except Exception as e:
         logger.error(f"Error triggering living note update: {e}")
         return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
+
+@app.route('/api/living-note/manual-update', methods=['POST'])
+def comprehensive_manual_update():
+    """Comprehensive manual update with enhanced options"""
+    try:
+        # Get request parameters
+        data = request.get_json() or {}
+        update_type = data.get('type', 'quick')  # quick, full, smart
+        
+        # Validate update type
+        if update_type not in ['quick', 'full', 'smart']:
+            return jsonify({'error': 'Invalid update type. Must be quick, full, or smart'}), 400
+        
+        # Get current settings
+        settings_file = Path('config/living_note_settings.json')
+        if settings_file.exists():
+            with open(settings_file, 'r') as f:
+                settings = json.load(f)
+        else:
+            settings = {'updateFrequency': 'realtime'}
+        
+        # Import required modules
+        from ai.openai_client import OpenAIClient
+        from datetime import datetime, timedelta
+        
+        ai_client = OpenAIClient()
+        living_note_path = Path('notes/living_note.md')
+        
+        # Create update summary based on type
+        if update_type == 'quick':
+            summary = "Quick manual update - recent changes from last 1-2 hours"
+        elif update_type == 'full':
+            summary = "Full regeneration - comprehensive analysis of today's session"
+        else:  # smart
+            summary = "Smart refresh - intelligent content gap analysis"
+        
+        # Trigger update with the specific type context
+        ai_client.update_living_note(living_note_path, summary, "manual", settings, update_type)
+        
+        logger.info(f"Comprehensive manual update triggered: {update_type}")
+        
+        return jsonify({
+            'message': f'Comprehensive {update_type} update completed successfully',
+            'update_type': update_type,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error during comprehensive manual update: {e}")
+        return jsonify({'error': f'Failed to trigger comprehensive update: {str(e)}'}), 500
 
 @app.route('/api/living-note/events', methods=['GET'])
 def living_note_events():
