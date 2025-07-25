@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obby - Note Monitoring Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+            color: #c4b5fd;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: rgba(30, 27, 75, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            color: #8b5cf6;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+        }
+
+        .btn-secondary {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #c4b5fd;
+        }
+
+        /* Search Bar */
+        .search-section {
+            background: rgba(30, 27, 75, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+
+        .search-bar {
+            position: relative;
+            margin-bottom: 15px;
+        }
+
+        .search-input {
+            width: 100%;
+            background: rgba(49, 46, 129, 0.8);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 8px;
+            padding: 12px 45px 12px 15px;
+            color: #c4b5fd;
+            font-size: 16px;
+        }
+
+        .search-input::placeholder {
+            color: rgba(196, 181, 253, 0.5);
+        }
+
+        .search-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8b5cf6;
+        }
+
+        .search-filters {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .filter-tag {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #c4b5fd;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-tag:hover, .filter-tag.active {
+            background: #8b5cf6;
+            color: white;
+        }
+
+        /* Main Grid Layout */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+
+        /* Left Column - File Diffs */
+        .diffs-section {
+            background: rgba(30, 27, 75, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 25px;
+        }
+
+        .section-title {
+            color: #8b5cf6;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .diff-item {
+            background: rgba(49, 46, 129, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .diff-item:hover {
+            border-color: #8b5cf6;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.1);
+        }
+
+        .diff-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .file-name {
+            color: #8b5cf6;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .timestamp {
+            color: rgba(196, 181, 253, 0.7);
+            font-size: 12px;
+        }
+
+        .diff-content {
+            background: rgba(30, 27, 75, 0.8);
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .diff-line {
+            margin: 2px 0;
+        }
+
+        .added {
+            color: #34d399;
+            background: rgba(52, 211, 153, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .removed {
+            color: #f87171;
+            background: rgba(248, 113, 113, 0.1);
+            padding: 2px 4px;
+            border-radius: 3px;
+        }
+
+        .ai-summary {
+            background: rgba(139, 92, 246, 0.1);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 15px;
+        }
+
+        .ai-summary-title {
+            color: #8b5cf6;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .ai-summary-text {
+            color: #c4b5fd;
+            font-size: 14px;
+        }
+
+        /* Right Column */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+
+        .stats-card, .topics-card, .keywords-card {
+            background: rgba(30, 27, 75, 0.6);
+            border: 1px solid rgba(139, 92, 246, 0.2);
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .stat-item {
+            background: rgba(49, 46, 129, 0.6);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .stat-number {
+            color: #8b5cf6;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            color: rgba(196, 181, 253, 0.7);
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        /* Topics and Keywords */
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .topic-tag {
+            background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+            color: white;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .keyword-tag {
+            background: rgba(139, 92, 246, 0.2);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: #c4b5fd;
+            padding: 6px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(49, 46, 129, 0.3);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #8b5cf6;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #a855f7;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                order: -1;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">📝 Obby</div>
+            <div class="header-actions">
+                <button class="btn btn-secondary">Settings</button>
+                <button class="btn">Live Monitor</button>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-bar">
+                <input type="text" class="search-input" placeholder="Search files, content, topics, or keywords...">
+                <span class="search-icon">🔍</span>
+            </div>
+            <div class="search-filters">
+                <span class="filter-tag">All Files</span>
+                <span class="filter-tag">Recent</span>
+                <span class="filter-tag active">topic:javascript</span>
+                <span class="filter-tag">keyword:function</span>
+                <span class="filter-tag">Modified Today</span>
+            </div>
+        </section>
+
+        <!-- Main Content Grid -->
+        <div class="main-grid">
+            <!-- Left Column - File Diffs -->
+            <section class="diffs-section">
+                <h2 class="section-title">📄 Recent File Changes</h2>
+                
+                <div class="diff-item">
+                    <div class="diff-header">
+                        <span class="file-name">src/components/Dashboard.tsx</span>
+                        <span class="timestamp">2 minutes ago</span>
+                    </div>
+                    <div class="diff-content">
+                        <div class="diff-line">  const [isLoading, setIsLoading] = useState(false);</div>
+                        <div class="diff-line added">+ const [searchQuery, setSearchQuery] = useState('');</div>
+                        <div class="diff-line added">+ const [filteredResults, setFilteredResults] = useState([]);</div>
+                        <div class="diff-line"></div>
+                        <div class="diff-line">  useEffect(() => {</div>
+                        <div class="diff-line removed">-   fetchData();</div>
+                        <div class="diff-line added">+   fetchData(searchQuery);</div>
+                        <div class="diff-line">  }, []);</div>
+                    </div>
+                    <div class="ai-summary">
+                        <div class="ai-summary-title">🤖 AI Summary</div>
+                        <div class="ai-summary-text">
+                            Added search functionality to Dashboard component with state management for query and filtered results. Modified data fetching to accept search parameters.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diff-item">
+                    <div class="diff-header">
+                        <span class="file-name">api/search.py</span>
+                        <span class="timestamp">5 minutes ago</span>
+                    </div>
+                    <div class="diff-content">
+                        <div class="diff-line">def search_files(query, filters=None):</div>
+                        <div class="diff-line added">+   if not query or len(query.strip()) < 2:</div>
+                        <div class="diff-line added">+       return {'results': [], 'total': 0}</div>
+                        <div class="diff-line"></div>
+                        <div class="diff-line">    results = []</div>
+                        <div class="diff-line added">+   semantic_matches = semantic_search(query)</div>
+                        <div class="diff-line">    for file in monitored_files:</div>
+                        <div class="diff-line removed">-       if query.lower() in file.content.lower():</div>
+                        <div class="diff-line added">+       if matches_query(file, query, semantic_matches):</div>
+                    </div>
+                    <div class="ai-summary">
+                        <div class="ai-summary-title">🤖 AI Summary</div>
+                        <div class="ai-summary-text">
+                            Enhanced search function with input validation and semantic search integration. Replaced simple text matching with advanced query matching logic.
+                        </div>
+                    </div>
+                </div>
+
+                <div class="diff-item">
+                    <div class="diff-header">
+                        <span class="file-name">docs/README.md</span>
+                        <span class="timestamp">12 minutes ago</span>
+                    </div>
+                    <div class="diff-content">
+                        <div class="diff-line"># Obby - Intelligent Note Monitoring</div>
+                        <div class="diff-line"></div>
+                        <div class="diff-line added">+ ## New Features</div>
+                        <div class="diff-line added">+ - **Semantic Search**: Find notes by meaning, not just keywords</div>
+                        <div class="diff-line added">+ - **AI Summaries**: Automatic change summaries powered by OpenAI</div>
+                        <div class="diff-line added">+ - **Topic Extraction**: Automatically categorize file changes</div>
+                        <div class="diff-line"></div>
+                        <div class="diff-line">## Installation</div>
+                    </div>
+                    <div class="ai-summary">
+                        <div class="ai-summary-title">🤖 AI Summary</div>
+                        <div class="ai-summary-text">
+                            Updated documentation to highlight new AI-powered features including semantic search, automated summaries, and topic extraction capabilities.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Sidebar -->
+            <aside class="sidebar">
+                <!-- Stats Card -->
+                <div class="stats-card">
+                    <h3 class="section-title">📊 Activity Stats</h3>
+                    <div class="stats-grid">
+                        <div class="stat-item">
+                            <div class="stat-number">24</div>
+                            <div class="stat-label">Files Monitored</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">156</div>
+                            <div class="stat-label">Changes Today</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">12</div>
+                            <div class="stat-label">AI Summaries</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">8</div>
+                            <div class="stat-label">Active Topics</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Topics Card -->
+                <div class="topics-card">
+                    <h3 class="section-title">🏷️ Active Topics</h3>
+                    <div class="tag-list">
+                        <span class="topic-tag">React Components</span>
+                        <span class="topic-tag">API Endpoints</span>
+                        <span class="topic-tag">Database Schema</span>
+                        <span class="topic-tag">Authentication</span>
+                        <span class="topic-tag">Search Logic</span>
+                        <span class="topic-tag">UI Updates</span>
+                        <span class="topic-tag">Documentation</span>
+                        <span class="topic-tag">Bug Fixes</span>
+                    </div>
+                </div>
+
+                <!-- Keywords Card -->
+                <div class="keywords-card">
+                    <h3 class="section-title">🔑 Trending Keywords</h3>
+                    <div class="tag-list">
+                        <span class="keyword-tag">useState</span>
+                        <span class="keyword-tag">semantic_search</span>
+                        <span class="keyword-tag">query</span>
+                        <span class="keyword-tag">filter</span>
+                        <span class="keyword-tag">component</span>
+                        <span class="keyword-tag">endpoint</span>
+                        <span class="keyword-tag">validation</span>
+                        <span class="keyword-tag">typescript</span>
+                        <span class="keyword-tag">async</span>
+                        <span class="keyword-tag">interface</span>
+                        <span class="keyword-tag">response</span>
+                        <span class="keyword-tag">database</span>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+</body>
+</html>

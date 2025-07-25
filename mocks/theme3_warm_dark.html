@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obby - Note Monitor</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1c1917;
+            color: #fbbf24;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background-color: #292524;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .header h1 {
+            color: #f97316;
+            font-size: 2.5rem;
+            margin-bottom: 8px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            color: #fbbf24;
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .search-bar {
+            background-color: #292524;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 12px 16px;
+            background-color: #1c1917;
+            border: 2px solid #44403c;
+            border-radius: 8px;
+            color: #fbbf24;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #f97316;
+            box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+        }
+
+        .search-input::placeholder {
+            color: #78716c;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background-color: #292524;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #f97316;
+            transition: transform 0.2s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #f97316;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: #fbbf24;
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 24px;
+        }
+
+        .recent-changes {
+            background-color: #292524;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .section-title {
+            color: #f97316;
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .change-item {
+            background-color: #1c1917;
+            padding: 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            border-left: 3px solid #f97316;
+            transition: all 0.2s ease;
+        }
+
+        .change-item:hover {
+            background-color: #44403c;
+            transform: translateX(4px);
+        }
+
+        .change-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .file-name {
+            color: #fbbf24;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .file-path {
+            color: #78716c;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .change-type {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .change-type.modified {
+            background-color: rgba(249, 115, 22, 0.2);
+            color: #f97316;
+        }
+
+        .change-type.created {
+            background-color: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+
+        .change-type.deleted {
+            background-color: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+
+        .timestamp {
+            float: right;
+            color: #78716c;
+            font-size: 0.8rem;
+        }
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        .monitoring-status {
+            background-color: #292524;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background-color: #22c55e;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .status-text {
+            color: #fbbf24;
+            font-weight: 600;
+        }
+
+        .watched-folders {
+            background-color: #292524;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .folder-item {
+            background-color: #1c1917;
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .folder-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .folder-icon {
+            color: #f97316;
+            font-size: 1.2rem;
+        }
+
+        .folder-path {
+            color: #fbbf24;
+            font-size: 0.9rem;
+        }
+
+        .quick-actions {
+            background-color: #292524;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .action-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: #f97316;
+            color: #1c1917;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+        }
+
+        .action-btn:hover {
+            background-color: #ea580c;
+            transform: translateY(-1px);
+        }
+
+        .action-btn:last-child {
+            margin-bottom: 0;
+        }
+
+        .action-btn.secondary {
+            background-color: #44403c;
+            color: #fbbf24;
+        }
+
+        .action-btn.secondary:hover {
+            background-color: #57534e;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+
+        .cozy-glow {
+            box-shadow: 0 0 20px rgba(249, 115, 22, 0.1);
+        }
+
+        .warm-accent {
+            background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header cozy-glow">
+            <h1>🔥 Obby</h1>
+            <p>Your cozy note monitoring companion</p>
+        </div>
+
+        <div class="search-bar cozy-glow">
+            <input type="text" class="search-input" placeholder="Search your notes, files, and changes...">
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card cozy-glow">
+                <div class="stat-number">127</div>
+                <div class="stat-label">Files Watched</div>
+            </div>
+            <div class="stat-card cozy-glow">
+                <div class="stat-number">23</div>
+                <div class="stat-label">Recent Changes</div>
+            </div>
+            <div class="stat-card cozy-glow">
+                <div class="stat-number">8</div>
+                <div class="stat-label">Active Projects</div>
+            </div>
+            <div class="stat-card cozy-glow">
+                <div class="stat-number">2.3k</div>
+                <div class="stat-label">Total Notes</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="recent-changes cozy-glow">
+                <h2 class="section-title">📝 Recent Changes</h2>
+                
+                <div class="change-item">
+                    <div class="file-name">project-notes.md</div>
+                    <div class="file-path">~/Documents/Work/ProjectAlpha/</div>
+                    <span class="change-type modified">Modified</span>
+                    <span class="timestamp">2 mins ago</span>
+                </div>
+
+                <div class="change-item">
+                    <div class="file-name">meeting-agenda.txt</div>
+                    <div class="file-path">~/Documents/Meetings/</div>
+                    <span class="change-type created">Created</span>
+                    <span class="timestamp">15 mins ago</span>
+                </div>
+
+                <div class="change-item">
+                    <div class="file-name">research-ideas.md</div>
+                    <div class="file-path">~/Documents/Research/</div>
+                    <span class="change-type modified">Modified</span>
+                    <span class="timestamp">32 mins ago</span>
+                </div>
+
+                <div class="change-item">
+                    <div class="file-name">old-draft.txt</div>
+                    <div class="file-path">~/Documents/Drafts/</div>
+                    <span class="change-type deleted">Deleted</span>
+                    <span class="timestamp">1 hour ago</span>
+                </div>
+
+                <div class="change-item">
+                    <div class="file-name">daily-journal.md</div>
+                    <div class="file-path">~/Documents/Personal/</div>
+                    <span class="change-type modified">Modified</span>
+                    <span class="timestamp">2 hours ago</span>
+                </div>
+
+                <div class="change-item">
+                    <div class="file-name">code-snippets.js</div>
+                    <div class="file-path">~/Development/Utils/</div>
+                    <span class="change-type created">Created</span>
+                    <span class="timestamp">3 hours ago</span>
+                </div>
+            </div>
+
+            <div class="sidebar">
+                <div class="monitoring-status cozy-glow">
+                    <h3 class="section-title">🟢 Status</h3>
+                    <div class="status-indicator">
+                        <div class="status-dot"></div>
+                        <span class="status-text">Actively Monitoring</span>
+                    </div>
+                    <p style="color: #78716c; font-size: 0.9rem;">Last scan: 30 seconds ago</p>
+                </div>
+
+                <div class="watched-folders cozy-glow">
+                    <h3 class="section-title">📂 Watched Folders</h3>
+                    
+                    <div class="folder-item">
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-path">~/Documents/Work</span>
+                    </div>
+                    
+                    <div class="folder-item">
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-path">~/Documents/Personal</span>
+                    </div>
+                    
+                    <div class="folder-item">
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-path">~/Documents/Research</span>
+                    </div>
+                    
+                    <div class="folder-item">
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-path">~/Development</span>
+                    </div>
+                </div>
+
+                <div class="quick-actions cozy-glow">
+                    <h3 class="section-title">⚡ Quick Actions</h3>
+                    
+                    <button class="action-btn">Add Folder</button>
+                    <button class="action-btn secondary">Pause Monitoring</button>
+                    <button class="action-btn secondary">Export Changes</button>
+                    <button class="action-btn secondary">Settings</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

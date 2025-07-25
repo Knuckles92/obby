@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Trash2 } from 'lucide-react'
+import { Settings as SettingsIcon, Save, Trash2, Palette } from 'lucide-react'
 import { ConfigSettings, ModelsResponse } from '../types'
 import { apiFetch } from '../utils/api'
+import ThemeSwitcher from '../components/ThemeSwitcher'
 
 export default function Settings() {
   const [config, setConfig] = useState<ConfigSettings>({
@@ -138,6 +139,33 @@ export default function Settings() {
           <Save className="h-4 w-4 mr-2" />
           {saving ? 'Saving...' : 'Save Changes'}
         </button>
+      </div>
+
+      {/* Theme Settings */}
+      <div className="card">
+        <div className="flex items-center mb-4">
+          <Palette className="h-5 w-5 text-primary-600 mr-3" />
+          <h3 className="text-lg font-medium text-gray-900">Theme & Appearance</h3>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Current Theme
+            </label>
+            <ThemeSwitcher />
+          </div>
+          
+          <div className="text-sm text-gray-600">
+            <p>Choose from 11 beautiful themes across different categories:</p>
+            <ul className="mt-2 space-y-1 ml-4">
+              <li>• <strong>Professional:</strong> Corporate, Minimal, Classic</li>
+              <li>• <strong>Creative:</strong> Cyberpunk, Forest, Ocean</li>
+              <li>• <strong>Accessible:</strong> High Contrast, Large Text</li>
+              <li>• <strong>Special:</strong> Vintage, Neon, Winter</li>
+            </ul>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

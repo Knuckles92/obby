@@ -1,91 +1,122 @@
-# 📝 Obby - Note Change Tracker & AI Memory Builder
+# 📝 Obby - Intelligent Note Change Tracker & AI Memory Builder
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![React 18+](https://img.shields.io/badge/react-18+-blue.svg)](https://reactjs.org/)
+[![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Obby** is a modern web-based note change tracker and AI-assisted memory builder that watches your Markdown notes, tracks changes in real-time, and uses OpenAI to maintain a living summary of your work.
+**Obby** is a sophisticated, modern web-based note change tracker and AI-assisted memory builder that monitors your Markdown notes in real-time, maintains a high-performance SQLite database with full-text search, and uses OpenAI to create intelligent summaries of your work. Built with React, TypeScript, and a comprehensive theme system for a beautiful, accessible user experience.
 
-## 🎯 Features
+## 🎯 Core Features
 
-### ✅ Modern Web Interface
-- **Beautiful dashboard**: Real-time monitoring status and activity feed
-- **File explorer**: Tree view of watched directories with live updates
-- **Diff viewer**: Timeline of changes with side-by-side visualization
-- **Living note interface**: Rich display of AI-generated summaries
-- **Settings management**: Visual configuration editor with live validation
+### ✅ **Advanced Database Architecture**
+- **SQLite with FTS5**: High-performance full-text search engine for semantic content discovery
+- **Normalized Schema**: Optimized database design with foreign keys and proper indexing
+- **Connection Pooling**: Thread-safe database access with automatic cleanup and WAL mode
+- **Migration System**: Automatic database versioning and schema updates
+- **Content Deduplication**: SHA-256 hash-based duplicate detection for efficient storage
+- **Performance Monitoring**: Database optimization tools with vacuum and analyze capabilities
 
-### ✅ Comprehensive File Monitoring
-- **Dual monitoring modes**: Combines real-time event detection with periodic scanning
-- **Real-time tracking**: Instant detection of file changes using `watchdog`
-- **Periodic checking**: Optional interval-based scanning for comprehensive coverage
-- **File content changes**: Monitors markdown files for content modifications
-- **File tree changes**: Tracks file/directory creation, deletion, and moves
-- **Smart filtering**: Configurable ignore patterns via `.obbyignore`
-- **Custom watch paths**: Configure specific directories to monitor via `.obbywatch`
+### ✅ **Sophisticated Theme System** 
+- **11 Beautiful Themes**: Professionally designed themes across 4 categories
+  - **Professional**: Corporate, Minimal, Classic
+  - **Creative**: Cyberpunk, Forest, Ocean  
+  - **Accessible**: High Contrast, Large Text
+  - **Special**: Vintage, Neon, Winter
+- **Advanced Effects**: Glassmorphism, animations, particle systems, gradient overlays
+- **Accessibility First**: WCAG compliance with contrast ratings, motion safety, cognitive load optimization
+- **Dynamic Switching**: Auto-switch by time, category filtering, random themes
+- **Custom Variables**: User-defined CSS variables for personalization
 
-### ✅ AI-Enhanced Summaries
-- **Content summaries**: AI-generated summaries of file content changes
-- **Tree change summaries**: AI analysis of file structure changes
-- **Context-aware**: AI understands it's part of a comprehensive monitoring system
-- **Multiple models**: Support for various OpenAI models (GPT-4o, GPT-4.1, GPT-4.1-mini, etc.)
-- **Structured metadata**: AI extracts topics, keywords, and impact assessments
-- **Session organization**: Groups related changes into development sessions
+### ✅ **Intelligent Search & Discovery**
+- **Semantic Search**: SQLite FTS5-powered full-text search with relevance ranking
+- **Advanced Query Syntax**: Support for `topic:name`, `keyword:term`, `impact:level` filtering
+- **Real-time Indexing**: Automatic content indexing with topics and keywords extraction
+- **Faceted Search**: Filter by topics, keywords, impact level, date ranges
+- **Search Analytics**: Query performance metrics and result optimization
+- **Export Capabilities**: Save search results for further analysis
 
-### ✅ Advanced Search & Discovery
-- **Semantic search**: Full-text search with SQLite FTS5 integration
-- **Topic-based filtering**: Search by automatically extracted AI topics
-- **Keyword search**: Find content by relevant keywords
-- **Date range filtering**: Time-based search capabilities
-- **Impact level filtering**: Search by change significance (brief, moderate, significant)
-- **Search syntax**: Support for special queries (`topic:name`, `keyword:term`, etc.)
-- **Real-time results**: Instant search with debounced input
+### ✅ **Real-time File Monitoring**
+- **Dual Detection System**: Real-time event monitoring + periodic scanning for reliability
+- **Smart File Watching**: Configurable via `.obbywatch` with glob pattern support
+- **Intelligent Filtering**: Advanced `.obbyignore` patterns with recursive directory support
+- **Content Change Tracking**: SHA-256 content hashing for precise change detection
+- **File Tree Monitoring**: Creation, deletion, and move operations tracking
+- **Performance Optimized**: Debounced events and efficient batch processing
 
-### ✅ High-Performance Database
-- **SQLite with WAL mode**: High-performance storage with write-ahead logging
-- **Connection pooling**: Thread-safe database access with automatic cleanup
-- **Optimized schema**: Normalized tables with performance indexes
-- **Content deduplication**: Hash-based duplicate detection for efficient storage
-- **Migration system**: Database versioning and automatic schema updates
+### ✅ **AI-Enhanced Analysis**
+- **Multiple Model Support**: GPT-4o, GPT-4.1, GPT-4.1-mini, O4-mini, GPT-4.1-nano
+- **Semantic Metadata**: Automatic extraction of topics, keywords, and impact levels
+- **Structured Summaries**: AI-generated content with configurable length and style
+- **Living Note Generation**: Dynamic, evolving summaries of your work sessions
+- **Context-Aware Processing**: AI understands project context and development patterns
+- **Custom Prompting**: Configurable AI behavior through format templates
 
-### ✅ Production Ready
-- **Robust error handling**: Comprehensive logging and graceful error recovery
-- **Performance optimized**: Efficient API endpoints with caching and limits
-- **Security focused**: Input validation and proper error boundaries
-- **Local-first**: All data stored locally with optional cloud AI integration
+### ✅ **Modern Web Interface**
+- **React + TypeScript**: Type-safe, component-based architecture
+- **Tailwind CSS**: Utility-first styling with comprehensive design system
+- **Real-time Updates**: Server-Sent Events for live data synchronization
+- **Responsive Design**: Mobile-first design that works on all devices
+- **Accessibility**: Screen reader support, keyboard navigation, focus management
+- **Performance**: Optimized rendering with React hooks and efficient state management
+
+### ✅ **Production-Ready Architecture**
+- **Flask API Server**: RESTful API with comprehensive endpoint coverage
+- **Error Handling**: Graceful error recovery with detailed logging
+- **Security**: Input validation, SQL injection prevention, XSS protection
+- **Monitoring**: Application health checks and performance metrics
+- **Local-First**: All data stored locally with optional cloud AI integration
+- **Scalable**: Designed for handling large note collections efficiently
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-- Python 3.8 or higher
-- Node.js 16+ and npm (for frontend)
-- OpenAI API key (optional, for AI features)
+- **Python 3.8+** with pip
+- **Node.js 16+** with npm
+- **OpenAI API Key** (optional, for AI features)
 
 ### Installation & Setup
 
-1. **Clone and install backend**
+1. **Clone and Setup Backend**
    ```bash
    git clone <repository-url>
    cd obby
+   
+   # Create virtual environment (recommended)
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   
+   # Install dependencies
    pip install -r requirements.txt
    ```
 
-2. **Set up OpenAI API key** (optional)
+2. **Configure OpenAI API** (optional but recommended)
    ```bash
+   # Option 1: Environment variable
    export OPENAI_API_KEY="your-api-key-here"
+   
+   # Option 2: Set via web interface after startup
    ```
 
-3. **Install and build frontend**
+3. **Install and Build Frontend**
    ```bash
    cd frontend
    npm install
    npm run build
+   cd ..
+   ```
+
+4. **Initialize Database**
+   ```bash
+   # Database and directories are created automatically on first run
+   python api_server.py
    ```
 
 ### Running the Application
 
 **Production Mode (Recommended)**
 ```bash
-# Start the API server
+# Start the combined API + Frontend server
 python api_server.py
 
 # Open http://localhost:8000 in your browser
@@ -93,399 +124,513 @@ python api_server.py
 
 **Development Mode**
 ```bash
-# Terminal 1: Backend API
+# Terminal 1: Backend API with auto-reload
 python api_server.py
 
-# Terminal 2: Frontend development server
+# Terminal 2: Frontend development server with hot reload
 cd frontend
 npm run dev
-# Open http://localhost:5173
+# Access frontend at http://localhost:5173
+# API available at http://localhost:8000
 ```
 
-### First Run
-On first run, Obby will:
-- Create necessary directories (`notes/`, `diffs/`)
-- Generate a test file at `notes/test.md`
-- Create configuration files (`.obbyignore`, `.obbywatch`)
-- Start monitoring for changes
+### First Run Experience
+Obby automatically sets up your environment:
+- Creates `notes/` and `diffs/` directories
+- Generates `notes/test.md` with sample content
+- Creates `.obbyignore` and `.obbywatch` configuration files
+- Initializes SQLite database with optimized schema
+- Starts monitoring for file changes immediately
 
-## 📁 Project Structure
+## 📁 Project Architecture
 
 ```
 obby/
-├── main.py                 # Application entry point
-├── api_server.py           # Flask API server for web interface
-├── config/
-│   └── settings.py         # Core configuration settings
-├── core/
-│   └── monitor.py          # Core monitoring logic
-├── ai/
-│   └── openai_client.py    # OpenAI integration
-├── diffing/
-│   └── diff_tracker.py     # Diff generation and tracking
-├── utils/
-│   ├── file_helpers.py     # File utilities
-│   ├── file_watcher.py     # Real-time file monitoring
-│   ├── ignore_handler.py   # .obbyignore pattern matching
-│   └── watch_handler.py    # .obbywatch directory management
-├── frontend/               # React + TypeScript + Tailwind web UI
+├── 🔧 Backend (Python)
+│   ├── main.py                    # Application entry point
+│   ├── api_server.py              # Flask API server (943 lines)
+│   ├── config/
+│   │   ├── settings.py            # Core configuration
+│   │   └── living_note_settings.json # AI behavior configuration
+│   ├── core/
+│   │   └── monitor.py             # File monitoring orchestration
+│   ├── ai/
+│   │   └── openai_client.py       # OpenAI integration (851 lines)
+│   ├── database/
+│   │   ├── models.py              # SQLite models with FTS5 (423 lines)
+│   │   ├── queries.py             # Optimized query layer (548 lines)
+│   │   ├── migration.py           # Data migration system (481 lines)
+│   │   └── schema.sql             # Database schema definitions
+│   ├── diffing/
+│   │   └── diff_tracker.py        # Content diff generation
+│   └── utils/
+│       ├── file_helpers.py        # File system utilities
+│       ├── file_watcher.py        # Real-time monitoring
+│       ├── ignore_handler.py      # .obbyignore pattern matching
+│       └── watch_handler.py       # .obbywatch directory management
+│
+├── 🎨 Frontend (React + TypeScript)
 │   ├── src/
-│   │   ├── components/     # Reusable UI components
-│   │   │   ├── Search.tsx  # Search interface component
-│   │   │   ├── SearchResults.tsx # Search results display
-│   │   │   └── ...         # Other UI components
-│   │   ├── pages/          # Main application pages
-│   │   │   ├── SearchPage.tsx # Semantic search page
-│   │   │   └── ...         # Dashboard, settings, etc.
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── types/          # TypeScript type definitions
-│   │   └── utils/          # Frontend utilities (API client, etc.)
-│   ├── dist/              # Built frontend files
-│   └── package.json
-├── database/               # SQLite database storage
-│   └── obby.db            # Main database file (auto-created)
-├── notes/
-│   ├── test.md            # Sample note file
-│   └── living_note.md     # AI-generated summary
-├── diffs/                 # Change history files (legacy)
-├── .obbyignore            # File ignore patterns
-├── .obbywatch             # Directory watch configuration
-└── config.json            # Runtime configuration
+│   │   ├── components/            # Reusable UI components
+│   │   │   ├── Search.tsx         # Advanced search interface (386 lines)
+│   │   │   ├── SearchResults.tsx  # Search results display (356 lines)
+│   │   │   ├── FilterPanel.tsx    # Search filters (360 lines)
+│   │   │   ├── ThemeSwitcher.tsx  # Theme selection (366 lines)
+│   │   │   ├── ThemeEffects.tsx   # Visual theme effects (374 lines)
+│   │   │   └── Sidebar.tsx        # Navigation sidebar (185 lines)
+│   │   ├── pages/                 # Main application pages
+│   │   │   ├── Dashboard.tsx      # Real-time monitoring dashboard
+│   │   │   ├── SearchPage.tsx     # Semantic search interface (148 lines)
+│   │   │   ├── DiffViewer.tsx     # Change history viewer
+│   │   │   ├── LivingNote.tsx     # AI-generated summaries
+│   │   │   └── Settings.tsx       # Configuration management
+│   │   ├── contexts/
+│   │   │   └── ThemeContext.tsx   # Theme state management (292 lines)
+│   │   ├── themes/
+│   │   │   ├── index.ts           # Theme definitions (1044 lines)
+│   │   │   ├── css-variables.ts   # CSS variable management
+│   │   │   └── utils.ts           # Theme utilities (244 lines)
+│   │   ├── types/
+│   │   │   └── index.ts           # TypeScript definitions (280 lines)
+│   │   └── utils/
+│   │       └── api.ts             # API client with type safety
+│   └── dist/                      # Built frontend assets
+│
+├── 🗄️ Data Storage
+│   ├── database/
+│   │   └── obby.db               # Main SQLite database
+│   ├── notes/                    # Watched markdown files
+│   │   ├── test.md              # Sample note
+│   │   └── living_note.md       # AI-generated summary
+│   └── diffs/                   # Legacy file-based diffs (migrated to DB)
+│
+├── ⚙️ Configuration
+│   ├── .obbyignore              # File ignore patterns
+│   ├── .obbywatch               # Directory watch configuration
+│   └── config.json              # Runtime settings (migrated to DB)
+│
+└── 🎭 Theme Previews
+    └── mocks/                   # HTML theme previews (11 themes)
+        ├── theme2_midnight_blue.html
+        ├── theme8_cyberpunk.html
+        └── ...
 ```
 
-## 🌐 Web Interface
+## 🌐 Advanced Web Interface
 
-### 📊 Dashboard
-- **Real-time status**: Current monitoring state and file counts
-- **Activity feed**: Live stream of file change events
-- **Quick stats**: Events today, watched paths, total files
-- **Control center**: Start/stop monitoring with one click
+### 📊 **Real-time Dashboard**
+- **Live Monitoring Status**: Current state, watched paths, active file counts
+- **Activity Stream**: Real-time feed of file change events with timestamps
+- **Performance Metrics**: Events today, database size, search index statistics
+- **Quick Controls**: Start/stop monitoring, force refresh, system health checks
 
-### 📁 File Explorer
-- **Interactive tree**: Browse watched directories
-- **File details**: Size, modification time, and status
-- **Real-time updates**: Tree reflects changes instantly
+### 🔍 **Semantic Search Interface**
+- **Natural Language Queries**: Search using plain English or technical terms
+- **Advanced Filters**: Topic chips, keyword selection, date ranges, impact levels
+- **Query Syntax**: Support for `topic:ai`, `keyword:function`, `impact:significant`
+- **Result Analytics**: Relevance scoring, search performance, result clustering
+- **Export Options**: Save results as JSON, CSV, or formatted reports
 
-### 🔍 Diff Viewer
-- **Change timeline**: Chronological list of all modifications
-- **Content preview**: Truncated diff content with full view option
-- **Search & filter**: Find specific changes quickly
-- **Metadata**: File paths, timestamps, and change sizes
+### 📁 **Intelligent File Explorer**
+- **Tree Visualization**: Hierarchical view of watched directories
+- **File Metadata**: Size, modification time, change frequency, AI analysis status
+- **Smart Filtering**: Hide ignored files, show only changed files, filter by type
+- **Real-time Updates**: Tree refreshes automatically as files change
 
-### 📝 Living Note
-- **AI summaries**: Rich display of generated content
-- **Statistics**: Word count and last update time
-- **Auto-refresh**: Content updates as changes occur
+### 📈 **Diff Timeline Viewer**
+- **Chronological Timeline**: All changes displayed in temporal order
+- **Content Previews**: Syntax-highlighted diff snippets with full view option
+- **Metadata Display**: File paths, timestamps, change sizes, AI summaries
+- **Advanced Search**: Find specific changes across all history
 
-### ⚙️ Settings
-- **Watch paths**: Add/remove directories to monitor
-- **Ignore patterns**: Configure files and directories to skip
-- **AI configuration**: OpenAI API key and model selection
-- **Monitoring modes**: Toggle real-time and periodic checking
-- **System settings**: Check interval for periodic scanning and other preferences
+### 📝 **Living Note Interface**
+- **Rich Display**: AI-generated summaries with topic highlighting
+- **Structured Sections**: Organized content with metadata and statistics
+- **Auto-refresh**: Content updates automatically as changes occur
+- **Export Options**: Save summaries in multiple formats
 
-## 🔄 Backend Workflow
+### ⚙️ **Settings Management**
+- **Watch Configuration**: Visual directory picker with pattern validation
+- **AI Model Selection**: Choose from multiple OpenAI models with capability descriptions
+- **Theme Customization**: Preview and select from 11 professional themes
+- **Accessibility Options**: High contrast, large text, motion reduction
+- **System Configuration**: Monitoring intervals, database optimization, performance tuning
 
-Understanding how Obby processes file changes internally:
+## 🔧 Database Architecture
 
-### 1. File Change Detection
-```
-File System → watchdog Events → Event Queue → Processing Pipeline
-```
-- **Real-time monitoring**: `watchdog` library detects file system events instantly
-- **Event debouncing**: Rapid successive changes are batched to prevent duplicate processing
-- **Fallback scanning**: Periodic checks ensure no events are missed
+### **High-Performance SQLite Design**
+```sql
+-- Core tables with optimized indexes
+events              -- File system events (CREATE, MODIFY, DELETE)
+diffs               -- Content changes with SHA-256 deduplication  
+semantic_entries    -- AI-generated summaries and analysis
+semantic_topics     -- Normalized topic extraction
+semantic_keywords   -- Normalized keyword extraction
+config_values       -- Type-safe configuration storage
+file_states         -- File content tracking for change detection
 
-### 2. Content Processing Pipeline
-```
-File Change → Diff Generation → AI Analysis → Database Storage → Frontend Update
-```
-
-**Step-by-step process:**
-1. **Change Detection**: File modification triggers event
-2. **Diff Creation**: Content comparison generates unified diff
-3. **Content Hashing**: Duplicate detection prevents redundant storage
-4. **AI Processing**: OpenAI analyzes content for:
-   - Summary generation
-   - Topic extraction
-   - Keyword identification
-   - Impact assessment (brief/moderate/significant)
-5. **Database Storage**: Structured data saved to SQLite with proper indexing
-6. **Real-time Updates**: Server-Sent Events (SSE) push changes to connected clients
-
-### 3. Database Operations
-```
-Events Table ← → Diffs Table ← → Semantic Entries ← → Topics/Keywords
-```
-- **Normalized schema**: Separate tables for events, diffs, semantic data, topics, keywords
-- **Foreign key constraints**: Maintain data integrity across related tables
-- **Full-text search**: FTS5 virtual tables enable fast content search
-- **Connection pooling**: Thread-safe access with automatic cleanup
-
-### 4. AI Integration Flow
-```
-Content → OpenAI API → Structured Response → Database → Living Note Update
-```
-- **Conditional processing**: AI analysis only when API key is configured
-- **Structured prompts**: AI generates JSON responses with topics, keywords, summaries
-- **Error handling**: Graceful degradation when AI services are unavailable
-- **Model flexibility**: Support for multiple OpenAI models with different capabilities
-
-### 5. Real-time Frontend Updates
-```
-Database Change → SSE Stream → Frontend State → UI Update
-```
-- **Server-Sent Events**: Persistent connection for live updates
-- **Event streaming**: Dashboard, living note, and search results update in real-time
-- **Efficient updates**: Only changed data is transmitted to reduce bandwidth
-
-### 6. Search Processing
-```
-User Query → Query Parser → FTS5 Search → Result Ranking → Response
-```
-- **Query parsing**: Special syntax for topic/keyword filters (`topic:ai`, `keyword:function`)
-- **Full-text search**: SQLite FTS5 provides fast content matching
-- **Semantic filtering**: Topic and keyword extraction enables precise filtering
-- **Result ranking**: Relevance scoring based on content match and recency
-
-## ⚙️ Configuration
-
-### Core Settings (`config/settings.py`)
-```python
-# File paths
-NOTES_FOLDER = Path("notes")
-DIFF_PATH = Path("diffs")
-LIVING_NOTE_PATH = Path("notes/living_note.md")
-
-# Timing settings
-CHECK_INTERVAL = 20  # seconds (for periodic checking)
-
-# OpenAI settings
-OPENAI_MODEL = "gpt-4o-mini"  # Default AI model
+-- FTS5 Virtual Tables for Search
+semantic_search     -- Full-text search index with ranking
 ```
 
-### Monitoring Modes
-Obby uses a dual monitoring approach for maximum reliability:
+### **Advanced Features**
+- **WAL Mode**: Write-Ahead Logging for maximum concurrency
+- **Foreign Keys**: Referential integrity across all tables
+- **FTS5 Integration**: SQLite's latest full-text search engine
+- **Automatic Indexing**: Optimized indexes for all query patterns
+- **Connection Pooling**: Thread-safe access with automatic cleanup
+- **Performance Monitoring**: Built-in query analysis and optimization
 
-1. **Real-time Event Detection** (Primary)
-   - Instant file system event detection using `watchdog`
-   - Zero-latency response to file changes
-   - Handles create, modify, delete, and move operations
+### **Migration System**
+- **Automatic Upgrades**: Database schema versioning with seamless updates
+- **Data Validation**: Comprehensive checks during migration
+- **Rollback Support**: Safe migration with backup and recovery
+- **Legacy Import**: Migrate from file-based storage to database
 
-2. **Periodic Scanning** (Secondary)
-   - Optional interval-based checking of all watched files
-   - Catches any changes that might be missed by event detection
-   - Configurable interval (default: 20 seconds)
-   - Can be enabled/disabled via settings
+## 🎨 Theme System Deep Dive
 
-This dual approach ensures no changes are missed while maintaining efficient performance.
+### **Professional Themes**
+- **Corporate**: Clean, business-focused design with high contrast
+- **Minimal**: Ultra-clean interface maximizing content focus
+- **Classic**: Traditional design with warm tones and serif typography
 
-### Watch Configuration (`.obbywatch`)
+### **Creative Themes**
+- **Cyberpunk**: Futuristic neon aesthetic with glow effects and animations
+- **Forest**: Nature-inspired design with organic textures and calming greens
+- **Ocean**: Deep blue aquatic theme with fluid animations and wave effects
+
+### **Accessible Themes**
+- **High Contrast**: Maximum visibility with WCAG AAA compliance
+- **Large Text**: Enhanced readability with larger fonts and generous spacing
+
+### **Special Themes**
+- **Vintage**: Retro design with sepia tones and nostalgic elements
+- **Neon**: Vibrant electric theme with dramatic glow effects
+- **Winter**: Cool theme with icy blues and snowflake animations
+
+### **Theme Features**
+- **Glassmorphism**: Modern translucent effects with backdrop blur
+- **Particle Systems**: Animated backgrounds for immersive experiences
+- **Accessibility Ratings**: Color contrast, motion safety, cognitive load assessments
+- **Custom Effects**: Theme-specific animations and visual enhancements
+
+## 🔍 Advanced Search Capabilities
+
+### **Semantic Search Engine**
+```javascript
+// Query examples
+"machine learning algorithms"           // Natural language
+topic:ai AND keyword:neural            // Boolean operators  
+impact:significant date:2024-01-01     // Metadata filters
+"exact phrase" OR similar              // Phrase matching
 ```
-# Directories to monitor (one per line)
+
+### **Search Features**
+- **FTS5 Ranking**: Relevance-based result ordering with BM25 algorithm
+- **Topic Extraction**: AI-powered topic identification and categorization
+- **Keyword Analysis**: Automatic keyword extraction with frequency analysis
+- **Impact Assessment**: AI-generated significance levels (brief, moderate, significant)
+- **Date Range Filtering**: Flexible time-based search with calendar picker
+- **Export Results**: Save search results for analysis and reporting
+
+### **Performance Optimization**
+- **Index Optimization**: Automatic FTS5 index maintenance and rebuilding
+- **Query Caching**: Intelligent caching of frequent search patterns
+- **Result Pagination**: Efficient large result set handling
+- **Search Analytics**: Query performance monitoring and optimization
+
+## ⚙️ AI Integration
+
+### **OpenAI Model Support**
+- **GPT-4o**: Latest flagship model with enhanced capabilities
+- **GPT-4.1**: Advanced reasoning and analysis
+- **GPT-4.1-mini**: Optimized for speed and efficiency
+- **O4-mini**: Specialized for structured analysis
+- **GPT-4.1-nano**: Ultra-fast processing for real-time analysis
+
+### **Advanced AI Features**
+- **Semantic Analysis**: Automatic topic and keyword extraction
+- **Impact Assessment**: AI-generated significance levels for changes
+- **Structured Prompting**: Configurable AI behavior through format templates
+- **Context Awareness**: AI understands project context and development patterns
+- **Living Note Generation**: Dynamic, evolving summaries of work sessions
+
+### **Customization Options**
+- **Prompt Templates**: Custom AI instructions for different content types
+- **Response Formatting**: Structured output with JSON schema validation
+- **Focus Areas**: Configure AI attention for specific topics or technologies
+- **Update Frequency**: Control how often AI analysis runs
+
+## 🛠️ Configuration System
+
+### **Watch Configuration (`.obbywatch`)**
+```plaintext
+# Directories to monitor (supports glob patterns)
 notes/
-documents/work/
-projects/active/
+documents/projects/
+src/**/*.md
 ```
 
-### Ignore Patterns (`.obbyignore`)
-```
-# Ignore temporary files
+### **Ignore Patterns (`.obbyignore`)**
+```plaintext
+# Git-style patterns
 *.tmp
 *.bak
-~*
-
-# Ignore system files
 .DS_Store
-Thumbs.db
-
-# Ignore specific directories
-archive/
-drafts/
+node_modules/
+**/archive/**
 ```
 
-### Runtime Configuration (`config.json`)
-Automatically managed through the web interface:
+### **Living Note Settings**
 ```json
 {
-  "checkInterval": 20,
-  "openaiApiKey": "sk-...",
-  "aiModel": "gpt-4.1-mini",
-  "watchPaths": ["notes/", "documents/"],
-  "ignorePatterns": ["*.tmp", "*.bak"],
-  "periodicCheckEnabled": true
+  "updateFrequency": "realtime",
+  "summaryLength": "moderate", 
+  "writingStyle": "technical",
+  "includeMetrics": true,
+  "maxSections": 10,
+  "focusAreas": ["algorithms", "architecture", "performance"]
 }
 ```
 
-### Database Configuration
-The SQLite database is automatically configured with optimized settings:
-- **WAL Mode**: Write-Ahead Logging for better concurrency
-- **Connection Pooling**: Thread-safe access with automatic cleanup
-- **Foreign Keys**: Enabled for data integrity
-- **Full-Text Search**: FTS5 virtual tables for content search
-- **Auto-migration**: Schema updates applied automatically on startup
-
-## 🎮 Usage
-
-### Basic Workflow
-
-1. **Start the application**
-   ```bash
-   python api_server.py
-   ```
-
-2. **Open the web interface**
-   - Navigate to http://localhost:8000
-   - Review the dashboard and current settings
-
-3. **Configure monitoring**
-   - Go to Settings page
-   - Add directories to watch
-   - Set up ignore patterns
-   - Configure OpenAI API key (optional)
-
-4. **Start monitoring**
-   - Click "Start Monitoring" on the dashboard
-   - Watch the activity feed for real-time events
-
-5. **Edit your notes**
-   - Create or modify markdown files in watched directories
-   - See changes appear instantly in the web interface
-   - Check the Living Note for AI-generated summaries
-
-6. **Review history**
-   - Use the Diff Viewer to see all changes over time
-   - Export change reports
-   - Search for specific modifications
-
-### Advanced Features
-
-- **Custom watch paths**: Use `.obbywatch` to monitor specific directories
-- **Intelligent ignoring**: Configure `.obbyignore` with glob patterns
-- **Multiple models**: Switch between different OpenAI models
-- **API integration**: Use the REST API for programmatic access
-
-### Search Functionality
-
-**Semantic Search Examples:**
-- **General search**: Enter any text to find related content across all notes
-- **Topic filtering**: Use `topic:ai` to find content related to artificial intelligence
-- **Keyword search**: Use `keyword:function` to find content with specific keywords
-- **Combined queries**: `topic:python keyword:class` to find Python class-related content
-- **Date filtering**: Use the date picker to search within specific time ranges
-- **Impact filtering**: Filter by change significance (brief, moderate, significant)
-
-**Search Workflow:**
-1. Navigate to the Search page from the sidebar
-2. Enter your search query using natural language or special syntax
-3. Use filters to narrow down results by topic, keyword, or date
-4. Click on results to view full content and context
-5. Export search results for further analysis
-
-## 🔧 API Reference
-
-The application provides a REST API for programmatic access:
-
-### Core Endpoints
-- `GET /api/status` - Get monitoring status
-- `POST /api/monitor/start` - Start file monitoring
-- `POST /api/monitor/stop` - Stop monitoring
-
-### Data Endpoints
-- `GET /api/events` - Get recent file events
-- `DELETE /api/events` - Clear all events
-- `GET /api/diffs` - Get recent diff files
-- `GET /api/living-note` - Get living note content
-- `DELETE /api/living-note` - Clear living note content
-- `GET /api/files/tree` - Get file tree structure
-
-### Search Endpoints
-- `GET /api/search` - Perform semantic search with query parameters
-  - `q` - Search query (supports topic:name, keyword:term syntax)
-  - `limit` - Number of results (default: 50)
-  - `offset` - Pagination offset
-- `GET /api/search/topics` - Get all available topics with counts
-- `GET /api/search/keywords` - Get all available keywords with counts
-
-### Configuration
-- `GET /api/config` - Get current configuration
-- `PUT /api/config` - Update configuration
-- `GET /api/models` - Get available AI models
-
-## 🛠️ Development
-
-### Backend Development
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Run in development mode
-python api_server.py
+### **Database Configuration**
+```json
+{
+  "checkInterval": 20,
+  "periodicCheckEnabled": true,
+  "openaiApiKey": "sk-...",
+  "aiModel": "gpt-4.1-mini",
+  "watchPaths": ["notes/", "documents/"],
+  "ignorePatterns": ["*.tmp", "*.bak"]
+}
 ```
 
-### Frontend Development
+## 📡 Complete API Reference
+
+### **Monitoring Endpoints**
+```http
+GET    /api/status                 # Get monitoring status and statistics
+POST   /api/monitor/start          # Start file monitoring
+POST   /api/monitor/stop           # Stop monitoring
+```
+
+### **Data Access Endpoints**
+```http
+GET    /api/events                 # Get recent file events with pagination
+DELETE /api/events                 # Clear all events
+GET    /api/diffs                  # Get recent diff entries  
+GET    /api/diffs/{id}             # Get specific diff content
+DELETE /api/diffs                  # Clear all diffs
+```
+
+### **Search Endpoints**
+```http
+GET    /api/search                 # Semantic search with query parameters
+  ?q=query                         # Search query string
+  &topics=ai,ml                    # Topic filters
+  &keywords=function,class         # Keyword filters  
+  &date_from=2024-01-01           # Date range start
+  &date_to=2024-12-31             # Date range end
+  &impact=significant             # Impact level filter
+  &limit=50                       # Result limit
+  &offset=0                       # Pagination offset
+
+GET    /api/search/topics          # Get all available topics with counts
+GET    /api/search/keywords        # Get all keywords with frequency
+```
+
+### **Living Note Endpoints**
+```http
+GET    /api/living-note            # Get current living note content
+DELETE /api/living-note            # Clear living note content
+POST   /api/living-note/regenerate # Force regeneration from AI
+```
+
+### **Configuration Endpoints**
+```http
+GET    /api/config                 # Get current configuration
+PUT    /api/config                 # Update configuration
+GET    /api/models                 # Get available AI models
+GET    /api/files/tree            # Get file tree structure
+```
+
+### **System Endpoints**
+```http
+GET    /api/health                 # System health check
+GET    /api/metrics                # Performance metrics
+POST   /api/database/optimize      # Database maintenance
+GET    /api/database/stats         # Database statistics
+```
+
+## 🚀 Development & Deployment
+
+### **Development Setup**
 ```bash
+# Backend development with auto-reload
+pip install -r requirements.txt
+python api_server.py
+
+# Frontend development with hot reload
 cd frontend
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 
-# Build for production
-npm run build
+# Database development
+python -c "from database.migration import MigrationManager; MigrationManager().run_complete_migration()"
 ```
 
-### Adding Features
-1. **New API endpoints**: Add routes to `api_server.py`
-2. **Frontend pages**: Create components in `frontend/src/pages/`
-3. **AI providers**: Extend the `ai/` module
-4. **File handlers**: Modify `utils/` modules
-
-## 📋 Production Deployment
-
-### Environment Setup
+### **Testing**
 ```bash
-# Set production environment
-export FLASK_ENV=production
-export OPENAI_API_KEY="your-api-key"
+# Backend testing
+python -m pytest tests/
 
-# Install dependencies
-pip install -r requirements.txt
+# Frontend testing  
+cd frontend
+npm test
 
-# Build frontend
-cd frontend && npm install && npm run build
+# Integration testing
+npm run test:e2e
 ```
 
-### Running in Production
-```bash
-# Use a production WSGI server
-pip install gunicorn
+### **Production Deployment**
 
-# Start the application
-gunicorn -w 4 -b 0.0.0.0:8000 api_server:app
-```
-
-### Docker Deployment
+**Docker Deployment**
 ```dockerfile
-FROM python:3.8-slim
+FROM python:3.9-slim
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
+
 COPY . .
 RUN cd frontend && npm install && npm run build
+
 EXPOSE 8000
 CMD ["python", "api_server.py"]
 ```
 
+**Manual Deployment**
+```bash
+# Production build
+cd frontend && npm run build && cd ..
+
+# Production server
+pip install gunicorn
+gunicorn -w 4 -b 0.0.0.0:8000 api_server:app
+
+# Environment variables
+export FLASK_ENV=production
+export OPENAI_API_KEY="your-key"
+```
+
+**System Service**
+```ini
+[Unit]
+Description=Obby Note Tracker
+After=network.target
+
+[Service]
+Type=simple
+User=obby
+WorkingDirectory=/opt/obby
+ExecStart=/opt/obby/venv/bin/python api_server.py
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## 🔬 Advanced Usage
+
+### **Custom AI Prompts**
+Create custom format templates in `format.md`:
+```markdown
+# Custom Analysis Format
+
+When analyzing code changes, focus on:
+- Performance implications
+- Security considerations  
+- Architecture patterns
+- Testing requirements
+
+Generate structured output with:
+- Summary (max 100 words)
+- Key topics (max 5)
+- Impact level (brief/moderate/significant)
+- Recommendations (max 3)
+```
+
+### **Search Automation**
+```python
+# Programmatic search API usage
+import requests
+
+response = requests.get('http://localhost:8000/api/search', {
+    'q': 'machine learning',
+    'topics': 'ai,algorithms',
+    'limit': 100
+})
+
+results = response.json()
+for result in results['results']:
+    print(f"{result['timestamp']}: {result['summary']}")
+```
+
+### **Database Optimization**
+```python
+# Manual database maintenance
+from database.models import PerformanceModel
+
+# Get statistics
+stats = PerformanceModel.get_stats()
+print(f"Database size: {stats['database_size_bytes']} bytes")
+
+# Optimize database
+PerformanceModel.vacuum()  # Reclaim space
+PerformanceModel.analyze() # Update query planner stats
+```
+
+### **Theme Development**
+```typescript
+// Create custom theme
+const customTheme: Theme = {
+  id: 'custom-dark',
+  name: 'Custom Dark',
+  category: 'professional',
+  description: 'My custom dark theme',
+  colors: {
+    primary: '#6366f1',
+    background: '#0f172a',
+    // ... define all required colors
+  },
+  // ... other theme properties
+};
+
+// Register theme
+themes.push(customTheme);
+```
+
 ## 🤝 Contributing
 
+### **Development Workflow**
 1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+2. Create feature branch (`git checkout -b feature/amazing-feature`)
+3. Run tests (`npm test && python -m pytest`)
+4. Commit changes (`git commit -m 'Add amazing feature'`)
+5. Push to branch (`git push origin feature/amazing-feature`)
+6. Open Pull Request
+
+### **Code Standards**
+- **Python**: Follow PEP 8, use type hints, comprehensive docstrings
+- **TypeScript**: Strict mode enabled, comprehensive interfaces
+- **Testing**: Unit tests for all new features, integration tests for API endpoints
+- **Documentation**: Update README for new features, inline code documentation
+
+### **Architecture Guidelines**
+- **Database**: Use normalized schema, proper indexing, type-safe queries
+- **API**: RESTful design, comprehensive error handling, input validation
+- **Frontend**: Component-based architecture, accessibility compliance
+- **Themes**: Follow accessibility guidelines, test with screen readers
 
 ## 📄 License
 
@@ -493,11 +638,18 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Acknowledgments
 
-- Built with Python Flask and React
-- Uses OpenAI API for intelligent summarization
-- Inspired by the need for better note-taking and knowledge management
-- Designed to be simple, local-first, and extensible
+**Built with modern technologies:**
+- **Backend**: Python, Flask, SQLite with FTS5, OpenAI
+- **Frontend**: React 18, TypeScript 5, Tailwind CSS, Vite
+- **Architecture**: RESTful API, real-time updates, responsive design
+- **AI**: OpenAI GPT models for intelligent content analysis
+
+**Designed for developers who value:**
+- **Performance**: Optimized database queries and efficient frontend rendering
+- **Accessibility**: WCAG compliance and comprehensive theme system
+- **Flexibility**: Configurable monitoring, AI behavior, and visual themes
+- **Reliability**: Robust error handling and production-ready architecture
 
 ---
 
-**Happy note-taking! 📝✨**
+**Transform your note-taking workflow with intelligent monitoring and AI-powered insights! 📝✨**

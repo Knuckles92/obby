@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Obby - Note Monitoring App</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --dark-charcoal: #1f1f1f;
+            --rose-gold: #e91e63;
+            --warm-pink: #f48fb1;
+            --light-charcoal: #2a2a2a;
+            --darker-charcoal: #161616;
+            --text-primary: #ffffff;
+            --text-secondary: #cccccc;
+            --text-muted: #999999;
+            --gradient-rose: linear-gradient(135deg, #e91e63, #f48fb1);
+            --gradient-dark: linear-gradient(135deg, #1f1f1f, #2a2a2a);
+            --shadow-rose: 0 4px 20px rgba(233, 30, 99, 0.3);
+            --shadow-dark: 0 4px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--dark-charcoal);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        .header {
+            background: var(--gradient-dark);
+            padding: 20px 0;
+            box-shadow: var(--shadow-dark);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--gradient-rose);
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: 700;
+            background: var(--gradient-rose);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+
+        .nav {
+            display: flex;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .nav-item {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            position: relative;
+            padding: 10px 0;
+        }
+
+        .nav-item:hover,
+        .nav-item.active {
+            color: var(--rose-gold);
+        }
+
+        .nav-item::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-rose);
+            transition: width 0.3s ease;
+        }
+
+        .nav-item:hover::after,
+        .nav-item.active::after {
+            width: 100%;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--light-charcoal);
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--rose-gold);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--rose-gold);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main Content */
+        .main {
+            padding: 40px 0;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .card {
+            background: var(--gradient-dark);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--light-charcoal);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: var(--gradient-rose);
+            opacity: 0.5;
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-rose);
+            border-color: var(--rose-gold);
+        }
+
+        .card-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+        }
+
+        .stat-number {
+            font-size: 32px;
+            font-weight: 700;
+            background: var(--gradient-rose);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* File List */
+        .file-list {
+            background: var(--gradient-dark);
+            border-radius: 16px;
+            padding: 24px;
+            border: 1px solid var(--light-charcoal);
+        }
+
+        .file-list-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--light-charcoal);
+        }
+
+        .file-list-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .filter-tabs {
+            display: flex;
+            gap: 8px;
+        }
+
+        .filter-tab {
+            padding: 8px 16px;
+            border: 1px solid var(--light-charcoal);
+            border-radius: 20px;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+        }
+
+        .filter-tab.active,
+        .filter-tab:hover {
+            background: var(--gradient-rose);
+            border-color: var(--rose-gold);
+            color: white;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            padding: 16px 0;
+            border-bottom: 1px solid var(--light-charcoal);
+            transition: all 0.3s ease;
+        }
+
+        .file-item:hover {
+            background: var(--darker-charcoal);
+            margin: 0 -24px;
+            padding-left: 24px;
+            padding-right: 24px;
+            border-radius: 8px;
+        }
+
+        .file-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            background: var(--gradient-rose);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            color: white;
+            font-weight: 600;
+        }
+
+        .file-info {
+            flex: 1;
+        }
+
+        .file-name {
+            font-weight: 500;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+        }
+
+        .file-path {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        .file-meta {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            color: var(--text-muted);
+            font-size: 12px;
+        }
+
+        .file-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .status-modified {
+            background: rgba(233, 30, 99, 0.2);
+            color: var(--rose-gold);
+        }
+
+        .status-created {
+            background: rgba(244, 143, 177, 0.2);
+            color: var(--warm-pink);
+        }
+
+        .status-deleted {
+            background: rgba(255, 82, 82, 0.2);
+            color: #ff5252;
+        }
+
+        /* Search Bar */
+        .search-section {
+            margin-bottom: 30px;
+        }
+
+        .search-bar {
+            position: relative;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 16px 24px 16px 50px;
+            background: var(--light-charcoal);
+            border: 2px solid transparent;
+            border-radius: 25px;
+            color: var(--text-primary);
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--rose-gold);
+            box-shadow: var(--shadow-rose);
+        }
+
+        .search-icon {
+            position: absolute;
+            left: 18px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 16px;
+            margin-top: 30px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 25px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: var(--gradient-rose);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            box-shadow: var(--shadow-rose);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--rose-gold);
+            border: 1px solid var(--rose-gold);
+        }
+
+        .btn-secondary:hover {
+            background: var(--rose-gold);
+            color: white;
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 60px;
+            padding: 30px 0;
+            border-top: 1px solid var(--light-charcoal);
+            text-align: center;
+            color: var(--text-muted);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            .nav {
+                gap: 20px;
+            }
+
+            .action-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+
+        /* Loading Animation */
+        .loading-shimmer {
+            background: linear-gradient(90deg, transparent, rgba(233, 30, 99, 0.1), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">Obby</div>
+                <nav class="nav">
+                    <a href="#" class="nav-item active">Dashboard</a>
+                    <a href="#" class="nav-item">Files</a>
+                    <a href="#" class="nav-item">Search</a>
+                    <a href="#" class="nav-item">Settings</a>
+                    <div class="status-indicator">
+                        <div class="status-dot"></div>
+                        <span>Monitoring Active</span>
+                    </div>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="main">
+        <div class="container">
+            <div class="search-section">
+                <div class="search-bar">
+                    <div class="search-icon">🔍</div>
+                    <input type="text" class="search-input" placeholder="Search files, content, or topics...">
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <div class="card">
+                    <div class="card-title">Files Monitored</div>
+                    <div class="stat-number">1,247</div>
+                    <div class="stat-label">Across 23 directories</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Recent Changes</div>
+                    <div class="stat-number">18</div>
+                    <div class="stat-label">In the last hour</div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">AI Insights</div>
+                    <div class="stat-number">156</div>
+                    <div class="stat-label">Topics identified</div>
+                </div>
+            </div>
+
+            <div class="file-list">
+                <div class="file-list-header">
+                    <div class="file-list-title">Recent Activity</div>
+                    <div class="filter-tabs">
+                        <button class="filter-tab active">All</button>
+                        <button class="filter-tab">Modified</button>
+                        <button class="filter-tab">Created</button>
+                        <button class="filter-tab">Deleted</button>
+                    </div>
+                </div>
+
+                <div class="file-item">
+                    <div class="file-icon">TS</div>
+                    <div class="file-info">
+                        <div class="file-name">LivingNote.tsx</div>
+                        <div class="file-path">frontend/src/pages/LivingNote.tsx</div>
+                    </div>
+                    <div class="file-meta">
+                        <span class="file-status status-modified">Modified</span>
+                        <span>2 minutes ago</span>
+                    </div>
+                </div>
+
+                <div class="file-item">
+                    <div class="file-icon">PY</div>
+                    <div class="file-info">
+                        <div class="file-name">api_server.py</div>
+                        <div class="file-path">api_server.py</div>
+                    </div>
+                    <div class="file-meta">
+                        <span class="file-status status-modified">Modified</span>
+                        <span>15 minutes ago</span>
+                    </div>
+                </div>
+
+                <div class="file-item">
+                    <div class="file-icon">MD</div>
+                    <div class="file-info">
+                        <div class="file-name">format.md</div>
+                        <div class="file-path">docs/format.md</div>
+                    </div>
+                    <div class="file-meta">
+                        <span class="file-status status-created">Created</span>
+                        <span>1 hour ago</span>
+                    </div>
+                </div>
+
+                <div class="file-item">
+                    <div class="file-icon">JS</div>
+                    <div class="file-info">
+                        <div class="file-name">search.component.js</div>
+                        <div class="file-path">frontend/src/components/search.component.js</div>
+                    </div>
+                    <div class="file-meta">
+                        <span class="file-status status-modified">Modified</span>
+                        <span>2 hours ago</span>
+                    </div>
+                </div>
+
+                <div class="file-item">
+                    <div class="file-icon">SQL</div>
+                    <div class="file-info">
+                        <div class="file-name">migration_001.sql</div>
+                        <div class="file-path">database/migrations/migration_001.sql</div>
+                    </div>
+                    <div class="file-meta">
+                        <span class="file-status status-deleted">Deleted</span>
+                        <span>3 hours ago</span>
+                    </div>
+                </div>
+
+                <div class="file-item">
+                    <div class="file-icon">PY</div>
+                    <div class="file-info">
+                        <div class="file-name">openai_client.py</div>
+                        <div class="file-path">ai/openai_client.py</div>
+                    </div>
+                    <div class="file-meta">
+                        <span class="file-status status-modified">Modified</span>
+                        <span>4 hours ago</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button class="btn btn-primary">
+                    📊 View Analytics
+                </button>
+                <button class="btn btn-secondary">
+                    ⚙️ Configure Monitoring
+                </button>
+                <button class="btn btn-secondary">
+                    🔍 Advanced Search
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Obby - Intelligent Note Monitoring • Powered by AI</p>
+        </div>
+    </footer>
+
+    <script>
+        // Add some interactive behavior
+        document.addEventListener('DOMContentLoaded', function() {
+            // Filter tabs functionality
+            const filterTabs = document.querySelectorAll('.filter-tab');
+            filterTabs.forEach(tab => {
+                tab.addEventListener('click', function() {
+                    filterTabs.forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                });
+            });
+
+            // Search input focus effect
+            const searchInput = document.querySelector('.search-input');
+            searchInput.addEventListener('focus', function() {
+                this.parentElement.style.transform = 'scale(1.02)';
+            });
+            
+            searchInput.addEventListener('blur', function() {
+                this.parentElement.style.transform = 'scale(1)';
+            });
+
+            // Add loading shimmer effect to cards on hover
+            const cards = document.querySelectorAll('.card');
+            cards.forEach(card => {
+                card.addEventListener('mouseenter', function() {
+                    this.classList.add('loading-shimmer');
+                });
+                
+                card.addEventListener('mouseleave', function() {
+                    this.classList.remove('loading-shimmer');
+                });
+            });
+        });
+    </script>
+</body>
+</html>

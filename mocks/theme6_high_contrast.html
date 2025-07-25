@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note Monitor - High Contrast Theme</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #000000;
+            color: #ffffff;
+            line-height: 1.4;
+        }
+
+        .header {
+            background-color: #000000;
+            border-bottom: 2px solid #ef4444;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ef4444;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .nav-links a {
+            color: #ffffff;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border: 1px solid #ffffff;
+            transition: all 0.2s;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            background-color: #ef4444;
+            border-color: #ef4444;
+            color: #000000;
+        }
+
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            background-color: #000000;
+            border-right: 2px solid #ef4444;
+            padding: 1.5rem;
+        }
+
+        .sidebar h3 {
+            color: #ef4444;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            border-bottom: 1px solid #ef4444;
+            padding-bottom: 0.5rem;
+        }
+
+        .file-list {
+            list-style: none;
+        }
+
+        .file-item {
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border: 1px solid #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .file-item:hover,
+        .file-item.active {
+            background-color: #ef4444;
+            color: #000000;
+        }
+
+        .file-name {
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .file-status {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .main-content {
+            background-color: #000000;
+            padding: 2rem;
+            overflow-y: auto;
+        }
+
+        .content-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #ef4444;
+        }
+
+        .content-title {
+            font-size: 1.8rem;
+            color: #ef4444;
+        }
+
+        .status-indicator {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ef4444;
+            color: #ef4444;
+            font-weight: bold;
+        }
+
+        .monitor-section {
+            margin-bottom: 3rem;
+        }
+
+        .section-title {
+            color: #ef4444;
+            font-size: 1.2rem;
+            margin-bottom: 1rem;
+            border-left: 4px solid #ef4444;
+            padding-left: 1rem;
+        }
+
+        .event-list {
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            padding: 1.5rem;
+        }
+
+        .event-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ffffff;
+            background-color: #000000;
+        }
+
+        .event-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .event-details {
+            flex: 1;
+        }
+
+        .event-file {
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+        }
+
+        .event-action {
+            color: #ef4444;
+            font-size: 0.9rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .event-time {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+
+        .event-indicator {
+            width: 12px;
+            height: 12px;
+            background-color: #ef4444;
+            border-radius: 0;
+        }
+
+        .search-section {
+            margin-bottom: 2rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            color: #ffffff;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #ef4444;
+        }
+
+        .search-input::placeholder {
+            color: #666666;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            color: #ffffff;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background-color: #ef4444;
+            border-color: #ef4444;
+            color: #000000;
+        }
+
+        .btn.primary {
+            background-color: #ef4444;
+            border-color: #ef4444;
+            color: #000000;
+        }
+
+        .btn.primary:hover {
+            background-color: #ffffff;
+            border-color: #ffffff;
+            color: #000000;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #ef4444;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+
+        .terminal-output {
+            background-color: #000000;
+            border: 2px solid #ffffff;
+            padding: 1.5rem;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+
+        .terminal-line {
+            margin-bottom: 0.5rem;
+        }
+
+        .terminal-prompt {
+            color: #ef4444;
+        }
+
+        .terminal-output-text {
+            color: #ffffff;
+        }
+
+        .footer {
+            background-color: #000000;
+            border-top: 2px solid #ef4444;
+            padding: 1rem 2rem;
+            text-align: center;
+            color: #ffffff;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="logo">OBBY MONITOR</div>
+        <nav class="nav-links">
+            <a href="#" class="active">Dashboard</a>
+            <a href="#">Search</a>
+            <a href="#">Living Notes</a>
+            <a href="#">Settings</a>
+        </nav>
+    </header>
+
+    <div class="main-container">
+        <aside class="sidebar">
+            <h3>Monitored Files</h3>
+            <ul class="file-list">
+                <li class="file-item active">
+                    <div class="file-name">project.md</div>
+                    <div class="file-status">Modified 2 min ago</div>
+                </li>
+                <li class="file-item">
+                    <div class="file-name">config.json</div>
+                    <div class="file-status">Modified 15 min ago</div>
+                </li>
+                <li class="file-item">
+                    <div class="file-name">notes.txt</div>
+                    <div class="file-status">Modified 1 hour ago</div>
+                </li>
+                <li class="file-item">
+                    <div class="file-name">database.sql</div>
+                    <div class="file-status">Modified 3 hours ago</div>
+                </li>
+                <li class="file-item">
+                    <div class="file-name">readme.md</div>
+                    <div class="file-status">Modified yesterday</div>
+                </li>
+            </ul>
+
+            <h3>Watch Directories</h3>
+            <ul class="file-list">
+                <li class="file-item">
+                    <div class="file-name">/docs</div>
+                    <div class="file-status">Active</div>
+                </li>
+                <li class="file-item">
+                    <div class="file-name">/src</div>
+                    <div class="file-status">Active</div>
+                </li>
+                <li class="file-item">
+                    <div class="file-name">/config</div>
+                    <div class="file-status">Paused</div>
+                </li>
+            </ul>
+        </aside>
+
+        <main class="main-content">
+            <div class="content-header">
+                <h1 class="content-title">File Monitor Dashboard</h1>
+                <div class="status-indicator">MONITORING ACTIVE</div>
+            </div>
+
+            <div class="search-section">
+                <input type="text" class="search-input" placeholder="Search files, content, or events...">
+            </div>
+
+            <div class="controls">
+                <button class="btn primary">Start Monitoring</button>
+                <button class="btn">Pause</button>
+                <button class="btn">Clear Events</button>
+                <button class="btn">Export Log</button>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number">127</div>
+                    <div class="stat-label">Files Monitored</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">43</div>
+                    <div class="stat-label">Events Today</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">8</div>
+                    <div class="stat-label">Active Watchers</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number">2.1GB</div>
+                    <div class="stat-label">Data Tracked</div>
+                </div>
+            </div>
+
+            <section class="monitor-section">
+                <h2 class="section-title">Recent File Events</h2>
+                <div class="event-list">
+                    <div class="event-item">
+                        <div class="event-details">
+                            <div class="event-file">project.md</div>
+                            <div class="event-action">MODIFIED</div>
+                            <div class="event-time">2 minutes ago</div>
+                        </div>
+                        <div class="event-indicator"></div>
+                    </div>
+                    <div class="event-item">
+                        <div class="event-details">
+                            <div class="event-file">config.json</div>
+                            <div class="event-action">MODIFIED</div>
+                            <div class="event-time">15 minutes ago</div>
+                        </div>
+                        <div class="event-indicator"></div>
+                    </div>
+                    <div class="event-item">
+                        <div class="event-details">
+                            <div class="event-file">notes.txt</div>
+                            <div class="event-action">CREATED</div>
+                            <div class="event-time">1 hour ago</div>
+                        </div>
+                        <div class="event-indicator"></div>
+                    </div>
+                    <div class="event-item">
+                        <div class="event-details">
+                            <div class="event-file">temp.log</div>
+                            <div class="event-action">DELETED</div>
+                            <div class="event-time">2 hours ago</div>
+                        </div>
+                        <div class="event-indicator"></div>
+                    </div>
+                    <div class="event-item">
+                        <div class="event-details">
+                            <div class="event-file">database.sql</div>
+                            <div class="event-action">MODIFIED</div>
+                            <div class="event-time">3 hours ago</div>
+                        </div>
+                        <div class="event-indicator"></div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="monitor-section">
+                <h2 class="section-title">System Output</h2>
+                <div class="terminal-output">
+<div class="terminal-line"><span class="terminal-prompt">[INFO]</span> <span class="terminal-output-text">File monitor initialized</span></div>
+<div class="terminal-line"><span class="terminal-prompt">[INFO]</span> <span class="terminal-output-text">Watching 8 directories</span></div>
+<div class="terminal-line"><span class="terminal-prompt">[WARN]</span> <span class="terminal-output-text">Large file detected: data.csv (1.2GB)</span></div>
+<div class="terminal-line"><span class="terminal-prompt">[EVENT]</span> <span class="terminal-output-text">project.md modified</span></div>
+<div class="terminal-line"><span class="terminal-prompt">[EVENT]</span> <span class="terminal-output-text">config.json modified</span></div>
+<div class="terminal-line"><span class="terminal-prompt">[INFO]</span> <span class="terminal-output-text">AI analysis completed for project.md</span></div>
+<div class="terminal-line"><span class="terminal-prompt">[INFO]</span> <span class="terminal-output-text">Database updated with 2 new events</span></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <footer class="footer">
+        Obby File Monitor v2.1.0 | High Contrast Theme | Real-time monitoring active
+    </footer>
+</body>
+</html>
