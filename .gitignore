@@ -186,7 +186,9 @@ Desktop.ini
 logs/
 
 # Database files
-*.db
+obby.db
+obby.db-shm
+obby.db-wal
 *.sqlite
 *.sqlite3
 

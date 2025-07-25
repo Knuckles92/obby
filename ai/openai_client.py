@@ -7,6 +7,7 @@ import os
 import logging
 import re
 import time
+from datetime import datetime, timedelta
 from pathlib import Path
 from openai import OpenAI
 
@@ -403,12 +404,10 @@ Format as bullet points starting with '-'. Be specific and actionable.''',
         # Create living note if it doesn't exist
         if not living_note_path.exists():
             living_note_path.parent.mkdir(exist_ok=True)
-            from datetime import datetime
             today = datetime.now().strftime("%Y-%m-%d")
             initial_content = f"# Living Note - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
             living_note_path.write_text(initial_content, encoding='utf-8')
         
-        from datetime import datetime
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%I:%M %p")
@@ -461,7 +460,6 @@ Format as bullet points starting with '-'. Be specific and actionable.''',
 
     def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None, update_type=None):
         """Create a new session entry in the structured format."""
-        from datetime import datetime
         
         # Generate initial insights
         if settings is None:
@@ -608,7 +606,6 @@ Format as bullet points starting with '-'. Be specific and actionable.''',
 
     def _handle_enhanced_update(self, living_note_path, summary, change_type, settings, update_type):
         """Handle enhanced update types with specialized processing."""
-        from datetime import datetime, timedelta
         
         living_note_path = Path(living_note_path)
         
@@ -756,13 +753,11 @@ Format as bullet points starting with '-'. Be specific and actionable.''',
         Returns:
             dict: Searchable entry structure
         """
-        from datetime import datetime
-        
         searchable_entry = {
             'id': f"{timestamp}_{change_type}",
             'timestamp': timestamp,
-            'date': datetime.fromisoformat(timestamp.replace(' ', 'T')).date().isoformat(),
-            'time': datetime.fromisoformat(timestamp.replace(' ', 'T')).time().isoformat(),
+            'date': self._parse_timestamp_date(timestamp),
+            'time': self._parse_timestamp_time(timestamp),
             'type': change_type,
             'summary': metadata.get('summary', ''),
             'topics': metadata.get('topics', []),
@@ -773,6 +768,34 @@ Format as bullet points starting with '-'. Be specific and actionable.''',
         }
         
         return searchable_entry
+
+    def _parse_timestamp_date(self, timestamp):
+        """Parse timestamp to extract date safely."""
+        try:
+            if isinstance(timestamp, str):
+                # Handle different timestamp formats
+                if 'T' in timestamp:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', ''))
+                else:
+                    dt = datetime.fromisoformat(timestamp.replace(' ', 'T'))
+                return dt.date().isoformat()
+            return datetime.now().date().isoformat()
+        except Exception:
+            return datetime.now().date().isoformat()
+    
+    def _parse_timestamp_time(self, timestamp):
+        """Parse timestamp to extract time safely."""
+        try:
+            if isinstance(timestamp, str):
+                # Handle different timestamp formats
+                if 'T' in timestamp:
+                    dt = datetime.fromisoformat(timestamp.replace('Z', ''))
+                else:
+                    dt = datetime.fromisoformat(timestamp.replace(' ', 'T'))
+                return dt.time().isoformat()
+            return datetime.now().time().isoformat()
+        except Exception:
+            return datetime.now().time().isoformat()
 
     def _create_searchable_text(self, metadata):
         """Create a comprehensive searchable text field combining all metadata."""
