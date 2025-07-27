@@ -309,102 +309,35 @@ def save_living_note_settings():
 
 @app.route('/api/living-note/update', methods=['POST'])
 def trigger_living_note_update():
-    """Manually trigger a living note update"""
+    """Simple update button - trigger a living note update"""
     try:
-        # Get current settings
+        # Get current settings (but don't enforce restrictions)
         settings_file = Path('config/living_note_settings.json')
         if settings_file.exists():
             with open(settings_file, 'r') as f:
                 settings = json.load(f)
         else:
-            settings = {'updateFrequency': 'realtime'}
+            settings = {'updateFrequency': 'manual', 'summaryLength': 'moderate', 'writingStyle': 'technical'}
             
-        # Only allow manual updates if frequency is set to manual
-        if settings.get('updateFrequency') != 'manual':
-            return jsonify({
-                'error': 'Manual updates are only allowed when update frequency is set to manual'
-            }), 400
-            
-        # Trigger AI update using the monitoring system
-        global monitor_instance
-        if monitor_instance and monitor_instance.is_running:
-            # Force a check cycle
-            try:
-                from ai.openai_client import OpenAIClient
-                
-                ai_client = OpenAIClient()
-                living_note_path = Path('notes/living_note.md')
-                
-                # Create a summary based on recent changes
-                summary = "Manual update triggered - summarizing recent activity"
-                ai_client.update_living_note(living_note_path, summary, "manual", settings)
-                
-                logger.info("Manual living note update triggered")
-                return jsonify({
-                    'message': 'Living note update triggered successfully'
-                })
-                
-            except Exception as e:
-                logger.error(f"Error during manual update: {e}")
-                return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
-        else:
-            return jsonify({
-                'error': 'Monitoring system is not active. Start monitoring first.'
-            }), 400
-            
-    except Exception as e:
-        logger.error(f"Error triggering living note update: {e}")
-        return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
-
-@app.route('/api/living-note/manual-update', methods=['POST'])
-def comprehensive_manual_update():
-    """Comprehensive manual update with enhanced options"""
-    try:
-        # Get request parameters
-        data = request.get_json() or {}
-        update_type = data.get('type', 'quick')  # quick, full, smart
-        
-        # Validate update type
-        if update_type not in ['quick', 'full', 'smart']:
-            return jsonify({'error': 'Invalid update type. Must be quick, full, or smart'}), 400
-        
-        # Get current settings
-        settings_file = Path('config/living_note_settings.json')
-        if settings_file.exists():
-            with open(settings_file, 'r') as f:
-                settings = json.load(f)
-        else:
-            settings = {'updateFrequency': 'realtime'}
-        
-        # Import required modules
+        # Always allow updates - no frequency restrictions
         from ai.openai_client import OpenAIClient
-        from datetime import datetime, timedelta
         
         ai_client = OpenAIClient()
         living_note_path = Path('notes/living_note.md')
         
-        # Create update summary based on type
-        if update_type == 'quick':
-            summary = "Quick manual update - recent changes from last 1-2 hours"
-        elif update_type == 'full':
-            summary = "Full regeneration - comprehensive analysis of today's session"
-        else:  # smart
-            summary = "Smart refresh - intelligent content gap analysis"
+        # Create a simple summary
+        summary = "Update triggered - summarizing recent activity"
+        ai_client.update_living_note(living_note_path, summary, "manual", settings)
         
-        # Trigger update with the specific type context
-        ai_client.update_living_note(living_note_path, summary, "manual", settings, update_type)
-        
-        logger.info(f"Comprehensive manual update triggered: {update_type}")
-        
+        logger.info("Living note update triggered")
         return jsonify({
-            'message': f'Comprehensive {update_type} update completed successfully',
-            'update_type': update_type,
-            'timestamp': datetime.now().isoformat()
+            'message': 'Living note update completed successfully'
         })
-        
+                
     except Exception as e:
-        logger.error(f"Error during comprehensive manual update: {e}")
-        return jsonify({'error': f'Failed to trigger comprehensive update: {str(e)}'}), 500
+        logger.error(f"Error during update: {e}")
+        return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
+
 
 @app.route('/api/living-note/events', methods=['GET'])
 def living_note_events():

@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Calendar, TrendingUp, List, Grid, Settings, Save, RefreshCw, Zap, ChevronUp } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Calendar, TrendingUp, List, Grid, RefreshCw } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { LivingNote as LivingNoteType, LivingNoteSettings } from '../types'
+import { LivingNote as LivingNoteType } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import { apiFetch } from '../utils/api'
 
@@ -61,28 +61,13 @@ export default function LivingNote() {
   const [isConnected, setIsConnected] = useState(false)
   const [viewMode, setViewMode] = useState<'traditional' | 'structured' | 'timeline'>('traditional')
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
-  const [showSettings, setShowSettings] = useState(false)
-  const [settings, setSettings] = useState<LivingNoteSettings>({
-    updateFrequency: 'realtime',
-    summaryLength: 'moderate',
-    writingStyle: 'technical',
-    includeMetrics: true,
-    autoUpdate: true,
-    maxSections: 10,
-    focusAreas: []
-  })
-  const [settingsLoading, setSettingsLoading] = useState(false)
-  const [newFocusArea, setNewFocusArea] = useState('')
   const [hasError, setHasError] = useState(false)
-  const [manualUpdateLoading, setManualUpdateLoading] = useState(false)
-  const [showManualUpdateOptions, setShowManualUpdateOptions] = useState(false)
+  const [updateLoading, setUpdateLoading] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
-  const manualUpdateRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     try {
       fetchLivingNote()
-      fetchSettings()
       connectToSSE()
     } catch (error) {
       console.error('Error initializing LivingNote component:', error)
@@ -98,17 +83,6 @@ export default function LivingNote() {
     }
   }, [])
 
-  // Handle click outside for manual update dropdown
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (manualUpdateRef.current && !manualUpdateRef.current.contains(event.target as Node)) {
-        setShowManualUpdateOptions(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const connectToSSE = () => {
     if (eventSourceRef.current) {
@@ -186,96 +160,24 @@ export default function LivingNote() {
     }
   }
 
-  const fetchSettings = async () => {
-    try {
-      const response = await apiFetch('/api/living-note/settings')
-      if (response.ok) {
-        const data = await response.json()
-        setSettings(data)
-      }
-    } catch (error) {
-      console.error('Error fetching settings:', error)
-      // Keep default settings if fetch fails - don't set error state for this
-    }
-  }
 
-  const saveSettings = async () => {
-    try {
-      setSettingsLoading(true)
-      const response = await apiFetch('/api/living-note/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings)
-      })
-      
-      if (response.ok) {
-        console.log('Settings saved successfully')
-      } else {
-        console.error('Failed to save settings')
-      }
-    } catch (error) {
-      console.error('Error saving settings:', error)
-    } finally {
-      setSettingsLoading(false)
-    }
-  }
-
-  const addFocusArea = () => {
-    if (newFocusArea.trim() && !settings.focusAreas.includes(newFocusArea.trim())) {
-      setSettings({
-        ...settings,
-        focusAreas: [...settings.focusAreas, newFocusArea.trim()]
-      })
-      setNewFocusArea('')
-    }
-  }
-
-  const removeFocusArea = (area: string) => {
-    setSettings({
-      ...settings,
-      focusAreas: settings.focusAreas.filter(a => a !== area)
-    })
-  }
-
-  const triggerManualUpdate = async () => {
+  const triggerUpdate = async () => {
+    setUpdateLoading(true)
     try {
       const response = await apiFetch('/api/living-note/update', {
         method: 'POST'
       })
       
       if (response.ok) {
-        console.log('Manual update triggered')
-      } else {
-        console.error('Failed to trigger manual update')
-      }
-    } catch (error) {
-      console.error('Error triggering manual update:', error)
-    }
-  }
-
-  const triggerComprehensiveUpdate = async (updateType: 'quick' | 'full' | 'smart') => {
-    setManualUpdateLoading(true)
-    try {
-      const response = await apiFetch('/api/living-note/manual-update', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ type: updateType })
-      })
-      
-      if (response.ok) {
-        const result = await response.json()
-        console.log(`Comprehensive ${updateType} update completed:`, result.message)
-        setShowManualUpdateOptions(false)
+        console.log('Update completed successfully')
       } else {
         const error = await response.json()
-        console.error('Failed to trigger comprehensive update:', error.error)
+        console.error('Failed to trigger update:', error.error)
       }
     } catch (error) {
-      console.error('Error triggering comprehensive update:', error)
+      console.error('Error triggering update:', error)
     } finally {
-      setManualUpdateLoading(false)
+      setUpdateLoading(false)
     }
   }
 
@@ -458,80 +360,17 @@ export default function LivingNote() {
             </div>
             
             <button
-              onClick={() => setShowSettings(!showSettings)}
-              className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                showSettings 
-                  ? 'bg-primary-100 text-primary-700 border border-primary-200' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-gray-200'
-              }`}
+              onClick={triggerUpdate}
+              disabled={updateLoading}
+              className="flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </button>
-            
-            {settings.updateFrequency === 'manual' && (
-              <button
-                onClick={triggerManualUpdate}
-                className="flex items-center px-4 py-2 text-sm font-medium text-blue-700 bg-blue-100 rounded-md hover:bg-blue-200 transition-colors"
-              >
+              {updateLoading ? (
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
                 <RefreshCw className="h-4 w-4 mr-2" />
-                Update Now
-              </button>
-            )}
-
-            {/* Comprehensive Manual Update Button - Always Available */}
-            <div className="relative" ref={manualUpdateRef}>
-              <button
-                onClick={() => setShowManualUpdateOptions(!showManualUpdateOptions)}
-                disabled={manualUpdateLoading}
-                className={`flex items-center px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                  manualUpdateLoading 
-                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed' 
-                    : 'bg-purple-100 text-purple-700 hover:bg-purple-200 border border-purple-200'
-                }`}
-              >
-                {manualUpdateLoading ? (
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <Zap className="h-4 w-4 mr-2" />
-                )}
-                Manually Update Note
-                {!manualUpdateLoading && (
-                  showManualUpdateOptions ? 
-                    <ChevronUp className="h-4 w-4 ml-2" /> : 
-                    <ChevronDown className="h-4 w-4 ml-2" />
-                )}
-              </button>
-
-              {/* Dropdown Options */}
-              {showManualUpdateOptions && !manualUpdateLoading && (
-                <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-10">
-                  <div className="p-2">
-                    <button
-                      onClick={() => triggerComprehensiveUpdate('quick')}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Quick Update</div>
-                      <div className="text-xs text-gray-500">Last 1-2 hours of changes</div>
-                    </button>
-                    <button
-                      onClick={() => triggerComprehensiveUpdate('full')}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Full Regeneration</div>
-                      <div className="text-xs text-gray-500">Complete analysis of today's session</div>
-                    </button>
-                    <button
-                      onClick={() => triggerComprehensiveUpdate('smart')}
-                      className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-purple-50 rounded-md transition-colors"
-                    >
-                      <div className="font-medium">Smart Refresh</div>
-                      <div className="text-xs text-gray-500">AI-driven content gap analysis</div>
-                    </button>
-                  </div>
-                </div>
               )}
-            </div>
+              Update Now
+            </button>
             
             <button
               onClick={() => setClearDialogOpen(true)}
@@ -544,198 +383,6 @@ export default function LivingNote() {
         </div>
       </div>
 
-      {/* Settings Panel */}
-      {showSettings && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-medium text-gray-900">Living Note Settings</h3>
-            <button
-              onClick={() => setShowSettings(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ×
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Update Frequency */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Update Frequency
-              </label>
-              <select
-                value={settings.updateFrequency}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  updateFrequency: e.target.value as LivingNoteSettings['updateFrequency']
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="realtime">Real-time (as changes occur)</option>
-                <option value="hourly">Hourly</option>
-                <option value="daily">Daily</option>
-                <option value="weekly">Weekly</option>
-                <option value="manual">Manual only</option>
-              </select>
-            </div>
-
-            {/* Summary Length */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Summary Length
-              </label>
-              <select
-                value={settings.summaryLength}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  summaryLength: e.target.value as LivingNoteSettings['summaryLength']
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="brief">Brief (concise summaries)</option>
-                <option value="moderate">Moderate (balanced detail)</option>
-                <option value="detailed">Detailed (comprehensive)</option>
-              </select>
-            </div>
-
-            {/* Writing Style */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Writing Style
-              </label>
-              <select
-                value={settings.writingStyle}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  writingStyle: e.target.value as LivingNoteSettings['writingStyle']
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              >
-                <option value="technical">Technical (precise, formal)</option>
-                <option value="casual">Casual (conversational)</option>
-                <option value="formal">Formal (professional)</option>
-                <option value="bullet-points">Bullet Points (structured)</option>
-              </select>
-            </div>
-
-            {/* Max Sections */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Maximum Sections
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="50"
-                value={settings.maxSections}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  maxSections: parseInt(e.target.value) || 10
-                })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-            </div>
-          </div>
-
-          {/* Toggles */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="includeMetrics"
-                checked={settings.includeMetrics}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  includeMetrics: e.target.checked
-                })}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label htmlFor="includeMetrics" className="ml-2 block text-sm text-gray-700">
-                Include metrics and statistics
-              </label>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="autoUpdate"
-                checked={settings.autoUpdate}
-                onChange={(e) => setSettings({
-                  ...settings,
-                  autoUpdate: e.target.checked
-                })}
-                className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
-              />
-              <label htmlFor="autoUpdate" className="ml-2 block text-sm text-gray-700">
-                Enable automatic updates
-              </label>
-            </div>
-          </div>
-
-          {/* Focus Areas */}
-          <div className="mt-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Focus Areas
-              <span className="text-gray-500 text-xs ml-1">(topics to emphasize in summaries)</span>
-            </label>
-            
-            <div className="flex flex-wrap gap-2 mb-3">
-              {settings.focusAreas.map((area, index) => (
-                <span
-                  key={index}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
-                >
-                  {area}
-                  <button
-                    onClick={() => removeFocusArea(area)}
-                    className="ml-2 text-primary-600 hover:text-primary-800"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
-            </div>
-            
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={newFocusArea}
-                onChange={(e) => setNewFocusArea(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
-                placeholder="Add focus area (e.g., 'API design', 'performance')"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              />
-              <button
-                onClick={addFocusArea}
-                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Save Button */}
-          <div className="mt-6 flex justify-end">
-            <button
-              onClick={saveSettings}
-              disabled={settingsLoading}
-              className="flex items-center px-6 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {settingsLoading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
-                  Saving...
-                </>
-              ) : (
-                <>
-                  <Save className="h-4 w-4 mr-2" />
-                  Save Settings
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* View Mode Selector for Structured Content */}
       {isStructured && (
