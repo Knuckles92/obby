@@ -243,14 +243,6 @@
     transform: scale(1.1);
   }
 
-  /* Search result highlight styles */
-  mark {
-    background-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
-    color: var(--color-text-primary);
-    border-radius: var(--border-radius-sm);
-    padding: 0 0.25rem;
-  }
-
   /* Filter chip animations */
   .filter-chip {
     background-color: var(--color-accent);

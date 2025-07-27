@@ -1,12 +1,27 @@
-import React, { useState, useEffect } from 'react'
-import { Calendar, Trash2, Plus, X, Sliders, Tag, Hash } from 'lucide-react'
-import { SearchFilters } from '../types'
+import { useState } from 'react'
+import { X, Sliders, Calendar, Trash2, Tag, Hash } from 'lucide-react'
 
 interface FilterPanelProps {
-  filters: SearchFilters
+  filters: {
+    topics?: string[]
+    keywords?: string[]
+    dateRange?: { start: string; end: string }
+    impact?: string[]
+    dateFrom?: string
+    dateTo?: string
+    minRelevance?: number
+  }
   availableTopics: Record<string, number>
   availableKeywords: Record<string, number>
-  onFilterChange: (filters: Partial<SearchFilters>) => void
+  onFilterChange: (filters: {
+    topics?: string[]
+    keywords?: string[]
+    dateRange?: { start: string; end: string }
+    impact?: string[]
+    dateFrom?: string
+    dateTo?: string
+    minRelevance?: number
+  }) => void
   onClearFilters: () => void
 }
 
@@ -23,19 +38,15 @@ export default function FilterPanel({
   onFilterChange,
   onClearFilters
 }: FilterPanelProps) {
-  const [topicSearch, setTopicSearch] = useState('')
-  const [keywordSearch, setKeywordSearch] = useState('')
   const [showAllTopics, setShowAllTopics] = useState(false)
   const [showAllKeywords, setShowAllKeywords] = useState(false)
 
-  // Filter and sort available options
-  const filteredTopics = Object.entries(availableTopics)
-    .filter(([topic]) => topic.toLowerCase().includes(topicSearch.toLowerCase()))
+  // Sort available options
+  const sortedTopics = Object.entries(availableTopics)
     .sort(([, a], [, b]) => b - a)
     .slice(0, showAllTopics ? undefined : 10)
 
-  const filteredKeywords = Object.entries(availableKeywords)
-    .filter(([keyword]) => keyword.toLowerCase().includes(keywordSearch.toLowerCase()))
+  const sortedKeywords = Object.entries(availableKeywords)
     .sort(([, a], [, b]) => b - a)
     .slice(0, showAllKeywords ? undefined : 10)
 
@@ -58,11 +69,25 @@ export default function FilterPanel({
   }
 
   const handleDateFromChange = (date: string) => {
-    onFilterChange({ dateFrom: date })
+    onFilterChange({ 
+      dateFrom: date,
+      dateTo: filters.dateTo,
+      dateRange: { 
+        start: date, 
+        end: filters.dateRange?.end || '' 
+      } 
+    })
   }
 
   const handleDateToChange = (date: string) => {
-    onFilterChange({ dateTo: date })
+    onFilterChange({ 
+      dateFrom: filters.dateFrom,
+      dateTo: date,
+      dateRange: { 
+        start: filters.dateRange?.start || '', 
+        end: date 
+      } 
+    })
   }
 
   const handleRelevanceChange = (relevance: number) => {
@@ -112,16 +137,8 @@ export default function FilterPanel({
               </label>
             </div>
             
-            <input
-              type="text"
-              placeholder="Search topics..."
-              value={topicSearch}
-              onChange={(e) => setTopicSearch(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
-            
             <div className="max-h-48 overflow-y-auto space-y-2">
-              {filteredTopics.map(([topic, count]) => (
+              {sortedTopics.map(([topic, count]) => (
                 <label
                   key={topic}
                   className="flex items-center p-2 hover:bg-gray-100 rounded-md cursor-pointer"
@@ -181,16 +198,8 @@ export default function FilterPanel({
               </label>
             </div>
             
-            <input
-              type="text"
-              placeholder="Search keywords..."
-              value={keywordSearch}
-              onChange={(e) => setKeywordSearch(e.target.value)}
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
-            
             <div className="max-h-48 overflow-y-auto space-y-2">
-              {filteredKeywords.map(([keyword, count]) => (
+              {sortedKeywords.map(([keyword, count]) => (
                 <label
                   key={keyword}
                   className="flex items-center p-2 hover:bg-gray-100 rounded-md cursor-pointer"

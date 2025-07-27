@@ -2,7 +2,7 @@
  * API utility for handling environment-specific API calls
  */
 
-import type { SearchResult, SemanticMetadata, SearchFilters } from '../types/index'
+
 
 // Determine the API base URL based on the environment
 const getApiBaseUrl = (): string => {
@@ -46,43 +46,4 @@ export const apiRequest = async <T = any>(
   }
   
   return response.json()
-}
-
-/**
- * Search the semantic index with optional filters
- */
-export const searchSemanticIndex = async (filters: SearchFilters): Promise<{
-  results: SearchResult[];
-  total: number;
-  metadata: SemanticMetadata;
-}> => {
-  const queryParams = new URLSearchParams()
-  
-  if (filters.query) queryParams.append('query', filters.query)
-  if (filters.topics?.length) queryParams.append('topics', filters.topics.join(','))
-  if (filters.keywords?.length) queryParams.append('keywords', filters.keywords.join(','))
-  if (filters.dateFrom) queryParams.append('date_from', filters.dateFrom)
-  if (filters.dateTo) queryParams.append('date_to', filters.dateTo)
-  if (filters.minRelevance !== undefined) queryParams.append('min_relevance', filters.minRelevance.toString())
-  if (filters.impact?.length) queryParams.append('impact', filters.impact.join(','))
-  if (filters.sortBy) queryParams.append('sort_by', filters.sortBy)
-  if (filters.limit !== undefined) queryParams.append('limit', filters.limit.toString())
-  if (filters.offset !== undefined) queryParams.append('offset', filters.offset.toString())
-  
-  const endpoint = `/api/search${queryParams.toString() ? `?${queryParams.toString()}` : ''}`
-  return apiRequest(endpoint)
-}
-
-/**
- * Get all available topics with their counts
- */
-export const getTopics = async (): Promise<{ topics: string[]; total: number }> => {
-  return apiRequest('/api/search/topics')
-}
-
-/**
- * Get all available keywords with their counts
- */
-export const getKeywords = async (): Promise<{ keywords: Array<{ keyword: string; count: number }>; total: number }> => {
-  return apiRequest('/api/search/keywords')
 }

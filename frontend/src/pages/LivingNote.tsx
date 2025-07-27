@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Search, Calendar, TrendingUp, List, Grid, Settings, Save, RefreshCw, Zap, ChevronUp } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2, ChevronDown, ChevronRight, Tag, Calendar, TrendingUp, List, Grid, Settings, Save, RefreshCw, Zap, ChevronUp } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { LivingNote as LivingNoteType, LivingNoteSection, LivingNoteSettings } from '../types'
+import { LivingNote as LivingNoteType, LivingNoteSettings } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
-import { apiFetch, searchSemanticIndex } from '../utils/api'
+import { apiFetch } from '../utils/api'
 
 // TypeScript interface for ReactMarkdown code component props
 interface CodeComponentProps {
@@ -61,8 +61,6 @@ export default function LivingNote() {
   const [isConnected, setIsConnected] = useState(false)
   const [viewMode, setViewMode] = useState<'traditional' | 'structured' | 'timeline'>('traditional')
   const [expandedSessions, setExpandedSessions] = useState<Set<string>>(new Set())
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showSearch, setShowSearch] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [settings, setSettings] = useState<LivingNoteSettings>({
     updateFrequency: 'realtime',
@@ -135,7 +133,6 @@ export default function LivingNote() {
               content: data.content,
               lastUpdated: data.lastUpdated,
               wordCount: data.wordCount,
-              metadata: data.metadata,
               sections: data.sections
             })
           } else if (data.type === 'connected') {
@@ -381,10 +378,10 @@ export default function LivingNote() {
     })
   }
 
-  // Handle topic/keyword click for search integration
+  // Handle topic/keyword click (placeholder for future functionality)
   const handleTagClick = (type: 'topic' | 'keyword', value: string) => {
-    setSearchQuery(`${type}:${value}`)
-    setShowSearch(true)
+    // Placeholder for future functionality
+    console.log(`${type} clicked:`, value)
   }
 
   // Get sessions from content
@@ -394,7 +391,6 @@ export default function LivingNote() {
   // Calculate additional stats for structured content
   const totalSessions = sessions.length
   const totalTopics = new Set(sessions.flatMap(s => s.metadata?.topics || [])).size
-  const totalKeywords = new Set(sessions.flatMap(s => s.metadata?.keywords || [])).size
 
   if (hasError) {
     return (
@@ -744,21 +740,7 @@ export default function LivingNote() {
       {/* View Mode Selector for Structured Content */}
       {isStructured && (
         <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">View Mode</h3>
-            <button
-              onClick={() => setShowSearch(!showSearch)}
-              className={`flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                showSearch 
-                  ? 'bg-primary-100 text-primary-700' 
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
-            >
-              <Search className="h-4 w-4 mr-2" />
-              Search
-            </button>
-          </div>
-          
+          <h3 className="text-lg font-medium text-gray-900 mb-4">View Mode</h3>
           <div className="flex space-x-2">
             {VIEW_MODES.map(mode => {
               const Icon = mode.icon
@@ -777,31 +759,6 @@ export default function LivingNote() {
                 </button>
               )
             })}
-          </div>
-        </div>
-      )}
-
-      {/* Search Panel */}
-      {showSearch && (
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-medium text-gray-900">Search Living Note</h3>
-            <button
-              onClick={() => setShowSearch(false)}
-              className="text-gray-400 hover:text-gray-600"
-            >
-              ×
-            </button>
-          </div>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search sessions, topics, keywords..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-            />
           </div>
         </div>
       )}
@@ -890,28 +847,7 @@ export default function LivingNote() {
               
               {sessions.length > 0 ? (
                 <div className={viewMode === 'timeline' ? 'space-y-6' : 'space-y-4'}>
-                  {sessions
-                    .filter(session => {
-                      if (!searchQuery) return true
-                      const query = searchQuery.toLowerCase()
-                      
-                      // Handle special search syntax
-                      if (query.startsWith('topic:')) {
-                        const topic = query.substring(6)
-                        return session.metadata?.topics?.some(t => t.toLowerCase().includes(topic))
-                      }
-                      if (query.startsWith('keyword:')) {
-                        const keyword = query.substring(8)
-                        return session.metadata?.keywords?.some(k => k.toLowerCase().includes(keyword))
-                      }
-                      
-                      // General search in title and content
-                      return session.title.toLowerCase().includes(query) ||
-                             session.content.toLowerCase().includes(query) ||
-                             session.metadata?.topics?.some(t => t.toLowerCase().includes(query)) ||
-                             session.metadata?.keywords?.some(k => k.toLowerCase().includes(query))
-                    })
-                    .map((session) => (
+                  {sessions.map((session) => (
                       <div key={session.id} className={`card ${viewMode === 'timeline' ? 'border-l-4 border-primary-500 ml-4' : ''}`}>
                         {/* Session Header */}
                         <div className="flex items-center justify-between">
@@ -1021,7 +957,7 @@ export default function LivingNote() {
                   <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No sessions found</p>
                   <p className="text-sm text-gray-500 mt-2">
-                    {searchQuery ? 'Try adjusting your search query' : 'Sessions will appear as they are created'}
+                    Sessions will appear as they are created
                   </p>
                 </div>
               )}
