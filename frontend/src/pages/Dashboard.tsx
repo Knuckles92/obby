@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [clearEventsDialogOpen, setClearEventsDialogOpen] = useState(false)
   const [clearEventsLoading, setClearEventsLoading] = useState(false)
   const [monitoringLoading, setMonitoringLoading] = useState(false)
+  const [autoStartAttempted, setAutoStartAttempted] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -50,6 +51,13 @@ export default function Dashboard() {
       setStatus(statusData)
       setRecentEvents(eventsData)
       setRecentDiffs(diffsData)
+
+      // Auto-start monitoring if it's not active and we haven't tried yet
+      if (!statusData.isActive && !autoStartAttempted) {
+        setAutoStartAttempted(true)
+        console.log('Auto-starting monitoring...')
+        toggleMonitoring()
+      }
     } catch (error) {
       console.error('Error fetching dashboard data:', error)
     } finally {

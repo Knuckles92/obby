@@ -1,0 +1,8 @@
+--- previous
++++ current
+@@ -48,3 +48,5 @@
+ ---
+ 
+ ## test area
++-Change #1
++-Change #2

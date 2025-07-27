@@ -182,9 +182,10 @@ Desktop.ini
 *.swo
 
 # Logs
-*.log
 logs/
 
+# Allow access to main log file for debugging
+!obby.log
 # Database files
 obby.db
 obby.db-shm
@@ -198,7 +199,7 @@ config/secrets.py
 .secrets
 
 # Project specific
-notes/*
-diffs/*
 snapshots/*
 database/schema.sql
+.windsurfignore
+obby.log

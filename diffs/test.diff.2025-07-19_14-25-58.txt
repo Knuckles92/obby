@@ -1,0 +1,11 @@
+--- previous
++++ current
+@@ -21,7 +21,7 @@
+ - [] Review pull request #342
+ - [] Update documentation for API v2.1
+ - [] Schedule team retrospective
+-- [ ] Prepare presentation for stakeholders
++- [] Prepare presentation for stakeholders
+ 
+ ---
+ 

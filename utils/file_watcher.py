@@ -10,6 +10,7 @@ from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 from .ignore_handler import IgnoreHandler
 from .watch_handler import WatchHandler
+from database.queries import EventQueries
 
 
 class NoteChangeHandler(FileSystemEventHandler):
@@ -166,8 +167,10 @@ class NoteChangeHandler(FileSystemEventHandler):
             
             if changed:
                 logging.debug(f"Processing changes in: {file_path.name}")
-                # Generate AI summary and update living note
-                summary = self.ai_client.summarize_diff(diff_content)
+                # Get recent tree changes for context
+                recent_tree_changes = EventQueries.get_recent_tree_changes(limit=5, time_window_minutes=10)
+                # Generate AI summary with tree change context and update living note
+                summary = self.ai_client.summarize_diff(diff_content, recent_tree_changes=recent_tree_changes)
                 # Store the file path in AI client for semantic indexing
                 self.ai_client._current_file_path = str(file_path)
                 self.ai_client.update_living_note(self.living_note_path, summary, "content")

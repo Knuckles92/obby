@@ -37,13 +37,14 @@ class OpenAIClient:
         self._format_config_mtime = None
         self._format_file_path = Path('format.md')
     
-    def summarize_diff(self, diff_content, settings=None):
+    def summarize_diff(self, diff_content, settings=None, recent_tree_changes=None):
         """
         Summarize a diff for the living note with semantic indexing optimization.
         
         Args:
             diff_content: The diff content to summarize
             settings: Optional living note settings for customization
+            recent_tree_changes: Optional list of recent tree changes to include as context
             
         Returns:
             str: AI-generated summary with semantic metadata
@@ -64,8 +65,20 @@ class OpenAIClient:
             }
             max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 600)
             
-            # Add focus areas to the user prompt if specified
+            # Build user content with diff and optional tree change context
             user_content = f"Please summarize the following diff with semantic metadata:\n\n{diff_content}"
+            
+            # Add recent tree changes as context if provided
+            if recent_tree_changes and len(recent_tree_changes) > 0:
+                tree_changes_text = "\n\nRecent file tree changes (for context):\n"
+                for change in recent_tree_changes:
+                    path = change.get('path', 'unknown')
+                    event_type = change.get('type', 'unknown')
+                    timestamp = change.get('timestamp', 'unknown')
+                    tree_changes_text += f"- {event_type.capitalize()} {path} (at {timestamp})\n"
+                user_content += tree_changes_text
+            
+            # Add focus areas to the user prompt if specified
             if settings.get('focusAreas'):
                 focus_areas_text = ", ".join(settings['focusAreas'])
                 user_content += f"\n\nPay special attention to these focus areas: {focus_areas_text}"
@@ -141,14 +154,17 @@ class OpenAIClient:
     
     def _parse_format_config(self, content):
         """Parse format.md content into structured configuration."""
+        # Start with fallback config as base to ensure we always have working templates
+        fallback = self._get_fallback_format_config()
         config = {
-            'session_template': '',
-            'diff_prompt': '',
-            'tree_prompt': '',
-            'insights_prompt': '',
-            'style_variations': {},
-            'length_options': {},
-            'manual_prompts': {}
+            'session_template': fallback['session_template'],
+            'diff_prompt': fallback['diff_prompt'],
+            'tree_prompt': fallback['tree_prompt'],
+            'insights_prompt': fallback['insights_prompt'],
+            'style_variations': fallback['style_variations'].copy(),
+            'length_options': fallback['length_options'].copy(),
+            'manual_prompts': fallback.get('manual_prompts', {}),
+            'user_format_instructions': content  # Store the entire format.md as user instructions
         }
         
         # Extract session template
@@ -244,34 +260,34 @@ class OpenAIClient:
 ''',
             'diff_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. {style_instruction} {length_instruction} {metrics_instruction}
 
-Format your response as:
-**Summary**: [Description of what changed]
-**Topics**: [Key technical topics, comma-separated]
-**Keywords**: [Specific technical terms, function names, concepts, comma-separated]
+IMPORTANT: Format your response EXACTLY as follows:
+**Summary**: [Concise description of what changed, added, or removed]
+**Topics**: [2-5 key technical topics, comma-separated]
+**Keywords**: [3-7 specific technical terms, function names, concepts, comma-separated]
 **Impact**: [brief/moderate/significant - assess the scope of changes]
 
-Focus on what was changed, added, or removed. Make keywords specific and searchable.''',
+Focus on what was changed, added, or removed. Make keywords specific and searchable. Do not include additional text outside this format.''',
             'tree_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing file tree changes, provide a structured summary optimized for search and discovery.
 
-Format your response as:
+IMPORTANT: Format your response EXACTLY as follows:
 **Summary**: [Concise human-readable summary of the file/directory change]
 **Topics**: [2-3 relevant topic keywords like "organization", "structure", "cleanup"]
 **Keywords**: [3-5 searchable keywords related to the file operation]
 **Impact**: [brief/moderate/significant - assess organizational impact]
 
-Focus on the organizational impact and what it means for project structure.''',
+Focus on the organizational impact and what it means for project structure. Do not include additional text outside this format.''',
             'insights_prompt': '''You are an AI assistant that analyzes development sessions for patterns and insights. Provide concise, actionable insights about the developer's workflow and progress.
 
 Analyze this development session with {total_changes} changes ({content_changes} content, {tree_changes} file structure):
 
 {changes_text}
 
-Generate 2-3 concise insights about:
+IMPORTANT: Format your response as bullet points starting with '-'. Generate 2-3 concise insights about:
 1. Development patterns or workflow
 2. Project progress or focus areas  
 3. Potential next steps or recommendations
 
-Format as bullet points starting with '-'. Be specific and actionable.''',
+Be specific and actionable. Do not include additional text outside the bullet point format.''',
             'style_variations': {
                 'technical': 'Use precise technical language and include technical details.',
                 'casual': 'Use conversational tone and explain concepts in accessible terms.',
@@ -337,6 +353,11 @@ Format as bullet points starting with '-'. Be specific and actionable.''',
             length_instruction=length_instruction,
             metrics_instruction=metrics_instruction
         )
+        
+        # Add user format instructions from format.md
+        user_instructions = format_config.get('user_format_instructions', '')
+        if user_instructions and user_instructions.strip():
+            prompt += f"\n\nAdditionally, follow these user formatting preferences:\n{user_instructions.strip()}"
         
         return prompt
     

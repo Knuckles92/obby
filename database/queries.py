@@ -196,6 +196,37 @@ class EventQueries:
         except Exception as e:
             logger.error(f"Failed to get recent events: {e}")
             return []
+
+    @staticmethod
+    def get_recent_tree_changes(limit: int = 10, time_window_minutes: int = 30) -> List[Dict[str, Any]]:
+        """Get recent tree changes (created, deleted, moved) within a time window for diff context."""
+        try:
+            # Get recent tree events (created, deleted, moved)
+            tree_events = EventModel.get_recent(limit=limit, event_type=None)  # Get all types first
+            
+            # Filter for tree change types and time window
+            from datetime import datetime, timedelta
+            cutoff_time = datetime.now() - timedelta(minutes=time_window_minutes)
+            
+            recent_tree_changes = []
+            for event in tree_events:
+                # Check if it's a tree change event (created, deleted, moved)
+                if event['type'] in ['created', 'deleted', 'moved']:
+                    # Check if it's within our time window
+                    event_time = datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00')) if isinstance(event['timestamp'], str) else event['timestamp']
+                    if event_time >= cutoff_time:
+                        recent_tree_changes.append(event)
+            
+            # Sort by timestamp descending (most recent first) and limit
+            recent_tree_changes.sort(key=lambda x: x['timestamp'], reverse=True)
+            recent_tree_changes = recent_tree_changes[:limit]
+            
+            logger.debug(f"Retrieved {len(recent_tree_changes)} recent tree changes within {time_window_minutes} minutes")
+            return recent_tree_changes
+            
+        except Exception as e:
+            logger.error(f"Failed to get recent tree changes: {e}")
+            return []
     
     @staticmethod
     def add_event(event_type: str, path: str, size: int = 0) -> bool:

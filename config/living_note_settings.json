@@ -4,6 +4,6 @@
   "includeMetrics": true,
   "maxSections": 10,
   "summaryLength": "moderate",
-  "updateFrequency": "hourly",
+  "updateFrequency": "manual",
   "writingStyle": "technical"
 }

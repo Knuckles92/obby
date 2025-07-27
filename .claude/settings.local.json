@@ -14,7 +14,8 @@
       "Bash(start /b python:*)",
       "Bash(timeout:*)",
       "Bash(type:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }
