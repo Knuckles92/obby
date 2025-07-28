@@ -352,6 +352,13 @@ class EventModel:
         return count > 0
     
     @classmethod
+    def get_today_count(cls) -> int:
+        """Get count of events today."""
+        query = "SELECT COUNT(*) as count FROM events WHERE DATE(timestamp) = DATE('now')"
+        result = db.execute_query(query)
+        return result[0]['count']
+    
+    @classmethod
     def clear_all(cls) -> int:
         """Clear all events."""
         return db.execute_update("DELETE FROM events")

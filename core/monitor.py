@@ -2,8 +2,8 @@
 from config.settings import *
 from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
-from git.git_change_tracker import GitChangeTracker
-from git.git_client import get_git_client
+from git_integration.git_change_tracker import GitChangeTracker
+from git_integration.git_client import get_git_client
 from ai.openai_client import OpenAIClient
 import threading
 import time
@@ -40,8 +40,8 @@ class ObbyMonitor:
             
             # Initialize git components
             self.git_client = get_git_client()
-            self.git_tracker = GitChangeTracker()
             self.ai_client = OpenAIClient()
+            self.git_tracker = GitChangeTracker(ai_client=self.ai_client)
             
             # Initialize file watcher with git integration
             utils_folder = NOTES_FOLDER.parent / "utils"

@@ -52052,3 +52052,563 @@
 2025-07-27 23:51:17,532 - __main__ - INFO - Retrieved 3 diffs from database
 2025-07-27 23:51:18,058 - __main__ - INFO - Stopped living note file watcher
 2025-07-27 23:51:19,065 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:08:53,521 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:08:53,521 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:08:53,523 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:08:55,082 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:08:55,082 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:08:55,083 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:08:55,276 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-28 00:08:55,277 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:08:55,278 - __main__ - ERROR - Error retrieving diffs from database: type object 'GitQueries' has no attribute 'get_recent_diffs'
+2025-07-28 00:08:55,281 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:08:55,282 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:09:00,279 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-28 00:09:00,283 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:09:00,283 - __main__ - ERROR - Error retrieving diffs from database: type object 'GitQueries' has no attribute 'get_recent_diffs'
+2025-07-28 00:09:00,284 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:09:00,284 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:09:01,801 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:09:34,823 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:09:34,823 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:09:34,825 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:09:36,450 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:09:36,450 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:09:36,451 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:09:36,555 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:09:36,577 - database.queries - INFO - Retrieved 0 recent commits
+2025-07-28 00:09:36,577 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-28 00:09:36,578 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:09:36,579 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:09:40,278 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:09:40,280 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:09:40,280 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:09:40,281 - database.queries - INFO - Retrieved 0 recent commits
+2025-07-28 00:09:40,281 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-28 00:09:45,278 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:09:45,280 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:09:45,281 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:09:45,281 - database.queries - INFO - Retrieved 0 recent commits
+2025-07-28 00:09:45,281 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-28 00:09:48,233 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:20:32,272 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:20:32,273 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:20:32,274 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:20:33,917 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:20:33,917 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:20:33,919 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:20:35,267 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:20:35,278 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:20:35,278 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:20:35,279 - database.queries - INFO - Retrieved 0 recent commits
+2025-07-28 00:20:35,280 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-28 00:20:40,268 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:20:40,270 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:20:40,270 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:20:40,273 - database.queries - INFO - Retrieved 0 recent commits
+2025-07-28 00:20:40,273 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-28 00:20:45,267 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:20:45,269 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:20:45,269 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:20:45,270 - database.queries - INFO - Retrieved 0 recent commits
+2025-07-28 00:20:45,270 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-28 00:20:45,558 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:24:47,990 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:24:47,991 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:24:47,993 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:24:49,841 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:24:49,842 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:24:49,843 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:24:49,984 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:24:49,988 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:24:49,989 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:24:49,990 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:24:49,991 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:24:54,438 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:24:54,441 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:24:54,444 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:24:54,444 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:24:54,448 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:24:57,379 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:24:57,390 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:24:57,391 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:24:57,397 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:24:57,403 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:24:57,430 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:24:57,432 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:24:57,436 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:24:57,444 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:24:57,450 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:02,279 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:02,283 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:02,285 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:02,283 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:02,287 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:03,542 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 00:25:03,545 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:03,545 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:03,559 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 00:25:03,563 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:03,564 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:10,690 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:10,695 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:10,696 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:10,697 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:10,699 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:10,735 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:10,748 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:10,751 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:10,766 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:10,773 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:15,637 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:15,638 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:15,639 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:15,640 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:15,640 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:20,638 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:20,640 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:20,641 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:20,642 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:20,642 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:25,641 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:25,642 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:25,651 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:25,653 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:25,654 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:30,646 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:30,652 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:30,655 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:30,655 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:30,656 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:35,636 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:35,637 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:35,638 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:35,639 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:35,640 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:40,637 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:40,639 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:40,640 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:40,641 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:40,642 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:45,636 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:45,638 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:45,640 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:45,641 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:45,641 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:51,895 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:51,908 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:51,917 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:51,930 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:51,937 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:52,067 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:52,073 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:52,074 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:52,090 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:52,092 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:25:56,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:25:56,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:25:56,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:25:56,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:25:56,737 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:01,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:01,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:01,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:01,735 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:01,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:06,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:06,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:06,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:06,735 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:06,736 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:11,738 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:11,740 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:11,741 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:11,741 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:11,744 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:16,833 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:16,839 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:16,841 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:16,841 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:16,842 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:21,740 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:21,741 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:21,741 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:21,743 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:21,743 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:26,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:26,736 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:26,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:26,737 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:26,738 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:31,746 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:31,747 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:31,753 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:31,763 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:31,764 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:36,735 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:36,737 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:36,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:36,741 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:36,741 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:41,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:41,736 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:41,737 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:41,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:41,739 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:46,733 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:46,734 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:46,735 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:46,739 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:46,739 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:51,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:51,736 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:51,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:51,738 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:51,738 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:26:56,760 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:26:56,762 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:26:56,765 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:26:56,765 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:26:56,767 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:01,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:01,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:01,733 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:01,735 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:01,736 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:06,777 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:06,806 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:06,807 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:06,812 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:06,812 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:11,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:11,736 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:11,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:11,737 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:11,738 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:16,732 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:16,733 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:16,734 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:16,736 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:16,736 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:21,732 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:21,734 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:21,734 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:21,738 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:21,739 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:26,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:26,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:26,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:26,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:26,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:31,736 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:31,738 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:31,739 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:31,740 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:31,740 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:36,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:36,730 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:36,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:36,732 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:36,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:41,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:41,730 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:41,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:41,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:41,733 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:46,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:46,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:46,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:46,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:46,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:51,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:51,735 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:51,739 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:51,740 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:27:51,739 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:56,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:27:56,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:27:56,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:27:56,732 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:27:56,732 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:01,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:01,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:01,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:01,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:01,733 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:06,735 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:06,738 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:06,739 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:06,744 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:06,745 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:11,728 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:11,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:11,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:11,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:11,732 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:16,732 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:16,733 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:16,733 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:16,735 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:16,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:21,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:21,733 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:21,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:21,734 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:21,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:26,728 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:26,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:26,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:26,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:26,731 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:31,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:31,736 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:31,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:31,741 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:31,744 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:36,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:36,735 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:36,737 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:36,738 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:36,739 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:41,733 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:41,737 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:41,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:41,740 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:41,741 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:46,743 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:46,744 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:46,747 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:46,758 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:46,758 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:51,900 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:51,906 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:51,908 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:51,909 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:28:51,909 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:56,733 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:28:56,735 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:28:56,735 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:28:56,739 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:28:56,740 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:01,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:01,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:01,734 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:01,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:01,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:06,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:06,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:06,734 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:06,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:06,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:11,728 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:11,730 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:11,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:11,730 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:11,733 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:16,840 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:16,843 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:16,845 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:16,854 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:16,854 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:21,731 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:21,733 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:21,733 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:21,737 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:21,737 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:26,733 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:26,736 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:26,737 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:26,738 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:26,737 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:31,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:31,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:31,733 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:31,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:31,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:36,727 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:36,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:36,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:36,730 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:36,733 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:41,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:41,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:41,733 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:41,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:41,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:46,727 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:46,729 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:46,729 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:46,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:46,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:51,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:51,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:51,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:51,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:51,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:29:56,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:29:56,732 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:29:56,733 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:29:56,734 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:29:56,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:01,735 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:01,737 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:01,738 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:01,738 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:01,744 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:06,736 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:06,738 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:06,740 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:06,742 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:06,745 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:11,800 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:11,801 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:11,834 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:11,839 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:11,839 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:16,728 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:16,730 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:16,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:16,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:16,732 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:21,727 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:21,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:21,729 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:21,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:21,731 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:26,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:26,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:26,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:26,732 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:26,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:31,729 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:31,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:31,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:31,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:31,736 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:36,732 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:36,735 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:36,736 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:36,736 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:36,738 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:41,727 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:41,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:41,728 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:41,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:41,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:46,738 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:46,742 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:46,748 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:46,750 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:46,756 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:51,726 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:51,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:51,728 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:51,729 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:51,729 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:30:56,725 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:30:56,727 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:30:56,728 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:30:56,729 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:30:56,729 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:01,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:01,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:01,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:01,735 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:01,735 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:06,727 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:06,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:06,729 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:06,732 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:06,734 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:11,726 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:11,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:11,728 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:11,736 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:11,736 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:16,727 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:16,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:16,730 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:16,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:16,731 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:21,730 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:21,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:21,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:21,733 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:21,733 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:26,738 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:26,739 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:26,739 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:26,744 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:26,744 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:31,737 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:31,739 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:31,740 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:31,744 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:31,747 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:34,559 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:31:37,238 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:31:37,238 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:31:37,239 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:31:37,433 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:37,436 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:37,437 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:37,437 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:37,437 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:41,728 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:41,731 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:41,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:41,732 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:41,733 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:46,343 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:31:48,477 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:31:48,478 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:31:48,480 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:31:48,692 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:48,699 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:48,701 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:48,707 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:48,709 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:51,726 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:51,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:51,729 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:51,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:31:51,732 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-28 00:31:55,599 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:31:57,711 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:31:57,711 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:31:57,712 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:31:57,900 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:31:57,909 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:31:57,909 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:31:57,910 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 00:31:57,911 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:32:01,726 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:32:01,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:32:01,729 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:32:01,732 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:32:01,733 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 00:32:03,468 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 00:32:05,670 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 00:32:05,671 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 00:32:05,672 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 00:32:06,725 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:32:06,729 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:32:06,729 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:32:06,730 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 00:32:06,732 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:32:11,725 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:32:11,726 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:32:11,727 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:32:11,728 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:32:11,731 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 00:32:16,726 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:32:16,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:32:16,729 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:32:16,731 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:32:16,731 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 00:32:21,726 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-28 00:32:21,727 - database.queries - INFO - Retrieved 0 recent events
+2025-07-28 00:32:21,728 - __main__ - INFO - Retrieved 0 events from database
+2025-07-28 00:32:21,729 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 00:32:21,731 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 00:32:25,694 - __main__ - INFO - Stopped living note file watcher

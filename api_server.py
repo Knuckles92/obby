@@ -16,7 +16,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # Import database layer
-from database.queries import DiffQueries, EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries
+from database.queries import DiffQueries, EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries, GitQueries
 
 from core.monitor import ObbyMonitor
 from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
@@ -145,21 +145,21 @@ def get_recent_events():
 
 @app.route('/api/diffs', methods=['GET'])
 def get_recent_diffs():
-    """Get recent diff files from database"""
+    """Get recent git commits from database (legacy compatibility endpoint)"""
     try:
         limit = max(1, min(request.args.get('limit', 20, type=int), 100))  # Limit between 1-100
         
         logger.info(f"DATABASE DIFFS API CALLED - Limit: {limit}")
         
-        # Use database queries instead of file operations
-        diff_files = DiffQueries.get_recent_diffs(limit=limit)
+        # Use GitQueries for git-based system
+        diff_files = GitQueries.get_recent_diffs(limit=limit)
         
-        logger.info(f"Retrieved {len(diff_files)} diffs from database")
+        logger.info(f"Retrieved {len(diff_files)} git commits from database")
         return jsonify(diff_files)
         
     except Exception as e:
-        logger.error(f"Error retrieving diffs from database: {e}")
-        return jsonify({'error': 'Failed to retrieve diff files'}), 500
+        logger.error(f"Error retrieving git commits from database: {e}")
+        return jsonify({'error': 'Failed to retrieve git commits'}), 500
 
 @app.route('/api/diffs/<diff_id>', methods=['GET'])
 def get_full_diff_content(diff_id):
@@ -183,6 +183,31 @@ def get_full_diff_content(diff_id):
     except Exception as e:
         logger.error(f"Error retrieving full diff content: {e}")
         return jsonify({'error': 'Failed to retrieve diff content'}), 500
+
+@app.route('/api/git/working-changes', methods=['GET'])
+def get_git_working_changes():
+    """Get current working directory changes"""
+    try:
+        status_filter = request.args.get('status', None)
+        working_changes = GitQueries.get_working_changes(status=status_filter)
+        logger.info(f"Retrieved {len(working_changes)} working changes")
+        return jsonify(working_changes)
+        
+    except Exception as e:
+        logger.error(f"Error retrieving working changes: {e}")
+        return jsonify({'error': 'Failed to retrieve working changes'}), 500
+
+@app.route('/api/git/status', methods=['GET'])
+def get_git_repository_status():
+    """Get current git repository status"""
+    try:
+        repo_status = GitQueries.get_repository_status()
+        logger.info("Retrieved git repository status")
+        return jsonify(repo_status)
+        
+    except Exception as e:
+        logger.error(f"Error retrieving repository status: {e}")
+        return jsonify({'error': 'Failed to retrieve repository status'}), 500
 
 @app.route('/api/living-note', methods=['GET'])
 def get_living_note():
@@ -505,15 +530,17 @@ def clear_recent_events():
 
 @app.route('/api/diffs/clear', methods=['POST'])
 def clear_recent_diffs():
-    """Clear all diffs from database"""
+    """Clear all git data from database"""
     try:
-        result = DiffQueries.clear_all_diffs()
-        logger.info(f"Cleared diffs via database: {result}")
+        # For git system, clear all git-related data
+        # This is a placeholder - implement GitQueries.clear_all_git_data() if needed
+        result = DiffQueries.clear_all_diffs()  # Keep existing for now
+        logger.info(f"Cleared git data via database: {result}")
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error clearing recent diffs: {e}")
-        return jsonify({'error': f'Failed to clear recent diffs: {str(e)}'}), 500
+        logger.error(f"Error clearing git data: {e}")
+        return jsonify({'error': f'Failed to clear git data: {str(e)}'}), 500
 
 @app.route('/api/config', methods=['GET'])
 def get_config():

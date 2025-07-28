@@ -23,6 +23,11 @@ class GitQueries:
     """Git-focused queries for API endpoints."""
     
     @staticmethod
+    def get_recent_diffs(limit: int = 20, file_path: str = None) -> List[Dict[str, Any]]:
+        """Legacy compatibility method - maps to get_recent_commits."""
+        return GitQueries.get_recent_commits(limit=limit)
+    
+    @staticmethod  
     def get_recent_commits(limit: int = 20, branch: str = None) -> List[Dict[str, Any]]:
         """Get recent commits - replaces /api/diffs endpoint."""
         try:
@@ -49,7 +54,8 @@ class GitQueries:
                             'path': fc['file_path'],
                             'type': fc['change_type'],
                             'linesAdded': fc['lines_added'],
-                            'linesRemoved': fc['lines_removed']
+                            'linesRemoved': fc['lines_removed'],
+                            'diff': fc.get('diff_content', '')
                         }
                         for fc in file_changes
                     ]
@@ -253,6 +259,15 @@ class EventQueries:
         except Exception as e:
             logger.error(f"Failed to add event: {e}")
             return False
+    
+    @staticmethod
+    def get_events_today_count() -> int:
+        """Get today's event count for dashboard."""
+        try:
+            return EventModel.get_today_count()
+        except Exception as e:
+            logger.error(f"Failed to get today's event count: {e}")
+            return 0
     
     @staticmethod
     def clear_all_events() -> Dict[str, Any]:

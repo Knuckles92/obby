@@ -21,16 +21,21 @@ from database.models import (
 logger = logging.getLogger(__name__)
 
 class GitChangeTracker:
-    """Git-native change tracking system replacing DiffTracker."""
+    """Git-native change tracking system with automatic commit management."""
     
-    def __init__(self, repo_path: str = "."):
+    def __init__(self, repo_path: str = ".", auto_commit: bool = True, ai_client=None):
         """Initialize git change tracker."""
         self.repo_path = Path(repo_path).resolve()
         self.git_client = get_git_client(str(repo_path))
         self._last_known_head = None
         self._last_known_status = None
+        self.auto_commit = auto_commit
+        self.ai_client = ai_client  # For AI-assisted commit messages
+        self._pending_commits = []  # Files waiting to be batched and committed
+        self._last_commit_time = None
+        self._commit_batch_timeout = 30  # seconds to wait before auto-committing batch
         
-        logger.info(f"Git change tracker initialized for: {self.repo_path}")
+        logger.info(f"Git change tracker initialized for: {self.repo_path} (auto-commit: {auto_commit})")
     
     def check_for_changes(self) -> Tuple[bool, Optional[Dict[str, Any]]]:
         """
@@ -411,5 +416,173 @@ class GitChangeTracker:
             
         except Exception as e:
             logger.error(f"Error updating file state for {file_path}: {e}")
+    
+    def process_file_change(self, file_path: str, change_type: str = "modified") -> bool:
+        """
+        Process a file change with automatic commit management.
+        
+        Args:
+            file_path: Path to the changed file
+            change_type: Type of change (created, modified, deleted)
+            
+        Returns:
+            True if change was processed successfully
+        """
+        try:
+            # Convert to relative path from repo root
+            abs_path = Path(file_path).resolve()
+            relative_path = abs_path.relative_to(self.repo_path)
+            relative_path_str = str(relative_path.as_posix())
+            
+            logger.info(f"Processing file change: {relative_path_str} ({change_type})")
+            
+            # Update file state in database
+            self.update_file_state(abs_path)
+            
+            # Handle auto-commit if enabled
+            if self.auto_commit:
+                return self._handle_auto_commit(relative_path_str, change_type)
+            else:
+                # Just track the change without committing
+                return self._track_working_change(relative_path_str, change_type)
+                
+        except Exception as e:
+            logger.error(f"Error processing file change for {file_path}: {e}")
+            return False
+    
+    def _handle_auto_commit(self, file_path: str, change_type: str) -> bool:
+        """Handle automatic commit for a file change."""
+        try:
+            # For immediate commit (no batching for now - can be enhanced later)
+            commit_hash = self.git_client.auto_commit_file(file_path, ai_client=self.ai_client)
+            
+            if commit_hash:
+                # Store the commit in our database
+                self._store_auto_commit(commit_hash)
+                logger.info(f"Auto-committed {file_path}: {commit_hash[:8]}")
+                return True
+            else:
+                # No changes to commit, just track as working change
+                return self._track_working_change(file_path, change_type)
+                
+        except Exception as e:
+            logger.error(f"Error in auto-commit for {file_path}: {e}")
+            return False
+    
+    def _track_working_change(self, file_path: str, change_type: str) -> bool:
+        """Track a working directory change without committing."""
+        try:
+            current_branch = self.git_client.get_current_branch()
+            
+            # Get diff content
+            diff_content = self.git_client.get_diff(file_path, 'working')
+            
+            # Store in working changes table
+            change_id = GitWorkingChangeModel.insert(
+                file_path=file_path,
+                change_type=change_type,
+                status='unstaged',
+                diff_content=diff_content,
+                branch_name=current_branch
+            )
+            
+            if change_id:
+                logger.debug(f"Tracked working change: {file_path}")
+                return True
+            else:
+                logger.warning(f"Failed to track working change: {file_path}")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Error tracking working change for {file_path}: {e}")
+            return False
+    
+    def _store_auto_commit(self, commit_hash: str) -> Optional[int]:
+        """Store an auto-generated commit in the database."""
+        try:
+            # Get commit info from git
+            commit_info = None
+            for commit in self.git_client.get_recent_commits(max_count=1):
+                if commit['commit_hash'] == commit_hash:
+                    commit_info = commit
+                    break
+            
+            if not commit_info:
+                logger.warning(f"Could not find commit info for {commit_hash}")
+                return None
+            
+            # Store commit using existing method
+            return self._store_commit(commit_info)
+            
+        except Exception as e:
+            logger.error(f"Error storing auto-commit {commit_hash}: {e}")
+            return None
+    
+    def batch_commit_pending_files(self, max_files: int = 10) -> Optional[str]:
+        """
+        Commit multiple pending files in a single batch commit.
+        
+        Args:
+            max_files: Maximum number of files to include in batch
+            
+        Returns:
+            Commit hash if successful, None otherwise
+        """
+        try:
+            # Get uncommitted files
+            uncommitted = self.git_client.get_uncommitted_files()
+            
+            # Combine all uncommitted files
+            all_files = (uncommitted['modified'] + 
+                        uncommitted['untracked'])[:max_files]
+            
+            if not all_files:
+                logger.debug("No files to batch commit")
+                return None
+            
+            # Auto-commit the batch
+            commit_hash = self.git_client.auto_commit_multiple_files(all_files, ai_client=self.ai_client)
+            
+            if commit_hash:
+                # Store in database
+                self._store_auto_commit(commit_hash)
+                logger.info(f"Batch committed {len(all_files)} files: {commit_hash[:8]}")
+                return commit_hash
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error in batch commit: {e}")
+            return None
+    
+    def set_auto_commit(self, enabled: bool):
+        """Enable or disable automatic commits."""
+        self.auto_commit = enabled
+        logger.info(f"Auto-commit {'enabled' if enabled else 'disabled'}")
+    
+    def get_pending_changes(self) -> Dict[str, Any]:
+        """Get summary of uncommitted changes."""
+        try:
+            uncommitted = self.git_client.get_uncommitted_files()
+            
+            return {
+                'modified_files': len(uncommitted['modified']),
+                'staged_files': len(uncommitted['staged']),
+                'untracked_files': len(uncommitted['untracked']),
+                'total_pending': (len(uncommitted['modified']) + 
+                                len(uncommitted['staged']) + 
+                                len(uncommitted['untracked'])),
+                'files': uncommitted
+            }
+            
+        except Exception as e:
+            logger.error(f"Error getting pending changes: {e}")
+            return {
+                'modified_files': 0,
+                'staged_files': 0, 
+                'untracked_files': 0,
+                'total_pending': 0,
+                'files': {'modified': [], 'staged': [], 'untracked': []}
+            }
 
 logger.info("Git change tracker initialized successfully")
