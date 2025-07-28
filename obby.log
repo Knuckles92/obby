@@ -51367,3 +51367,688 @@
 2025-07-27 22:43:53,024 - __main__ - INFO - Web interface will be available once the server starts
 2025-07-27 22:43:53,027 - __main__ - INFO - Started watching living note file: notes\living_note.md
 2025-07-27 22:47:34,685 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 22:47:36,392 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 22:47:36,393 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 22:47:36,395 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 22:50:36,112 - __main__ - INFO - Living note cleared successfully
+2025-07-27 22:50:36,113 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:50:36,114 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:50:37,679 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:50:37,684 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:50:37,685 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:50:37,699 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:50:37,701 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:50:37,705 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:50:39,833 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 22:50:39,838 - __main__ - INFO - Creating event stream generator
+2025-07-27 22:50:39,844 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 22:50:42,124 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:50:42,128 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:50:44,886 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:50:46,808 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:50:46,812 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:50:46,813 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:50:46,813 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:50:46,817 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:50:46,819 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-27 22:50:46,851 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:01,900 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:51:01,902 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:01,903 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:01,914 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:51:01,921 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:01,921 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:04,673 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:04,674 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:04,681 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:04,688 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:04,686 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:04,720 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:04,724 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:04,724 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:04,726 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:04,729 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:05,720 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:51:05,721 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:51:05,722 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:51:05,724 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:51:05,724 - root - INFO - Watching directory: notes
+2025-07-27 22:51:05,726 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 22:51:05,726 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 22:51:05,728 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 22:51:05,734 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:51:05,739 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:51:05,740 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:51:05,741 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:51:05,746 - root - INFO - Watching directory: notes
+2025-07-27 22:51:05,749 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 22:51:05,751 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 22:51:05,752 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 22:51:06,248 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:06,249 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:06,249 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:06,251 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:06,252 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:06,273 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:06,275 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:06,275 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:06,276 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:06,279 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:09,640 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:09,642 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:09,642 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:09,642 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:09,642 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:14,638 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:14,640 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:14,640 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:14,640 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:14,640 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:16,865 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-27 22:51:16,865 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-27 22:51:19,640 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:19,641 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:19,642 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:19,643 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:19,643 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:24,638 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:24,640 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:51:24,640 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:51:24,641 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:24,641 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:25,146 - root - INFO - Change detected in test.md
+2025-07-27 22:51:25,162 - database.models - INFO - Created diff 22 for notes\test.md
+2025-07-27 22:51:25,163 - root - INFO - Diff saved to database with ID: 22
+2025-07-27 22:51:25,183 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:51:25,239 - root - INFO - Change detected in test.md
+2025-07-27 22:51:25,240 - database.models - INFO - Duplicate diff content detected, skipping: 242b3811
+2025-07-27 22:51:25,240 - root - INFO - Diff saved to database with ID: 22
+2025-07-27 22:51:25,257 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:51:25,731 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 22:51:25,757 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 22:51:28,343 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:51:28,580 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:51:30,365 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:51:30,368 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,370 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,371 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,371 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:51:30,376 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,595 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:51:30,600 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,600 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,602 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,602 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:30,619 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:51:30,797 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:30,821 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:51:30,821 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:30,823 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:51:30,824 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:30,847 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:51:30,856 - database.queries - INFO - Retrieved 10 recent events
+2025-07-27 22:51:30,857 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:51:30,858 - __main__ - INFO - Retrieved 10 events from database
+2025-07-27 22:51:30,858 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:51:32,602 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:51:32,609 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:51:32,610 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:51:32,630 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:51:32,637 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:51:32,640 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:51:34,248 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 22:51:34,249 - __main__ - INFO - Creating event stream generator
+2025-07-27 22:51:34,260 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 22:51:36,726 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:51:36,727 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:51:39,470 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:51:40,951 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:51:40,955 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:40,956 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:40,957 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:51:40,981 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:51:40,982 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-27 22:51:40,991 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:53:06,712 - __main__ - INFO - Living note cleared successfully
+2025-07-27 22:53:06,717 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:53:06,718 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:53:16,341 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:53:16,342 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:53:19,030 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:53:20,957 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:53:20,963 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:53:20,965 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:53:20,969 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:53:20,973 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:53:20,975 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-27 22:53:21,002 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:55:00,355 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 22:55:00,566 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 22:55:18,871 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 22:55:18,871 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 22:55:18,874 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 22:55:20,646 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 22:55:20,646 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 22:55:20,648 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 22:55:24,134 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 22:55:24,137 - __main__ - INFO - Creating event stream generator
+2025-07-27 22:55:24,139 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 22:55:33,415 - __main__ - INFO - Living note cleared successfully
+2025-07-27 22:55:33,416 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:55:33,417 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:55:35,685 - __main__ - INFO - Retrieved configuration from database
+2025-07-27 22:55:35,705 - __main__ - INFO - Retrieved configuration from database
+2025-07-27 22:55:37,439 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 22:55:37,440 - __main__ - INFO - Creating event stream generator
+2025-07-27 22:55:37,442 - __main__ - INFO - Added client to SSE clients list. Total clients: 2
+2025-07-27 22:55:37,787 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:37,787 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:37,789 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:37,792 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:37,797 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:37,822 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:37,824 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:37,824 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:37,838 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:37,839 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:38,151 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:55:38,158 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:38,159 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:38,188 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:55:38,193 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:38,197 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:38,613 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:55:38,614 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:55:38,615 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:55:38,616 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:55:38,617 - root - INFO - Watching directory: notes
+2025-07-27 22:55:38,618 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 22:55:38,619 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 22:55:38,619 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:55:38,619 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 22:55:38,621 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:55:38,622 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 22:55:38,626 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 22:55:38,628 - root - INFO - Watching directory: notes
+2025-07-27 22:55:38,629 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 22:55:38,630 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 22:55:38,630 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 22:55:38,874 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:38,876 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:38,877 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:38,878 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:38,879 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:38,905 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:38,906 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:38,907 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:38,911 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:38,914 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:39,218 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:39,219 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:39,220 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:39,221 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:39,221 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:39,233 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:39,233 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:39,234 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:39,237 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:39,238 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:43,872 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:43,873 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:43,873 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:43,873 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:43,875 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:48,868 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:48,869 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:48,869 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:48,870 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:48,871 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:53,871 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:53,873 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:53,873 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:53,875 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-27 22:55:53,878 - __main__ - INFO - Retrieved 0 diffs from database
+2025-07-27 22:55:58,622 - root - INFO - Change detected in test.md
+2025-07-27 22:55:58,632 - root - INFO - Change detected in test.md
+2025-07-27 22:55:58,697 - database.models - INFO - Created diff 1 for notes\test.md
+2025-07-27 22:55:58,697 - root - INFO - Diff saved to database with ID: 1
+2025-07-27 22:55:58,713 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: diffs.content_hash
+2025-07-27 22:55:58,714 - database.models - ERROR - Failed to insert diff: UNIQUE constraint failed: diffs.content_hash
+2025-07-27 22:55:58,714 - root - ERROR - Failed to save diff to database for test.md
+2025-07-27 22:55:58,720 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:55:58,748 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:55:58,870 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:55:58,879 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:55:58,880 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:55:58,880 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:55:58,880 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:56:02,385 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:02,578 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:03,419 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-27 22:56:03,420 - __main__ - INFO - Removed client from SSE clients list. Total clients: 1
+2025-07-27 22:56:03,866 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:56:03,868 - database.queries - INFO - Retrieved 0 recent events
+2025-07-27 22:56:03,869 - __main__ - INFO - Retrieved 0 events from database
+2025-07-27 22:56:03,869 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-27 22:56:03,870 - __main__ - INFO - Retrieved 1 diffs from database
+2025-07-27 22:56:04,486 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:04,495 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,499 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,501 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:56:04,502 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,512 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 22:56:04,530 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-27 22:56:04,531 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,535 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-27 22:56:04,869 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:04,875 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,875 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,877 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,877 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:04,889 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:56:04,893 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 22:56:06,778 - root - INFO - Change detected in test.md
+2025-07-27 22:56:06,808 - database.models - INFO - Created diff 2 for notes\test.md
+2025-07-27 22:56:06,809 - root - INFO - Diff saved to database with ID: 2
+2025-07-27 22:56:06,877 - root - INFO - Change detected in test.md
+2025-07-27 22:56:06,878 - database.models - INFO - Duplicate diff content detected, skipping: c1d82462
+2025-07-27 22:56:06,878 - root - INFO - Diff saved to database with ID: 2
+2025-07-27 22:56:08,269 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:08,629 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:08,867 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 22:56:08,875 - database.queries - INFO - Retrieved 2 recent events
+2025-07-27 22:56:08,876 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:56:08,876 - __main__ - INFO - Retrieved 2 events from database
+2025-07-27 22:56:08,876 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:56:10,194 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:10,199 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,201 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,202 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,206 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:56:10,207 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,438 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:10,442 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,443 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,443 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,444 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:10,462 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:56:12,786 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:56:12,810 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:56:12,810 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:56:12,818 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:56:12,823 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:56:12,824 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:56:13,768 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 22:56:13,772 - __main__ - INFO - Creating event stream generator
+2025-07-27 22:56:13,773 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 22:56:16,380 - __main__ - INFO - Living note cleared successfully
+2025-07-27 22:56:16,382 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:16,383 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:18,768 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:56:18,769 - root - INFO - Format configuration loaded from format.md
+2025-07-27 22:56:20,972 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:23,386 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 22:56:23,391 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:23,393 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:23,394 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:23,416 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 22:56:23,420 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-27 22:56:23,422 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 22:56:24,516 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 22:56:24,895 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 22:57:28,033 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:57:28,036 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:57:28,036 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:57:28,048 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 22:57:28,053 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 22:57:28,057 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 22:57:29,339 - __main__ - INFO - FULL DIFF CONTENT API CALLED - ID: 2
+2025-07-27 22:57:29,341 - __main__ - INFO - Retrieved full diff content for ID: 2
+2025-07-27 22:57:53,430 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-27 22:57:53,431 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-27 22:58:01,506 - __main__ - INFO - FULL DIFF CONTENT API CALLED - ID: 1
+2025-07-27 22:58:01,515 - __main__ - INFO - Retrieved full diff content for ID: 1
+2025-07-27 23:19:36,313 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:19:36,316 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:19:36,316 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:19:36,318 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:19:36,333 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:19:36,377 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:19:36,384 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:19:36,410 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:19:36,425 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:19:36,428 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:19:37,082 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 23:19:37,083 - __main__ - INFO - Creating event stream generator
+2025-07-27 23:19:37,085 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 23:19:39,698 - __main__ - INFO - Living note cleared successfully
+2025-07-27 23:19:39,705 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:19:39,704 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:19:41,416 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:19:41,417 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:19:44,397 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:19:46,099 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:19:46,103 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:19:46,104 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:19:46,105 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:19:46,118 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:19:46,121 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-27 23:19:46,137 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:27:42,206 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:27:44,124 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:27:44,124 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:27:44,125 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:36:42,015 - __main__ - INFO - Living note cleared successfully
+2025-07-27 23:36:42,016 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:36:42,017 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:36:44,700 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:36:44,725 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:36:46,684 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:36:50,713 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:36:50,713 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:36:50,716 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:37:00,121 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:00,125 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:37:03,191 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:37:05,042 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:37:05,047 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:05,048 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:05,050 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:05,051 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:05,072 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:37:05,074 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-27 23:37:15,762 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:37:15,769 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:15,780 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:15,830 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:37:15,850 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:15,851 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:18,406 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:37:18,423 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:37:18,455 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:37:18,482 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:18,484 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:18,503 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:37:18,505 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:37:18,564 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:37:18,577 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:18,579 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:20,226 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:37:20,286 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:37:20,297 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:37:20,331 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:37:20,341 - root - INFO - Watching directory: notes
+2025-07-27 23:37:20,352 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 23:37:20,356 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 23:37:20,357 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 23:37:20,593 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:37:20,594 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:37:20,595 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:37:20,601 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:37:20,607 - root - INFO - Watching directory: notes
+2025-07-27 23:37:20,611 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 23:37:20,612 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 23:37:20,622 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 23:37:20,922 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:37:20,924 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:37:20,924 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:37:20,926 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:20,931 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:21,217 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:37:21,219 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:37:21,221 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:21,221 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:37:21,222 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:23,108 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:37:23,114 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:23,114 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:23,161 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:37:23,173 - database.queries - INFO - Retrieved 2 recent diffs
+2025-07-27 23:37:23,175 - __main__ - INFO - Retrieved 2 diffs from database
+2025-07-27 23:37:23,850 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 23:37:23,858 - __main__ - INFO - Creating event stream generator
+2025-07-27 23:37:23,926 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 23:37:40,368 - root - INFO - Change detected in test.md
+2025-07-27 23:37:40,434 - database.models - INFO - Created diff 3 for notes\test.md
+2025-07-27 23:37:40,436 - root - INFO - Diff saved to database with ID: 3
+2025-07-27 23:37:40,472 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:37:40,624 - root - INFO - Change detected in test.md
+2025-07-27 23:37:40,633 - database.models - INFO - Duplicate diff content detected, skipping: 16e36f28
+2025-07-27 23:37:40,634 - root - INFO - Diff saved to database with ID: 3
+2025-07-27 23:37:40,661 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:37:42,021 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:37:42,166 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:37:43,433 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:37:43,441 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,443 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,443 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,457 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,468 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:37:43,471 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 23:37:43,516 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:37:43,521 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,523 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,523 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:43,548 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:37:43,553 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 23:37:43,555 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:58,994 - __main__ - INFO - Living note cleared successfully
+2025-07-27 23:37:58,995 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:37:58,997 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:38:07,919 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:38:07,944 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:38:07,944 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:38:07,954 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:38:07,961 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:38:07,962 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:38:23,529 - __main__ - INFO - FULL DIFF CONTENT API CALLED - ID: 3
+2025-07-27 23:38:23,531 - __main__ - INFO - Retrieved full diff content for ID: 3
+2025-07-27 23:38:27,679 - __main__ - INFO - FULL DIFF CONTENT API CALLED - ID: 3
+2025-07-27 23:38:27,681 - __main__ - INFO - Retrieved full diff content for ID: 3
+2025-07-27 23:38:28,144 - __main__ - INFO - FULL DIFF CONTENT API CALLED - ID: 2
+2025-07-27 23:38:28,146 - __main__ - INFO - Retrieved full diff content for ID: 2
+2025-07-27 23:38:28,583 - __main__ - INFO - FULL DIFF CONTENT API CALLED - ID: 2
+2025-07-27 23:38:28,588 - __main__ - INFO - Retrieved full diff content for ID: 2
+2025-07-27 23:38:29,000 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-27 23:38:29,000 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-27 23:39:31,200 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-27 23:39:31,201 - __main__ - INFO - Creating event stream generator
+2025-07-27 23:39:31,202 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-27 23:44:07,410 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:44:09,488 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:44:09,488 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:44:09,490 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:44:14,715 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:44:16,295 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:44:16,296 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:44:16,297 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:44:21,521 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:44:23,325 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:44:23,325 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:44:23,327 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:49:47,662 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:49:51,774 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:49:51,775 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:49:51,777 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:49:52,013 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:49:52,024 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:52,070 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:52,201 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-27 23:49:52,209 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:52,261 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:52,538 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:49:52,539 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:49:52,541 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:49:52,544 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:52,561 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:52,628 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:49:52,629 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:49:52,635 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:49:52,638 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:52,658 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:53,970 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:49:53,971 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:49:53,972 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:49:53,972 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:49:53,975 - root - INFO - Watching directory: notes
+2025-07-27 23:49:53,977 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 23:49:53,977 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 23:49:53,977 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:49:53,978 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 23:49:53,979 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:49:53,980 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:49:53,983 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:49:53,984 - root - INFO - Watching directory: notes
+2025-07-27 23:49:53,987 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 23:49:53,991 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 23:49:53,992 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 23:49:54,507 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:49:54,511 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:49:54,512 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:49:54,514 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:54,520 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:54,562 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:49:54,563 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:49:54,567 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:49:54,603 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:54,631 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:57,525 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:49:57,528 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:49:57,528 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:49:57,534 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:49:57,535 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:02,538 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:02,538 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:02,539 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:02,541 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:02,541 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:07,669 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:07,676 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:07,687 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:07,699 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:07,708 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:12,526 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:12,527 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:12,528 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:12,528 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:12,533 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:13,981 - root - INFO - Change detected in test.md
+2025-07-27 23:50:13,983 - database.models - INFO - Duplicate diff content detected, skipping: 16e36f28
+2025-07-27 23:50:13,983 - root - INFO - Diff saved to database with ID: 3
+2025-07-27 23:50:13,995 - root - INFO - Change detected in test.md
+2025-07-27 23:50:14,010 - database.models - INFO - Duplicate diff content detected, skipping: 16e36f28
+2025-07-27 23:50:14,010 - root - INFO - Diff saved to database with ID: 3
+2025-07-27 23:50:14,046 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:50:14,097 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:50:15,977 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:50:16,506 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:50:16,959 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:50:16,966 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:16,969 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:16,971 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:16,976 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:50:16,977 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 23:50:16,978 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:17,528 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:17,541 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:17,541 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:17,672 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:17,697 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:17,729 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:50:17,743 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:17,745 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:17,745 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:17,747 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:50:17,761 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:50:17,763 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 23:50:22,527 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:22,529 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:22,530 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:22,530 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:22,531 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:27,528 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:27,529 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:27,530 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:27,538 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:27,548 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:32,526 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:32,527 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:32,528 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:32,528 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:32,529 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:37,524 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:37,525 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:37,526 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:37,527 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:37,528 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:42,367 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:50:44,624 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-27 23:50:44,625 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-27 23:50:44,626 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-27 23:50:44,756 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:44,759 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:44,761 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:44,763 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:44,763 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:45,922 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:50:45,923 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:50:45,924 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-27 23:50:45,925 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-27 23:50:45,928 - root - INFO - Watching directory: notes
+2025-07-27 23:50:45,932 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-27 23:50:45,934 - root - INFO - Real-time change detection active for all .md files!
+2025-07-27 23:50:45,938 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-27 23:50:46,463 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:46,466 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:46,466 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:46,467 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:46,468 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:47,525 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:47,526 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:47,526 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:47,527 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:47,528 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:52,525 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:52,526 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:52,526 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:52,528 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:52,533 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:50:57,526 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:50:57,527 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:50:57,527 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:50:57,528 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:50:57,528 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:51:02,524 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:51:02,525 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:51:02,525 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:51:02,528 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:51:02,529 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:51:05,945 - root - INFO - Change detected in test.md
+2025-07-27 23:51:05,949 - database.models - INFO - Duplicate diff content detected, skipping: 16e36f28
+2025-07-27 23:51:05,950 - root - INFO - Diff saved to database with ID: 3
+2025-07-27 23:51:06,033 - root - INFO - Format configuration loaded from format.md
+2025-07-27 23:51:07,524 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:51:07,532 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:51:07,532 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:51:07,532 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:51:07,533 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:51:08,130 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:51:09,395 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-27 23:51:09,398 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:51:09,399 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:51:09,400 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:51:09,405 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-27 23:51:09,406 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-27 23:51:09,408 - core.monitor - INFO - Periodic check processed 1 changed files
+2025-07-27 23:51:12,523 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:51:12,524 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:51:12,525 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:51:12,526 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:51:12,526 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:51:17,528 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-27 23:51:17,529 - database.queries - INFO - Retrieved 3 recent events
+2025-07-27 23:51:17,530 - __main__ - INFO - Retrieved 3 events from database
+2025-07-27 23:51:17,530 - database.queries - INFO - Retrieved 3 recent diffs
+2025-07-27 23:51:17,532 - __main__ - INFO - Retrieved 3 diffs from database
+2025-07-27 23:51:18,058 - __main__ - INFO - Stopped living note file watcher
+2025-07-27 23:51:19,065 - __main__ - INFO - Stopped living note file watcher

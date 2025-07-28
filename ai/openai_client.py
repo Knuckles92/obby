@@ -315,6 +315,18 @@ Be specific and actionable. Do not include additional text outside the bullet po
         # Load format configuration
         format_config = self._load_format_config()
         
+        # Check if we have user format instructions from format.md - use them as PRIMARY instructions
+        user_instructions = format_config.get('user_format_instructions', '')
+        if user_instructions and user_instructions.strip():
+            return f"""You are an AI assistant for Obby, a comprehensive note monitoring system. 
+
+The user has provided specific formatting preferences. Follow these instructions EXACTLY:
+
+{user_instructions.strip()}
+
+Based on these preferences, summarize the provided diff content."""
+        
+        # Fallback to legacy system if no format.md found
         # Get base prompt template
         if content_type == "diff":
             base_prompt = format_config.get('diff_prompt', '')
@@ -353,11 +365,6 @@ Be specific and actionable. Do not include additional text outside the bullet po
             length_instruction=length_instruction,
             metrics_instruction=metrics_instruction
         )
-        
-        # Add user format instructions from format.md
-        user_instructions = format_config.get('user_format_instructions', '')
-        if user_instructions and user_instructions.strip():
-            prompt += f"\n\nAdditionally, follow these user formatting preferences:\n{user_instructions.strip()}"
         
         return prompt
     

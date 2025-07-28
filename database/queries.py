@@ -1,9 +1,9 @@
 """
-🤖 SUBAGENT C: API Integration & Advanced Query Engine
-======================================================
+Git-Native API Integration & Advanced Query Engine
+==================================================
 
-High-performance query layer for API endpoints with advanced search,
-analytics, and real-time capabilities to replace all file operations.
+High-performance query layer for API endpoints with git-based search,
+analytics, and real-time capabilities.
 """
 
 import logging
@@ -12,192 +12,213 @@ from typing import Dict, List, Any, Optional, Union
 import json
 
 from .models import (
-    db, DiffModel, EventModel, SemanticModel, 
+    db, GitCommitModel, GitFileChangeModel, GitWorkingChangeModel,
+    GitRepositoryStateModel, EventModel, SemanticModel, 
     ConfigModel, FileStateModel, PerformanceModel
 )
 
 logger = logging.getLogger(__name__)
 
-class DiffQueries:
-    """Advanced diff querying replacing file-based diff operations."""
+class GitQueries:
+    """Git-focused queries for API endpoints."""
     
     @staticmethod
-    def get_recent_diffs(limit: int = 20, file_path: str = None) -> List[Dict[str, Any]]:
-        """Get recent diffs with enhanced metadata - replaces /api/diffs endpoint."""
+    def get_recent_commits(limit: int = 20, branch: str = None) -> List[Dict[str, Any]]:
+        """Get recent commits - replaces /api/diffs endpoint."""
         try:
-            # Build query with optional file filtering
-            query = """
-                SELECT 
-                    id,
-                    file_path as filePath,
-                    base_name,
-                    timestamp,
-                    diff_content as content,
-                    size,
-                    content_hash,
-                    created_at,
-                    CASE 
-                        WHEN LENGTH(diff_content) > 500 
-                        THEN SUBSTR(diff_content, 1, 500) || '...'
-                        ELSE diff_content 
-                    END as preview
-                FROM diffs
-            """
+            commits = GitCommitModel.get_recent(limit=limit, branch=branch)
             
-            params = []
-            if file_path:
-                query += " WHERE file_path = ?"
-                params.append(file_path)
-            
-            query += " ORDER BY timestamp DESC LIMIT ?"
-            params.append(limit)
-            
-            rows = db.execute_query(query, tuple(params))
-            
-            # Format for API response
-            diffs = []
-            for row in rows:
-                diff_entry = {
-                    'id': str(row['id']),  # Convert to string for frontend
-                    'filePath': row['filePath'],
-                    'timestamp': row['timestamp'],
-                    'content': row['preview'],  # Use preview for list view
-                    'size': row['size'],
-                    'fullPath': f"database://diffs/{row['id']}"  # Virtual path
+            # Format for API response with file changes
+            formatted_commits = []
+            for commit in commits:
+                # Get file changes for this commit
+                file_changes = GitFileChangeModel.get_for_commit(commit['id'])
+                
+                formatted_commit = {
+                    'id': str(commit['id']),
+                    'hash': commit['commit_hash'],
+                    'shortHash': commit['short_hash'],
+                    'author': commit['author_name'],
+                    'email': commit['author_email'],
+                    'message': commit['message'],
+                    'branch': commit['branch_name'],
+                    'timestamp': commit['timestamp'],
+                    'filesChanged': len(file_changes),
+                    'changes': [
+                        {
+                            'path': fc['file_path'],
+                            'type': fc['change_type'],
+                            'linesAdded': fc['lines_added'],
+                            'linesRemoved': fc['lines_removed']
+                        }
+                        for fc in file_changes
+                    ]
                 }
-                diffs.append(diff_entry)
+                formatted_commits.append(formatted_commit)
             
-            logger.info(f"Retrieved {len(diffs)} recent diffs")
-            return diffs
+            logger.info(f"Retrieved {len(formatted_commits)} recent commits")
+            return formatted_commits
             
         except Exception as e:
-            logger.error(f"Failed to get recent diffs: {e}")
+            logger.error(f"Failed to get recent commits: {e}")
             return []
     
     @staticmethod
-    def get_diff_content(diff_id: int) -> Optional[Dict[str, Any]]:
-        """Get full diff content for viewer - replaces file reading."""
+    def get_working_changes(status: str = None) -> List[Dict[str, Any]]:
+        """Get current working directory changes."""
         try:
-            diff_data = DiffModel.get_by_id(diff_id)
+            changes = GitWorkingChangeModel.get_current(status=status)
             
-            if not diff_data:
+            # Format for API response
+            formatted_changes = []
+            for change in changes:
+                formatted_change = {
+                    'id': str(change['id']),
+                    'filePath': change['file_path'],
+                    'changeType': change['change_type'],
+                    'status': change['status'],  # staged, unstaged, untracked
+                    'timestamp': change['timestamp'],
+                    'branch': change['branch_name'],
+                    'diff': change.get('diff_content', '')
+                }
+                formatted_changes.append(formatted_change)
+            
+            logger.info(f"Retrieved {len(formatted_changes)} working changes")
+            return formatted_changes
+            
+        except Exception as e:
+            logger.error(f"Failed to get working changes: {e}")
+            return []
+    
+    @staticmethod
+    def get_commit_details(commit_hash: str) -> Optional[Dict[str, Any]]:
+        """Get detailed information about a specific commit."""
+        try:
+            commit = GitCommitModel.get_by_hash(commit_hash)
+            if not commit:
                 return None
             
+            # Get file changes
+            file_changes = GitFileChangeModel.get_for_commit(commit['id'])
+            
             return {
-                'id': diff_data['id'],
-                'filePath': diff_data['file_path'],
-                'timestamp': diff_data['timestamp'],
-                'content': diff_data['diff_content'],
-                'size': diff_data['size'],
-                'contentHash': diff_data['content_hash']
+                'id': commit['id'],
+                'hash': commit['commit_hash'],
+                'shortHash': commit['short_hash'],
+                'author': commit['author_name'],
+                'email': commit['author_email'],
+                'message': commit['message'],
+                'branch': commit['branch_name'],
+                'timestamp': commit['timestamp'],
+                'filesChanged': len(file_changes),
+                'changes': [
+                    {
+                        'path': fc['file_path'],
+                        'type': fc['change_type'],
+                        'diff': fc['diff_content'],
+                        'linesAdded': fc['lines_added'],
+                        'linesRemoved': fc['lines_removed'],
+                        'oldPath': fc['old_path']
+                    }
+                    for fc in file_changes
+                ]
             }
             
         except Exception as e:
-            logger.error(f"Failed to get diff content for {diff_id}: {e}")
+            logger.error(f"Failed to get commit details for {commit_hash}: {e}")
             return None
     
     @staticmethod
-    def search_diffs(query: str, limit: int = 20) -> List[Dict[str, Any]]:
-        """Search diff content with FTS."""
+    def get_file_history(file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get git history for a specific file."""
         try:
-            search_query = """
-                SELECT d.*, 
-                       CASE 
-                           WHEN LENGTH(d.diff_content) > 500 
-                           THEN SUBSTR(d.diff_content, 1, 500) || '...'
-                           ELSE d.diff_content 
-                       END as preview
-                FROM diffs d
-                WHERE d.diff_content LIKE ? OR d.file_path LIKE ?
-                ORDER BY d.timestamp DESC
-                LIMIT ?
-            """
+            history = GitFileChangeModel.get_file_history(file_path, limit)
             
-            search_term = f"%{query}%"
-            rows = db.execute_query(search_query, (search_term, search_term, limit))
+            formatted_history = []
+            for entry in history:
+                formatted_entry = {
+                    'commitHash': entry.get('commit_hash'),
+                    'shortHash': entry.get('short_hash'),
+                    'author': entry.get('author_name'),
+                    'message': entry.get('message'),
+                    'timestamp': entry.get('timestamp'),
+                    'branch': entry.get('branch_name'),
+                    'changeType': entry.get('change_type'),
+                    'diff': entry.get('diff_content', ''),
+                    'linesAdded': entry.get('lines_added', 0),
+                    'linesRemoved': entry.get('lines_removed', 0)
+                }
+                formatted_history.append(formatted_entry)
             
-            return [dict(row) for row in rows]
+            return formatted_history
             
         except Exception as e:
-            logger.error(f"Diff search failed: {e}")
+            logger.error(f"Failed to get file history for {file_path}: {e}")
             return []
     
     @staticmethod
-    def get_diff_analytics() -> Dict[str, Any]:
-        """Get diff analytics and statistics."""
+    def get_repository_status() -> Dict[str, Any]:
+        """Get current git repository status."""
         try:
-            stats = {}
+            # Get latest repository state
+            repo_state = GitRepositoryStateModel.get_latest()
             
-            # Total diffs
-            total_result = db.execute_query("SELECT COUNT(*) as total FROM diffs")[0]
-            stats['total_diffs'] = total_result['total']
+            if not repo_state:
+                return {'error': 'No repository state available'}
             
-            # Daily activity (last 7 days)
-            daily_query = """
-                SELECT DATE(timestamp) as date, COUNT(*) as count
-                FROM diffs 
-                WHERE timestamp >= datetime('now', '-7 days')
-                GROUP BY DATE(timestamp)
-                ORDER BY date DESC
-            """
-            stats['daily_activity'] = [dict(row) for row in db.execute_query(daily_query)]
-            
-            # Top files by diff count
-            top_files_query = """
-                SELECT file_path, COUNT(*) as diff_count
-                FROM diffs
-                GROUP BY file_path
-                ORDER BY diff_count DESC
-                LIMIT 10
-            """
-            stats['top_files'] = [dict(row) for row in db.execute_query(top_files_query)]
-            
-            # Recent activity trend
-            trend_query = """
-                SELECT 
-                    COUNT(*) as total_last_24h,
-                    COUNT(CASE WHEN timestamp >= datetime('now', '-1 hour') THEN 1 END) as last_hour
-                FROM diffs
-                WHERE timestamp >= datetime('now', '-24 hours')
-            """
-            trend_result = db.execute_query(trend_query)[0]
-            stats['activity_trend'] = dict(trend_result)
-            
-            return stats
+            return {
+                'branch': repo_state['current_branch'],
+                'headCommit': repo_state['head_commit'],
+                'isDirty': repo_state['is_dirty'],
+                'stagedFiles': repo_state['staged_files_count'],
+                'unstagedFiles': repo_state['unstaged_files_count'],
+                'untrackedFiles': repo_state['untracked_files_count'],
+                'lastUpdated': repo_state['timestamp']
+            }
             
         except Exception as e:
-            logger.error(f"Failed to get diff analytics: {e}")
-            return {}
+            logger.error(f"Failed to get repository status: {e}")
+            return {'error': str(e)}
     
     @staticmethod
-    def clear_all_diffs() -> Dict[str, Any]:
-        """Clear all diffs - replaces /api/diffs/clear endpoint."""
+    def search_commits(query: str, limit: int = 20) -> List[Dict[str, Any]]:
+        """Search commits by message or author using FTS."""
         try:
-            count = DiffModel.clear_all()
-            message = f"Cleared {count} diffs successfully"
-            logger.info(message)
+            search_query = """
+                SELECT gc.*, rank
+                FROM commit_search cs
+                JOIN git_commits gc ON cs.rowid = gc.id
+                WHERE commit_search MATCH ?
+                ORDER BY rank, gc.timestamp DESC
+                LIMIT ?
+            """
             
-            return {
-                'message': message,
-                'clearedCount': count
-            }
+            rows = db.execute_query(search_query, (query, limit))
+            
+            commits = []
+            for row in rows:
+                commit_dict = dict(row)
+                # Get file changes count
+                file_changes = GitFileChangeModel.get_for_commit(commit_dict['id'])
+                commit_dict['filesChanged'] = len(file_changes)
+                commits.append(commit_dict)
+            
+            return commits
             
         except Exception as e:
-            error_msg = f"Failed to clear diffs: {str(e)}"
-            logger.error(error_msg)
-            return {
-                'error': error_msg,
-                'clearedCount': 0
-            }
+            logger.error(f"Commit search failed: {e}")
+            return []
 
 class EventQueries:
-    """Event querying replacing in-memory event storage."""
+    """Event querying with git context."""
     
     @staticmethod
-    def get_recent_events(limit: int = 50, event_type: str = None) -> List[Dict[str, Any]]:
-        """Get recent events - replaces in-memory recent_events list."""
+    def get_recent_events(limit: int = 50, event_type: str = None, 
+                         processed: bool = None) -> List[Dict[str, Any]]:
+        """Get recent events with git context."""
         try:
-            events = EventModel.get_recent(limit=limit, event_type=event_type)
+            events = EventModel.get_recent(limit=limit, event_type=event_type, 
+                                          processed=processed)
             
             # Format for API response
             formatted_events = []
@@ -207,7 +228,9 @@ class EventQueries:
                     'type': event['type'],
                     'path': event['path'],
                     'timestamp': event['timestamp'],
-                    'size': event['size']
+                    'size': event['size'],
+                    'gitStatus': event.get('git_status'),
+                    'processed': event.get('processed', False)
                 }
                 formatted_events.append(formatted_event)
             
@@ -217,44 +240,14 @@ class EventQueries:
         except Exception as e:
             logger.error(f"Failed to get recent events: {e}")
             return []
-
-    @staticmethod
-    def get_recent_tree_changes(limit: int = 10, time_window_minutes: int = 30) -> List[Dict[str, Any]]:
-        """Get recent tree changes (created, deleted, moved) within a time window for diff context."""
-        try:
-            # Get recent tree events (created, deleted, moved)
-            tree_events = EventModel.get_recent(limit=limit, event_type=None)  # Get all types first
-            
-            # Filter for tree change types and time window
-            from datetime import datetime, timedelta
-            cutoff_time = datetime.now() - timedelta(minutes=time_window_minutes)
-            
-            recent_tree_changes = []
-            for event in tree_events:
-                # Check if it's a tree change event (created, deleted, moved)
-                if event['type'] in ['created', 'deleted', 'moved']:
-                    # Check if it's within our time window
-                    event_time = datetime.fromisoformat(event['timestamp'].replace('Z', '+00:00')) if isinstance(event['timestamp'], str) else event['timestamp']
-                    if event_time >= cutoff_time:
-                        recent_tree_changes.append(event)
-            
-            # Sort by timestamp descending (most recent first) and limit
-            recent_tree_changes.sort(key=lambda x: x['timestamp'], reverse=True)
-            recent_tree_changes = recent_tree_changes[:limit]
-            
-            logger.debug(f"Retrieved {len(recent_tree_changes)} recent tree changes within {time_window_minutes} minutes")
-            return recent_tree_changes
-            
-        except Exception as e:
-            logger.error(f"Failed to get recent tree changes: {e}")
-            return []
     
     @staticmethod
-    def add_event(event_type: str, path: str, size: int = 0) -> bool:
-        """Add new event - replaces in-memory event addition."""
+    def add_event(event_type: str, path: str, size: int = 0, 
+                  git_status: str = None) -> bool:
+        """Add new event with git context."""
         try:
-            EventModel.insert(event_type, path, size)
-            logger.debug(f"Added event: {event_type} {path}")
+            EventModel.insert(event_type, path, size, git_status)
+            logger.debug(f"Added event: {event_type} {path} (git: {git_status})")
             return True
             
         except Exception as e:
@@ -262,17 +255,8 @@ class EventQueries:
             return False
     
     @staticmethod
-    def get_events_today_count() -> int:
-        """Get today's event count for dashboard."""
-        try:
-            return EventModel.get_today_count()
-        except Exception as e:
-            logger.error(f"Failed to get today's event count: {e}")
-            return 0
-    
-    @staticmethod
     def clear_all_events() -> Dict[str, Any]:
-        """Clear all events - replaces /api/events/clear endpoint."""
+        """Clear all events."""
         try:
             count = EventModel.clear_all()
             message = f"Cleared {count} events successfully"
@@ -292,20 +276,23 @@ class EventQueries:
             }
 
 class SemanticQueries:
-    """Advanced semantic search replacing JSON file operations."""
+    """Enhanced semantic search with git context."""
     
     @staticmethod
-    def search_semantic(query: str, limit: int = 20, change_type: str = None) -> Dict[str, Any]:
-        """Enhanced semantic search - replaces /api/search endpoint."""
+    def search_semantic(query: str, limit: int = 20, commit_hash: str = None,
+                       author: str = None, branch: str = None) -> Dict[str, Any]:
+        """Enhanced semantic search with git filtering."""
         try:
-            # Perform FTS search
-            results = SemanticModel.search(query, limit)
+            # Perform search with git context
+            results = SemanticModel.search(
+                query=query, 
+                limit=limit, 
+                commit_hash=commit_hash,
+                author=author, 
+                branch=branch
+            )
             
-            # Filter by type if specified
-            if change_type:
-                results = [r for r in results if r.get('type') == change_type]
-            
-            # Format results with relevance scoring
+            # Format results
             formatted_results = []
             for result in results:
                 formatted_result = {
@@ -316,9 +303,11 @@ class SemanticQueries:
                     'impact': result['impact'],
                     'topics': result['topics'],
                     'keywords': result['keywords'],
-                    'file_path': result['file_path'],
-                    'searchable_text': result['searchable_text'],
-                    'relevance_score': result.get('rank', 0)
+                    'filePath': result['file_path'],
+                    'commitHash': result.get('commit_hash'),
+                    'author': result.get('author_name'),
+                    'branch': result.get('branch_name'),
+                    'relevanceScore': result.get('rank', 0)
                 }
                 formatted_results.append(formatted_result)
             
@@ -326,11 +315,12 @@ class SemanticQueries:
                 'results': formatted_results,
                 'total': len(formatted_results),
                 'query': query,
-                'change_type_filter': change_type,
-                'index_metadata': {
-                    'total_entries': SemanticQueries._get_total_entries(),
-                    'last_updated': datetime.now().isoformat()
-                }
+                'filters': {
+                    'commit': commit_hash,
+                    'author': author,
+                    'branch': branch
+                },
+                'gitContext': True
             }
             
         except Exception as e:
@@ -344,57 +334,36 @@ class SemanticQueries:
     
     @staticmethod
     def get_all_topics() -> Dict[str, Any]:
-        """Get all topics - replaces /api/search/topics endpoint."""
+        """Get all topics."""
         try:
             topics = SemanticModel.get_all_topics()
-            
             return {
                 'topics': topics,
                 'total': len(topics)
             }
-            
         except Exception as e:
             logger.error(f"Failed to get topics: {e}")
-            return {
-                'topics': [],
-                'total': 0,
-                'error': str(e)
-            }
+            return {'topics': [], 'total': 0, 'error': str(e)}
     
     @staticmethod
     def get_all_keywords() -> Dict[str, Any]:
-        """Get all keywords with counts - replaces /api/search/keywords endpoint."""
+        """Get all keywords with counts."""
         try:
             keywords = SemanticModel.get_all_keywords()
-            
             return {
                 'keywords': keywords,
                 'total': len(keywords)
             }
-            
         except Exception as e:
             logger.error(f"Failed to get keywords: {e}")
-            return {
-                'keywords': [],
-                'total': 0,
-                'error': str(e)
-            }
-    
-    @staticmethod
-    def _get_total_entries() -> int:
-        """Get total semantic entries count."""
-        try:
-            result = db.execute_query("SELECT COUNT(*) as count FROM semantic_entries")[0]
-            return result['count']
-        except:
-            return 0
+            return {'keywords': [], 'total': 0, 'error': str(e)}
 
 class ConfigQueries:
-    """Configuration management replacing config.json operations."""
+    """Configuration management."""
     
     @staticmethod
     def get_config() -> Dict[str, Any]:
-        """Get all configuration - replaces /api/config GET endpoint."""
+        """Get all configuration."""
         try:
             config = ConfigModel.get_all()
             
@@ -405,7 +374,9 @@ class ConfigQueries:
                 'aiModel': 'gpt-4.1-mini',
                 'watchPaths': ['notes'],
                 'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
-                'periodicCheckEnabled': True
+                'periodicCheckEnabled': True,
+                'gitIntegrationEnabled': True,
+                'maxCommitHistory': 1000
             }
             
             # Merge with database config
@@ -419,11 +390,12 @@ class ConfigQueries:
     
     @staticmethod
     def update_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Update configuration - replaces /api/config PUT endpoint."""
+        """Update configuration."""
         try:
             valid_fields = [
                 'checkInterval', 'openaiApiKey', 'aiModel', 
-                'ignorePatterns', 'periodicCheckEnabled'
+                'ignorePatterns', 'periodicCheckEnabled',
+                'gitIntegrationEnabled', 'maxCommitHistory'
             ]
             
             updated_count = 0
@@ -442,12 +414,10 @@ class ConfigQueries:
         except Exception as e:
             error_msg = f"Failed to update configuration: {str(e)}"
             logger.error(error_msg)
-            return {
-                'error': error_msg
-            }
+            return {'error': error_msg}
 
 class AnalyticsQueries:
-    """Advanced analytics and insights from database."""
+    """Git-focused analytics and insights."""
     
     @staticmethod
     def get_dashboard_stats() -> Dict[str, Any]:
@@ -459,16 +429,18 @@ class AnalyticsQueries:
             perf_stats = PerformanceModel.get_stats()
             stats.update(perf_stats)
             
-            # Activity stats
-            stats['events_today'] = EventQueries.get_events_today_count()
+            # Git-specific stats
+            recent_commits = GitQueries.get_recent_commits(limit=5)
+            working_changes = GitQueries.get_working_changes()
+            repo_status = GitQueries.get_repository_status()
             
-            # Diff stats
-            recent_diffs = DiffQueries.get_recent_diffs(limit=5)
-            stats['recent_diffs_count'] = len(recent_diffs)
-            
-            # System health
-            stats['database_health'] = 'healthy'
-            stats['last_updated'] = datetime.now().isoformat()
+            stats.update({
+                'recent_commits_count': len(recent_commits),
+                'working_changes_count': len(working_changes),
+                'repository_status': repo_status,
+                'database_health': 'healthy',
+                'last_updated': datetime.now().isoformat()
+            })
             
             return stats
             
@@ -477,107 +449,100 @@ class AnalyticsQueries:
             return {}
     
     @staticmethod
-    def get_file_activity_heatmap(days: int = 30) -> List[Dict[str, Any]]:
-        """Get file activity heatmap data."""
+    def get_commit_activity(days: int = 30) -> List[Dict[str, Any]]:
+        """Get commit activity over time."""
         try:
             query = """
                 SELECT 
                     DATE(timestamp) as date,
-                    file_path,
-                    COUNT(*) as activity_count
-                FROM diffs 
+                    COUNT(*) as commit_count,
+                    COUNT(DISTINCT author_name) as authors,
+                    COUNT(DISTINCT branch_name) as branches
+                FROM git_commits 
                 WHERE timestamp >= datetime('now', '-' || ? || ' days')
-                GROUP BY DATE(timestamp), file_path
-                ORDER BY date DESC, activity_count DESC
+                GROUP BY DATE(timestamp)
+                ORDER BY date DESC
             """
             
             rows = db.execute_query(query, (days,))
             return [dict(row) for row in rows]
             
         except Exception as e:
-            logger.error(f"Failed to get activity heatmap: {e}")
+            logger.error(f"Failed to get commit activity: {e}")
             return []
     
     @staticmethod
-    def get_change_pattern_analysis() -> Dict[str, Any]:
-        """Analyze change patterns and trends."""
+    def get_author_stats() -> List[Dict[str, Any]]:
+        """Get author contribution statistics."""
         try:
-            analysis = {}
-            
-            # Busiest hours
-            hour_query = """
+            authors = GitCommitModel.get_authors()
+            return authors
+        except Exception as e:
+            logger.error(f"Failed to get author stats: {e}")
+            return []
+    
+    @staticmethod
+    def get_file_change_frequency(limit: int = 20) -> List[Dict[str, Any]]:
+        """Get most frequently changed files."""
+        try:
+            query = """
                 SELECT 
-                    CAST(strftime('%H', timestamp) AS INTEGER) as hour,
-                    COUNT(*) as change_count
-                FROM diffs
-                WHERE timestamp >= datetime('now', '-30 days')
-                GROUP BY hour
+                    file_path,
+                    COUNT(*) as change_count,
+                    COUNT(DISTINCT fc.commit_id) as commits,
+                    MAX(gc.timestamp) as last_changed
+                FROM git_file_changes fc
+                JOIN git_commits gc ON fc.commit_id = gc.id
+                GROUP BY file_path
                 ORDER BY change_count DESC
+                LIMIT ?
             """
-            analysis['busiest_hours'] = [dict(row) for row in db.execute_query(hour_query)]
             
-            # Change velocity
-            velocity_query = """
-                SELECT 
-                    DATE(timestamp) as date,
-                    COUNT(*) as changes,
-                    COUNT(DISTINCT file_path) as files_changed
-                FROM diffs
-                WHERE timestamp >= datetime('now', '-7 days')
-                GROUP BY DATE(timestamp)
-                ORDER BY date DESC
-            """
-            analysis['change_velocity'] = [dict(row) for row in db.execute_query(velocity_query)]
-            
-            # Impact distribution
-            impact_query = """
-                SELECT impact, COUNT(*) as count
-                FROM semantic_entries
-                GROUP BY impact
-            """
-            analysis['impact_distribution'] = [dict(row) for row in db.execute_query(impact_query)]
-            
-            return analysis
+            rows = db.execute_query(query, (limit,))
+            return [dict(row) for row in rows]
             
         except Exception as e:
-            logger.error(f"Failed to analyze change patterns: {e}")
-            return {}
+            logger.error(f"Failed to get file change frequency: {e}")
+            return []
 
 class RealTimeQueries:
-    """Real-time data queries for WebSocket updates."""
+    """Real-time data queries for live updates."""
     
     @staticmethod
     def get_live_activity(since: datetime = None) -> Dict[str, Any]:
-        """Get activity since specified time for real-time updates."""
+        """Get git activity since specified time for real-time updates."""
         try:
             if since is None:
                 since = datetime.now() - timedelta(minutes=5)
             
-            # Recent diffs
-            diff_query = """
-                SELECT 'diff' as type, file_path as path, timestamp, 'diff_created' as action
-                FROM diffs
+            # Recent commits
+            commit_query = """
+                SELECT 'commit' as type, commit_hash as identifier, author_name as actor,
+                       message as description, timestamp, branch_name as context
+                FROM git_commits
                 WHERE timestamp > ?
                 ORDER BY timestamp DESC
                 LIMIT 10
             """
             
-            # Recent events  
-            event_query = """
-                SELECT 'event' as type, path, timestamp, type as action
-                FROM events
+            # Recent working changes
+            working_query = """
+                SELECT 'working_change' as type, file_path as identifier, 'system' as actor,
+                       change_type || ' (' || status || ')' as description, 
+                       timestamp, branch_name as context
+                FROM git_working_changes
                 WHERE timestamp > ?
                 ORDER BY timestamp DESC
                 LIMIT 10
             """
             
-            diff_rows = db.execute_query(diff_query, (since,))
-            event_rows = db.execute_query(event_query, (since,))
+            commit_rows = db.execute_query(commit_query, (since,))
+            working_rows = db.execute_query(working_query, (since,))
             
             # Combine and sort
             all_activity = []
-            all_activity.extend([dict(row) for row in diff_rows])
-            all_activity.extend([dict(row) for row in event_rows])
+            all_activity.extend([dict(row) for row in commit_rows])
+            all_activity.extend([dict(row) for row in working_rows])
             
             # Sort by timestamp
             all_activity.sort(key=lambda x: x['timestamp'], reverse=True)
@@ -585,7 +550,8 @@ class RealTimeQueries:
             return {
                 'activity': all_activity[:20],  # Limit to 20 most recent
                 'timestamp': datetime.now().isoformat(),
-                'count': len(all_activity)
+                'count': len(all_activity),
+                'gitNative': True
             }
             
         except Exception as e:
@@ -597,4 +563,7 @@ class RealTimeQueries:
                 'error': str(e)
             }
 
-logger.info("🤖 Subagent C: Query engine initialized successfully")
+# Legacy compatibility aliases (for gradual migration)
+DiffQueries = GitQueries  # Map old DiffQueries to GitQueries
+
+logger.info("Git-native query engine initialized successfully")

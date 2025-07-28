@@ -44,3 +44,29 @@
 - Docker containerization best practices
 - AWS Lambda cold start optimization
 - Explore Astro as a static site generator
+
+---
+## Personal Goals
+- Learn Spanish (30 minutes daily)
+- Exercise 3 times per week
+- Save 15% of income
+- Read 2 books per month
+- Practice meditation (10 minutes daily)
+
+---
+
+## Recent Learning Notes
+- Useful VS Code extensions for productivity
+- Advanced markdown formatting tricks
+- Git aliases for common workflows
+- AI-assisted code review techniques
+- Database optimization strategies
+
+---
+
+## Observations
+- Coffee shop on 5th street has great WiFi
+- Morning productivity peaks around 10am
+- New keyboard reduced wrist strain
+- Taking walks helps solve coding problems
+- Browser tab management extension saved time

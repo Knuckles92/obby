@@ -6,6 +6,9 @@ openai>=1.0.0
 # File system monitoring for instant change detection
 watchdog>=3.0.0
 
+# Git integration for native version control
+GitPython>=3.1.0
+
 # Web API server for frontend integration
 flask>=2.3.0
 flask-cors>=4.0.0

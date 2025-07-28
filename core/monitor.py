@@ -2,7 +2,8 @@
 from config.settings import *
 from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
-from diffing.diff_tracker import DiffTracker
+from git.git_change_tracker import GitChangeTracker
+from git.git_client import get_git_client
 from ai.openai_client import OpenAIClient
 import threading
 import time
@@ -13,10 +14,11 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 class ObbyMonitor:
-    """Main Obby monitoring class for API integration"""
+    """Main Obby monitoring class with git-native change tracking"""
     
     def __init__(self):
-        self.diff_tracker = None
+        self.git_tracker = None
+        self.git_client = None
         self.ai_client = None
         self.file_watcher = None
         self.is_running = False
@@ -27,34 +29,42 @@ class ObbyMonitor:
         self.last_check_times = {}  # Track last check time for each file
         
     def start(self):
-        """Start the monitoring system"""
+        """Start the git-native monitoring system"""
         if self.is_running:
             return
             
-        # Setup
-        ensure_directories(DIFF_PATH, NOTES_FOLDER)
-        setup_test_file(NOTES_FOLDER / "test.md")
-        
-        # Initialize components
-        self.diff_tracker = DiffTracker(NOTES_FOLDER / "test.md", DIFF_PATH)
-        self.ai_client = OpenAIClient()
-        
-        # Initialize file watcher
-        utils_folder = NOTES_FOLDER.parent / "utils"
-        self.file_watcher = FileWatcher(
-            NOTES_FOLDER, 
-            self.diff_tracker, 
-            self.ai_client, 
-            LIVING_NOTE_PATH, 
-            utils_folder
-        )
-        
-        self.file_watcher.start()
-        self.is_running = True
-        
-        # Start periodic checking thread if enabled
-        if self.periodic_check_enabled:
-            self.start_periodic_checking()
+        try:
+            # Setup directories (no longer need DIFF_PATH)
+            ensure_directories(NOTES_FOLDER)
+            setup_test_file(NOTES_FOLDER / "test.md")
+            
+            # Initialize git components
+            self.git_client = get_git_client()
+            self.git_tracker = GitChangeTracker()
+            self.ai_client = OpenAIClient()
+            
+            # Initialize file watcher with git integration
+            utils_folder = NOTES_FOLDER.parent / "utils"
+            self.file_watcher = FileWatcher(
+                NOTES_FOLDER, 
+                self.git_tracker,  # Pass git tracker instead of diff tracker
+                self.ai_client, 
+                LIVING_NOTE_PATH, 
+                utils_folder
+            )
+            
+            self.file_watcher.start()
+            self.is_running = True
+            
+            # Start periodic checking thread if enabled
+            if self.periodic_check_enabled:
+                self.start_periodic_checking()
+                
+            logger.info("Git-native monitoring system started successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to start monitoring system: {e}")
+            raise
         
     def stop(self):
         """Stop the monitoring system"""
@@ -90,9 +100,36 @@ class ObbyMonitor:
                 logger.error(f"Error in periodic check loop: {e}")
     
     def _perform_periodic_check(self):
-        """Perform a periodic check of all markdown files in watched directories"""
-        logger.debug("Performing periodic check...")
+        """Perform a periodic git-based check for changes"""
+        logger.debug("Performing periodic git check...")
         
+        try:
+            # Check for git changes
+            has_changes, change_summary = self.git_tracker.check_for_changes()
+            
+            if has_changes and change_summary:
+                logger.info(f"Periodic git check detected changes: {change_summary}")
+                
+                # Process the changes through the file watcher if needed
+                if self.file_watcher and self.file_watcher.handler:
+                    try:
+                        # Process any working directory changes
+                        working_changes = change_summary.get('details', {}).get('working', [])
+                        for change in working_changes:
+                            file_path = Path(change['path'])
+                            if file_path.suffix == '.md':  # Only process markdown files
+                                self.file_watcher.handler._process_note_change(file_path)
+                    except Exception as e:
+                        logger.error(f"Error processing periodic git changes: {e}")
+            
+            # Also check for file system changes that git might not catch
+            self._check_filesystem_changes()
+            
+        except Exception as e:
+            logger.error(f"Error in periodic git check: {e}")
+    
+    def _check_filesystem_changes(self):
+        """Check for filesystem changes in watched directories"""
         # Get all directories to check from watch handler
         if self.file_watcher and self.file_watcher.handler:
             watch_dirs = self.file_watcher.handler.watch_handler.get_watch_directories()
@@ -119,21 +156,24 @@ class ObbyMonitor:
                 last_check = self.last_check_times.get(str(md_file), 0)
                 
                 if current_mtime > last_check:
-                    logger.debug(f"Periodic check detected change in: {md_file}")
+                    logger.debug(f"Filesystem check detected change in: {md_file}")
                     
                     # Update last check time
                     self.last_check_times[str(md_file)] = current_mtime
                     
-                    # Process the change (this will trigger AI summary if needed)
+                    # Update git file state
+                    self.git_tracker.update_file_state(md_file)
+                    
+                    # Process the change
                     if self.file_watcher and self.file_watcher.handler:
                         try:
                             self.file_watcher.handler._process_note_change(md_file)
                             checked_count += 1
                         except Exception as e:
-                            logger.error(f"Error processing periodic change for {md_file}: {e}")
+                            logger.error(f"Error processing filesystem change for {md_file}: {e}")
         
         if checked_count > 0:
-            logger.info(f"Periodic check processed {checked_count} changed files")
+            logger.debug(f"Filesystem check processed {checked_count} changed files")
     
     def set_check_interval(self, interval_seconds):
         """Update the check interval"""
