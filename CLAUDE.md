@@ -20,6 +20,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Linting**: Frontend has ESLint via `npm run lint` in frontend/ directory
 - **No Python linting configured** - check requirements.txt and ask user for preferred tools
 
+## Development Guidance
+
+### Testing Assumptions
+- **Environment Preparation**: For testing, always assume the user has the frontend and backend server already running in their dev environment
+- Do not offer to run servers during testing or development scenarios
+
 ## Architecture Overview
 
 ### Core Application Structure

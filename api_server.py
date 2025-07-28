@@ -321,15 +321,35 @@ def trigger_living_note_update():
             
         # Always allow updates - no frequency restrictions
         from ai.openai_client import OpenAIClient
+        from database.queries import DiffQueries
         
         ai_client = OpenAIClient()
         living_note_path = Path('notes/living_note.md')
         
-        # Create a simple summary
-        summary = "Update triggered - summarizing recent activity"
+        # Get recent diffs from the last 24 hours instead of hardcoded message
+        recent_diffs = DiffQueries.get_recent_diffs(limit=10)
+        
+        if recent_diffs:
+            # Combine recent diff content for AI analysis
+            combined_content = []
+            for diff in recent_diffs:
+                file_path = diff.get('filePath', 'unknown')
+                content = diff.get('content', '')
+                timestamp = diff.get('timestamp', '')
+                combined_content.append(f"File: {file_path} ({timestamp})\n{content}")
+            
+            # Join all diffs with separators
+            full_diff_content = "\n\n---\n\n".join(combined_content)
+            
+            # Use the AI client's summarize_diff method to create intelligent summary
+            summary = ai_client.summarize_diff(full_diff_content, settings)
+        else:
+            # Fallback if no recent changes
+            summary = "No recent file changes detected in the last 24 hours."
+        
         ai_client.update_living_note(living_note_path, summary, "manual", settings)
         
-        logger.info("Living note update triggered")
+        logger.info("Living note update triggered with real diff data")
         return jsonify({
             'message': 'Living note update completed successfully'
         })

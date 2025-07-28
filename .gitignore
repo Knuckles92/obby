@@ -181,8 +181,6 @@ Desktop.ini
 *.swp
 *.swo
 
-# Logs
-logs/
 
 # Allow access to main log file for debugging
 !obby.log
@@ -202,4 +200,3 @@ config/secrets.py
 snapshots/*
 database/schema.sql
 .windsurfignore
-obby.log
