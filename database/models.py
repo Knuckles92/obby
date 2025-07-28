@@ -155,6 +155,11 @@ class DiffModel:
         """Delete diffs older than specified days."""
         query = "DELETE FROM diffs WHERE timestamp < datetime('now', '-' || ? || ' days')"
         return db.execute_update(query, (days,))
+    
+    @classmethod
+    def clear_all(cls) -> int:
+        """Clear all diffs (for API endpoint)."""
+        return db.execute_update("DELETE FROM diffs")
 
 class EventModel:
     """Persistent event tracking replacing in-memory storage."""

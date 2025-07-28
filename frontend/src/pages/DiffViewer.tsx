@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { GitBranch, Clock, FileText } from 'lucide-react'
+import { GitBranch, Clock, FileText, Trash2 } from 'lucide-react'
 import { DiffEntry } from '../types'
 import { apiFetch } from '../utils/api'
+import ConfirmationDialog from '../components/ConfirmationDialog'
 
 export default function DiffViewer() {
   const [diffs, setDiffs] = useState<DiffEntry[]>([])
@@ -10,6 +11,8 @@ export default function DiffViewer() {
   const [loadingContent, setLoadingContent] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showClearDialog, setShowClearDialog] = useState(false)
+  const [clearing, setClearing] = useState(false)
 
   useEffect(() => {
     fetchDiffs()
@@ -75,6 +78,39 @@ export default function DiffViewer() {
     await fetchFullDiffContent(diff.id)
   }
 
+  const handleClearAllDiffs = async () => {
+    try {
+      setClearing(true)
+      const response = await apiFetch('/api/diffs/clear', {
+        method: 'POST'
+      })
+      
+      if (!response.ok) {
+        throw new Error(`Failed to clear diffs: ${response.status} ${response.statusText}`)
+      }
+      
+      const data = await response.json()
+      
+      if (data.error) {
+        throw new Error(data.error)
+      }
+      
+      // Refresh the diff list
+      await fetchDiffs()
+      
+      // Clear selected diff
+      setSelectedDiff(null)
+      setFullContent('')
+      
+      setShowClearDialog(false)
+    } catch (error) {
+      console.error('Error clearing diffs:', error)
+      setError(error instanceof Error ? error.message : 'Failed to clear diffs')
+    } finally {
+      setClearing(false)
+    }
+  }
+
   const formatTimeAgo = (timestamp: string) => {
     const date = new Date(timestamp)
     const now = new Date()
@@ -97,7 +133,19 @@ export default function DiffViewer() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Diff List */}
         <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Recent Changes</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Recent Changes</h3>
+            {diffs.length > 0 && (
+              <button
+                onClick={() => setShowClearDialog(true)}
+                className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 hover:border-red-300 transition-colors"
+                disabled={loading || clearing}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Clear All
+              </button>
+            )}
+          </div>
           
           {loading ? (
             <div className="flex items-center justify-center h-32">
@@ -174,6 +222,19 @@ export default function DiffViewer() {
           )}
         </div>
       </div>
+
+      <ConfirmationDialog
+        isOpen={showClearDialog}
+        onClose={() => setShowClearDialog(false)}
+        onConfirm={handleClearAllDiffs}
+        title="Clear All Diffs"
+        message={`Are you sure you want to clear all ${diffs.length} diff${diffs.length === 1 ? '' : 's'}? This action cannot be undone.`}
+        confirmText="Clear All"
+        cancelText="Cancel"
+        danger={true}
+        loading={clearing}
+        extraWarning="This will permanently delete all diff records from the database."
+      />
     </div>
   )
 }

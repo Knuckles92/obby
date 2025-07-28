@@ -168,6 +168,27 @@ class DiffQueries:
         except Exception as e:
             logger.error(f"Failed to get diff analytics: {e}")
             return {}
+    
+    @staticmethod
+    def clear_all_diffs() -> Dict[str, Any]:
+        """Clear all diffs - replaces /api/diffs/clear endpoint."""
+        try:
+            count = DiffModel.clear_all()
+            message = f"Cleared {count} diffs successfully"
+            logger.info(message)
+            
+            return {
+                'message': message,
+                'clearedCount': count
+            }
+            
+        except Exception as e:
+            error_msg = f"Failed to clear diffs: {str(e)}"
+            logger.error(error_msg)
+            return {
+                'error': error_msg,
+                'clearedCount': 0
+            }
 
 class EventQueries:
     """Event querying replacing in-memory event storage."""

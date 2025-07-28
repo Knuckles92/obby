@@ -483,6 +483,18 @@ def clear_recent_events():
         logger.error(f"Error clearing recent events: {e}")
         return jsonify({'error': f'Failed to clear recent events: {str(e)}'}), 500
 
+@app.route('/api/diffs/clear', methods=['POST'])
+def clear_recent_diffs():
+    """Clear all diffs from database"""
+    try:
+        result = DiffQueries.clear_all_diffs()
+        logger.info(f"Cleared diffs via database: {result}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"Error clearing recent diffs: {e}")
+        return jsonify({'error': f'Failed to clear recent diffs: {str(e)}'}), 500
+
 @app.route('/api/config', methods=['GET'])
 def get_config():
     """Get current configuration from database"""
