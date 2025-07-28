@@ -47,7 +47,6 @@ class ObbyMonitor:
             utils_folder = NOTES_FOLDER.parent / "utils"
             self.file_watcher = FileWatcher(
                 NOTES_FOLDER, 
-                self.git_tracker,  # Pass git tracker instead of diff tracker
                 self.ai_client, 
                 LIVING_NOTE_PATH, 
                 utils_folder
@@ -104,6 +103,11 @@ class ObbyMonitor:
         logger.debug("Performing periodic git check...")
         
         try:
+            # Check if git_tracker is properly initialized
+            if not self.git_tracker:
+                logger.warning("Git tracker not initialized, skipping periodic git check")
+                return
+                
             # Check for git changes
             has_changes, change_summary = self.git_tracker.check_for_changes()
             

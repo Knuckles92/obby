@@ -70,3 +70,21 @@
 - New keyboard reduced wrist strain
 - Taking walks helps solve coding problems
 - Browser tab management extension saved time
+
+---
+
+## random notes
+- Added this to the customer file: 123.
+- Biscuitrs on the counter at the bakery were delicious.
+- hotel room was dirty.
+
+---
+## Backpacking List
+- Tent
+- Sleeping bag
+- Food
+- Water
+- First aid kit
+- Map
+- Compass
+- 

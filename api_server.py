@@ -829,13 +829,11 @@ class APIObbyMonitor(ObbyMonitor):
             
         # Setup
         from utils.file_helpers import ensure_directories, setup_test_file
-        from diffing.diff_tracker import DiffTracker
         
         ensure_directories(DIFF_PATH, NOTES_FOLDER)
         setup_test_file(NOTES_FOLDER / "test.md")
         
         # Initialize components
-        self.diff_tracker = DiffTracker(NOTES_FOLDER / "test.md", DIFF_PATH)
         self.ai_client = OpenAIClient()
         
         # Create custom file watcher with API-aware handler
@@ -844,7 +842,6 @@ class APIObbyMonitor(ObbyMonitor):
         # Create the handler manually
         handler = APIAwareNoteChangeHandler(
             NOTES_FOLDER,
-            self.diff_tracker,
             self.ai_client,
             LIVING_NOTE_PATH,
             utils_folder
@@ -853,7 +850,6 @@ class APIObbyMonitor(ObbyMonitor):
         # Create file watcher and inject our custom handler
         self.file_watcher = FileWatcher(
             NOTES_FOLDER,
-            self.diff_tracker,
             self.ai_client,
             LIVING_NOTE_PATH,
             utils_folder

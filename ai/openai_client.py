@@ -484,6 +484,29 @@ Based on these preferences, summarize the provided diff content."""
         except Exception as e:
             logging.warning(f"Failed to create semantic index entry: {e}")
         
+        # Automatically commit the living note update to git
+        try:
+            from git_integration.git_client import GitClient
+            git_client = GitClient()
+            
+            # Generate commit message based on the change type and content
+            if change_type == "content":
+                commit_msg = f"docs: update note '{summary[:50]}...'" if len(summary) > 50 else f"docs: update note '{summary}'"
+            elif change_type == "tree":
+                commit_msg = f"docs: update living note (tree change)"
+            else:
+                commit_msg = f"docs: update living note ({change_type})"
+                
+            # Auto-commit the living note file
+            commit_hash = git_client.auto_commit_file(str(living_note_path), commit_msg)
+            if commit_hash:
+                logging.info(f"Living note committed to git: {commit_hash[:8]}")
+            else:
+                logging.debug("No git commit needed - no changes detected")
+                
+        except Exception as e:
+            logging.warning(f"Failed to auto-commit living note: {e}")
+        
         logging.info(f"Living note updated with structured format and semantic indexing: {living_note_path}")
 
     def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None, update_type=None):

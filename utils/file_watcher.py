@@ -16,19 +16,17 @@ from database.queries import EventQueries
 class NoteChangeHandler(FileSystemEventHandler):
     """Handles file system events for note changes."""
     
-    def __init__(self, notes_folder, diff_tracker, ai_client, living_note_path, utils_folder=None):
+    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None):
         """
         Initialize the note change handler.
         
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
-            diff_tracker: DiffTracker instance for processing changes
             ai_client: OpenAIClient instance for generating summaries
             living_note_path: Path to the living note file
             utils_folder: Path to the utils folder (defaults to notes_folder/utils)
         """
         self.notes_folder = Path(notes_folder)
-        self.diff_tracker = diff_tracker
         self.ai_client = ai_client
         self.living_note_path = living_note_path
         self.last_event_times = {}  # Track debounce per file
@@ -161,21 +159,32 @@ class NoteChangeHandler(FileSystemEventHandler):
     def _process_note_change(self, file_path):
         """Process a detected note change."""
         try:
-            # Update the diff tracker to work with the specific file
-            self.diff_tracker.note_path = file_path
-            changed, diff_content = self.diff_tracker.check_for_changes()
-            
-            if changed:
+            # For git-based tracking, we process all detected changes
+            # The git system will handle determining actual content changes
+            if file_path.exists():
                 logging.debug(f"Processing changes in: {file_path.name}")
+                
+                # Read the current file content
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        current_content = f.read()
+                except (UnicodeDecodeError, IOError) as e:
+                    logging.warning(f"Could not read file {file_path.name}: {e}")
+                    return
+                
                 # Get recent tree changes for context
+                from database.queries import EventQueries
                 recent_tree_changes = EventQueries.get_recent_tree_changes(limit=5, time_window_minutes=10)
+                
                 # Generate AI summary with tree change context and update living note
-                summary = self.ai_client.summarize_diff(diff_content, recent_tree_changes=recent_tree_changes)
+                # Pass the full content as a simple diff for now
+                summary = self.ai_client.summarize_diff(current_content, recent_tree_changes=recent_tree_changes)
+                
                 # Store the file path in AI client for semantic indexing
                 self.ai_client._current_file_path = str(file_path)
                 self.ai_client.update_living_note(self.living_note_path, summary, "content")
             else:
-                logging.debug(f"File event detected but no content change in: {file_path.name}")
+                logging.debug(f"File {file_path.name} no longer exists, skipping processing")
                 
         except Exception as e:
             logging.error(f"Error processing note change in {file_path.name}: {e}")
@@ -204,13 +213,12 @@ class NoteChangeHandler(FileSystemEventHandler):
 class FileWatcher:
     """Main file watcher class for managing the observer."""
     
-    def __init__(self, notes_folder, diff_tracker, ai_client, living_note_path, utils_folder=None):
+    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None):
         """
         Initialize the file watcher.
         
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
-            diff_tracker: DiffTracker instance
             ai_client: OpenAIClient instance
             living_note_path: Path to the living note file
             utils_folder: Path to the utils folder (defaults to notes_folder/utils)
@@ -223,7 +231,7 @@ class FileWatcher:
         else:
             self.utils_folder = Path(utils_folder)
         
-        self.handler = NoteChangeHandler(notes_folder, diff_tracker, ai_client, living_note_path, self.utils_folder)
+        self.handler = NoteChangeHandler(notes_folder, ai_client, living_note_path, self.utils_folder)
         self.observer = Observer()
         self.is_running = False
         
