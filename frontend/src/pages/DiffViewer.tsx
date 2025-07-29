@@ -241,7 +241,7 @@ export default function DiffViewer() {
             </div>
             <div className="flex items-center space-x-1">
               <Hash className="h-4 w-4" />
-              <code className="text-xs">{(repoStatus.headCommit || repoStatus.commit || 'unknown').substring(0, 8)}</code>
+              <code className="text-xs">{(repoStatus.headCommit || 'unknown').substring(0, 8)}</code>
             </div>
             {repoStatus.isDirty && (
               <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
