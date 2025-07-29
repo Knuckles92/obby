@@ -435,3 +435,75 @@
 2025-07-28 21:19:16,430 - __main__ - INFO - Added staged file to commit: pi_server.py
 2025-07-28 21:19:16,430 - __main__ - INFO - Total files to commit: 4 - ['database/queries.py', 'frontend/src/pages/DiffViewer.tsx', 'obby.log', 'pi_server.py']
 2025-07-28 21:19:16,431 - __main__ - INFO - Attempting to commit 4 files with message: Auto-commit before living note update
+2025-07-28 21:19:17,493 - git_integration.git_client - INFO - Auto-committed 3 files: bd5d384e
+2025-07-28 21:19:17,494 - __main__ - INFO - SUCCESS: Committed 4 files before AI processing: bd5d384e
+2025-07-28 21:19:18,855 - database.models - INFO - Created git commit 2: bd5d384e
+2025-07-28 21:19:19,252 - database.models - INFO - Created git commit 3: d9a87810
+2025-07-28 21:19:19,758 - database.models - INFO - Created git commit 4: 097667b4
+2025-07-28 21:19:19,936 - database.models - INFO - Created git commit 5: fcffa587
+2025-07-28 21:19:20,448 - database.models - INFO - Created git commit 6: c67bbcc0
+2025-07-28 21:19:20,613 - database.models - INFO - Created git commit 7: 0afba509
+2025-07-28 21:19:20,984 - database.models - INFO - Created git commit 8: a0eee50f
+2025-07-28 21:19:21,132 - database.models - INFO - Created git commit 9: 1086fd6c
+2025-07-28 21:19:21,251 - database.models - INFO - Created git commit 10: ed1745c9
+2025-07-28 21:19:21,409 - database.models - INFO - Created git commit 11: 09773525
+2025-07-28 21:19:21,518 - database.queries - INFO - Git sync completed: 10 commits synced, 0 errors
+2025-07-28 21:19:21,519 - __main__ - INFO - Database sync successful: 10 commits synced
+2025-07-28 21:19:21,520 - database.queries - INFO - Retrieved 10 recent commits
+2025-07-28 21:19:21,524 - root - INFO - Format configuration loaded from format.md
+2025-07-28 21:19:23,392 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 21:19:24,710 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-28 21:19:24,732 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-28 21:19:24,736 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-28 21:19:24,741 - git_integration.git_client - INFO - Found existing git repository: D:\Python Projects\obby
+2025-07-28 21:19:24,772 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-28 21:19:25,268 - git_integration.git_client - INFO - Auto-committed notes/living_note.md: ffb3d54d
+2025-07-28 21:19:25,269 - root - INFO - Living note committed to git: ffb3d54d
+2025-07-28 21:19:25,269 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-28 21:19:25,270 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-28 21:53:19,834 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:53:26,765 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:53:26,765 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:53:26,767 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:53:52,343 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:53:56,890 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:53:56,891 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:53:56,893 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:53:58,206 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:54:03,683 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:54:03,683 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:54:03,686 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 22:13:57,837 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 22:13:57,897 - database.queries - INFO - Retrieved 11 recent commits
+2025-07-28 22:13:57,906 - __main__ - INFO - Retrieved 11 git commits from database
+2025-07-28 22:13:58,193 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 22:13:58,276 - database.queries - INFO - Retrieved 11 recent commits
+2025-07-28 22:13:58,330 - __main__ - INFO - Retrieved 11 git commits from database
+2025-07-28 22:13:58,469 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 22:13:58,486 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 22:13:58,746 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 22:13:58,802 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 22:13:58,839 - __main__ - INFO - Retrieved git repository status
+2025-07-28 22:13:59,253 - __main__ - INFO - Retrieved git repository status
+2025-07-28 22:14:02,593 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 22:14:02,756 - database.queries - INFO - Retrieved 11 recent commits
+2025-07-28 22:14:02,822 - __main__ - INFO - Retrieved 11 git commits from database
+2025-07-28 22:14:03,645 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 22:14:03,657 - database.queries - INFO - Retrieved 11 recent commits
+2025-07-28 22:14:03,679 - __main__ - INFO - Retrieved 11 git commits from database
+2025-07-28 22:14:03,741 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 22:14:03,772 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 22:14:03,877 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 22:14:03,893 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 22:14:03,915 - __main__ - INFO - Retrieved git repository status
+2025-07-28 22:14:04,046 - __main__ - INFO - Retrieved git repository status
+2025-07-28 22:36:53,319 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-28 22:36:53,320 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-28 22:38:13,703 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 22:38:15,253 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 22:38:15,254 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 22:38:15,255 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 22:38:18,421 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 22:38:19,883 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 22:38:19,884 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 22:38:19,885 - __main__ - INFO - Started watching living note file: notes\living_note.md

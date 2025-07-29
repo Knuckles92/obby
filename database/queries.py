@@ -325,6 +325,31 @@ class GitQueries:
         except Exception as e:
             logger.error(f"Failed to sync file changes for commit {commit_id}: {e}")
             return 0
+    
+    @staticmethod
+    def clear_all_git_data() -> Dict[str, Any]:
+        """Clear all git-related data from database."""
+        try:
+            from .models import db
+            
+            # Clear in order due to foreign key constraints
+            db.execute_update("DELETE FROM git_file_changes")
+            db.execute_update("DELETE FROM git_working_changes") 
+            db.execute_update("DELETE FROM git_commits")
+            db.execute_update("DELETE FROM git_repository_state")
+            
+            logger.info("Cleared all git data from database")
+            return {
+                'message': 'All git data cleared successfully',
+                'success': True
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to clear git data: {e}")
+            return {
+                'error': f'Failed to clear git data: {str(e)}',
+                'success': False
+            }
 
 class EventQueries:
     """Event querying with git context."""

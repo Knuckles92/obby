@@ -16,7 +16,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # Import database layer
-from database.queries import DiffQueries, EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries, GitQueries
+from database.queries import EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries, GitQueries
 
 from core.monitor import ObbyMonitor
 from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
@@ -209,6 +209,34 @@ def get_git_repository_status():
         logger.error(f"Error retrieving repository status: {e}")
         return jsonify({'error': 'Failed to retrieve repository status'}), 500
 
+@app.route('/api/git/sync', methods=['POST'])
+def sync_git_commits():
+    """Manually sync git commits to database"""
+    try:
+        from git_integration.git_client import GitClient
+        from database.queries import GitQueries
+        
+        git_client = GitClient()
+        sync_result = GitQueries.sync_git_commits_to_database(git_client)
+        
+        if sync_result['success']:
+            logger.info(f"Manual git sync successful: {sync_result['synced_commits']} commits synced")
+            return jsonify({
+                'message': 'Git sync completed successfully',
+                'syncedCommits': sync_result['synced_commits'],
+                'errors': sync_result['errors']
+            })
+        else:
+            logger.warning(f"Manual git sync failed: {sync_result.get('error', 'Unknown error')}")
+            return jsonify({
+                'error': 'Git sync failed',
+                'details': sync_result.get('error', 'Unknown error')
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error during manual git sync: {e}")
+        return jsonify({'error': f'Failed to sync git commits: {str(e)}'}), 500
+
 @app.route('/api/living-note', methods=['GET'])
 def get_living_note():
     """Get the current living note content"""
@@ -347,12 +375,77 @@ def trigger_living_note_update():
         # Always allow updates - no frequency restrictions
         from ai.openai_client import OpenAIClient
         from database.queries import DiffQueries
+        from git_integration.git_client import GitClient
         
         ai_client = OpenAIClient()
         living_note_path = Path('notes/living_note.md')
         
-        # Get recent diffs from the last 24 hours instead of hardcoded message
-        recent_diffs = DiffQueries.get_recent_diffs(limit=10)
+        # IMPORTANT: Commit ALL working changes BEFORE AI processing
+        # This ensures the AI can analyze the complete recent work
+        try:
+            git_client = GitClient()
+            commit_message = "Auto-commit before living note update"
+            
+            # Check if there are any working changes to commit
+            status = git_client.get_status()
+            logger.info(f"Git status before commit: {status}")
+            
+            # Collect all files that need to be committed
+            files_to_commit = []
+            
+            # Add unstaged files (modified and untracked)
+            unstaged_files = status.get('unstaged_files', [])
+            logger.info(f"Unstaged files: {unstaged_files}")
+            for file_info in unstaged_files:
+                file_path = file_info.get('path', file_info) if isinstance(file_info, dict) else file_info
+                files_to_commit.append(file_path)
+                logger.info(f"Added unstaged file to commit: {file_path}")
+            
+            # Add untracked files
+            untracked_files = status.get('untracked_files', [])
+            logger.info(f"Untracked files: {untracked_files}")
+            for file_info in untracked_files:
+                file_path = file_info.get('path', file_info) if isinstance(file_info, dict) else file_info
+                files_to_commit.append(file_path)
+                logger.info(f"Added untracked file to commit: {file_path}")
+            
+            # Add staged files (they should be committed too)
+            staged_files = status.get('staged_files', [])
+            logger.info(f"Staged files: {staged_files}")
+            for file_info in staged_files:
+                file_path = file_info.get('path', file_info) if isinstance(file_info, dict) else file_info
+                files_to_commit.append(file_path)
+                logger.info(f"Added staged file to commit: {file_path}")
+            
+            logger.info(f"Total files to commit: {len(files_to_commit)} - {files_to_commit}")
+            
+            if files_to_commit:
+                # Commit all working changes using the existing method
+                logger.info(f"Attempting to commit {len(files_to_commit)} files with message: {commit_message}")
+                commit_hash = git_client.auto_commit_multiple_files(files_to_commit, commit_message)
+                if commit_hash:
+                    logger.info(f"SUCCESS: Committed {len(files_to_commit)} files before AI processing: {commit_hash[:8]}")
+                    
+                    # Sync the new commit to database so it appears in DiffViewer immediately
+                    try:
+                        from database.queries import GitQueries
+                        sync_result = GitQueries.sync_git_commits_to_database(git_client)
+                        if sync_result['success']:
+                            logger.info(f"Database sync successful: {sync_result['synced_commits']} commits synced")
+                        else:
+                            logger.warning(f"Database sync failed: {sync_result.get('error', 'Unknown error')}")
+                    except Exception as sync_error:
+                        logger.error(f"Exception during database sync: {sync_error}", exc_info=True)
+                        
+                else:
+                    logger.error("FAILED: auto_commit_multiple_files returned None")
+            else:
+                logger.info("No working changes detected to commit")
+        except Exception as e:
+            logger.error(f"Exception during git commit: {e}", exc_info=True)
+        
+        # Get recent diffs from the last 24 hours (now includes the changes we just committed)
+        recent_diffs = GitQueries.get_recent_diffs(limit=10)
         
         if recent_diffs:
             # Combine recent diff content for AI analysis
@@ -533,8 +626,7 @@ def clear_recent_diffs():
     """Clear all git data from database"""
     try:
         # For git system, clear all git-related data
-        # This is a placeholder - implement GitQueries.clear_all_git_data() if needed
-        result = DiffQueries.clear_all_diffs()  # Keep existing for now
+        result = GitQueries.clear_all_git_data()
         logger.info(f"Cleared git data via database: {result}")
         return jsonify(result)
         
