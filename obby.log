@@ -331,3 +331,107 @@
 2025-07-28 21:06:59,474 - __main__ - INFO - Added staged file to commit: pi_server.py
 2025-07-28 21:06:59,474 - __main__ - INFO - Total files to commit: 5 - ['frontend/src/pages/DiffViewer.tsx', 'notes/living_note.md', 'notes/semantic_index.json', 'obby.log', 'pi_server.py']
 2025-07-28 21:06:59,476 - __main__ - INFO - Attempting to commit 5 files with message: Auto-commit before living note update
+2025-07-28 21:07:01,121 - git_integration.git_client - INFO - Auto-committed 4 files: d9a87810
+2025-07-28 21:07:01,122 - __main__ - INFO - SUCCESS: Committed 5 files before AI processing: d9a87810
+2025-07-28 21:07:01,127 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:07:01,134 - root - INFO - Format configuration loaded from format.md
+2025-07-28 21:07:02,907 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:07:06,164 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:07:06,164 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:07:06,166 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:07:13,553 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:07:13,565 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:07:13,566 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:07:13,594 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:07:13,600 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:07:13,602 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:07:13,608 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:07:13,609 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:07:13,652 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:07:13,652 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:07:13,656 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:07:13,680 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:09:21,417 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:09:24,557 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:09:24,557 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:09:24,559 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:12:42,573 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:12:45,305 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:12:45,306 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:12:45,307 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:13:03,057 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:13:05,751 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:13:05,754 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:13:05,756 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:14:59,138 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:14:59,176 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:14:59,177 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:14:59,216 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:14:59,225 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:14:59,226 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:14:59,231 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:14:59,226 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:14:59,299 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:14:59,301 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:14:59,309 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:14:59,337 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:16:12,160 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:16:12,163 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:16:12,166 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:16:12,182 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:16:12,183 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:16:12,193 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:16:15,992 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:16:15,997 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:16:15,997 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:16:16,007 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:16:16,012 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:16:16,013 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:16:16,013 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:16:16,014 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:16:16,044 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:16:16,045 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:16:16,056 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:16:16,157 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:16:20,655 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:16:20,657 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:16:20,657 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:16:20,668 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:16:20,669 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:16:20,679 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:16:28,032 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:16:28,037 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:16:28,040 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:16:28,062 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:16:28,063 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:16:28,075 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:16:42,957 - __main__ - INFO - Stopped living note file watcher
+2025-07-28 21:16:45,794 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-28 21:16:45,794 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-28 21:16:45,796 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-28 21:19:04,398 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:19:04,418 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:19:04,422 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:19:04,440 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:19:04,441 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:19:04,459 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:19:07,187 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-28 21:19:07,189 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-28 21:19:07,190 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-28 21:19:07,208 - database.queries - INFO - Retrieved 0 working changes
+2025-07-28 21:19:07,209 - __main__ - INFO - Retrieved 0 working changes
+2025-07-28 21:19:07,230 - __main__ - INFO - Retrieved git repository status
+2025-07-28 21:19:13,020 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-28 21:19:13,032 - __main__ - INFO - Creating event stream generator
+2025-07-28 21:19:13,034 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-28 21:19:16,180 - git_integration.git_client - INFO - Found existing git repository: D:\Python Projects\obby
+2025-07-28 21:19:16,427 - __main__ - INFO - Git status before commit: {'branch': 'main', 'commit': 'd9a87810ad5e2e1475e6b6b78535ccd5af2c0638', 'staged_files': [{'path': 'pi_server.py', 'status': 'modified', 'status_code': 'M'}], 'unstaged_files': [{'path': 'database/queries.py', 'status': 'modified', 'status_code': 'M'}, {'path': 'frontend/src/pages/DiffViewer.tsx', 'status': 'modified', 'status_code': 'M'}, {'path': 'obby.log', 'status': 'modified', 'status_code': 'M'}], 'untracked_files': [], 'total_changes': 4, 'clean': False}
+2025-07-28 21:19:16,427 - __main__ - INFO - Unstaged files: [{'path': 'database/queries.py', 'status': 'modified', 'status_code': 'M'}, {'path': 'frontend/src/pages/DiffViewer.tsx', 'status': 'modified', 'status_code': 'M'}, {'path': 'obby.log', 'status': 'modified', 'status_code': 'M'}]
+2025-07-28 21:19:16,428 - __main__ - INFO - Added unstaged file to commit: database/queries.py
+2025-07-28 21:19:16,428 - __main__ - INFO - Added unstaged file to commit: frontend/src/pages/DiffViewer.tsx
+2025-07-28 21:19:16,429 - __main__ - INFO - Added unstaged file to commit: obby.log
+2025-07-28 21:19:16,429 - __main__ - INFO - Untracked files: []
+2025-07-28 21:19:16,430 - __main__ - INFO - Staged files: [{'path': 'pi_server.py', 'status': 'modified', 'status_code': 'M'}]
+2025-07-28 21:19:16,430 - __main__ - INFO - Added staged file to commit: pi_server.py
+2025-07-28 21:19:16,430 - __main__ - INFO - Total files to commit: 4 - ['database/queries.py', 'frontend/src/pages/DiffViewer.tsx', 'obby.log', 'pi_server.py']
+2025-07-28 21:19:16,431 - __main__ - INFO - Attempting to commit 4 files with message: Auto-commit before living note update

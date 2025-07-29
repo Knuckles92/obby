@@ -214,6 +214,117 @@ class GitQueries:
         except Exception as e:
             logger.error(f"Commit search failed: {e}")
             return []
+    
+    @staticmethod
+    def sync_git_commits_to_database(git_client) -> Dict[str, Any]:
+        """
+        Sync recent git commits from the repository to the database.
+        This ensures the database is up to date with actual git commits.
+        """
+        try:
+            # Get recent commits from git (last 10 should be sufficient for sync)
+            recent_commits = git_client.get_recent_commits(max_count=10)
+            
+            synced_count = 0
+            error_count = 0
+            
+            for commit_data in recent_commits:
+                try:
+                    # Insert commit into database (will skip if already exists due to unique constraint)
+                    commit_id = GitCommitModel.insert(
+                        commit_hash=commit_data['commit_hash'],
+                        author_name=commit_data['author_name'],
+                        author_email=commit_data['author_email'],
+                        message=commit_data['message'],
+                        timestamp=commit_data['timestamp'],
+                        branch_name=GitQueries._get_current_branch_name(git_client)
+                    )
+                    
+                    if commit_id:
+                        # Sync file changes for this commit
+                        files_synced = GitQueries._sync_commit_file_changes(
+                            git_client, commit_id, commit_data
+                        )
+                        synced_count += 1
+                        logger.debug(f"Synced commit {commit_data['short_hash']} with {files_synced} file changes")
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to sync commit {commit_data.get('short_hash', 'unknown')}: {e}")
+                    error_count += 1
+                    continue
+            
+            logger.info(f"Git sync completed: {synced_count} commits synced, {error_count} errors")
+            return {
+                'synced_commits': synced_count,
+                'errors': error_count,
+                'success': True
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to sync git commits to database: {e}")
+            return {
+                'synced_commits': 0,
+                'errors': 1,
+                'success': False,
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def _get_current_branch_name(git_client) -> Optional[str]:
+        """Get current branch name from git client."""
+        try:
+            return git_client.get_current_branch()
+        except Exception:
+            return None
+    
+    @staticmethod
+    def _sync_commit_file_changes(git_client, commit_id: int, commit_data: Dict[str, Any]) -> int:
+        """Sync file changes for a specific commit."""
+        try:
+            files_synced = 0
+            
+            # Get file changes from the git commit data
+            files_changed = commit_data.get('files_changed', [])
+            
+            for file_change in files_changed:
+                try:
+                    # Get diff content for this file from git
+                    file_path = file_change['path']
+                    change_type = file_change['change_type']
+                    
+                    # Try to get diff content from git
+                    diff_content = None
+                    try:
+                        # For new commits, we may not be able to get diff easily
+                        # This is optional - the UI can fetch diffs on demand
+                        diff_content = git_client.get_diff(file_path, 'HEAD') if file_path else None
+                    except Exception:
+                        # Diff retrieval is optional
+                        pass
+                    
+                    # Insert file change
+                    change_id = GitFileChangeModel.insert(
+                        commit_id=commit_id,
+                        file_path=file_path,
+                        change_type=change_type,
+                        diff_content=diff_content,
+                        lines_added=0,  # Could be calculated from diff if needed
+                        lines_removed=0,  # Could be calculated from diff if needed
+                        old_path=None  # For renames - not implemented yet
+                    )
+                    
+                    if change_id:
+                        files_synced += 1
+                    
+                except Exception as e:
+                    logger.warning(f"Failed to sync file change {file_change.get('path')}: {e}")
+                    continue
+            
+            return files_synced
+            
+        except Exception as e:
+            logger.error(f"Failed to sync file changes for commit {commit_id}: {e}")
+            return 0
 
 class EventQueries:
     """Event querying with git context."""

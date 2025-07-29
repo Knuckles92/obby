@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { GitBranch, Clock, FileText, Trash2, User, Hash, GitCommit as GitCommitIcon } from 'lucide-react'
+import { GitBranch, Clock, FileText, Trash2, User, Hash, GitCommit as GitCommitIcon, RefreshCw } from 'lucide-react'
 import { GitCommit, GitWorkingChange, GitRepositoryStatus } from '../types'
 import { apiFetch } from '../utils/api'
 import ConfirmationDialog from '../components/ConfirmationDialog'
@@ -14,6 +14,7 @@ export default function DiffViewer() {
   const [error, setError] = useState<string | null>(null)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [clearing, setClearing] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'commits' | 'working'>('commits')
 
   useEffect(() => {
@@ -50,6 +51,15 @@ export default function DiffViewer() {
       setWorkingChanges([])
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    try {
+      await fetchGitData()
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -279,16 +289,27 @@ export default function DiffViewer() {
               </button>
             </div>
             
-            {(commits.length > 0 || workingChanges.length > 0) && (
+            <div className="flex items-center space-x-2">
               <button
-                onClick={() => setShowClearDialog(true)}
-                className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
-                disabled={loading || clearing}
+                onClick={handleRefresh}
+                className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                disabled={loading || refreshing}
               >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Clear All
+                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                Refresh
               </button>
-            )}
+              
+              {(commits.length > 0 || workingChanges.length > 0) && (
+                <button
+                  onClick={() => setShowClearDialog(true)}
+                  className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                  disabled={loading || clearing}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Clear All
+                </button>
+              )}
+            </div>
           </div>
           
           {loading ? (
