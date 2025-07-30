@@ -216,7 +216,8 @@ def sync_git_commits():
         from git_integration.git_client import GitClient
         from database.queries import GitQueries
         
-        git_client = GitClient()
+        # Initialize git client to point to the notes folder, not the Obby codebase
+        git_client = GitClient(repo_path=str(NOTES_FOLDER))
         sync_result = GitQueries.sync_git_commits_to_database(git_client)
         
         if sync_result['success']:
@@ -374,7 +375,7 @@ def trigger_living_note_update():
             
         # Always allow updates - no frequency restrictions
         from ai.openai_client import OpenAIClient
-        from database.queries import DiffQueries
+        from database.queries import GitQueries
         from git_integration.git_client import GitClient
         
         ai_client = OpenAIClient()
@@ -383,7 +384,8 @@ def trigger_living_note_update():
         # IMPORTANT: Commit ALL working changes BEFORE AI processing
         # This ensures the AI can analyze the complete recent work
         try:
-            git_client = GitClient()
+            # Initialize git client to point to the notes folder, not the Obby codebase
+            git_client = GitClient(repo_path=str(NOTES_FOLDER))
             commit_message = "Auto-commit before living note update"
             
             # Check if there are any working changes to commit
@@ -466,6 +468,14 @@ def trigger_living_note_update():
             summary = "No recent file changes detected in the last 24 hours."
         
         ai_client.update_living_note(living_note_path, summary, "manual", settings)
+        
+        # Sync any commits made during living note update (e.g., living_note.md auto-commit)
+        try:
+            sync_result = GitQueries.sync_git_commits_to_database(git_client)
+            if sync_result['success'] and sync_result['synced_commits'] > 0:
+                logger.info(f"Post-update database sync successful: {sync_result['synced_commits']} commits synced")
+        except Exception as sync_error:
+            logger.error(f"Exception during post-update database sync: {sync_error}", exc_info=True)
         
         logger.info("Living note update triggered with real diff data")
         return jsonify({
