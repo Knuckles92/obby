@@ -822,3 +822,370 @@
 2025-07-29 19:46:54,401 - __main__ - INFO - Starting Obby API server on http://localhost:8001
 2025-07-29 19:46:54,401 - __main__ - INFO - Web interface will be available once the server starts
 2025-07-29 19:46:54,402 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-29 20:17:45,292 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-29 20:17:45,295 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-29 20:17:45,313 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-29 20:17:46,994 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-29 20:17:46,995 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-29 20:17:46,996 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-29 20:20:11,222 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:11,232 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:11,242 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:11,245 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:11,247 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:11,269 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:11,271 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:11,281 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:11,286 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:11,287 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:12,291 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:20:12,292 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:20:12,293 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:20:12,293 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:20:12,294 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:20:12,294 - root - INFO - Watching directory: notes
+2025-07-29 20:20:12,295 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:20:12,296 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-29 20:20:12,296 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:20:12,297 - root - INFO - Real-time change detection active for all .md files!
+2025-07-29 20:20:12,298 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-29 20:20:12,298 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:20:12,300 - root - INFO - Watching directory: notes
+2025-07-29 20:20:12,302 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-29 20:20:12,302 - root - INFO - Real-time change detection active for all .md files!
+2025-07-29 20:20:12,306 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-29 20:20:12,828 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:12,836 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:12,837 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:12,837 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:12,840 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:12,867 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:12,869 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:12,870 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:12,884 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:12,886 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:13,129 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:13,132 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:13,133 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:13,142 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:13,149 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:13,150 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:13,155 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:13,155 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:13,175 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:13,176 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:13,177 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:13,198 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:21,737 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:21,739 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:21,740 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:21,752 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:21,752 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:21,761 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:24,591 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:20:24,592 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:20:24,593 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-29 20:20:26,362 - __main__ - INFO - Retrieved configuration from database
+2025-07-29 20:20:26,377 - __main__ - INFO - Retrieved configuration from database
+2025-07-29 20:20:26,872 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:26,875 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:26,875 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:26,885 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:26,889 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:26,891 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:26,898 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:26,899 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:26,914 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:26,915 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:26,918 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:26,932 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:27,558 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:20:27,558 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:20:27,559 - __main__ - INFO - Added client to SSE clients list. Total clients: 2
+2025-07-29 20:20:29,108 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:29,111 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:29,112 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:29,125 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:29,129 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:29,130 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:29,133 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:29,133 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:29,150 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:29,151 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:29,155 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:29,166 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:29,482 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:29,486 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:29,486 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:29,488 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:29,488 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:29,502 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:29,503 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:29,504 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:29,507 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:29,507 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:30,061 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:30,065 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:30,066 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:30,082 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:30,086 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:30,086 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:30,088 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:30,088 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:30,101 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:30,102 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:30,102 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:30,119 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:30,592 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:30,594 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:30,595 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:30,598 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:30,600 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:30,610 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:20:30,611 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:20:30,617 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:20:30,621 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:30,624 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:31,015 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:31,017 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:31,017 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:31,025 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:31,030 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:31,031 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:31,034 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:31,036 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:31,049 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:31,050 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:31,053 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:31,066 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:32,000 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:20:32,002 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:20:32,003 - __main__ - INFO - Added client to SSE clients list. Total clients: 3
+2025-07-29 20:20:32,298 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:20:32,306 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:20:34,777 - __main__ - INFO - Living note cleared successfully
+2025-07-29 20:20:34,777 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-29 20:20:34,778 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-29 20:20:34,779 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-29 20:20:34,779 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-29 20:20:34,780 - __main__ - INFO - Removed client from SSE clients list. Total clients: 2
+2025-07-29 20:20:34,782 - __main__ - INFO - Removed client from SSE clients list. Total clients: 1
+2025-07-29 20:20:39,675 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:39,679 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:39,681 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:39,693 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:20:39,696 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:20:39,697 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:20:39,698 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:39,700 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:39,715 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:20:39,715 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:20:39,718 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:39,729 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:20:43,127 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:20:43,128 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:20:43,131 - __main__ - INFO - Added client to SSE clients list. Total clients: 2
+2025-07-29 20:20:52,298 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:20:52,306 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:21:03,252 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:21:03,254 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:03,255 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:03,264 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:21:03,268 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:03,271 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:03,271 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:21:03,273 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:21:03,290 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:21:03,290 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:21:03,291 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:21:03,304 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:21:03,713 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:03,716 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:03,716 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:03,717 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:03,718 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:03,733 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:03,735 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:03,736 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:03,739 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:03,742 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:04,782 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-29 20:21:04,783 - __main__ - INFO - Removed client from SSE clients list. Total clients: 1
+2025-07-29 20:21:06,763 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:21:06,767 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:06,768 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:06,775 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-29 20:21:06,779 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:06,779 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:06,781 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:21:06,781 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:21:06,801 - database.queries - INFO - Retrieved 0 working changes
+2025-07-29 20:21:06,801 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:21:06,801 - __main__ - INFO - Retrieved 0 working changes
+2025-07-29 20:21:06,815 - __main__ - INFO - Retrieved git repository status
+2025-07-29 20:21:12,298 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:21:12,307 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:21:13,131 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-29 20:21:13,131 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-29 20:21:26,716 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:26,718 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:26,718 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:26,722 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:26,724 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:26,736 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:26,738 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:26,739 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:26,749 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:26,750 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:29,043 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:21:29,044 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:21:29,044 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-29 20:21:31,666 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:31,669 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:31,681 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:31,684 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:31,686 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:31,694 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:31,695 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:31,697 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:31,700 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:31,701 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:32,299 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:21:32,307 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:21:36,644 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:36,645 - database.queries - INFO - Retrieved 10 recent events
+2025-07-29 20:21:36,645 - __main__ - INFO - Retrieved 10 events from database
+2025-07-29 20:21:36,646 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:36,646 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:41,548 - database.queries - INFO - Cleared 12 events successfully
+2025-07-29 20:21:41,549 - __main__ - INFO - Cleared events via database: {'message': 'Cleared 12 events successfully', 'clearedCount': 12}
+2025-07-29 20:21:41,560 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:41,571 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:21:41,572 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:21:41,573 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:41,573 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:41,644 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:21:41,645 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:21:41,645 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:21:41,646 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:41,646 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:21:43,037 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:21:43,038 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:21:43,042 - __main__ - INFO - Added client to SSE clients list. Total clients: 2
+2025-07-29 20:21:45,170 - git_integration.git_client - INFO - Found existing git repository: D:\Python Projects\obby\notes
+2025-07-29 20:21:45,308 - __main__ - INFO - Git status before commit: {'branch': 'master', 'commit': 'bcd58935659754680cc21327ae96e430e6100ccb', 'staged_files': [{'path': 'iving_note.md', 'status': 'modified', 'status_code': 'M'}], 'unstaged_files': [], 'untracked_files': [], 'total_changes': 1, 'clean': False}
+2025-07-29 20:21:45,309 - __main__ - INFO - Unstaged files: []
+2025-07-29 20:21:45,310 - __main__ - INFO - Untracked files: []
+2025-07-29 20:21:45,310 - __main__ - INFO - Staged files: [{'path': 'iving_note.md', 'status': 'modified', 'status_code': 'M'}]
+2025-07-29 20:21:45,310 - __main__ - INFO - Added staged file to commit: iving_note.md
+2025-07-29 20:21:45,311 - __main__ - INFO - Total files to commit: 1 - ['iving_note.md']
+2025-07-29 20:21:45,311 - __main__ - INFO - Attempting to commit 1 files with message: Auto-commit before living note update
+2025-07-29 20:21:45,515 - __main__ - ERROR - FAILED: auto_commit_multiple_files returned None
+2025-07-29 20:21:45,517 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:21:45,521 - root - INFO - Format configuration loaded from format.md
+2025-07-29 20:21:46,433 - __main__ - INFO - Stopped living note file watcher
+2025-07-29 20:21:48,201 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-29 20:21:48,201 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-29 20:21:48,202 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-29 20:21:50,216 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:21:50,216 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:21:50,217 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-29 20:23:16,586 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:16,590 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:16,592 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:16,593 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:16,596 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:16,607 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:16,608 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:16,609 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:16,614 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:16,614 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:17,341 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:23:17,342 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:23:17,343 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:23:17,343 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:23:17,344 - root - INFO - Watching directory: notes
+2025-07-29 20:23:17,345 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:23:17,346 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:23:17,346 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-29 20:23:17,346 - root - INFO - Real-time change detection active for all .md files!
+2025-07-29 20:23:17,347 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-29 20:23:17,347 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-29 20:23:17,348 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-29 20:23:17,349 - root - INFO - Watching directory: notes
+2025-07-29 20:23:17,351 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-29 20:23:17,351 - root - INFO - Real-time change detection active for all .md files!
+2025-07-29 20:23:17,351 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-29 20:23:17,863 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:17,867 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:17,867 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:17,869 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:17,869 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:17,877 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:17,879 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:17,879 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:17,881 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:17,881 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:21,588 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:21,589 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:21,590 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:21,591 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:21,591 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:26,589 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:26,591 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:26,591 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:26,593 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:26,595 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:31,589 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:31,590 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:31,591 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:31,592 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:31,592 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:36,590 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:36,590 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:36,592 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:36,594 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:36,594 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:37,346 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:23:37,351 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:23:41,587 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-29 20:23:41,588 - database.queries - INFO - Retrieved 0 recent events
+2025-07-29 20:23:41,588 - __main__ - INFO - Retrieved 0 events from database
+2025-07-29 20:23:41,589 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:41,589 - __main__ - INFO - Retrieved 1 git commits from database
+2025-07-29 20:23:44,437 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-29 20:23:44,437 - __main__ - INFO - Creating event stream generator
+2025-07-29 20:23:44,437 - __main__ - INFO - Added client to SSE clients list. Total clients: 2
+2025-07-29 20:23:46,996 - git_integration.git_client - INFO - Found existing git repository: D:\Python Projects\obby\notes
+2025-07-29 20:23:47,104 - __main__ - INFO - Git status before commit: {'branch': 'master', 'commit': 'bcd58935659754680cc21327ae96e430e6100ccb', 'staged_files': [{'path': 'iving_note.md', 'status': 'modified', 'status_code': 'M'}], 'unstaged_files': [], 'untracked_files': [], 'total_changes': 1, 'clean': False}
+2025-07-29 20:23:47,104 - __main__ - INFO - Unstaged files: []
+2025-07-29 20:23:47,104 - __main__ - INFO - Untracked files: []
+2025-07-29 20:23:47,105 - __main__ - INFO - Staged files: [{'path': 'iving_note.md', 'status': 'modified', 'status_code': 'M'}]
+2025-07-29 20:23:47,105 - __main__ - INFO - Added staged file to commit: iving_note.md
+2025-07-29 20:23:47,105 - __main__ - INFO - Total files to commit: 1 - ['iving_note.md']
+2025-07-29 20:23:47,105 - __main__ - INFO - Attempting to commit 1 files with message: Auto-commit before living note update
+2025-07-29 20:23:47,263 - __main__ - ERROR - FAILED: auto_commit_multiple_files returned None
+2025-07-29 20:23:47,264 - database.queries - INFO - Retrieved 1 recent commits
+2025-07-29 20:23:47,266 - root - INFO - Format configuration loaded from format.md
+2025-07-29 20:23:49,123 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-29 20:23:49,563 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-29 20:23:49,567 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-29 20:23:49,568 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-29 20:23:49,568 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-29 20:23:49,585 - git_integration.git_client - INFO - Found existing git repository: D:\Python Projects\obby
+2025-07-29 20:23:49,611 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-29 20:23:49,909 - git_integration.git_client - INFO - Auto-committed notes/living_note.md: 1e61b87b
+2025-07-29 20:23:49,909 - root - INFO - Living note committed to git: 1e61b87b
+2025-07-29 20:23:49,910 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-29 20:23:50,186 - database.models - INFO - Created git commit 13: bcd58935
+2025-07-29 20:23:50,351 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: git_commits.commit_hash
+2025-07-29 20:23:50,351 - database.models - WARNING - Duplicate commit 94b046ae: UNIQUE constraint failed: git_commits.commit_hash
+2025-07-29 20:23:50,798 - database.queries - INFO - Git sync completed: 2 commits synced, 0 errors
+2025-07-29 20:23:50,798 - __main__ - INFO - Post-update database sync successful: 2 commits synced
+2025-07-29 20:23:50,798 - __main__ - INFO - Living note update triggered with real diff data
+2025-07-29 20:23:57,346 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:23:57,351 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:24:17,346 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:24:17,351 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-29 20:24:19,657 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-29 20:24:19,657 - __main__ - INFO - Removed client from SSE clients list. Total clients: 1
