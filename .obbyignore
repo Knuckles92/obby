@@ -1,0 +1,9 @@
+# Obby ignore patterns
+*.tmp
+*.log
+.git/
+__pycache__/
+node_modules/
+*.pyc
+.DS_Store
+Thumbs.db

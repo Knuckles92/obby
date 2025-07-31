@@ -168,6 +168,12 @@ class NoteChangeHandler(FileSystemEventHandler):
             if self.file_tracker:
                 version_id = self.file_tracker.track_file_change(str(file_path), change_type)
                 
+                # Log successful diff creation
+                if version_id:
+                    logging.info(f"Successfully created diff for {change_type} change in {file_path.name} (version_id: {version_id})")
+                else:
+                    logging.warning(f"File tracker returned None for {change_type} change in {file_path.name}")
+                
                 if version_id and change_type != 'deleted':
                     # For created/modified files, update living note with AI analysis
                     try:

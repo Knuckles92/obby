@@ -197,7 +197,8 @@ class FileQueries:
                 'timestamp': datetime.now().isoformat()
             }
             
-            logger.info(f"Cleared all file data: {sum(clear_result.values()) - 2} total records")  # -2 for success and timestamp
+            total_cleared = content_diffs_cleared + file_versions_cleared + file_changes_cleared + file_states_cleared
+            logger.info(f"Cleared all file data: {total_cleared} total records")
             return clear_result
             
         except Exception as e:
@@ -206,6 +207,35 @@ class FileQueries:
 
 class EventQueries:
     """Event-focused queries for real-time updates."""
+    
+    @staticmethod
+    def add_event(event_type: str, file_path: str, file_size: int = 0) -> Optional[int]:
+        """Add a file system event to the database."""
+        try:
+            event_id = EventModel.insert(
+                event_type=event_type,
+                path=file_path,
+                size=file_size
+            )
+            logger.debug(f"Added event to database: {event_type} {file_path} (ID: {event_id})")
+            return event_id
+            
+        except Exception as e:
+            logger.error(f"Error adding event to database: {e}")
+            return None
+    
+    @staticmethod
+    def mark_event_processed(event_id: int) -> bool:
+        """Mark an event as processed."""
+        try:
+            success = EventModel.mark_processed(event_id)
+            if success:
+                logger.debug(f"Marked event {event_id} as processed")
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error marking event {event_id} as processed: {e}")
+            return False
     
     @staticmethod
     def get_recent_events(limit: int = 50, event_type: str = None, 

@@ -121,6 +121,42 @@ def start_monitoring():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/monitor/status', methods=['GET'])
+def get_monitoring_status():
+    """Get monitoring system status"""
+    global monitor_instance, monitoring_active
+    
+    try:
+        if not monitor_instance:
+            return jsonify({
+                'active': False,
+                'message': 'Monitor not initialized'
+            })
+        
+        # Get file tracking statistics
+        from database.queries import FileQueries, EventQueries
+        
+        recent_diffs = FileQueries.get_recent_diffs(limit=1)
+        recent_events = EventQueries.get_recent_events(limit=1)
+        
+        status = {
+            'active': monitoring_active and monitor_instance.is_running,
+            'file_tracker_available': hasattr(monitor_instance, 'file_tracker') and monitor_instance.file_tracker is not None,
+            'watched_paths': getattr(monitor_instance, 'watched_paths', []),
+            'periodic_check_enabled': getattr(monitor_instance, 'periodic_check_enabled', False),
+            'check_interval': getattr(monitor_instance, 'check_interval', 0),
+            'recent_diffs_count': len(recent_diffs),
+            'recent_events_count': len(recent_events),
+            'last_diff_timestamp': recent_diffs[0]['timestamp'] if recent_diffs else None,
+            'last_event_timestamp': recent_events[0]['timestamp'] if recent_events else None
+        }
+        
+        return jsonify(status)
+        
+    except Exception as e:
+        logger.error(f"Error getting monitoring status: {e}")
+        return jsonify({'error': f'Failed to get monitoring status: {str(e)}'}), 500
+
 @app.route('/api/monitor/stop', methods=['POST'])
 def stop_monitoring():
     """Stop file monitoring"""
@@ -472,73 +508,16 @@ def trigger_living_note_update():
                 settings = json.load(f)
         else:
             settings = {'updateFrequency': 'manual', 'summaryLength': 'moderate', 'writingStyle': 'technical'}
-            
-        # Always allow updates - no frequency restrictions
+
+        # The new file-based system doesn't require manual git commits here.
+        # The file_watcher service is responsible for tracking changes as they happen.
+        # This endpoint now just queries the database for recent changes.
         from ai.openai_client import OpenAIClient
-        from database.queries import GitQueries
-        from git_integration.git_client import GitClient
         
         ai_client = OpenAIClient()
         living_note_path = Path('notes/living_note.md')
-        
-        # IMPORTANT: Commit ALL working changes BEFORE AI processing
-        # This ensures the AI can analyze the complete recent work
-        try:
-            # Initialize git client to point to the notes folder, not the Obby codebase
-            git_client = GitClient(repo_path=str(NOTES_FOLDER))
-            commit_message = "Auto-commit before living note update"
-            
-            # Check if there are any working changes to commit
-            status = git_client.get_status()
-            logger.info(f"Git status before commit: {status}")
-            
-            # Collect all files that need to be committed
-            files_to_commit = []
-            
-            # Add unstaged files (modified and untracked)
-            unstaged_files = status.get('unstaged_files', [])
-            logger.info(f"Unstaged files: {unstaged_files}")
-            for file_info in unstaged_files:
-                file_path = file_info.get('path', file_info) if isinstance(file_info, dict) else file_info
-                files_to_commit.append(file_path)
-                logger.info(f"Added unstaged file to commit: {file_path}")
-            
-            # Add untracked files
-            untracked_files = status.get('untracked_files', [])
-            logger.info(f"Untracked files: {untracked_files}")
-            for file_info in untracked_files:
-                file_path = file_info.get('path', file_info) if isinstance(file_info, dict) else file_info
-                files_to_commit.append(file_path)
-                logger.info(f"Added untracked file to commit: {file_path}")
-            
-            # Add staged files (they should be committed too)
-            staged_files = status.get('staged_files', [])
-            logger.info(f"Staged files: {staged_files}")
-            for file_info in staged_files:
-                file_path = file_info.get('path', file_info) if isinstance(file_info, dict) else file_info
-                files_to_commit.append(file_path)
-                logger.info(f"Added staged file to commit: {file_path}")
-            
-            logger.info(f"Total files to commit: {len(files_to_commit)} - {files_to_commit}")
-            
-            if files_to_commit:
-                # Commit all working changes using the existing method
-                logger.info(f"Attempting to commit {len(files_to_commit)} files with message: {commit_message}")
-                commit_hash = git_client.auto_commit_multiple_files(files_to_commit, commit_message)
-                if commit_hash:
-                    logger.info(f"SUCCESS: Committed {len(files_to_commit)} files before AI processing: {commit_hash[:8]}")
-                    
-                    # Note: File-based system doesn't need git sync
-                    logger.info("File-based tracking system active - no git sync needed")
-                        
-                else:
-                    logger.error("FAILED: auto_commit_multiple_files returned None")
-            else:
-                logger.info("No working changes detected to commit")
-        except Exception as e:
-            logger.error(f"Exception during git commit: {e}", exc_info=True)
-        
-        # Get recent diffs from the last 24 hours (now includes the changes we just committed)
+
+        # Get recent diffs from the database
         recent_diffs = FileQueries.get_recent_diffs(limit=10)
         
         if recent_diffs:
@@ -546,7 +525,7 @@ def trigger_living_note_update():
             combined_content = []
             for diff in recent_diffs:
                 file_path = diff.get('filePath', 'unknown')
-                content = diff.get('content', '')
+                content = diff.get('diffContent', '')
                 timestamp = diff.get('timestamp', '')
                 combined_content.append(f"File: {file_path} ({timestamp})\n{content}")
             
@@ -557,20 +536,17 @@ def trigger_living_note_update():
             summary = ai_client.summarize_diff(full_diff_content, settings)
         else:
             # Fallback if no recent changes
-            summary = "No recent file changes detected in the last 24 hours."
+            summary = "No recent file changes detected."
         
         ai_client.update_living_note(living_note_path, summary, "manual", settings)
         
-        # Note: File-based system tracks changes automatically via watchdog
-        logger.info("File-based tracking system active - changes tracked automatically")
-        
-        logger.info("Living note update triggered with real diff data")
+        logger.info("Living note update triggered with data from file-based tracking.")
         return jsonify({
             'message': 'Living note update completed successfully'
         })
                 
     except Exception as e:
-        logger.error(f"Error during update: {e}")
+        logger.error(f"Error during update: {e}", exc_info=True)
         return jsonify({'error': f'Failed to trigger update: {str(e)}'}), 500
 
 
@@ -1183,12 +1159,13 @@ class APIObbyMonitor(ObbyMonitor):
         # Create custom file watcher with API-aware handler
         utils_folder = NOTES_FOLDER.parent / "utils"
         
-        # Create the handler manually
+        # Create the handler manually with file_tracker
         handler = APIAwareNoteChangeHandler(
             NOTES_FOLDER,
             self.ai_client,
             LIVING_NOTE_PATH,
-            utils_folder
+            utils_folder,
+            file_tracker=self.file_tracker
         )
         
         # Create file watcher and inject our custom handler

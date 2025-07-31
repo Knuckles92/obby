@@ -6748,3 +6748,618 @@
 2025-07-30 22:08:36,090 - api_server - INFO - DATABASE DIFFS API CALLED - Limit: 10
 2025-07-30 22:08:36,094 - database.queries - INFO - Retrieved 1 recent diffs
 2025-07-30 22:08:36,094 - api_server - INFO - Retrieved 1 content diffs from database
+2025-07-30 22:21:25,871 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:21:25,875 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 22:21:25,876 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 22:21:25,892 - __main__ - INFO - Retrieved 8 recent file changes
+2025-07-30 22:21:25,910 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:21:37,861 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 22:21:37,862 - __main__ - INFO - Creating event stream generator
+2025-07-30 22:21:37,863 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 22:21:37,868 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:21:37,876 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:21:40,573 - __main__ - INFO - Living note cleared successfully
+2025-07-30 22:21:40,574 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:21:40,574 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:23:59,235 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:23:59,239 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 22:23:59,239 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 22:23:59,252 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:23:59,259 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 22:23:59,260 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 22:23:59,262 - __main__ - INFO - Retrieved 8 recent file changes
+2025-07-30 22:23:59,284 - __main__ - INFO - Retrieved 8 recent file changes
+2025-07-30 22:23:59,288 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:23:59,306 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:24:10,580 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-30 22:24:10,580 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-30 22:24:55,606 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:24:57,217 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:24:57,217 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:24:57,219 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:28:25,947 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:28:25,951 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:25,952 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:25,964 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:28:25,968 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:25,969 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:26,010 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:28:26,022 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:28:26,031 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:28:26,057 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:28:43,611 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:28:43,620 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:28:43,621 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:28:43,622 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:28:43,623 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:28:43,623 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:43,625 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:43,644 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:28:43,649 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:28:43,649 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:43,649 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:28:43,649 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:44,386 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:28:44,387 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:28:44,387 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:28:44,390 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:28:44,392 - root - INFO - Watching directory: notes
+2025-07-30 22:28:44,393 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:28:44,393 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:28:44,394 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:28:44,400 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:28:44,401 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:28:44,405 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:28:44,406 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:28:44,407 - root - INFO - Watching directory: notes
+2025-07-30 22:28:44,409 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:28:44,412 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:28:44,413 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:28:44,910 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:28:44,913 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:28:44,916 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:28:44,917 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:44,917 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:28:44,918 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:44,933 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:28:44,935 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:28:44,936 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:28:44,936 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:28:44,939 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:44,939 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:47,830 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:28:47,832 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:47,832 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:47,840 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:28:47,843 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:28:47,843 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:28:47,845 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:28:47,866 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:28:47,873 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:28:47,881 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:28:55,390 - __main__ - ERROR - Failed to add event to database: type object 'EventQueries' has no attribute 'add_event'
+2025-07-30 22:28:55,390 - __main__ - ERROR - Failed to add event to database: type object 'EventQueries' has no attribute 'add_event'
+2025-07-30 22:28:55,390 - __main__ - WARNING - Database event storage failed, event lost: modified notes\test.md
+2025-07-30 22:28:55,390 - __main__ - WARNING - Database event storage failed, event lost: modified notes\test.md
+2025-07-30 22:28:55,391 - root - WARNING - File tracker not available, using legacy processing
+2025-07-30 22:28:55,391 - root - WARNING - File tracker not available, using legacy processing
+2025-07-30 22:28:55,395 - root - INFO - Format configuration loaded from format.md
+2025-07-30 22:28:55,396 - root - INFO - Format configuration loaded from format.md
+2025-07-30 22:28:57,022 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:28:58,569 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:28:58,570 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:28:58,571 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:29:01,899 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:29:03,424 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:29:03,424 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:29:03,426 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:29:19,133 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:29:19,137 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:19,137 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:19,149 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:29:19,165 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:29:24,433 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:29:24,435 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:24,435 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:24,444 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:29:24,458 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:29:29,189 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:29:30,746 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:29:30,747 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:29:30,748 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:29:38,224 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 22:29:38,225 - __main__ - INFO - Creating event stream generator
+2025-07-30 22:29:38,226 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 22:29:40,110 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:29:40,114 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:40,115 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:40,124 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:29:40,128 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:40,129 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:40,131 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:29:40,148 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:29:40,160 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:29:40,178 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:29:40,832 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:29:40,839 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:29:40,844 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:29:40,846 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:29:40,850 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:29:40,852 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:40,859 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:40,870 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:29:40,872 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:29:40,880 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:29:40,888 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:40,888 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:41,573 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:29:43,588 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:29:43,588 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:29:43,590 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:29:50,607 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:29:50,610 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:29:50,616 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:29:50,616 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:29:50,617 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:50,618 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:51,201 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:29:51,202 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:29:51,204 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:29:51,206 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:29:51,207 - root - INFO - Watching directory: notes
+2025-07-30 22:29:51,208 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:29:51,208 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:29:51,210 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:29:51,722 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:29:51,725 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:29:51,728 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:29:51,731 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:29:51,731 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:51,732 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:29:55,806 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:29:55,808 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:29:55,809 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:29:55,809 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:29:55,809 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:29:55,810 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:30:00,807 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:30:00,808 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:30:00,809 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:30:00,809 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:30:00,810 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:30:00,811 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:30:05,805 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 22:30:05,807 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:30:05,808 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:30:05,808 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 22:30:05,808 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:30:05,809 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:30:09,433 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:30:11,479 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:30:11,479 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:30:11,484 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:30:11,676 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 22:30:11,681 - __main__ - INFO - Creating event stream generator
+2025-07-30 22:30:11,682 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 22:30:12,428 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 22:30:12,429 - __main__ - INFO - Creating event stream generator
+2025-07-30 22:30:12,429 - __main__ - INFO - Added client to SSE clients list. Total clients: 2
+2025-07-30 22:30:12,681 - __main__ - ERROR - Error getting database stats: type object 'EventQueries' has no attribute 'get_total_count'
+2025-07-30 22:30:13,458 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:30:13,463 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:30:13,464 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:30:13,474 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:30:13,477 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:30:13,477 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:30:13,479 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:30:13,494 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:30:13,505 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:30:13,519 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:30:13,700 - __main__ - ERROR - Error getting database stats: type object 'EventQueries' has no attribute 'get_total_count'
+2025-07-30 22:30:14,628 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:30:14,630 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:30:14,630 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:30:14,640 - __main__ - INFO - Retrieved 0 recent file changes
+2025-07-30 22:30:14,653 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:30:42,430 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-30 22:30:42,431 - __main__ - INFO - Removed client from SSE clients list. Total clients: 1
+2025-07-30 22:31:46,592 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:31:48,430 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:31:48,431 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:31:48,432 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:32:58,347 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:32:58,348 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:32:58,348 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:32:58,348 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:32:58,349 - root - INFO - Watching directory: notes
+2025-07-30 22:32:58,350 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:32:58,350 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:32:58,350 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:33:01,355 - api_server - INFO - serve_frontend called with path: 'api/monitor/status'
+2025-07-30 22:37:32,560 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:37:34,073 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:37:34,073 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:37:34,075 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:39:20,794 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:39:20,797 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:39:20,797 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:39:50,813 - __main__ - ERROR - Error during manual file scan: 415 Unsupported Media Type: Did not attempt to load JSON data because the request Content-Type was not 'application/json'.
+2025-07-30 22:39:59,896 - database.models - INFO - Created file version 8 for D:\Python Projects\obby\notes\.gitignore
+2025-07-30 22:39:59,929 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\.gitignore
+2025-07-30 22:39:59,946 - database.models - INFO - Created file version 9 for D:\Python Projects\obby\notes\living_note.md.backup
+2025-07-30 22:39:59,991 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md.backup
+2025-07-30 22:40:00,010 - database.models - INFO - Created file version 10 for D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 22:40:00,045 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 22:40:00,087 - database.models - INFO - Created file version 11 for D:\Python Projects\obby\notes\test.md
+2025-07-30 22:40:00,128 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\test.md
+2025-07-30 22:40:00,129 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 22:40:00,129 - __main__ - INFO - Manual file scan completed: 5 files processed
+2025-07-30 22:40:10,677 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:40:10,694 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:40:10,702 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:41:03,054 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:41:05,036 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:41:05,036 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:41:05,038 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:41:38,916 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:41:38,920 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:41:38,920 - __main__ - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:41:48,818 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 22:42:02,916 - __main__ - INFO - serve_frontend called with path: 'api/monitor/status'
+2025-07-30 22:42:36,976 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:42:36,976 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:42:36,977 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:42:36,977 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:42:36,978 - root - INFO - Watching directory: notes
+2025-07-30 22:42:36,979 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:42:36,979 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:42:36,979 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:42:38,984 - api_server - ERROR - Failed to add event to database: type object 'EventQueries' has no attribute 'add_event'
+2025-07-30 22:42:38,984 - api_server - WARNING - Database event storage failed, event lost: modified notes\test.md
+2025-07-30 22:42:38,985 - root - WARNING - File tracker not available, using legacy processing
+2025-07-30 22:42:38,996 - root - INFO - Format configuration loaded from format.md
+2025-07-30 22:42:41,165 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 22:42:42,022 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 22:42:42,025 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:42:42,027 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:42:42,028 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:42:42,030 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:42:42,031 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-30 22:42:42,031 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-30 22:42:43,985 - api_server - INFO - DATABASE DIFFS API CALLED - Limit: 3
+2025-07-30 22:42:43,993 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:42:43,993 - api_server - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:45:27,070 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:45:30,451 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:45:30,452 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:45:30,454 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:45:36,126 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:45:37,848 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:45:37,849 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:45:37,851 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:46:51,919 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:46:53,526 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:46:53,527 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:46:53,529 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:47:18,379 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:47:19,975 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:47:19,976 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:47:19,979 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:47:29,784 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:47:31,403 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:47:31,403 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:47:31,405 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:48:47,703 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:48:49,400 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:48:49,400 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:48:49,403 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:49:14,215 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:49:16,060 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:49:16,061 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:49:16,062 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:49:43,024 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:49:44,770 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:49:44,770 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:49:44,772 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:50:19,512 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:50:19,512 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:50:19,513 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:50:19,513 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:50:19,514 - root - INFO - Watching directory: notes
+2025-07-30 22:50:19,515 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:50:19,515 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:50:19,515 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:50:23,523 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:50:23,524 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 22:50:25,636 - database.queries - INFO - Cleared all file data: 12 total records
+2025-07-30 22:50:25,636 - api_server - INFO - Cleared file data via database: {'success': True, 'content_diffs_cleared': 0, 'file_versions_cleared': 4, 'file_changes_cleared': 4, 'file_states_cleared': 4, 'timestamp': '2025-07-30T22:50:25.636350'}
+2025-07-30 22:50:25,695 - database.models - INFO - Created file version 12 for D:\Python Projects\obby\notes\test.md
+2025-07-30 22:50:25,741 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\test.md
+2025-07-30 22:50:25,741 - root - INFO - Successfully created diff for modified change in test.md (version_id: 12)
+2025-07-30 22:50:25,743 - root - INFO - Format configuration loaded from format.md
+2025-07-30 22:50:27,536 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 22:50:28,047 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 22:50:28,056 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:50:28,056 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:50:28,059 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:50:28,058 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 22:50:28,062 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-30 22:50:28,062 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-30 22:50:32,647 - api_server - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:50:32,655 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:50:32,655 - api_server - INFO - Retrieved 0 content diffs from database
+2025-07-30 22:50:34,662 - database.queries - INFO - Retrieved 0 recent diffs
+2025-07-30 22:50:34,662 - database.queries - INFO - Retrieved 1 recent events
+2025-07-30 22:51:55,315 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:51:55,316 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:51:55,316 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 22:51:55,316 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 22:51:55,317 - root - INFO - Watching directory: notes
+2025-07-30 22:51:55,318 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 22:51:55,318 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 22:51:55,319 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 22:51:56,457 - database.models - INFO - Created file version 13 for D:\Python Projects\obby\notes\test.md
+2025-07-30 22:51:56,547 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\test.md
+2025-07-30 22:51:56,548 - root - INFO - Successfully created diff for modified change in test.md (version_id: 13)
+2025-07-30 22:51:56,550 - root - INFO - Format configuration loaded from format.md
+2025-07-30 22:51:59,383 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 22:52:00,263 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 22:52:00,269 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-30 22:52:00,269 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-30 22:52:03,329 - api_server - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 22:52:03,337 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 22:52:03,337 - api_server - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:20,499 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:17:20,499 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:17:20,501 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:17:22,043 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:17:22,044 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:17:22,045 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:17:25,224 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 23:17:25,225 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 23:17:25,230 - database.queries - INFO - Retrieved 2 recent events
+2025-07-30 23:17:25,231 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:25,233 - __main__ - INFO - Retrieved 2 events from database
+2025-07-30 23:17:25,235 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:25,245 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 23:17:25,254 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 23:17:25,258 - database.queries - INFO - Retrieved 2 recent events
+2025-07-30 23:17:25,259 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:25,259 - __main__ - INFO - Retrieved 2 events from database
+2025-07-30 23:17:25,260 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:26,177 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 23:17:26,178 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 23:17:26,179 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 23:17:26,181 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 23:17:26,181 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 23:17:26,182 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 23:17:26,182 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 23:17:26,183 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 23:17:26,183 - root - INFO - Watching directory: notes
+2025-07-30 23:17:26,184 - root - INFO - Watching directory: notes
+2025-07-30 23:17:26,184 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 23:17:26,185 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 23:17:26,185 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 23:17:26,189 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 23:17:26,190 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 23:17:26,190 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 23:17:26,710 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 23:17:26,713 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 23:17:26,721 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:26,723 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:26,724 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 23:17:26,725 - database.queries - INFO - Retrieved 2 recent events
+2025-07-30 23:17:26,725 - __main__ - INFO - Retrieved 2 events from database
+2025-07-30 23:17:26,734 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 23:17:26,738 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:26,740 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:26,741 - database.queries - INFO - Retrieved 2 recent events
+2025-07-30 23:17:26,742 - __main__ - INFO - Retrieved 2 events from database
+2025-07-30 23:17:30,216 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 23:17:30,218 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 23:17:30,219 - database.queries - INFO - Retrieved 2 recent events
+2025-07-30 23:17:30,219 - __main__ - INFO - Retrieved 2 events from database
+2025-07-30 23:17:30,220 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:30,220 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:32,947 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 23:17:32,949 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:32,949 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:32,960 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 23:17:32,963 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 23:17:32,965 - __main__ - INFO - Retrieved 1 content diffs from database
+2025-07-30 23:17:32,968 - __main__ - INFO - Retrieved 2 recent file changes
+2025-07-30 23:17:32,983 - __main__ - INFO - Retrieved 2 recent file changes
+2025-07-30 23:17:32,986 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 23:17:33,005 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 23:17:46,242 - database.models - INFO - Created file version 14 for D:\Python Projects\obby\notes\.gitignore
+2025-07-30 23:17:46,300 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\.gitignore
+2025-07-30 23:17:46,324 - database.models - INFO - Created file version 15 for D:\Python Projects\obby\notes\living_note.md
+2025-07-30 23:17:46,371 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md
+2025-07-30 23:17:46,412 - database.models - INFO - Created file version 16 for D:\Python Projects\obby\notes\living_note.md.backup
+2025-07-30 23:17:46,446 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md.backup
+2025-07-30 23:17:46,479 - database.models - INFO - Created file version 17 for D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 23:17:46,514 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 23:17:46,516 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:17:46,516 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:17:46,538 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: file_versions.file_path, file_versions.content_hash
+2025-07-30 23:17:46,539 - database.models - WARNING - Duplicate file version 42aab76c for D:\Python Projects\obby\notes\.gitignore: UNIQUE constraint failed: file_versions.file_path, file_versions.content_hash
+2025-07-30 23:17:46,556 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: file_changes.content_hash
+2025-07-30 23:17:46,557 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\.gitignore
+2025-07-30 23:17:46,562 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:17:46,563 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:18:01,391 - database.models - INFO - Created file version 18 for D:\Python Projects\obby\notes\test.md
+2025-07-30 23:18:01,454 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\test.md
+2025-07-30 23:18:01,454 - root - INFO - Successfully created diff for modified change in test.md (version_id: 18)
+2025-07-30 23:18:01,457 - root - INFO - Format configuration loaded from format.md
+2025-07-30 23:18:01,508 - root - WARNING - File tracker returned None for modified change in test.md
+2025-07-30 23:18:03,647 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 23:18:04,576 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 23:18:04,580 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:04,580 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:04,581 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:04,589 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:04,591 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-30 23:18:04,591 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-30 23:18:04,615 - root - WARNING - File tracker returned None for modified change in test.md
+2025-07-30 23:18:06,561 - database.models - INFO - Created file version 19 for D:\Python Projects\obby\notes\living_note.md
+2025-07-30 23:18:06,619 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md
+2025-07-30 23:18:06,625 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: file_versions.file_path, file_versions.content_hash
+2025-07-30 23:18:06,625 - database.models - WARNING - Duplicate file version d5c88c0a for D:\Python Projects\obby\notes\living_note.md: UNIQUE constraint failed: file_versions.file_path, file_versions.content_hash
+2025-07-30 23:18:06,661 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: file_changes.content_hash
+2025-07-30 23:18:06,662 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md
+2025-07-30 23:18:06,694 - database.models - INFO - Created file version 20 for D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 23:18:06,777 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 23:18:06,779 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:18:06,779 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:18:06,815 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: file_versions.file_path, file_versions.content_hash
+2025-07-30 23:18:06,816 - database.models - WARNING - Duplicate file version 8eee1ada for D:\Python Projects\obby\notes\semantic_index.json: UNIQUE constraint failed: file_versions.file_path, file_versions.content_hash
+2025-07-30 23:18:06,859 - database.models - ERROR - Database operation failed: UNIQUE constraint failed: file_changes.content_hash
+2025-07-30 23:18:06,860 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 23:18:06,861 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:18:06,862 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:18:09,235 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 23:18:09,257 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-30 23:18:09,260 - __main__ - INFO - Retrieved 6 content diffs from database
+2025-07-30 23:18:09,275 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 23:18:09,290 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-30 23:18:09,295 - __main__ - INFO - Retrieved 6 content diffs from database
+2025-07-30 23:18:09,335 - __main__ - INFO - Retrieved 9 recent file changes
+2025-07-30 23:18:09,359 - __main__ - INFO - Retrieved 9 recent file changes
+2025-07-30 23:18:09,387 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 23:18:09,408 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 23:18:24,590 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 23:18:24,592 - __main__ - INFO - Creating event stream generator
+2025-07-30 23:18:24,593 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 23:18:26,789 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:18:26,789 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:18:26,871 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:18:26,871 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:18:27,831 - __main__ - INFO - Living note cleared successfully
+2025-07-30 23:18:27,832 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:27,833 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:29,311 - __main__ - ERROR - Error during update: cannot import name 'GitQueries' from 'database.queries' (D:\Python Projects\obby\database\queries.py)
+2025-07-30 23:18:36,512 - __main__ - INFO - Living note cleared successfully
+2025-07-30 23:18:36,513 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:36,513 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:18:40,775 - __main__ - ERROR - Error during update: cannot import name 'GitQueries' from 'database.queries' (D:\Python Projects\obby\database\queries.py)
+2025-07-30 23:18:46,796 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:18:46,797 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:18:46,878 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:18:46,878 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:19:06,803 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:19:06,803 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:19:06,886 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:19:06,886 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:19:26,821 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:19:26,822 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:19:26,894 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:19:26,894 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:19:46,829 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:19:46,829 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:19:46,901 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:19:46,901 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:20:06,836 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:20:06,836 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:20:06,915 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:20:06,917 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:20:26,843 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:20:26,844 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:20:26,927 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:20:26,927 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:20:46,851 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:20:46,851 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:20:46,934 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:20:46,934 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:21:06,857 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:21:06,858 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:21:06,941 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:21:06,942 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:21:26,864 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:21:26,865 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:21:26,948 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:21:26,949 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:21:46,871 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:21:46,871 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:21:46,956 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:21:46,956 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:22:06,880 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:22:06,880 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:22:06,963 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:22:06,963 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:22:26,886 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:22:26,887 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:22:26,971 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:22:26,971 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:22:46,895 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:22:46,895 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:22:46,978 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:22:46,978 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:23:06,902 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:23:06,902 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:23:06,985 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:23:06,985 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:23:26,909 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:23:26,909 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:23:26,992 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:23:26,993 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:23:46,916 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:23:46,917 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:23:47,000 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:23:47,000 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:24:06,924 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:24:06,924 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:24:07,008 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:24:07,008 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:24:26,932 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:24:26,932 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:24:27,016 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 23:24:27,016 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 23:24:32,903 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 23:24:34,735 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:24:34,736 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:24:34,738 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:24:55,082 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 23:24:56,534 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:24:56,534 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:24:56,536 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:27:28,829 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 23:27:30,244 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:27:30,245 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:27:30,246 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:30:19,283 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 23:30:20,826 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:30:20,826 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:30:20,828 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:30:36,946 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 23:30:36,955 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-30 23:30:36,956 - __main__ - INFO - Retrieved 6 content diffs from database
+2025-07-30 23:30:36,971 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 23:30:36,974 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-30 23:30:36,976 - __main__ - INFO - Retrieved 6 content diffs from database
+2025-07-30 23:30:36,978 - __main__ - INFO - Retrieved 9 recent file changes
+2025-07-30 23:30:37,001 - __main__ - INFO - Retrieved 9 recent file changes
+2025-07-30 23:30:37,011 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 23:30:37,031 - __main__ - INFO - Retrieved file monitoring status
+2025-07-30 23:30:37,613 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 23:30:37,616 - __main__ - INFO - Creating event stream generator
+2025-07-30 23:30:37,620 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 23:30:40,413 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-30 23:30:40,416 - root - INFO - Format configuration loaded from format.md
+2025-07-30 23:30:41,366 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 23:30:42,918 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:30:42,918 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:30:42,920 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 23:30:47,133 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 23:30:47,134 - __main__ - INFO - Creating event stream generator
+2025-07-30 23:30:47,135 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 23:30:53,610 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-30 23:30:53,612 - root - INFO - Format configuration loaded from format.md
+2025-07-30 23:30:56,177 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 23:30:57,124 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-30 23:30:57,129 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:30:57,131 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:30:57,132 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:30:57,140 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-30 23:30:57,140 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-30 23:30:57,140 - __main__ - INFO - Living note update triggered with data from file-based tracking.
+2025-07-30 23:30:57,158 - __main__ - INFO - Living note file modified, notifying clients
