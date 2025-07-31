@@ -1,15 +1,17 @@
 """
-Git-Native Database Models & Infrastructure
-==========================================
+File-Based Database Models & Infrastructure
+============================================
 
 High-performance database layer with connection pooling, transactions, 
-and git-focused models for Obby's version control integration.
+and file-system-focused models for Obby's pure file monitoring.
 """
 
 import sqlite3
 import threading
 import json
 import hashlib
+import difflib
+import os
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
@@ -83,45 +85,48 @@ class DatabaseConnection:
 # Global database instance
 db = DatabaseConnection()
 
-class GitCommitModel:
-    """Git commit tracking and storage."""
+class FileVersionModel:
+    """File version tracking and storage without git dependency."""
     
     @classmethod
-    def insert(cls, commit_hash: str, author_name: str, author_email: str, 
-               message: str, timestamp: datetime, branch_name: str = None) -> Optional[int]:
-        """Insert new git commit."""
-        try:
-            short_hash = commit_hash[:8]
+    def insert(cls, file_path: str, content_hash: str, content: str = None, 
+               line_count: int = 0, timestamp: datetime = None, 
+               change_description: str = None) -> Optional[int]:
+        """Insert new file version."""
+        if timestamp is None:
+            timestamp = datetime.now()
             
+        try:
             query = """
-                INSERT INTO git_commits 
-                (commit_hash, short_hash, author_name, author_email, message, branch_name, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO file_versions 
+                (file_path, content_hash, content, line_count, timestamp, change_description)
+                VALUES (?, ?, ?, ?, ?, ?)
             """
-            db.execute_update(query, (commit_hash, short_hash, author_name, author_email, 
-                                    message, branch_name, timestamp))
+            db.execute_update(query, (file_path, content_hash, content, line_count, 
+                                    timestamp, change_description))
             
             # Get the inserted ID
             result = db.execute_query("SELECT last_insert_rowid() as id")
-            commit_id = result[0]['id']
-            logger.info(f"Created git commit {commit_id}: {short_hash}")
-            return commit_id
+            version_id = result[0]['id']
+            logger.info(f"Created file version {version_id} for {file_path}")
+            return version_id
             
         except sqlite3.IntegrityError as e:
-            logger.warning(f"Duplicate commit {commit_hash[:8]}: {e}")
-            # Return existing commit ID
-            result = db.execute_query("SELECT id FROM git_commits WHERE commit_hash = ?", (commit_hash,))
+            logger.warning(f"Duplicate file version {content_hash[:8]} for {file_path}: {e}")
+            # Return existing version ID
+            result = db.execute_query("SELECT id FROM file_versions WHERE content_hash = ? AND file_path = ?", 
+                                    (content_hash, file_path))
             return result[0]['id'] if result else None
     
     @classmethod
-    def get_recent(cls, limit: int = 20, branch: str = None) -> List[Dict[str, Any]]:
-        """Get recent commits with optional branch filtering."""
-        query = "SELECT * FROM git_commits"
+    def get_recent(cls, limit: int = 20, file_path: str = None) -> List[Dict[str, Any]]:
+        """Get recent file versions with optional file filtering."""
+        query = "SELECT * FROM file_versions"
         params = []
         
-        if branch:
-            query += " WHERE branch_name = ?"
-            params.append(branch)
+        if file_path:
+            query += " WHERE file_path = ?"
+            params.append(file_path)
         
         query += " ORDER BY timestamp DESC LIMIT ?"
         params.append(limit)
@@ -130,199 +135,178 @@ class GitCommitModel:
         return [dict(row) for row in rows]
     
     @classmethod
-    def get_by_hash(cls, commit_hash: str) -> Optional[Dict[str, Any]]:
-        """Get commit by hash (supports short or full hash)."""
-        if len(commit_hash) <= 8:
-            # Short hash
-            rows = db.execute_query("SELECT * FROM git_commits WHERE short_hash = ?", (commit_hash,))
-        else:
-            # Full hash
-            rows = db.execute_query("SELECT * FROM git_commits WHERE commit_hash = ?", (commit_hash,))
+    def get_by_hash(cls, content_hash: str, file_path: str = None) -> Optional[Dict[str, Any]]:
+        """Get file version by content hash."""
+        query = "SELECT * FROM file_versions WHERE content_hash = ?"
+        params = [content_hash]
         
+        if file_path:
+            query += " AND file_path = ?"
+            params.append(file_path)
+            
+        rows = db.execute_query(query, tuple(params))
         return dict(rows[0]) if rows else None
     
     @classmethod
-    def get_authors(cls) -> List[Dict[str, Any]]:
-        """Get all unique authors with activity stats."""
-        query = """
-            SELECT author_name, author_email, COUNT(*) as commit_count,
-                   MAX(timestamp) as last_commit, MIN(timestamp) as first_commit
-            FROM git_commits
-            GROUP BY author_name, author_email
-            ORDER BY commit_count DESC
-        """
-        rows = db.execute_query(query)
-        return [dict(row) for row in rows]
-
-class GitFileChangeModel:
-    """Git file-level change tracking."""
-    
-    @classmethod
-    def insert(cls, commit_id: int, file_path: str, change_type: str, 
-               diff_content: str = None, lines_added: int = 0, 
-               lines_removed: int = 0, old_path: str = None) -> Optional[int]:
-        """Insert file change for a commit."""
-        try:
-            query = """
-                INSERT INTO git_file_changes 
-                (commit_id, file_path, change_type, diff_content, lines_added, lines_removed, old_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            db.execute_update(query, (commit_id, file_path, change_type, diff_content, 
-                                    lines_added, lines_removed, old_path))
-            
-            result = db.execute_query("SELECT last_insert_rowid() as id")
-            change_id = result[0]['id']
-            logger.debug(f"Created file change {change_id}: {change_type} {file_path}")
-            return change_id
-            
-        except sqlite3.Error as e:
-            logger.error(f"Failed to insert file change: {e}")
-            return None
-    
-    @classmethod
-    def get_for_commit(cls, commit_id: int) -> List[Dict[str, Any]]:
-        """Get all file changes for a specific commit."""
-        query = "SELECT * FROM git_file_changes WHERE commit_id = ? ORDER BY file_path"
-        rows = db.execute_query(query, (commit_id,))
-        return [dict(row) for row in rows]
-    
-    @classmethod
     def get_file_history(cls, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get change history for a specific file."""
+        """Get version history for a specific file."""
         query = """
-            SELECT fc.*, gc.commit_hash, gc.short_hash, gc.author_name, 
-                   gc.message, gc.timestamp, gc.branch_name
-            FROM git_file_changes fc
-            JOIN git_commits gc ON fc.commit_id = gc.id
-            WHERE fc.file_path = ?
-            ORDER BY gc.timestamp DESC
+            SELECT * FROM file_versions 
+            WHERE file_path = ?
+            ORDER BY timestamp DESC
             LIMIT ?
         """
         rows = db.execute_query(query, (file_path, limit))
         return [dict(row) for row in rows]
 
-class GitWorkingChangeModel:
-    """Git working directory (uncommitted) change tracking."""
+class ContentDiffModel:
+    """File content difference tracking without git dependency."""
     
     @classmethod
-    def insert(cls, file_path: str, change_type: str, status: str, 
-               diff_content: str = None, branch_name: str = None, 
+    def insert(cls, file_path: str, old_version_id: int = None, new_version_id: int = None,
+               change_type: str = 'modified', diff_content: str = None, 
+               lines_added: int = 0, lines_removed: int = 0, 
                timestamp: datetime = None) -> Optional[int]:
-        """Insert working directory change."""
+        """Insert content diff between file versions."""
+        if timestamp is None:
+            timestamp = datetime.now()
+            
+        try:
+            query = """
+                INSERT INTO content_diffs 
+                (file_path, old_version_id, new_version_id, change_type, diff_content, 
+                 lines_added, lines_removed, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            db.execute_update(query, (file_path, old_version_id, new_version_id, change_type, 
+                                    diff_content, lines_added, lines_removed, timestamp))
+            
+            result = db.execute_query("SELECT last_insert_rowid() as id")
+            diff_id = result[0]['id']
+            logger.debug(f"Created content diff {diff_id}: {change_type} {file_path}")
+            return diff_id
+            
+        except sqlite3.Error as e:
+            logger.error(f"Failed to insert content diff: {e}")
+            return None
+    
+    @classmethod
+    def get_for_file(cls, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get all content diffs for a specific file."""
+        query = """
+            SELECT cd.*, 
+                   fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                   fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+            FROM content_diffs cd
+            LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+            LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+            WHERE cd.file_path = ? 
+            ORDER BY cd.timestamp DESC
+            LIMIT ?
+        """
+        rows = db.execute_query(query, (file_path, limit))
+        return [dict(row) for row in rows]
+    
+    @classmethod
+    def generate_diff(cls, old_content: str, new_content: str) -> tuple:
+        """Generate diff content and calculate line changes."""
+        old_lines = old_content.splitlines(keepends=True) if old_content else []
+        new_lines = new_content.splitlines(keepends=True) if new_content else []
+        
+        # Generate unified diff
+        diff_lines = list(difflib.unified_diff(
+            old_lines, new_lines,
+            fromfile='old', tofile='new',
+            lineterm=''
+        ))
+        diff_content = '\n'.join(diff_lines)
+        
+        # Count added/removed lines
+        lines_added = sum(1 for line in diff_lines if line.startswith('+') and not line.startswith('+++'))
+        lines_removed = sum(1 for line in diff_lines if line.startswith('-') and not line.startswith('---'))
+        
+        return diff_content, lines_added, lines_removed
+
+class FileChangeModel:
+    """Simple file change tracking without git dependency."""
+    
+    @classmethod
+    def insert(cls, file_path: str, change_type: str, old_content_hash: str = None,
+               new_content_hash: str = None, timestamp: datetime = None) -> Optional[int]:
+        """Insert file change event."""
         if timestamp is None:
             timestamp = datetime.now()
         
         try:
             # Generate content hash for deduplication
             content_hash = hashlib.sha256(
-                f"{file_path}{change_type}{status}{diff_content or ''}".encode('utf-8')
+                f"{file_path}{change_type}{old_content_hash or ''}{new_content_hash or ''}".encode('utf-8')
             ).hexdigest()
             
             query = """
-                INSERT INTO git_working_changes 
-                (file_path, change_type, status, diff_content, timestamp, branch_name, content_hash)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO file_changes 
+                (file_path, change_type, old_content_hash, new_content_hash, timestamp, content_hash)
+                VALUES (?, ?, ?, ?, ?, ?)
             """
-            db.execute_update(query, (file_path, change_type, status, diff_content, 
-                                    timestamp, branch_name, content_hash))
+            db.execute_update(query, (file_path, change_type, old_content_hash, 
+                                    new_content_hash, timestamp, content_hash))
             
             result = db.execute_query("SELECT last_insert_rowid() as id")
             change_id = result[0]['id']
-            logger.debug(f"Created working change {change_id}: {status} {change_type} {file_path}")
+            logger.debug(f"Created file change {change_id}: {change_type} {file_path}")
             return change_id
             
         except sqlite3.IntegrityError as e:
-            logger.debug(f"Duplicate working change for {file_path}: {e}")
+            logger.debug(f"Duplicate file change for {file_path}: {e}")
             return None
         except sqlite3.Error as e:
-            logger.error(f"Failed to insert working change: {e}")
+            logger.error(f"Failed to insert file change: {e}")
             return None
     
     @classmethod
-    def get_current(cls, status: str = None) -> List[Dict[str, Any]]:
-        """Get current working directory changes."""
-        query = "SELECT * FROM git_working_changes"
+    def get_recent(cls, limit: int = 50, change_type: str = None) -> List[Dict[str, Any]]:
+        """Get recent file changes."""
+        query = "SELECT * FROM file_changes"
         params = []
         
-        if status:
-            query += " WHERE status = ?"
-            params.append(status)
+        if change_type:
+            query += " WHERE change_type = ?"
+            params.append(change_type)
         
-        query += " ORDER BY timestamp DESC"
+        query += " ORDER BY timestamp DESC LIMIT ?"
+        params.append(limit)
         
         rows = db.execute_query(query, tuple(params))
         return [dict(row) for row in rows]
     
     @classmethod
-    def clear_all(cls) -> int:
-        """Clear all working changes (for when git status changes)."""
-        return db.execute_update("DELETE FROM git_working_changes")
-    
-    @classmethod
-    def clear_for_file(cls, file_path: str) -> int:
-        """Clear working changes for a specific file."""
-        return db.execute_update("DELETE FROM git_working_changes WHERE file_path = ?", (file_path,))
-
-class GitRepositoryStateModel:
-    """Git repository state tracking."""
-    
-    @classmethod
-    def insert(cls, current_branch: str, head_commit: str, is_dirty: bool,
-               staged_count: int = 0, unstaged_count: int = 0, 
-               untracked_count: int = 0, timestamp: datetime = None) -> Optional[int]:
-        """Insert repository state snapshot."""
-        if timestamp is None:
-            timestamp = datetime.now()
-        
-        try:
-            query = """
-                INSERT INTO git_repository_state 
-                (current_branch, head_commit, is_dirty, staged_files_count, 
-                 unstaged_files_count, untracked_files_count, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """
-            db.execute_update(query, (current_branch, head_commit, is_dirty, 
-                                    staged_count, unstaged_count, untracked_count, timestamp))
-            
-            result = db.execute_query("SELECT last_insert_rowid() as id")
-            state_id = result[0]['id']
-            logger.debug(f"Created repository state {state_id}: {current_branch} ({head_commit[:8]})")
-            return state_id
-            
-        except sqlite3.Error as e:
-            logger.error(f"Failed to insert repository state: {e}")
-            return None
-    
-    @classmethod
-    def get_latest(cls) -> Optional[Dict[str, Any]]:
-        """Get the most recent repository state."""
-        query = "SELECT * FROM git_repository_state ORDER BY timestamp DESC LIMIT 1"
-        rows = db.execute_query(query)
-        return dict(rows[0]) if rows else None
-    
-    @classmethod
-    def get_history(cls, limit: int = 20) -> List[Dict[str, Any]]:
-        """Get repository state history."""
-        query = "SELECT * FROM git_repository_state ORDER BY timestamp DESC LIMIT ?"
-        rows = db.execute_query(query, (limit,))
+    def get_for_file(cls, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """Get change history for a specific file."""
+        query = """
+            SELECT * FROM file_changes 
+            WHERE file_path = ?
+            ORDER BY timestamp DESC
+            LIMIT ?
+        """
+        rows = db.execute_query(query, (file_path, limit))
         return [dict(row) for row in rows]
 
+
 class EventModel:
-    """File system event tracking (enhanced with git context)."""
+    """File system event tracking."""
     
     @classmethod
     def insert(cls, event_type: str, path: str, size: int = 0, 
-               git_status: str = None, timestamp: datetime = None) -> int:
-        """Insert new file event with git context."""
+               timestamp: datetime = None) -> int:
+        """Insert new file system event."""
         if timestamp is None:
             timestamp = datetime.now()
         
         query = """
-            INSERT INTO events (type, path, timestamp, size, git_status) 
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO events (type, path, timestamp, size) 
+            VALUES (?, ?, ?, ?)
         """
-        return db.execute_update(query, (event_type, path, timestamp, size, git_status))
+        return db.execute_update(query, (event_type, path, timestamp, size))
     
     @classmethod
     def get_recent(cls, limit: int = 50, event_type: str = None, 
@@ -364,15 +348,14 @@ class EventModel:
         return db.execute_update("DELETE FROM events")
 
 class SemanticModel:
-    """Advanced semantic search with git context integration."""
+    """Advanced semantic search for file content analysis."""
     
     @classmethod
     def insert_entry(cls, summary: str, entry_type: str, impact: str, 
                     topics: List[str], keywords: List[str], 
-                    file_path: str = "", commit_hash: str = None,
-                    author_name: str = None, branch_name: str = None,
+                    file_path: str = "", version_id: int = None,
                     timestamp: datetime = None) -> int:
-        """Insert semantic entry with git context."""
+        """Insert semantic entry for file content analysis."""
         if timestamp is None:
             timestamp = datetime.now()
         
@@ -382,9 +365,8 @@ class SemanticModel:
         # Insert main entry
         query = """
             INSERT INTO semantic_entries 
-            (timestamp, date, time, type, summary, impact, file_path, searchable_text,
-             commit_hash, author_name, branch_name)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (timestamp, date, time, type, summary, impact, file_path, searchable_text, version_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             timestamp,
@@ -395,9 +377,7 @@ class SemanticModel:
             impact,
             file_path,
             searchable_text,
-            commit_hash,
-            author_name,
-            branch_name
+            version_id
         )
         
         db.execute_update(query, params)
@@ -422,13 +402,13 @@ class SemanticModel:
                 keyword_params
             )
         
-        logger.info(f"Created semantic entry {entry_id} for commit {commit_hash or 'working'}")
+        logger.info(f"Created semantic entry {entry_id} for file {file_path}")
         return entry_id
     
     @classmethod
-    def search(cls, query: str, limit: int = 20, commit_hash: str = None,
-               author: str = None, branch: str = None) -> List[Dict[str, Any]]:
-        """Enhanced semantic search with git filtering."""
+    def search(cls, query: str, limit: int = 20, file_path: str = None,
+               version_id: int = None) -> List[Dict[str, Any]]:
+        """Enhanced semantic search with file-based filtering."""
         # Base FTS5 search
         search_query = """
             SELECT se.*, GROUP_CONCAT(DISTINCT st.topic) as topics,
@@ -442,18 +422,14 @@ class SemanticModel:
         """
         params = [query]
         
-        # Add git-based filters
-        if commit_hash:
-            search_query += " AND se.commit_hash = ?"
-            params.append(commit_hash)
+        # Add file-based filters
+        if file_path:
+            search_query += " AND se.file_path = ?"
+            params.append(file_path)
         
-        if author:
-            search_query += " AND se.author_name LIKE ?"
-            params.append(f"%{author}%")
-        
-        if branch:
-            search_query += " AND se.branch_name = ?"
-            params.append(branch)
+        if version_id:
+            search_query += " AND se.version_id = ?"
+            params.append(version_id)
         
         search_query += """
             GROUP BY se.id
@@ -555,18 +531,25 @@ class ConfigModel:
         return config
 
 class FileStateModel:
-    """File state tracking with git integration."""
+    """Enhanced file state tracking for complete file snapshots."""
     
     @classmethod
-    def update_state(cls, file_path: str, git_hash: str = None, 
-                    line_count: int = 0, is_tracked: bool = False) -> None:
-        """Update file state with git information."""
+    def update_state(cls, file_path: str, content_hash: str = None, 
+                    line_count: int = 0, file_size: int = 0, 
+                    last_modified: datetime = None) -> None:
+        """Update file state with content information."""
+        if last_modified is None:
+            try:
+                last_modified = datetime.fromtimestamp(os.path.getmtime(file_path))
+            except (OSError, FileNotFoundError):
+                last_modified = datetime.now()
+                
         query = """
             INSERT OR REPLACE INTO file_states 
-            (file_path, git_hash, last_modified, line_count, is_tracked, updated_at)
-            VALUES (?, ?, CURRENT_TIMESTAMP, ?, ?, CURRENT_TIMESTAMP)
+            (file_path, content_hash, last_modified, line_count, file_size, updated_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """
-        db.execute_update(query, (file_path, git_hash, line_count, is_tracked))
+        db.execute_update(query, (file_path, content_hash, last_modified, line_count, file_size))
     
     @classmethod
     def get_state(cls, file_path: str) -> Optional[Dict[str, Any]]:
@@ -575,10 +558,22 @@ class FileStateModel:
         return dict(rows[0]) if rows else None
     
     @classmethod
-    def has_changed(cls, file_path: str, git_hash: str) -> bool:
-        """Check if file has changed based on git hash."""
+    def has_changed(cls, file_path: str, content_hash: str) -> bool:
+        """Check if file has changed based on content hash."""
         current_state = cls.get_state(file_path)
-        return current_state is None or current_state['git_hash'] != git_hash
+        return current_state is None or current_state['content_hash'] != content_hash
+    
+    @classmethod
+    def calculate_content_hash(cls, content: str) -> str:
+        """Calculate SHA-256 hash of file content."""
+        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+    
+    @classmethod
+    def get_all_tracked_files(cls) -> List[Dict[str, Any]]:
+        """Get all files currently being tracked."""
+        query = "SELECT * FROM file_states ORDER BY last_modified DESC"
+        rows = db.execute_query(query)
+        return [dict(row) for row in rows]
 
 # Performance monitoring
 class PerformanceModel:
@@ -590,11 +585,15 @@ class PerformanceModel:
         stats = {}
         
         # Table sizes
-        tables = ['git_commits', 'git_file_changes', 'git_working_changes', 
-                 'events', 'semantic_entries', 'config_values']
+        tables = ['file_versions', 'content_diffs', 'file_changes', 
+                 'events', 'semantic_entries', 'config_values', 'file_states']
         for table in tables:
-            count = db.execute_query(f"SELECT COUNT(*) as count FROM {table}")[0]['count']
-            stats[f"{table}_count"] = count
+            try:
+                count = db.execute_query(f"SELECT COUNT(*) as count FROM {table}")[0]['count']
+                stats[f"{table}_count"] = count
+            except sqlite3.OperationalError:
+                # Table doesn't exist yet
+                stats[f"{table}_count"] = 0
         
         # Database size
         size_result = db.execute_query("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()")[0]
@@ -614,4 +613,4 @@ class PerformanceModel:
         db.execute_update("ANALYZE")
         logger.info("Database analysis completed")
 
-logger.info("Git-native database models initialized successfully")
+logger.info("File-based database models initialized successfully")

@@ -6260,3 +6260,491 @@
 2025-07-30 21:06:28,800 - __main__ - INFO - Starting Obby API server on http://localhost:8001
 2025-07-30 21:06:28,800 - __main__ - INFO - Web interface will be available once the server starts
 2025-07-30 21:06:28,801 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 21:17:26,594 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 21:17:26,594 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 21:17:26,595 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 21:17:28,281 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 21:17:28,282 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 21:17:28,283 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 21:19:23,431 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:23,438 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:23,439 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:23,446 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:23,460 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:23,480 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:23,481 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:23,483 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:23,487 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:23,493 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:24,508 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 21:19:24,520 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 21:19:24,520 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 21:19:24,522 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 21:19:24,524 - root - INFO - Watching directory: notes
+2025-07-30 21:19:24,529 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 21:19:24,534 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 21:19:24,536 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 21:19:24,540 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 21:19:24,544 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 21:19:24,550 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 21:19:24,552 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 21:19:24,554 - root - INFO - Watching directory: notes
+2025-07-30 21:19:24,555 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 21:19:24,556 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 21:19:24,557 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 21:19:25,059 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:25,064 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:25,065 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:25,066 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:25,069 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:25,083 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:25,086 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:25,086 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:25,089 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:25,089 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:28,415 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:28,417 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:28,418 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:28,420 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:28,421 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:33,416 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:33,419 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:33,420 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:33,423 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:33,423 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:38,415 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:38,416 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:38,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:38,419 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:38,419 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:43,415 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:43,417 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:43,418 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:43,420 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:43,421 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:44,535 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:19:44,557 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:19:48,417 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:48,425 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:48,426 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:48,428 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:48,428 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:53,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:53,416 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:53,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:53,419 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:53,420 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:19:58,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:19:58,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:19:58,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:19:58,418 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:19:58,419 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:03,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:03,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:03,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:03,419 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:03,419 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:04,535 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:20:04,558 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:20:08,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:08,416 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:08,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:08,419 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:08,420 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:13,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:13,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:13,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:13,418 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:13,418 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:18,415 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:18,416 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:18,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:18,418 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:18,421 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:23,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:23,416 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:23,416 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:23,420 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:23,420 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:24,546 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:20:24,569 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:20:28,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:28,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:28,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:28,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:28,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:33,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:33,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:33,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:33,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:33,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:38,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:38,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:38,414 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:38,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:38,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:43,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:43,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:43,414 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:43,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:43,419 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:44,554 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:20:44,576 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:20:48,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:48,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:48,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:48,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:48,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:53,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:53,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:53,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:53,420 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:53,421 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:20:58,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:20:58,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:20:58,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:20:58,418 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:20:58,421 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:03,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:03,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:03,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:03,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:03,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:04,571 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:21:04,576 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:21:08,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:08,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:08,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:08,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:08,418 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:13,412 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:13,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:13,414 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:13,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:13,416 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:18,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:18,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:18,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:18,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:18,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:23,412 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:23,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:23,414 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:23,416 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:23,416 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:24,574 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:21:24,577 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:21:28,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:28,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:28,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:28,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:28,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:33,412 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:33,413 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:33,413 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:33,415 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:33,415 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:38,414 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:38,415 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:38,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:38,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:38,419 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:43,419 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:43,424 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:43,425 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:43,425 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:43,429 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:44,574 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:21:44,577 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:21:48,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:48,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:48,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:48,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:48,417 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:53,418 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:53,419 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:53,419 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:53,422 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:53,423 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:21:58,413 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:21:58,414 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:21:58,415 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:21:58,417 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:21:58,418 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:03,429 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:03,432 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:03,432 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:03,437 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:03,438 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:04,574 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:22:04,577 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:22:08,423 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:08,424 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:08,425 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:08,426 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:08,427 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:13,427 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:13,430 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:13,431 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:13,432 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:13,435 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:18,422 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:18,424 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:18,425 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:18,427 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:18,429 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:23,425 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:23,426 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:23,426 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:23,429 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:23,432 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:24,576 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:22:24,578 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:22:28,424 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:28,426 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:28,426 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:28,428 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:28,429 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:33,421 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:33,423 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:33,423 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:33,425 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:33,426 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:38,423 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:38,424 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:38,424 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:38,426 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:38,427 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:43,423 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:43,424 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:43,425 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:43,427 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:43,428 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:44,577 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:22:44,578 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:22:48,423 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:48,425 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:48,425 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:48,426 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:48,429 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:53,425 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:53,426 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:53,426 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:53,428 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:53,428 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:22:58,423 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:22:58,425 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:22:58,425 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:22:58,427 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:22:58,427 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:23:04,577 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:23:04,579 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:23:14,427 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:23:14,428 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:23:14,442 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:23:14,448 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:23:14,449 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:23:24,578 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:23:24,579 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:23:44,579 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:23:44,580 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:24:04,580 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:24:04,580 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:24:14,438 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:24:14,442 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:24:14,443 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:24:14,456 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:24:14,456 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:24:24,581 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:24:24,581 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:24:44,582 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:24:44,582 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:25:04,582 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:25:04,583 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:25:14,424 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:25:14,426 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:25:14,426 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:25:14,432 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:25:14,434 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:25:24,583 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:25:24,583 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:25:44,583 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:25:44,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:26:04,583 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:26:04,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:26:14,424 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:26:14,425 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:26:14,426 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:26:14,428 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:26:14,429 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:26:24,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:26:24,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:26:44,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:26:44,585 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:27:04,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:27:04,585 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:27:14,445 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:27:14,458 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:27:14,460 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:27:14,465 - database.queries - INFO - Retrieved 2 recent commits
+2025-07-30 21:27:14,466 - __main__ - INFO - Retrieved 2 git commits from database
+2025-07-30 21:27:24,584 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:27:24,585 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:27:44,585 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:27:44,585 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:28:04,585 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:28:04,586 - core.monitor - WARNING - Git tracker not initialized, skipping periodic git check
+2025-07-30 21:28:04,842 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 21:28:06,701 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 21:28:06,702 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 21:28:06,703 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 21:28:10,113 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 21:28:10,773 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 21:49:20,199 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 21:49:20,199 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 21:49:20,202 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 21:49:21,808 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 21:49:21,808 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 21:49:21,810 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 21:49:27,237 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 21:49:27,241 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:49:27,242 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:27,247 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:49:27,249 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:49:27,901 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 21:49:27,902 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 21:49:27,902 - root - INFO - Loaded 12 ignore patterns from .obbyignore
+2025-07-30 21:49:27,904 - root - INFO - Loaded 2 watch patterns from .obbywatch
+2025-07-30 21:49:27,905 - root - INFO - Watching directory: notes
+2025-07-30 21:49:27,907 - root - INFO - File watcher started - monitoring 2 markdown files in notes
+2025-07-30 21:49:27,907 - root - INFO - Real-time change detection active for all .md files!
+2025-07-30 21:49:27,908 - core.monitor - INFO - Started periodic checking with 20s interval
+2025-07-30 21:49:28,397 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 21:49:28,400 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:49:28,401 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:28,405 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:49:28,410 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:49:28,430 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:49:28,430 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 21:49:28,430 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:28,442 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:49:28,443 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:49:29,928 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 21:49:29,936 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:49:29,936 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:49:29,942 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:49:29,937 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:29,978 - __main__ - ERROR - Failed to get events count from database: type object 'EventQueries' has no attribute 'get_events_today_count'
+2025-07-30 21:49:29,983 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 5
+2025-07-30 21:49:29,984 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:29,985 - database.queries - INFO - Retrieved 0 recent events
+2025-07-30 21:49:29,991 - __main__ - INFO - Retrieved 0 events from database
+2025-07-30 21:49:31,993 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-30 21:49:31,994 - __main__ - INFO - Creating event stream generator
+2025-07-30 21:49:31,995 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-30 21:49:34,231 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:49:34,232 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:34,245 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:49:34,246 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:37,639 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:49:37,640 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:49:47,968 - database.models - INFO - Created file version 3 for D:\Python Projects\obby\notes\.gitignore
+2025-07-30 21:49:48,015 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\.gitignore
+2025-07-30 21:49:48,031 - database.models - INFO - Created file version 4 for D:\Python Projects\obby\notes\living_note.md
+2025-07-30 21:49:48,070 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md
+2025-07-30 21:49:48,098 - database.models - INFO - Created file version 5 for D:\Python Projects\obby\notes\living_note.md.backup
+2025-07-30 21:49:48,135 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\living_note.md.backup
+2025-07-30 21:49:48,156 - database.models - INFO - Created file version 6 for D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 21:49:48,197 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\semantic_index.json
+2025-07-30 21:49:48,248 - database.models - INFO - Created file version 7 for D:\Python Projects\obby\notes\test.md
+2025-07-30 21:49:48,298 - core.file_tracker - INFO - Tracked file modification: D:\Python Projects\obby\notes\test.md
+2025-07-30 21:49:48,298 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 21:49:48,298 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 21:50:01,996 - __main__ - INFO - Client disconnected from SSE stream
+2025-07-30 21:50:01,996 - __main__ - INFO - Removed client from SSE clients list. Total clients: 0
+2025-07-30 21:50:08,306 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 21:50:08,306 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 21:50:28,334 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 21:50:28,334 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 21:50:28,800 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:50:28,812 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:50:28,854 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:50:28,862 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:50:48,341 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 21:50:48,341 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 21:51:08,354 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 21:51:08,354 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 21:51:26,411 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:51:26,411 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:51:26,418 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 21:51:26,418 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 21:51:28,363 - core.file_tracker - INFO - Scanned directory notes: 5 files processed
+2025-07-30 21:51:28,363 - core.monitor - INFO - Periodic scan detected 5 changed files in notes
+2025-07-30 21:51:37,318 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 21:51:39,284 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 21:51:39,284 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 21:51:39,286 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:02:09,301 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:09,301 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:09,312 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:09,314 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:10,176 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:10,176 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:30,455 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:30,457 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:30,481 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:30,482 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:44,906 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:02:44,906 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:02:44,908 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:02:46,451 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:02:46,451 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:02:46,453 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:02:48,994 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:48,995 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:52,066 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:52,067 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:02:52,081 - __main__ - INFO - DATABASE DIFFS API CALLED - Limit: 50
+2025-07-30 22:02:52,082 - __main__ - ERROR - Error retrieving git commits from database: name 'GitQueries' is not defined
+2025-07-30 22:05:33,956 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:05:35,543 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:05:35,543 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:05:35,545 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:05:37,813 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:05:40,567 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:05:40,568 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:05:40,575 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:05:46,222 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:05:48,005 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:05:48,005 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:05:48,007 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:06:04,374 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:06:06,082 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:06:06,083 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:06:06,085 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:06:09,443 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:06:11,232 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:06:11,233 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:06:11,235 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:06:25,270 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:06:26,992 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:06:26,993 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:06:26,994 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:06:37,928 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:06:39,838 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:06:39,838 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:06:39,840 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:08:00,138 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:08:02,058 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:08:02,059 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:08:02,061 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:08:08,991 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:08:08,992 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:08:08,994 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:08:10,354 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 22:08:10,355 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 22:08:10,357 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-30 22:08:22,622 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 22:08:36,090 - api_server - INFO - DATABASE DIFFS API CALLED - Limit: 10
+2025-07-30 22:08:36,094 - database.queries - INFO - Retrieved 1 recent diffs
+2025-07-30 22:08:36,094 - api_server - INFO - Retrieved 1 content diffs from database

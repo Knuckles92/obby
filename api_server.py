@@ -18,7 +18,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 # Import database layer
-from database.queries import EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries, GitQueries
+from database.queries import FileQueries, EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries
 
 from core.monitor import ObbyMonitor
 from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
@@ -153,15 +153,15 @@ def get_recent_diffs():
         
         logger.info(f"DATABASE DIFFS API CALLED - Limit: {limit}")
         
-        # Use GitQueries for git-based system
-        diff_files = GitQueries.get_recent_diffs(limit=limit)
+        # Use FileQueries for file-based system
+        diff_files = FileQueries.get_recent_diffs(limit=limit)
         
-        logger.info(f"Retrieved {len(diff_files)} git commits from database")
+        logger.info(f"Retrieved {len(diff_files)} content diffs from database")
         return jsonify(diff_files)
         
     except Exception as e:
-        logger.error(f"Error retrieving git commits from database: {e}")
-        return jsonify({'error': 'Failed to retrieve git commits'}), 500
+        logger.error(f"Error retrieving content diffs from database: {e}")
+        return jsonify({'error': 'Failed to retrieve content diffs'}), 500
 
 @app.route('/api/diffs/<diff_id>', methods=['GET'])
 def get_full_diff_content(diff_id):
@@ -186,59 +186,157 @@ def get_full_diff_content(diff_id):
         logger.error(f"Error retrieving full diff content: {e}")
         return jsonify({'error': 'Failed to retrieve diff content'}), 500
 
-@app.route('/api/git/working-changes', methods=['GET'])
-def get_git_working_changes():
-    """Get current working directory changes"""
+@app.route('/api/files/recent-changes', methods=['GET'])
+def get_recent_file_changes():
+    """Get recent file changes"""
     try:
-        status_filter = request.args.get('status', None)
-        working_changes = GitQueries.get_working_changes(status=status_filter)
-        logger.info(f"Retrieved {len(working_changes)} working changes")
-        return jsonify(working_changes)
+        limit = int(request.args.get('limit', 50))
+        change_type = request.args.get('type', None)
+        
+        from database.models import FileChangeModel
+        file_changes = FileChangeModel.get_recent(limit=limit, change_type=change_type)
+        logger.info(f"Retrieved {len(file_changes)} recent file changes")
+        return jsonify(file_changes)
         
     except Exception as e:
-        logger.error(f"Error retrieving working changes: {e}")
-        return jsonify({'error': 'Failed to retrieve working changes'}), 500
+        logger.error(f"Error retrieving file changes: {e}")
+        return jsonify({'error': 'Failed to retrieve file changes'}), 500
 
-@app.route('/api/git/status', methods=['GET'])
-def get_git_repository_status():
-    """Get current git repository status"""
+@app.route('/api/files/status', methods=['GET'])
+def get_file_monitoring_status():
+    """Get current file monitoring status"""
     try:
-        repo_status = GitQueries.get_repository_status()
-        logger.info("Retrieved git repository status")
-        return jsonify(repo_status)
+        from database.models import PerformanceModel, FileVersionModel, FileChangeModel
+        
+        # Get monitoring statistics
+        stats = PerformanceModel.get_stats()
+        
+        # Add file-specific stats
+        recent_versions = FileVersionModel.get_recent(limit=10)
+        recent_changes = FileChangeModel.get_recent(limit=10)
+        
+        status = {
+            'monitoring_active': monitoring_active,
+            'database_stats': stats,
+            'recent_activity': {
+                'versions': len(recent_versions),
+                'changes': len(recent_changes)
+            },
+            'last_activity': recent_changes[0]['timestamp'] if recent_changes else None
+        }
+        
+        logger.info("Retrieved file monitoring status")
+        return jsonify(status)
         
     except Exception as e:
-        logger.error(f"Error retrieving repository status: {e}")
-        return jsonify({'error': 'Failed to retrieve repository status'}), 500
+        logger.error(f"Error retrieving monitoring status: {e}")
+        return jsonify({'error': 'Failed to retrieve monitoring status'}), 500
 
-@app.route('/api/git/sync', methods=['POST'])
-def sync_git_commits():
-    """Manually sync git commits to database"""
+@app.route('/api/files/scan', methods=['POST'])
+def scan_files():
+    """Manually scan files for changes"""
     try:
-        from git_integration.git_client import GitClient
-        from database.queries import GitQueries
+        from core.file_tracker import file_tracker
         
-        # Initialize git client to point to the notes folder, not the Obby codebase
-        git_client = GitClient(repo_path=str(NOTES_FOLDER))
-        sync_result = GitQueries.sync_git_commits_to_database(git_client)
+        # Get scan parameters
+        directory = request.json.get('directory', str(NOTES_FOLDER)) if request.json else str(NOTES_FOLDER)
+        recursive = request.json.get('recursive', True) if request.json else True
         
-        if sync_result['success']:
-            logger.info(f"Manual git sync successful: {sync_result['synced_commits']} commits synced")
+        # Perform file scan
+        files_processed = file_tracker.scan_directory(directory, recursive=recursive)
+        
+        logger.info(f"Manual file scan completed: {files_processed} files processed")
+        return jsonify({
+            'message': 'File scan completed successfully',
+            'filesProcessed': files_processed,
+            'directory': directory,
+            'recursive': recursive
+        })
+        
+    except Exception as e:
+        logger.error(f"Error during manual file scan: {e}")
+        return jsonify({'error': f'Failed to scan files: {str(e)}'}), 500
+
+@app.route('/api/files/clear', methods=['POST'])
+def clear_file_data():
+    """Clear all file tracking data"""
+    try:
+        from database.queries import FileQueries
+        
+        # Clear all file data
+        clear_result = FileQueries.clear_all_file_data()
+        
+        if clear_result['success']:
+            logger.info(f"File data cleared successfully")
             return jsonify({
-                'message': 'Git sync completed successfully',
-                'syncedCommits': sync_result['synced_commits'],
-                'errors': sync_result['errors']
+                'message': 'File data cleared successfully',
+                'clearedRecords': {
+                    'contentDiffs': clear_result.get('content_diffs_cleared', 0),
+                    'fileVersions': clear_result.get('file_versions_cleared', 0),
+                    'fileChanges': clear_result.get('file_changes_cleared', 0),
+                    'fileStates': clear_result.get('file_states_cleared', 0)
+                }
             })
         else:
-            logger.warning(f"Manual git sync failed: {sync_result.get('error', 'Unknown error')}")
             return jsonify({
-                'error': 'Git sync failed',
-                'details': sync_result.get('error', 'Unknown error')
+                'error': 'Failed to clear file data',
+                'details': clear_result.get('error', 'Unknown error')
             }), 500
         
     except Exception as e:
-        logger.error(f"Error during manual git sync: {e}")
-        return jsonify({'error': f'Failed to sync git commits: {str(e)}'}), 500
+        logger.error(f"Error clearing file data: {e}")
+        return jsonify({'error': f'Failed to clear file data: {str(e)}'}), 500
+
+@app.route('/api/files/history/<path:file_path>', methods=['GET'])
+def get_file_history(file_path):
+    """Get version history for a specific file"""
+    try:
+        limit = int(request.args.get('limit', 50))
+        
+        from core.file_tracker import file_tracker
+        history = file_tracker.get_file_history(file_path, limit=limit)
+        
+        logger.info(f"Retrieved history for {file_path}: {len(history.get('versions', []))} versions")
+        return jsonify(history)
+        
+    except Exception as e:
+        logger.error(f"Error retrieving file history for {file_path}: {e}")
+        return jsonify({'error': 'Failed to retrieve file history'}), 500
+
+@app.route('/api/files/diff/<path:file_path>', methods=['GET'])
+def get_file_diff(file_path):
+    """Get diff between file versions"""
+    try:
+        old_version_id = request.args.get('old_version_id', type=int)
+        new_version_id = request.args.get('new_version_id', type=int)
+        
+        from core.file_tracker import file_tracker
+        diff_content = file_tracker.get_file_diff(file_path, old_version_id, new_version_id)
+        
+        if diff_content:
+            return jsonify({'diff': diff_content})
+        else:
+            return jsonify({'error': 'Diff not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error retrieving file diff for {file_path}: {e}")
+        return jsonify({'error': 'Failed to retrieve file diff'}), 500
+
+@app.route('/api/files/state/<path:file_path>', methods=['GET'])
+def get_file_state(file_path):
+    """Get current state of a file"""
+    try:
+        from core.file_tracker import file_tracker
+        state = file_tracker.get_current_file_state(file_path)
+        
+        if state:
+            return jsonify(state)
+        else:
+            return jsonify({'error': 'File state not found'}), 404
+        
+    except Exception as e:
+        logger.error(f"Error retrieving file state for {file_path}: {e}")
+        return jsonify({'error': 'Failed to retrieve file state'}), 500
 
 @app.route('/api/living-note', methods=['GET'])
 def get_living_note():
@@ -430,16 +528,8 @@ def trigger_living_note_update():
                 if commit_hash:
                     logger.info(f"SUCCESS: Committed {len(files_to_commit)} files before AI processing: {commit_hash[:8]}")
                     
-                    # Sync the new commit to database so it appears in DiffViewer immediately
-                    try:
-                        from database.queries import GitQueries
-                        sync_result = GitQueries.sync_git_commits_to_database(git_client)
-                        if sync_result['success']:
-                            logger.info(f"Database sync successful: {sync_result['synced_commits']} commits synced")
-                        else:
-                            logger.warning(f"Database sync failed: {sync_result.get('error', 'Unknown error')}")
-                    except Exception as sync_error:
-                        logger.error(f"Exception during database sync: {sync_error}", exc_info=True)
+                    # Note: File-based system doesn't need git sync
+                    logger.info("File-based tracking system active - no git sync needed")
                         
                 else:
                     logger.error("FAILED: auto_commit_multiple_files returned None")
@@ -449,7 +539,7 @@ def trigger_living_note_update():
             logger.error(f"Exception during git commit: {e}", exc_info=True)
         
         # Get recent diffs from the last 24 hours (now includes the changes we just committed)
-        recent_diffs = GitQueries.get_recent_diffs(limit=10)
+        recent_diffs = FileQueries.get_recent_diffs(limit=10)
         
         if recent_diffs:
             # Combine recent diff content for AI analysis
@@ -471,13 +561,8 @@ def trigger_living_note_update():
         
         ai_client.update_living_note(living_note_path, summary, "manual", settings)
         
-        # Sync any commits made during living note update (e.g., living_note.md auto-commit)
-        try:
-            sync_result = GitQueries.sync_git_commits_to_database(git_client)
-            if sync_result['success'] and sync_result['synced_commits'] > 0:
-                logger.info(f"Post-update database sync successful: {sync_result['synced_commits']} commits synced")
-        except Exception as sync_error:
-            logger.error(f"Exception during post-update database sync: {sync_error}", exc_info=True)
+        # Note: File-based system tracks changes automatically via watchdog
+        logger.info("File-based tracking system active - changes tracked automatically")
         
         logger.info("Living note update triggered with real diff data")
         return jsonify({
@@ -635,16 +720,16 @@ def clear_recent_events():
 
 @app.route('/api/diffs/clear', methods=['POST'])
 def clear_recent_diffs():
-    """Clear all git data from database"""
+    """Clear all file-based data from database"""
     try:
-        # For git system, clear all git-related data
-        result = GitQueries.clear_all_git_data()
-        logger.info(f"Cleared git data via database: {result}")
+        # For file-based system, clear all file tracking data
+        result = FileQueries.clear_all_file_data()
+        logger.info(f"Cleared file data via database: {result}")
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"Error clearing git data: {e}")
-        return jsonify({'error': f'Failed to clear git data: {str(e)}'}), 500
+        logger.error(f"Error clearing file data: {e}")
+        return jsonify({'error': f'Failed to clear file data: {str(e)}'}), 500
 
 @app.route('/api/config', methods=['GET'])
 def get_config():

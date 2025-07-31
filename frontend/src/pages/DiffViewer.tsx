@@ -1,54 +1,54 @@
 import { useState, useEffect } from 'react'
-import { GitBranch, Clock, FileText, Trash2, User, Hash, GitCommit as GitCommitIcon, RefreshCw } from 'lucide-react'
-import { GitCommit, GitWorkingChange, GitRepositoryStatus } from '../types'
+import { FileText, Clock, Hash, RefreshCw, Trash2, Archive } from 'lucide-react'
+import { ContentDiff, FileChange, FileMonitoringStatus } from '../types'
 import { apiFetch } from '../utils/api'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 
 export default function DiffViewer() {
-  const [commits, setCommits] = useState<GitCommit[]>([])
-  const [workingChanges, setWorkingChanges] = useState<GitWorkingChange[]>([])
-  const [selectedCommit, setSelectedCommit] = useState<GitCommit | null>(null)
-  const [selectedWorkingChange, setSelectedWorkingChange] = useState<GitWorkingChange | null>(null)
-  const [repoStatus, setRepoStatus] = useState<GitRepositoryStatus | null>(null)
+  const [diffs, setDiffs] = useState<ContentDiff[]>([])
+  const [fileChanges, setFileChanges] = useState<FileChange[]>([])
+  const [selectedDiff, setSelectedDiff] = useState<ContentDiff | null>(null)
+  const [selectedChange, setSelectedChange] = useState<FileChange | null>(null)
+  const [monitoringStatus, setMonitoringStatus] = useState<FileMonitoringStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState<'commits' | 'working'>('commits')
+  const [activeTab, setActiveTab] = useState<'diffs' | 'changes'>('diffs')
 
   useEffect(() => {
-    fetchGitData()
+    fetchFileData()
   }, [])
 
-  const fetchGitData = async () => {
+  const fetchFileData = async () => {
     try {
       setError(null)
       
-      // Fetch commits (using the existing /api/diffs endpoint which now returns git commits)
-      const commitsResponse = await apiFetch('/api/diffs?limit=50')
-      if (!commitsResponse.ok) {
-        throw new Error(`Failed to fetch commits: ${commitsResponse.status}`)
+      // Fetch recent diffs
+      const diffsResponse = await apiFetch('/api/diffs?limit=50')
+      if (!diffsResponse.ok) {
+        throw new Error(`Failed to fetch diffs: ${diffsResponse.status}`)
       }
-      const commitsData = await commitsResponse.json()
+      const diffsData = await diffsResponse.json()
       
-      // Fetch working changes
-      const workingResponse = await apiFetch('/api/git/working-changes')
-      const workingData = workingResponse.ok ? await workingResponse.json() : []
+      // Fetch recent file changes
+      const changesResponse = await apiFetch('/api/files/recent-changes?limit=50')
+      const changesData = changesResponse.ok ? await changesResponse.json() : []
       
-      // Fetch repository status
-      const statusResponse = await apiFetch('/api/git/status') 
+      // Fetch file monitoring status
+      const statusResponse = await apiFetch('/api/files/status') 
       const statusData = statusResponse.ok ? await statusResponse.json() : null
       
-      setCommits(Array.isArray(commitsData) ? commitsData : [])
-      setWorkingChanges(Array.isArray(workingData) ? workingData : [])
-      setRepoStatus(statusData)
+      setDiffs(Array.isArray(diffsData) ? diffsData : [])
+      setFileChanges(Array.isArray(changesData) ? changesData : [])
+      setMonitoringStatus(statusData)
       
     } catch (error) {
-      console.error('Error fetching git data:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load git data')
-      setCommits([])
-      setWorkingChanges([])
+      console.error('Error fetching file data:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load file data')
+      setDiffs([])
+      setFileChanges([])
     } finally {
       setLoading(false)
     }
@@ -57,41 +57,42 @@ export default function DiffViewer() {
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      await fetchGitData()
+      await fetchFileData()
     } finally {
       setRefreshing(false)
     }
   }
 
-  const handleCommitSelection = (commit: GitCommit) => {
-    setSelectedCommit(commit)
-    setSelectedWorkingChange(null)
+  const handleDiffSelection = (diff: ContentDiff) => {
+    setSelectedDiff(diff)
+    setSelectedChange(null)
   }
 
-  const handleWorkingChangeSelection = (change: GitWorkingChange) => {
-    setSelectedWorkingChange(change)
-    setSelectedCommit(null)
+  const handleChangeSelection = (change: FileChange) => {
+    setSelectedChange(change)
+    setSelectedDiff(null)
   }
 
-  const handleClearAllDiffs = async () => {
+  const handleClearAllData = async () => {
     try {
       setClearing(true)
-      const response = await apiFetch('/api/diffs/clear', {
+      // Note: This endpoint may need to be implemented
+      const response = await apiFetch('/api/files/clear', {
         method: 'POST'
       })
       
       if (!response.ok) {
-        throw new Error(`Failed to clear diffs: ${response.status}`)
+        throw new Error(`Failed to clear data: ${response.status}`)
       }
       
-      await fetchGitData()
-      setSelectedCommit(null)
-      setSelectedWorkingChange(null)
+      await fetchFileData()
+      setSelectedDiff(null)
+      setSelectedChange(null)
       setShowClearDialog(false)
       
     } catch (error) {
-      console.error('Error clearing diffs:', error)
-      setError(error instanceof Error ? error.message : 'Failed to clear diffs')
+      console.error('Error clearing data:', error)
+      setError(error instanceof Error ? error.message : 'Failed to clear data')
     } finally {
       setClearing(false)
     }
@@ -111,115 +112,47 @@ export default function DiffViewer() {
 
   const getChangeTypeColor = (type: string) => {
     switch (type) {
-      case 'added': return 'text-green-600 bg-green-50'
+      case 'created': return 'text-green-600 bg-green-50'
       case 'modified': return 'text-blue-600 bg-blue-50'
       case 'deleted': return 'text-red-600 bg-red-50'
-      case 'renamed': return 'text-purple-600 bg-purple-50'
-      case 'untracked': return 'text-yellow-600 bg-yellow-50'
+      case 'moved': return 'text-purple-600 bg-purple-50'
       default: return 'text-gray-600 bg-gray-50'
     }
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'staged': return 'text-green-600 bg-green-100'
-      case 'unstaged': return 'text-orange-600 bg-orange-100'
-      case 'untracked': return 'text-yellow-600 bg-yellow-100'
-      default: return 'text-gray-600 bg-gray-100'
-    }
-  }
-
   const renderSelectedContent = () => {
-    if (selectedCommit) {
-      return (
-        <div>
-          <div className="flex items-start space-x-4 mb-4 p-4 bg-gray-50 rounded-md">
-            <GitCommitIcon className="h-5 w-5 text-gray-600 mt-1" />
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <code className="px-2 py-1 bg-gray-200 rounded text-sm font-mono">
-                  {selectedCommit.shortHash}
-                </code>
-                <span className="text-sm text-gray-500">on {selectedCommit.branch}</span>
-              </div>
-              <h3 className="font-medium text-gray-900 mb-1">{selectedCommit.message}</h3>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <div className="flex items-center space-x-1">
-                  <User className="h-3 w-3" />
-                  <span>{selectedCommit.author}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{new Date(selectedCommit.timestamp).toLocaleString()}</span>
-                </div>
-                <span>{selectedCommit.filesChanged} file(s) changed</span>
-              </div>
-            </div>
-          </div>
-          
-          <div className="space-y-3">
-            <h4 className="font-medium text-gray-900">Files Changed:</h4>
-            {selectedCommit.changes.map((change, index) => (
-              <div key={index} className="border border-gray-200 rounded-md">
-                <div className="flex items-center justify-between p-3 bg-gray-50 border-b">
-                  <div className="flex items-center space-x-2">
-                    <FileText className="h-4 w-4 text-gray-600" />
-                    <span className="font-medium">{change.path}</span>
-                    <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(change.type)}`}>
-                      {change.type}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600">
-                    +{change.linesAdded} -{change.linesRemoved}
-                  </div>
-                </div>
-                {change.diff && (
-                  <pre className="text-xs bg-gray-900 text-gray-100 p-4 overflow-auto whitespace-pre-wrap max-h-96">
-                    {change.diff}
-                  </pre>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )
-    }
-
-    if (selectedWorkingChange) {
+    if (selectedDiff) {
       return (
         <div>
           <div className="flex items-start space-x-4 mb-4 p-4 bg-gray-50 rounded-md">
             <FileText className="h-5 w-5 text-gray-600 mt-1" />
             <div className="flex-1">
               <div className="flex items-center space-x-2 mb-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(selectedWorkingChange.status)}`}>
-                  {selectedWorkingChange.status}
+                <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(selectedDiff.changeType)}`}>
+                  {selectedDiff.changeType}
                 </span>
-                <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(selectedWorkingChange.changeType)}`}>
-                  {selectedWorkingChange.changeType}
-                </span>
+                <code className="px-2 py-1 bg-gray-200 rounded text-sm font-mono">
+                  {selectedDiff.id}
+                </code>
               </div>
-              <h3 className="font-medium text-gray-900 mb-1">{selectedWorkingChange.filePath}</h3>
+              <h3 className="font-medium text-gray-900 mb-1">{selectedDiff.filePath}</h3>
               <div className="flex items-center space-x-4 text-sm text-gray-600">
                 <div className="flex items-center space-x-1">
-                  <GitBranch className="h-3 w-3" />
-                  <span>{selectedWorkingChange.branch}</span>
-                </div>
-                <div className="flex items-center space-x-1">
                   <Clock className="h-3 w-3" />
-                  <span>{formatTimeAgo(selectedWorkingChange.timestamp)}</span>
+                  <span>{new Date(selectedDiff.timestamp).toLocaleString()}</span>
                 </div>
+                <span>+{selectedDiff.linesAdded} -{selectedDiff.linesRemoved}</span>
               </div>
             </div>
           </div>
           
-          {selectedWorkingChange.diff && (
+          {selectedDiff.diffContent && (
             <div className="border border-gray-200 rounded-md">
               <div className="p-3 bg-gray-50 border-b">
                 <h4 className="font-medium text-gray-900">Changes:</h4>
               </div>
               <pre className="text-xs bg-gray-900 text-gray-100 p-4 overflow-auto whitespace-pre-wrap max-h-96">
-                {selectedWorkingChange.diff}
+                {selectedDiff.diffContent}
               </pre>
             </div>
           )}
@@ -227,9 +160,45 @@ export default function DiffViewer() {
       )
     }
 
+    if (selectedChange) {
+      return (
+        <div>
+          <div className="flex items-start space-x-4 mb-4 p-4 bg-gray-50 rounded-md">
+            <FileText className="h-5 w-5 text-gray-600 mt-1" />
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-2">
+                <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(selectedChange.changeType)}`}>
+                  {selectedChange.changeType}
+                </span>
+              </div>
+              <h3 className="font-medium text-gray-900 mb-1">{selectedChange.filePath}</h3>
+              <div className="flex items-center space-x-4 text-sm text-gray-600">
+                <div className="flex items-center space-x-1">
+                  <Clock className="h-3 w-3" />
+                  <span>{formatTimeAgo(selectedChange.timestamp)}</span>
+                </div>
+                {selectedChange.newContentHash && (
+                  <div className="flex items-center space-x-1">
+                    <Hash className="h-3 w-3" />
+                    <code className="text-xs">{selectedChange.newContentHash.substring(0, 8)}</code>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 bg-blue-50 rounded-md">
+            <p className="text-sm text-blue-800">
+              File change event recorded. Use the diff viewer above for detailed content comparison.
+            </p>
+          </div>
+        </div>
+      )
+    }
+
     return (
       <p className="text-gray-600 text-center py-8">
-        Select a commit or working change to view details
+        Select a diff or file change to view details
       </p>
     )
   }
@@ -239,23 +208,23 @@ export default function DiffViewer() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center">
-          <GitBranch className="h-6 w-6 text-gray-600 mr-3" />
-          <h1 className="text-2xl font-bold text-gray-900">Git History</h1>
+          <Archive className="h-6 w-6 text-gray-600 mr-3" />
+          <h1 className="text-2xl font-bold text-gray-900">File History</h1>
         </div>
         
-        {repoStatus && (
+        {monitoringStatus && (
           <div className="flex items-center space-x-4 text-sm text-gray-600">
             <div className="flex items-center space-x-1">
-              <GitBranch className="h-4 w-4" />
-              <span>{repoStatus.branch}</span>
+              <FileText className="h-4 w-4" />
+              <span>{monitoringStatus.tracked_files_count} files tracked</span>
             </div>
             <div className="flex items-center space-x-1">
               <Hash className="h-4 w-4" />
-              <code className="text-xs">{(repoStatus.headCommit || 'unknown').substring(0, 8)}</code>
+              <span>{monitoringStatus.system_type}</span>
             </div>
-            {repoStatus.isDirty && (
-              <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded-full text-xs">
-                {repoStatus.stagedFiles + repoStatus.unstagedFiles + repoStatus.untrackedFiles} pending
+            {monitoringStatus.monitoring_active && (
+              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                Active
               </span>
             )}
           </div>
@@ -263,29 +232,29 @@ export default function DiffViewer() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Panel - Commits and Working Changes */}
+        {/* Left Panel - Diffs and Changes */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div className="flex space-x-1">
               <button
-                onClick={() => setActiveTab('commits')}
+                onClick={() => setActiveTab('diffs')}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'commits'
+                  activeTab === 'diffs'
                     ? 'bg-primary-100 text-primary-700'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Commits ({commits.length})
+                Content Diffs ({diffs.length})
               </button>
               <button
-                onClick={() => setActiveTab('working')}
+                onClick={() => setActiveTab('changes')}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'working'
+                  activeTab === 'changes'
                     ? 'bg-primary-100 text-primary-700'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Working Changes ({workingChanges.length})
+                File Changes ({fileChanges.length})
               </button>
             </div>
             
@@ -299,7 +268,7 @@ export default function DiffViewer() {
                 Refresh
               </button>
               
-              {(commits.length > 0 || workingChanges.length > 0) && (
+              {(diffs.length > 0 || fileChanges.length > 0) && (
                 <button
                   onClick={() => setShowClearDialog(true)}
                   className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
@@ -318,10 +287,10 @@ export default function DiffViewer() {
             </div>
           ) : error ? (
             <div className="text-center py-8">
-              <p className="text-red-600 mb-2">Error loading git data</p>
+              <p className="text-red-600 mb-2">Error loading file data</p>
               <p className="text-sm text-gray-600 mb-4">{error}</p>
               <button
-                onClick={fetchGitData}
+                onClick={fetchFileData}
                 className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
               >
                 Retry
@@ -329,51 +298,50 @@ export default function DiffViewer() {
             </div>
           ) : (
             <div className="space-y-2 max-h-96 overflow-y-auto">
-              {activeTab === 'commits' && commits.length > 0 && commits.map((commit) => (
+              {activeTab === 'diffs' && diffs.length > 0 && diffs.map((diff) => (
                 <div
-                  key={commit.id}
-                  onClick={() => handleCommitSelection(commit)}
+                  key={diff.id}
+                  onClick={() => handleDiffSelection(diff)}
                   className={`p-3 rounded-md cursor-pointer transition-colors ${
-                    selectedCommit?.id === commit.id
+                    selectedDiff?.id === diff.id
                       ? 'bg-primary-50 border border-primary-200'
                       : 'bg-gray-50 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
+                      <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(diff.changeType)}`}>
+                        {diff.changeType}
+                      </span>
                       <code className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">
-                        {commit.shortHash}
+                        {diff.id}
                       </code>
-                      <span className="text-sm text-gray-600">{commit.branch}</span>
                     </div>
                     <div className="flex items-center text-xs text-gray-500">
                       <Clock className="h-3 w-3 mr-1" />
-                      {formatTimeAgo(commit.timestamp)}
+                      {formatTimeAgo(diff.timestamp)}
                     </div>
                   </div>
-                  <p className="text-sm font-medium text-gray-900 mb-1">{commit.message}</p>
+                  <p className="text-sm font-medium text-gray-900 mb-1">{diff.filePath}</p>
                   <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span>{commit.author}</span>
-                    <span>{commit.filesChanged} file(s)</span>
+                    <span>+{diff.linesAdded} -{diff.linesRemoved}</span>
+                    <span>{diff.changeType}</span>
                   </div>
                 </div>
               ))}
               
-              {activeTab === 'working' && workingChanges.length > 0 && workingChanges.map((change) => (
+              {activeTab === 'changes' && fileChanges.length > 0 && fileChanges.map((change) => (
                 <div
                   key={change.id}
-                  onClick={() => handleWorkingChangeSelection(change)}
+                  onClick={() => handleChangeSelection(change)}
                   className={`p-3 rounded-md cursor-pointer transition-colors ${
-                    selectedWorkingChange?.id === change.id
+                    selectedChange?.id === change.id
                       ? 'bg-primary-50 border border-primary-200'
                       : 'bg-gray-50 hover:bg-gray-100'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(change.status)}`}>
-                        {change.status}
-                      </span>
                       <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(change.changeType)}`}>
                         {change.changeType}
                       </span>
@@ -384,15 +352,20 @@ export default function DiffViewer() {
                     </div>
                   </div>
                   <p className="text-sm font-medium text-gray-900">{change.filePath}</p>
+                  {change.newContentHash && (
+                    <p className="text-xs text-gray-500 font-mono mt-1">
+                      {change.newContentHash.substring(0, 16)}...
+                    </p>
+                  )}
                 </div>
               ))}
               
-              {activeTab === 'commits' && commits.length === 0 && (
-                <p className="text-gray-600 text-center py-8">No commits found</p>
+              {activeTab === 'diffs' && diffs.length === 0 && (
+                <p className="text-gray-600 text-center py-8">No content diffs found</p>
               )}
               
-              {activeTab === 'working' && workingChanges.length === 0 && (
-                <p className="text-gray-600 text-center py-8">No working changes</p>
+              {activeTab === 'changes' && fileChanges.length === 0 && (
+                <p className="text-gray-600 text-center py-8">No file changes found</p>
               )}
             </div>
           )}
@@ -401,7 +374,7 @@ export default function DiffViewer() {
         {/* Right Panel - Details */}
         <div className="card">
           <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {selectedCommit ? 'Commit Details' : selectedWorkingChange ? 'Change Details' : 'Details'}
+            {selectedDiff ? 'Content Diff Details' : selectedChange ? 'File Change Details' : 'Details'}
           </h3>
           {renderSelectedContent()}
         </div>
@@ -410,14 +383,14 @@ export default function DiffViewer() {
       <ConfirmationDialog
         isOpen={showClearDialog}
         onClose={() => setShowClearDialog(false)}
-        onConfirm={handleClearAllDiffs}
-        title="Clear All Git History"
-        message={`Are you sure you want to clear all ${commits.length} commit(s) and ${workingChanges.length} working change(s) from the database? This will not affect your actual git repository.`}
+        onConfirm={handleClearAllData}
+        title="Clear All File History"
+        message={`Are you sure you want to clear all ${diffs.length} diff(s) and ${fileChanges.length} file change(s) from the database? This will not affect your actual files.`}
         confirmText="Clear All"
         cancelText="Cancel"
         danger={true}
         loading={clearing}
-        extraWarning="This will only clear Obby's database records, not your git history."
+        extraWarning="This will only clear Obby's database records, not your actual files."
       />
     </div>
   )

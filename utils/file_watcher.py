@@ -16,7 +16,7 @@ from database.queries import EventQueries
 class NoteChangeHandler(FileSystemEventHandler):
     """Handles file system events for note changes."""
     
-    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None):
+    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None, file_tracker=None):
         """
         Initialize the note change handler.
         
@@ -25,10 +25,12 @@ class NoteChangeHandler(FileSystemEventHandler):
             ai_client: OpenAIClient instance for generating summaries
             living_note_path: Path to the living note file
             utils_folder: Path to the utils folder (defaults to notes_folder/utils)
+            file_tracker: FileContentTracker instance for change tracking
         """
         self.notes_folder = Path(notes_folder)
         self.ai_client = ai_client
         self.living_note_path = living_note_path
+        self.file_tracker = file_tracker
         self.last_event_times = {}  # Track debounce per file
         self.debounce_delay = 0.5  # 500ms debounce to prevent duplicate events
         
@@ -67,7 +69,7 @@ class NoteChangeHandler(FileSystemEventHandler):
                 return
                 
             self.last_event_times[str(file_path)] = current_time
-            self._process_note_change(file_path)
+            self._process_note_change(file_path, 'modified')
     
     def on_created(self, event):
         """Handle file creation events."""
@@ -89,7 +91,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             
         if file_path.suffix.lower() == '.md':
             logging.info(f"Note file created: {file_path}")
-            self._process_note_change(file_path)
+            self._process_note_change(file_path, 'created')
         
         # Also log any file creation for tree tracking
         self._process_tree_change("created", event.src_path, is_directory=False)
@@ -114,7 +116,8 @@ class NoteChangeHandler(FileSystemEventHandler):
             
         if file_path.suffix.lower() == '.md':
             logging.info(f"Note file deleted: {file_path}")
-            # For deleted files, we can't process content but we should log the event
+            # For deleted files, track the deletion event
+            self._process_note_change(file_path, 'deleted')
             self._process_tree_change("deleted", event.src_path, is_directory=False)
         else:
             # Log any file deletion for tree tracking
@@ -156,38 +159,61 @@ class NoteChangeHandler(FileSystemEventHandler):
         # Log any file move for tree tracking
         self._process_tree_change("moved", event.src_path, dest_path=event.dest_path, is_directory=False)
     
-    def _process_note_change(self, file_path):
-        """Process a detected note change."""
+    def _process_note_change(self, file_path, change_type='modified'):
+        """Process a detected note change using file tracker."""
         try:
-            # For git-based tracking, we process all detected changes
-            # The git system will handle determining actual content changes
-            if file_path.exists():
-                logging.debug(f"Processing changes in: {file_path.name}")
+            logging.debug(f"Processing {change_type} change in: {file_path.name}")
+            
+            # Use file tracker to process the change
+            if self.file_tracker:
+                version_id = self.file_tracker.track_file_change(str(file_path), change_type)
                 
-                # Read the current file content
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        current_content = f.read()
-                except (UnicodeDecodeError, IOError) as e:
-                    logging.warning(f"Could not read file {file_path.name}: {e}")
-                    return
-                
-                # Get recent tree changes for context
-                from database.queries import EventQueries
-                recent_tree_changes = EventQueries.get_recent_tree_changes(limit=5, time_window_minutes=10)
-                
-                # Generate AI summary with tree change context and update living note
-                # Pass the full content as a simple diff for now
-                summary = self.ai_client.summarize_diff(current_content, recent_tree_changes=recent_tree_changes)
-                
-                # Store the file path in AI client for semantic indexing
-                self.ai_client._current_file_path = str(file_path)
-                self.ai_client.update_living_note(self.living_note_path, summary, "content")
+                if version_id and change_type != 'deleted':
+                    # For created/modified files, update living note with AI analysis
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            current_content = f.read()
+                        
+                        # Get recent events for context
+                        from database.models import EventModel
+                        recent_events = EventModel.get_recent(limit=5)
+                        
+                        # Generate AI summary
+                        summary = self.ai_client.summarize_diff(current_content, recent_tree_changes=recent_events)
+                        
+                        # Store the file path in AI client for semantic indexing
+                        self.ai_client._current_file_path = str(file_path)
+                        self.ai_client.update_living_note(self.living_note_path, summary, "content")
+                        
+                    except (UnicodeDecodeError, IOError) as e:
+                        logging.warning(f"Could not read file {file_path.name}: {e}")
+                        
+                elif change_type == 'deleted':
+                    # For deleted files, just update living note
+                    summary = f"File deleted: {file_path.name}"
+                    self.ai_client.update_living_note(self.living_note_path, summary, "deletion")
             else:
-                logging.debug(f"File {file_path.name} no longer exists, skipping processing")
+                logging.warning("File tracker not available, using legacy processing")
+                # Fallback to legacy processing if no file tracker
+                self._legacy_process_note_change(file_path)
                 
         except Exception as e:
             logging.error(f"Error processing note change in {file_path.name}: {e}")
+    
+    def _legacy_process_note_change(self, file_path):
+        """Legacy processing method for when file tracker is not available."""
+        if file_path.exists():
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    current_content = f.read()
+                    
+                # Simple AI processing without version tracking
+                summary = self.ai_client.summarize_diff(current_content, recent_tree_changes=[])
+                self.ai_client._current_file_path = str(file_path)
+                self.ai_client.update_living_note(self.living_note_path, summary, "content")
+                
+            except (UnicodeDecodeError, IOError) as e:
+                logging.warning(f"Could not read file {file_path.name}: {e}")
     
     def _process_tree_change(self, event_type, src_path, dest_path=None, is_directory=False):
         """Process a detected file tree change."""
@@ -213,7 +239,7 @@ class NoteChangeHandler(FileSystemEventHandler):
 class FileWatcher:
     """Main file watcher class for managing the observer."""
     
-    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None):
+    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None, file_tracker=None):
         """
         Initialize the file watcher.
         
@@ -222,6 +248,7 @@ class FileWatcher:
             ai_client: OpenAIClient instance
             living_note_path: Path to the living note file
             utils_folder: Path to the utils folder (defaults to notes_folder/utils)
+            file_tracker: FileContentTracker instance for change tracking
         """
         self.notes_folder = Path(notes_folder)
         
@@ -231,7 +258,7 @@ class FileWatcher:
         else:
             self.utils_folder = Path(utils_folder)
         
-        self.handler = NoteChangeHandler(notes_folder, ai_client, living_note_path, self.utils_folder)
+        self.handler = NoteChangeHandler(notes_folder, ai_client, living_note_path, self.utils_folder, file_tracker)
         self.observer = Observer()
         self.is_running = False
         

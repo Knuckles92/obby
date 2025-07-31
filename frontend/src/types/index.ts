@@ -16,7 +16,50 @@ export interface DiffEntry {
   summary?: string;
 }
 
-// New Git-based interfaces
+// File-based interfaces (replaces git-based interfaces)
+export interface FileVersion {
+  id: string;
+  filePath: string;
+  contentHash: string;
+  lineCount: number;
+  timestamp: string;
+  changeDescription: string;
+  hasContent: boolean;
+}
+
+export interface ContentDiff {
+  id: string;
+  filePath: string;
+  changeType: 'created' | 'modified' | 'deleted' | 'moved';
+  diffContent: string;
+  linesAdded: number;
+  linesRemoved: number;
+  timestamp: string;
+  oldVersionId?: number;
+  newVersionId?: number;
+}
+
+export interface FileChange {
+  id: string;
+  filePath: string;
+  changeType: 'created' | 'modified' | 'deleted' | 'moved';
+  oldContentHash?: string;
+  newContentHash?: string;
+  timestamp: string;
+}
+
+export interface FileMonitoringStatus {
+  monitoring_active: boolean;
+  tracked_files_count: number;
+  recent_versions_count: number;
+  recent_changes_count: number;
+  database_stats: any;
+  last_activity?: string;
+  system_type: string;
+  version: string;
+}
+
+// Legacy git interfaces (deprecated - for backwards compatibility)
 export interface GitCommit {
   id: string;
   hash: string;
