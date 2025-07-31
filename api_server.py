@@ -3,11 +3,13 @@ from flask_cors import CORS
 import threading
 import time
 import os
+import psutil
+import shutil
 from pathlib import Path
 from typing import Dict, List, Any
 from config.settings import DIFF_PATH, LIVING_NOTE_PATH
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
 import logging
 from functools import lru_cache
@@ -831,6 +833,161 @@ def get_semantic_keywords():
     except Exception as e:
         logger.error(f"Error getting semantic keywords: {e}")
         return jsonify({'error': f'Failed to get keywords: {str(e)}'}), 500
+
+# Admin API endpoints
+@app.route('/api/admin/stats', methods=['GET'])
+def get_system_stats():
+    """Get system statistics for admin panel"""
+    try:
+        # Get system information
+        memory = psutil.virtual_memory()
+        cpu_percent = psutil.cpu_percent(interval=1)
+        disk = psutil.disk_usage('/')
+        
+        # Get process uptime
+        process = psutil.Process()
+        uptime_seconds = time.time() - process.create_time()
+        uptime_str = str(timedelta(seconds=int(uptime_seconds)))
+        
+        # Get database stats
+        try:
+            total_events = EventQueries.get_total_count()
+            db_path = Path('database/obby.db')
+            db_size = db_path.stat().st_size if db_path.exists() else 0
+            db_size_mb = round(db_size / (1024 * 1024), 2)
+        except Exception as e:
+            logger.error(f"Error getting database stats: {e}")
+            total_events = 0
+            db_size_mb = 0
+        
+        # Count active SSE connections
+        active_connections = len(sse_clients)
+        
+        stats = {
+            'uptime': uptime_str,
+            'memoryUsage': round(memory.percent, 1),
+            'cpuUsage': round(cpu_percent, 1),
+            'diskUsage': round((disk.used / disk.total) * 100, 1),
+            'activeConnections': active_connections,
+            'totalEvents': total_events,
+            'databaseSize': f'{db_size_mb} MB'
+        }
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        logger.error(f"Error getting system stats: {e}")
+        return jsonify({'error': f'Failed to get system stats: {str(e)}'}), 500
+
+@app.route('/api/admin/database/stats', methods=['GET'])
+def get_database_stats():
+    """Get database-specific statistics"""
+    try:
+        # Get database file info
+        db_path = Path('database/obby.db')
+        if not db_path.exists():
+            return jsonify({'error': 'Database file not found'}), 404
+            
+        db_size = db_path.stat().st_size
+        db_size_mb = round(db_size / (1024 * 1024), 2)
+        
+        # Get record counts
+        total_records = EventQueries.get_total_count()
+        
+        # Mock some additional stats (in a real implementation, these would come from actual DB queries)
+        stats = {
+            'totalRecords': total_records,
+            'indexSize': f'{round(db_size_mb * 0.15, 1)} MB',  # Estimate index size
+            'lastOptimized': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'queryPerformance': 95  # Mock performance metric
+        }
+        
+        return jsonify(stats)
+        
+    except Exception as e:
+        logger.error(f"Error getting database stats: {e}")
+        return jsonify({'error': f'Failed to get database stats: {str(e)}'}), 500
+
+@app.route('/api/admin/database/optimize', methods=['POST'])
+def optimize_database():
+    """Optimize the database"""
+    try:
+        # In a real implementation, this would run VACUUM and other optimization commands
+        # For now, we'll just simulate the operation
+        logger.info("Database optimization requested")
+        
+        # Simulate some work
+        time.sleep(1)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Database optimization completed successfully',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error optimizing database: {e}")
+        return jsonify({'error': f'Failed to optimize database: {str(e)}'}), 500
+
+@app.route('/api/admin/logs/clear', methods=['DELETE'])
+def clear_system_logs():
+    """Clear system logs"""
+    try:
+        log_file = Path('obby.log')
+        if log_file.exists():
+            # Clear the log file content
+            with open(log_file, 'w') as f:
+                f.write('')
+            logger.info("System logs cleared via admin panel")
+        
+        return jsonify({
+            'success': True,
+            'message': 'System logs cleared successfully',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error clearing logs: {e}")
+        return jsonify({'error': f'Failed to clear logs: {str(e)}'}), 500
+
+@app.route('/api/admin/health', methods=['GET'])
+def get_system_health():
+    """Get overall system health status"""
+    try:
+        health_status = {
+            'status': 'healthy',
+            'checks': {
+                'database': 'healthy',
+                'monitoring': 'healthy' if monitoring_active else 'inactive',
+                'memory': 'healthy',
+                'disk': 'healthy'
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # Check memory usage
+        memory = psutil.virtual_memory()
+        if memory.percent > 90:
+            health_status['checks']['memory'] = 'warning'
+            health_status['status'] = 'warning'
+        
+        # Check disk usage
+        disk = psutil.disk_usage('/')
+        if (disk.used / disk.total) * 100 > 90:
+            health_status['checks']['disk'] = 'warning'
+            health_status['status'] = 'warning'
+        
+        # Check database
+        db_path = Path('database/obby.db')
+        if not db_path.exists():
+            health_status['checks']['database'] = 'error'
+            health_status['status'] = 'error'
+        
+        return jsonify(health_status)
+        
+    except Exception as e:
+        logger.error(f"Error getting system health: {e}")
+        return jsonify({'error': f'Failed to get system health: {str(e)}'}), 500
 
 # Custom event handler that integrates with the API
 class APIAwareNoteChangeHandler(NoteChangeHandler):

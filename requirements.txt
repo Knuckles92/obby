@@ -13,6 +13,9 @@ GitPython>=3.1.0
 flask>=2.3.0
 flask-cors>=4.0.0
 
+# System monitoring for admin panel
+psutil>=5.9.0
+
 # Development and testing dependencies (optional)
 # pytest>=7.0.0
 # black>=22.0.0
