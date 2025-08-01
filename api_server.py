@@ -1,29 +1,21 @@
-from flask import Flask, jsonify, request, send_from_directory, send_file, Response
+from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 import threading
-import time
-import os
-import psutil
-import shutil
-from pathlib import Path
-from typing import Dict, List, Any
-from config.settings import DIFF_PATH, LIVING_NOTE_PATH
-import json
-from datetime import datetime, timedelta
-import uuid
 import logging
-from functools import lru_cache
-import queue
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+import os
+from pathlib import Path
 
-# Import database layer
-from database.queries import FileQueries, EventQueries, SemanticQueries, ConfigQueries, AnalyticsQueries
+# Import blueprint modules
+from routes.monitoring import monitoring_bp
+from routes.files import files_bp
+from routes.living_note import living_note_bp
+from routes.search import search_bp
+from routes.config import config_bp
+from routes.data import data_bp
+from routes.admin import admin_bp
 
-from core.monitor import ObbyMonitor
-from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
-from ai.openai_client import OpenAIClient
-from utils.file_watcher import FileWatcher, NoteChangeHandler
+# Import API-aware monitoring classes
+from routes.api_monitor import APIObbyMonitor
 
 # Configure logging
 logging.basicConfig(
@@ -48,156 +40,93 @@ if not app.debug:
 monitor_instance = None
 monitor_thread = None
 monitoring_active = False
-# Note: recent_events and recent_diffs now stored in database
 
-# SSE client management
-sse_clients = []
+# Register blueprints
+app.register_blueprint(monitoring_bp)
+app.register_blueprint(files_bp)
+app.register_blueprint(living_note_bp)
+app.register_blueprint(search_bp)
+app.register_blueprint(config_bp)
+app.register_blueprint(data_bp)
+app.register_blueprint(admin_bp)
 
-# SSE clients for real-time updates
-living_note_observer = None
+# Initialize monitoring routes with shared state
+from routes.monitoring import init_monitoring_routes
+init_monitoring_routes(monitor_instance, monitor_thread, monitoring_active)
 
-@app.route('/api/status', methods=['GET'])
-def get_status():
-    """Get current monitoring status"""
-    global monitoring_active, monitor_instance
-    
-    watched_paths = []
-    total_files = 0
-    
-    # Get events today from database instead of memory
+# Route functions have been moved to blueprints
+# See routes/ directory for organized API endpoints
+
+# Helper function for monitor thread
+def run_monitor():
+    """Run the monitor in a separate thread"""
+    global monitor_instance
     try:
-        events_today = EventQueries.get_events_today_count()
+        if monitor_instance:
+            monitor_instance.start()
     except Exception as e:
-        logger.error(f"Failed to get events count from database: {e}")
-        events_today = 0
+        logger.error(f"Monitor thread error: {e}")
+        global monitoring_active
+        monitoring_active = False
+
+
+# Static file serving for production
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve_frontend(path=''):
+    """Serve the React frontend"""
+    logger.info(f"serve_frontend called with path: '{path}'")
     
-    if monitor_instance and monitoring_active:
-        watched_paths = getattr(monitor_instance, 'watched_paths', [])
-        # Count files in watched directories
-        for path in watched_paths:
-            if os.path.exists(path):
-                # Count only .md files that aren't ignored
-                path_obj = Path(path)
-                for f in path_obj.rglob('*.md'):
-                    if f.is_file():
-                        # Check if file would be watched (simplified check)
-                        rel_path = f.relative_to(path_obj) if f.is_relative_to(path_obj) else f
-                        if not any(part.startswith('.') for part in rel_path.parts):
-                            total_files += 1
+    # Don't handle API routes here - let them be handled by specific routes
+    if path.startswith('/api/'):
+        # This should not happen if routes are registered properly
+        logger.warning(f"API path {path} reached catch-all route - this indicates a routing issue")
+        return jsonify({'error': 'API endpoint not found'}), 404
     
+    frontend_dir = Path('frontend/dist')
+    
+    # If frontend build exists, serve it
+    if frontend_dir.exists():
+        if path and (frontend_dir / path).exists():
+            return send_from_directory(frontend_dir, path)
+        # For React Router, serve index.html for any non-API routes
+        else:
+            return send_from_directory(frontend_dir, 'index.html')
+    
+    # Fallback for development or missing frontend
     return jsonify({
-        'isActive': monitoring_active,
-        'watchedPaths': watched_paths,
-        'totalFiles': total_files,
-        'eventsToday': events_today
+        'message': 'Obby API Server',
+        'version': '1.0.0',
+        'endpoints': {
+            'monitoring': '/api/monitor/*',
+            'files': '/api/files/*',
+            'living-note': '/api/living-note/*',
+            'search': '/api/search/*',
+            'config': '/api/config/*',
+            'data': '/api/data/*',
+            'admin': '/api/admin/*'
+        },
+        'frontend': 'Build frontend with: cd frontend && npm run build'
     })
 
-@app.route('/api/monitor/start', methods=['POST'])
-def start_monitoring():
-    """Start file monitoring"""
-    global monitor_instance, monitor_thread, monitoring_active
+# All route functions moved to blueprint modules
+
+
+if __name__ == '__main__':
+    logger.info("Starting Obby API server on http://localhost:8001")
+    logger.info("Web interface will be available once the server starts")
     
-    if monitoring_active:
-        return jsonify({'message': 'Monitoring already active'}), 400
+    # Start the living note file watcher
+    from routes.living_note import start_living_note_watcher, stop_living_note_watcher
+    start_living_note_watcher()
     
     try:
-        monitor_instance = APIObbyMonitor()
-        monitor_instance.start()
-        monitor_thread = threading.Thread(target=run_monitor, daemon=True)
-        monitor_thread.start()
-        monitoring_active = True
-        
-        # Get initial watched paths
-        if monitor_instance.file_watcher:
-            watched_paths = []
-            watch_dirs = monitor_instance.file_watcher.handler.watch_handler.get_watch_directories()
-            if watch_dirs:
-                watched_paths = [str(d) for d in watch_dirs if d.exists()]
-            else:
-                watched_paths = [str(NOTES_FOLDER)]
-            monitor_instance.watched_paths = watched_paths
-        
-        return jsonify({'message': 'Monitoring started successfully'})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        app.run(debug=True, port=8001, host='0.0.0.0', threaded=True)
+    finally:
+        # Clean up on shutdown
+        stop_living_note_watcher()
 
-@app.route('/api/monitor/status', methods=['GET'])
-def get_monitoring_status():
-    """Get monitoring system status"""
-    global monitor_instance, monitoring_active
-    
-    try:
-        if not monitor_instance:
-            return jsonify({
-                'active': False,
-                'message': 'Monitor not initialized'
-            })
-        
-        # Get file tracking statistics
-        from database.queries import FileQueries, EventQueries
-        
-        recent_diffs = FileQueries.get_recent_diffs(limit=1)
-        recent_events = EventQueries.get_recent_events(limit=1)
-        
-        status = {
-            'active': monitoring_active and monitor_instance.is_running,
-            'file_tracker_available': hasattr(monitor_instance, 'file_tracker') and monitor_instance.file_tracker is not None,
-            'watched_paths': getattr(monitor_instance, 'watched_paths', []),
-            'periodic_check_enabled': getattr(monitor_instance, 'periodic_check_enabled', False),
-            'check_interval': getattr(monitor_instance, 'check_interval', 0),
-            'recent_diffs_count': len(recent_diffs),
-            'recent_events_count': len(recent_events),
-            'last_diff_timestamp': recent_diffs[0]['timestamp'] if recent_diffs else None,
-            'last_event_timestamp': recent_events[0]['timestamp'] if recent_events else None
-        }
-        
-        return jsonify(status)
-        
-    except Exception as e:
-        logger.error(f"Error getting monitoring status: {e}")
-        return jsonify({'error': f'Failed to get monitoring status: {str(e)}'}), 500
-
-@app.route('/api/monitor/stop', methods=['POST'])
-def stop_monitoring():
-    """Stop file monitoring"""
-    global monitoring_active, monitor_instance
-    
-    monitoring_active = False
-    if monitor_instance:
-        monitor_instance.stop()
-        monitor_instance = None
-    
-    return jsonify({'message': 'Monitoring stopped'})
-
-@app.route('/api/events', methods=['GET'])
-def get_recent_events():
-    """Get recent file events from database"""
-    try:
-        limit = max(1, min(request.args.get('limit', 50, type=int), 200))  # Limit between 1-200
-        events = EventQueries.get_recent_events(limit=limit)
-        logger.info(f"Retrieved {len(events)} events from database")
-        return jsonify(events)
-    except Exception as e:
-        logger.error(f"Error retrieving recent events: {e}")
-        return jsonify({'error': 'Failed to retrieve events'}), 500
-
-@app.route('/api/diffs', methods=['GET'])
-def get_recent_diffs():
-    """Get recent git commits from database (legacy compatibility endpoint)"""
-    try:
-        limit = max(1, min(request.args.get('limit', 20, type=int), 100))  # Limit between 1-100
-        
-        logger.info(f"DATABASE DIFFS API CALLED - Limit: {limit}")
-        
-        # Use FileQueries for file-based system
-        diff_files = FileQueries.get_recent_diffs(limit=limit)
-        
-        logger.info(f"Retrieved {len(diff_files)} content diffs from database")
-        return jsonify(diff_files)
-        
-    except Exception as e:
-        logger.error(f"Error retrieving content diffs from database: {e}")
-        return jsonify({'error': 'Failed to retrieve content diffs'}), 500
+# Note: All route functions have been moved to blueprint modules in routes/ directory
 
 @app.route('/api/diffs/<diff_id>', methods=['GET'])
 def get_full_diff_content(diff_id):

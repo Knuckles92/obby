@@ -206,7 +206,7 @@ class FileQueries:
             return {'success': False, 'error': str(e)}
 
 class EventQueries:
-    """Event-focused queries for real-time updates."""
+    """Event-focused queries for real-time updates and API endpoints."""
     
     @staticmethod
     def add_event(event_type: str, file_path: str, file_size: int = 0) -> Optional[int]:
@@ -242,7 +242,15 @@ class EventQueries:
                          processed: bool = None) -> List[Dict[str, Any]]:
         """Get recent file system events."""
         try:
-            events = EventModel.get_recent(limit=limit, event_type=event_type, processed=processed)
+            # Try the direct database query approach first, fallback to EventModel if needed
+            query = """
+                SELECT id, type, path, timestamp, size, processed, created_at
+                FROM events 
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            """
+            rows = db.execute_query(query, (limit,))
+            events = [dict(row) for row in rows]
             
             # Format for API response
             formatted_events = []
@@ -321,6 +329,95 @@ class EventQueries:
             logger.error(f"Error retrieving total events count: {e}")
             return 0
 
+    @staticmethod
+    def clear_all_events() -> Dict[str, Any]:
+        """Clear all events from the database."""
+        try:
+            # Count events before clearing
+            count_query = "SELECT COUNT(*) as count FROM events"
+            count_result = db.execute_query(count_query)
+            events_count = count_result[0]['count'] if count_result else 0
+            
+            # Clear all events
+            delete_query = "DELETE FROM events"
+            db.execute_query(delete_query)
+            
+            logger.info(f"Cleared {events_count} events from database")
+            return {
+                'success': True,
+                'message': f'Successfully cleared {events_count} events',
+                'events_cleared': events_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Error clearing events: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to clear events: {str(e)}'
+            }
+    
+    @staticmethod
+    def mark_events_processed(event_ids: List[int]) -> bool:
+        """Mark events as processed."""
+        try:
+            if not event_ids:
+                return True
+                
+            placeholders = ','.join(['?' for _ in event_ids])
+            query = f"UPDATE events SET processed = TRUE WHERE id IN ({placeholders})"
+            db.execute_query(query, event_ids)
+            
+            logger.info(f"Marked {len(event_ids)} events as processed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error marking events as processed: {e}")
+            return False
+    
+    @staticmethod
+    def get_event_by_id(event_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific event by ID."""
+        try:
+            query = """
+                SELECT id, type, path, timestamp, size, processed, created_at,
+                       content, diff_content, summary
+                FROM events 
+                WHERE id = ?
+            """
+            rows = db.execute_query(query, (event_id,))
+            if rows:
+                event = dict(rows[0])
+                logger.debug(f"Retrieved event by ID: {event_id}")
+                return event
+            else:
+                logger.warning(f"Event not found: {event_id}")
+                return None
+            
+        except Exception as e:
+            logger.error(f"Error retrieving event by ID {event_id}: {e}")
+            return None
+
+    @staticmethod 
+    def get_events_for_file(file_path: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Get events for a specific file."""
+        try:
+            query = """
+                SELECT id, type, path, timestamp, size, processed, created_at
+                FROM events
+                WHERE path = ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+            rows = db.execute_query(query, (file_path, limit))
+            events = [dict(row) for row in rows]
+            
+            logger.debug(f"Retrieved {len(events)} events for file: {file_path}")
+            return events
+            
+        except Exception as e:
+            logger.error(f"Error retrieving events for file {file_path}: {e}")
+            return []
+
 class SemanticQueries:
     """Semantic search and AI-powered queries."""
     
@@ -367,20 +464,26 @@ class ConfigQueries:
     """Configuration management queries."""
     
     @staticmethod
+    def get_config() -> Dict[str, Any]:
+        """Get all configuration values."""
+        return ConfigModel.get_all()
+        
+    @staticmethod
     def get_all_config() -> Dict[str, Any]:
         """Get all configuration values."""
         return ConfigModel.get_all()
     
     @staticmethod
-    def update_config(key: str, value: Any, description: str = None) -> bool:
-        """Update a configuration value."""
+    def update_config(config_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update configuration values."""
         try:
-            ConfigModel.set(key, value, description)
-            logger.info(f"Updated config: {key} = {value}")
-            return True
+            for key, value in config_data.items():
+                ConfigModel.set(key, value)
+            logger.info(f"Updated config with {len(config_data)} values")
+            return {'success': True, 'message': 'Configuration updated successfully'}
         except Exception as e:
-            logger.error(f"Error updating config {key}: {e}")
-            return False
+            logger.error(f"Error updating config: {e}")
+            return {'success': False, 'error': str(e)}
     
     @staticmethod
     def get_config_value(key: str, default: Any = None) -> Any:

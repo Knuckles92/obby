@@ -40,9 +40,9 @@ export default function Dashboard() {
   const fetchDashboardData = async () => {
     try {
       const [statusRes, eventsRes, diffsRes] = await Promise.all([
-        apiFetch('/api/status'),
-        apiFetch('/api/events?limit=10'),
-        apiFetch('/api/diffs?limit=5')
+        apiFetch('/api/monitor/status'),
+        apiFetch('/api/files/events?limit=10'),
+        apiFetch('/api/files/diffs?limit=5')
       ])
 
       const statusData = await statusRes.json()
@@ -92,7 +92,7 @@ export default function Dashboard() {
   const handleClearEvents = async () => {
     try {
       setClearEventsLoading(true)
-      const response = await apiFetch('/api/events/clear', {
+      const response = await apiFetch('/api/data/events/clear', {
         method: 'POST'
       })
       
