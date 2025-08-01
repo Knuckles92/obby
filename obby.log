@@ -7363,3 +7363,96 @@
 2025-07-30 23:30:57,140 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
 2025-07-30 23:30:57,140 - __main__ - INFO - Living note update triggered with data from file-based tracking.
 2025-07-30 23:30:57,158 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-30 23:52:53,927 - __main__ - INFO - Stopped living note file watcher
+2025-07-30 23:52:56,576 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-30 23:52:56,577 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-30 23:52:56,583 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 00:52:57,990 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 00:52:57,993 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 00:52:58,464 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 00:53:00,565 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 00:53:00,565 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 00:53:00,568 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 00:54:27,512 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 00:54:29,445 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 00:54:29,446 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 00:54:29,448 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 00:54:33,905 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 00:54:34,710 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:15:33,848 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:15:33,849 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:15:33,852 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:15:35,965 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:15:35,965 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:15:35,970 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:16:07,142 - __main__ - INFO - Living note cleared successfully
+2025-07-31 01:16:07,146 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:16:07,149 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:16:11,287 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-31 01:16:11,291 - root - INFO - Format configuration loaded from format.md
+2025-07-31 01:16:12,862 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:16:14,822 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:16:14,823 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:16:14,825 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:16:19,047 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-31 01:16:19,049 - root - INFO - Format configuration loaded from format.md
+2025-07-31 01:16:22,238 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-31 01:16:23,533 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-31 01:16:23,542 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:16:23,543 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:16:23,545 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:16:23,551 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-31 01:16:23,552 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-31 01:16:23,552 - __main__ - INFO - Living note update triggered with data from file-based tracking.
+2025-07-31 01:16:23,555 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:16:30,582 - __main__ - INFO - SSE endpoint called, starting event stream
+2025-07-31 01:16:30,583 - __main__ - INFO - Creating event stream generator
+2025-07-31 01:16:30,584 - __main__ - INFO - Added client to SSE clients list. Total clients: 1
+2025-07-31 01:33:02,793 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:33:02,793 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:33:02,829 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:33:02,830 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:35:18,332 - database.queries - INFO - Retrieved 6 recent diffs
+2025-07-31 01:35:18,333 - root - INFO - Format configuration loaded from format.md
+2025-07-31 01:35:21,879 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-31 01:35:22,792 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-07-31 01:35:22,806 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:35:22,815 - root - WARNING - Failed to auto-commit living note: No module named 'git_integration'
+2025-07-31 01:35:22,816 - root - INFO - Living note updated with structured format and semantic indexing: notes\living_note.md
+2025-07-31 01:35:22,816 - __main__ - INFO - Living note update triggered with data from file-based tracking.
+2025-07-31 01:35:22,826 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:35:22,827 - __main__ - INFO - Living note file modified, notifying clients
+2025-07-31 01:35:32,166 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:35:32,167 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:35:32,170 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:35:32,694 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:35:34,817 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:35:34,819 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:35:34,821 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:35:35,119 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:35:35,119 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:35:35,123 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:36:39,856 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:36:40,112 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:36:42,242 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:36:42,243 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:36:42,245 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:36:42,327 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:36:42,328 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:36:42,331 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:38:56,498 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:38:56,546 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:38:59,863 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:38:59,863 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:38:59,865 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:39:00,351 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:39:00,352 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:39:00,356 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:39:01,108 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:39:01,649 - __main__ - INFO - Stopped living note file watcher
+2025-07-31 01:39:03,574 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:39:03,574 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:39:03,577 - __main__ - INFO - Started watching living note file: notes\living_note.md
+2025-07-31 01:39:04,164 - __main__ - INFO - Starting Obby API server on http://localhost:8001
+2025-07-31 01:39:04,165 - __main__ - INFO - Web interface will be available once the server starts
+2025-07-31 01:39:04,167 - __main__ - INFO - Started watching living note file: notes\living_note.md

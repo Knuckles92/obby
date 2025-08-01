@@ -66,7 +66,7 @@ class OpenAIClient:
             max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 600)
             
             # Build user content with diff and optional tree change context
-            user_content = f"Please summarize the following diff with semantic metadata:\n\n{diff_content}"
+            user_content = f"Please summarize the following diff:\n\n{diff_content}"
             
             # Add recent tree changes as context if provided
             if recent_tree_changes and len(recent_tree_changes) > 0:
@@ -82,6 +82,15 @@ class OpenAIClient:
             if settings.get('focusAreas'):
                 focus_areas_text = ", ".join(settings['focusAreas'])
                 user_content += f"\n\nPay special attention to these focus areas: {focus_areas_text}"
+            
+            # DEBUG LOGGING: Log what's being sent to the model
+            logging.info("=== AI MODEL INPUT DEBUG ===")
+            logging.info(f"Model: {self.model}")
+            logging.info(f"Max tokens: {max_tokens}")
+            logging.info(f"Settings: {settings}")
+            logging.info(f"System prompt: {system_prompt}")
+            logging.info(f"User content: {user_content}")
+            logging.info("=== END AI INPUT DEBUG ===")
             
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -318,13 +327,7 @@ Be specific and actionable. Do not include additional text outside the bullet po
         # Check if we have user format instructions from format.md - use them as PRIMARY instructions
         user_instructions = format_config.get('user_format_instructions', '')
         if user_instructions and user_instructions.strip():
-            return f"""You are an AI assistant for Obby, a comprehensive note monitoring system. 
-
-The user has provided specific formatting preferences. Follow these instructions EXACTLY:
-
-{user_instructions.strip()}
-
-Based on these preferences, summarize the provided diff content."""
+            return f"""You are an AI assistant for Obby, a comprehensive note monitoring system. \n\nThe user has provided specific formatting preferences. Follow these instructions EXACTLY:\n\n{user_instructions.strip()}\n\nBased on these preferences, summarize the provided diff content."""
         
         # Fallback to legacy system if no format.md found
         # Get base prompt template
@@ -767,19 +770,16 @@ Based on these preferences, summarize the provided diff content."""
         }
         
         try:
-            lines = summary_text.split('\n')
+            lines = summary_text.splitlines()
             for line in lines:
                 line = line.strip()
-                if line.startswith('**Summary**:'):
-                    metadata['summary'] = line.replace('**Summary**:', '').strip()
-                elif line.startswith('**Topics**:'):
-                    topics_text = line.replace('**Topics**:', '').strip()
-                    metadata['topics'] = [t.strip() for t in topics_text.split(',') if t.strip()]
-                elif line.startswith('**Keywords**:'):
-                    keywords_text = line.replace('**Keywords**:', '').strip()
-                    metadata['keywords'] = [k.strip() for k in keywords_text.split(',') if k.strip()]
+                if line.startswith('**Brief**:'):
+                    metadata['summary'] = line.replace('**Brief**:', '').strip()
                 elif line.startswith('**Impact**:'):
                     metadata['impact'] = line.replace('**Impact**:', '').strip().lower()
+                elif line.startswith('**Next**:'):
+                    # This field is not in the metadata so we will just ignore it
+                    pass
             
             # If no structured metadata found, treat entire text as summary
             if not metadata['summary'] and not metadata['topics']:
