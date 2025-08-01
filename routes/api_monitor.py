@@ -88,6 +88,9 @@ class APIObbyMonitor(ObbyMonitor):
     
     def __init__(self):
         super().__init__()
+        # Initialize notes_folder from settings
+        from config.settings import NOTES_FOLDER
+        self.notes_folder = NOTES_FOLDER
         # Load check interval from config if available
         self._load_config()
     

@@ -1,3 +1,9 @@
+"""
+LEGACY FILE - FOR REFERENCE ONLY
+This file is deprecated and should NOT be used for production or development.
+All API logic has moved to blueprint modules in the `routes/` directory.
+"""
+
 from flask import Flask, send_from_directory, jsonify
 from flask_cors import CORS
 import threading

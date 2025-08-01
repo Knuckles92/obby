@@ -576,8 +576,7 @@ class EventQueries:
         """Get recent file system events from database."""
         try:
             query = """
-                SELECT id, type, path, timestamp, size, git_status, processed,
-                       created_at
+                SELECT id, type, path, timestamp, size, processed, created_at
                 FROM events 
                 ORDER BY timestamp DESC 
                 LIMIT ?
@@ -620,15 +619,15 @@ class EventQueries:
             }
     
     @staticmethod
-    def add_event(event_type: str, path: str, size: int = 0, git_status: str = None) -> bool:
+    def add_event(event_type: str, path: str, size: int = 0) -> bool:
         """Add a new file system event to the database."""
         try:
             query = """
-                INSERT INTO events (type, path, timestamp, size, git_status, processed)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO events (type, path, timestamp, size, processed)
+                VALUES (?, ?, ?, ?, ?)
             """
             timestamp = datetime.now().isoformat()
-            db.execute_query(query, (event_type, path, timestamp, size, git_status, False))
+            db.execute_query(query, (event_type, path, timestamp, size, False))
             
             logger.debug(f"Added event: {event_type} - {path}")
             return True
