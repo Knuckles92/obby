@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileText, Clock, Hash, RefreshCw, Trash2, Archive } from 'lucide-react'
+import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy } from 'lucide-react'
 import { ContentDiff, FileChange, FileMonitoringStatus } from '../types'
 import { apiFetch } from '../utils/api'
 import ConfirmationDialog from '../components/ConfirmationDialog'
@@ -16,6 +16,7 @@ export default function DiffViewer() {
   const [clearing, setClearing] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'diffs' | 'changes'>('diffs')
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     fetchFileData()
@@ -120,6 +121,16 @@ export default function DiffViewer() {
     }
   }
 
+  const handleCopyDiff = async (diffContent: string) => {
+    try {
+      await navigator.clipboard.writeText(diffContent)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (error) {
+      console.error('Failed to copy diff content:', error)
+    }
+  }
+
   const renderSelectedContent = () => {
     if (selectedDiff) {
       return (
@@ -148,8 +159,16 @@ export default function DiffViewer() {
           
           {selectedDiff.diffContent && (
             <div className="border border-gray-200 rounded-md">
-              <div className="p-3 bg-gray-50 border-b">
+              <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
                 <h4 className="font-medium text-gray-900">Changes:</h4>
+                <button
+                  onClick={() => handleCopyDiff(selectedDiff.diffContent)}
+                  className="flex items-center px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+                  title="Copy diff content"
+                >
+                  <Copy className="h-3 w-3 mr-1" />
+                  {copied ? 'Copied!' : 'Copy'}
+                </button>
               </div>
               <pre className="text-xs bg-gray-900 text-gray-100 p-4 overflow-auto whitespace-pre-wrap max-h-96">
                 {selectedDiff.diffContent}
@@ -232,7 +251,15 @@ export default function DiffViewer() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Panel - Diffs and Changes */}
+        {/* Left Panel - Details */}
+        <div className="card">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">
+            {selectedDiff ? 'Content Diff Details' : selectedChange ? 'File Change Details' : 'Details'}
+          </h3>
+          {renderSelectedContent()}
+        </div>
+
+        {/* Right Panel - Diffs and Changes */}
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <div className="flex space-x-1">
@@ -369,14 +396,6 @@ export default function DiffViewer() {
               )}
             </div>
           )}
-        </div>
-
-        {/* Right Panel - Details */}
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
-            {selectedDiff ? 'Content Diff Details' : selectedChange ? 'File Change Details' : 'Details'}
-          </h3>
-          {renderSelectedContent()}
         </div>
       </div>
 

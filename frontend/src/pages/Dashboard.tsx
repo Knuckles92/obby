@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
   Activity,
-  FileText,
   FolderOpen,
   GitBranch,
   Play,
@@ -13,7 +12,8 @@ import {
 } from 'lucide-react'
 import { MonitoringStatus, FileEvent, DiffEntry } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
-import { apiFetch, apiRequest } from '../utils/api'
+import WatchedFilesModal from '../components/WatchedFilesModal'
+import { apiFetch } from '../utils/api'
 
 export default function Dashboard() {
   const [status, setStatus] = useState<MonitoringStatus>({
@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [clearEventsLoading, setClearEventsLoading] = useState(false)
   const [monitoringLoading, setMonitoringLoading] = useState(false)
   const [autoStartAttempted, setAutoStartAttempted] = useState(false)
+  const [watchedFilesModalOpen, setWatchedFilesModalOpen] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -191,7 +192,10 @@ export default function Dashboard() {
           </div>
         </div>
 
-        <div className="card">
+        <div 
+          className="card cursor-pointer hover:shadow-md transition-shadow" 
+          onClick={() => setWatchedFilesModalOpen(true)}
+        >
           <div className="flex items-center">
             <div className="p-2 bg-blue-100 rounded-md">
               <FolderOpen className="h-6 w-6 text-blue-600" />
@@ -228,20 +232,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Watched Paths */}
-      {status.watchedPaths.length > 0 && (
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Watched Directories</h3>
-          <div className="space-y-2">
-            {status.watchedPaths.map((path, index) => (
-              <div key={index} className="flex items-center text-sm">
-                <FolderOpen className="h-4 w-4 text-gray-400 mr-2" />
-                <span className="text-gray-600">{path}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Recent Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -330,6 +320,12 @@ export default function Dashboard() {
         cancelText="Cancel"
         danger={true}
         loading={clearEventsLoading}
+      />
+
+      {/* Watched Files Modal */}
+      <WatchedFilesModal
+        isOpen={watchedFilesModalOpen}
+        onClose={() => setWatchedFilesModalOpen(false)}
       />
     </div>
   )

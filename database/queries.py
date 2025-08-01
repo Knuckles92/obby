@@ -285,6 +285,41 @@ class EventQueries:
         except Exception as e:
             logger.error(f"Error retrieving tree changes: {e}")
             return []
+    
+    @staticmethod
+    def get_events_today_count() -> int:
+        """Get count of events from today."""
+        try:
+            today = datetime.now().date()
+            query = """
+                SELECT COUNT(*) as count
+                FROM events 
+                WHERE DATE(timestamp) = ?
+            """
+            rows = db.execute_query(query, (today,))
+            count = rows[0]['count'] if rows else 0
+            
+            logger.debug(f"Retrieved events today count: {count}")
+            return count
+            
+        except Exception as e:
+            logger.error(f"Error retrieving events today count: {e}")
+            return 0
+    
+    @staticmethod
+    def get_total_count() -> int:
+        """Get total count of all events."""
+        try:
+            query = "SELECT COUNT(*) as count FROM events"
+            rows = db.execute_query(query)
+            count = rows[0]['count'] if rows else 0
+            
+            logger.debug(f"Retrieved total events count: {count}")
+            return count
+            
+        except Exception as e:
+            logger.error(f"Error retrieving total events count: {e}")
+            return 0
 
 class SemanticQueries:
     """Semantic search and AI-powered queries."""
@@ -429,5 +464,92 @@ class AnalyticsQueries:
         except Exception as e:
             logger.error(f"Error retrieving file activity stats: {e}")
             return {}
+
+class EventQueries:
+    """Event-focused queries for API endpoints."""
+    
+    @staticmethod
+    def get_recent_events(limit: int = 50) -> List[Dict[str, Any]]:
+        """Get recent file system events from database."""
+        try:
+            query = """
+                SELECT id, type, path, timestamp, size, git_status, processed,
+                       created_at
+                FROM events 
+                ORDER BY timestamp DESC 
+                LIMIT ?
+            """
+            rows = db.execute_query(query, (limit,))
+            events = [dict(row) for row in rows]
+            
+            logger.info(f"Retrieved {len(events)} recent events")
+            return events
+            
+        except Exception as e:
+            logger.error(f"Error retrieving recent events: {e}")
+            return []
+    
+    @staticmethod
+    def clear_all_events() -> Dict[str, Any]:
+        """Clear all events from the database."""
+        try:
+            # Count events before clearing
+            count_query = "SELECT COUNT(*) as count FROM events"
+            count_result = db.execute_query(count_query)
+            events_count = count_result[0]['count'] if count_result else 0
+            
+            # Clear all events
+            delete_query = "DELETE FROM events"
+            db.execute_query(delete_query)
+            
+            logger.info(f"Cleared {events_count} events from database")
+            return {
+                'success': True,
+                'message': f'Successfully cleared {events_count} events',
+                'events_cleared': events_count
+            }
+            
+        except Exception as e:
+            logger.error(f"Error clearing events: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to clear events: {str(e)}'
+            }
+    
+    @staticmethod
+    def add_event(event_type: str, path: str, size: int = 0, git_status: str = None) -> bool:
+        """Add a new file system event to the database."""
+        try:
+            query = """
+                INSERT INTO events (type, path, timestamp, size, git_status, processed)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """
+            timestamp = datetime.now().isoformat()
+            db.execute_query(query, (event_type, path, timestamp, size, git_status, False))
+            
+            logger.debug(f"Added event: {event_type} - {path}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error adding event: {e}")
+            return False
+    
+    @staticmethod
+    def mark_events_processed(event_ids: List[int]) -> bool:
+        """Mark events as processed."""
+        try:
+            if not event_ids:
+                return True
+                
+            placeholders = ','.join(['?' for _ in event_ids])
+            query = f"UPDATE events SET processed = TRUE WHERE id IN ({placeholders})"
+            db.execute_query(query, event_ids)
+            
+            logger.info(f"Marked {len(event_ids)} events as processed")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error marking events as processed: {e}")
+            return False
 
 logger.info("File-based query engine initialized successfully")

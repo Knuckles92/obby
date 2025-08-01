@@ -813,6 +813,61 @@ def get_file_tree():
         logger.error(f"Error building file tree for {path}: {e}")
         return jsonify({'error': 'Failed to build file tree'}), 500
 
+@app.route('/api/files/watched', methods=['GET'])
+def get_watched_files():
+    """Get detailed information about watched files"""
+    global monitor_instance, monitoring_active
+    
+    try:
+        watched_files_info = {
+            'isActive': monitoring_active,
+            'directories': [],
+            'totalFiles': 0,
+            'totalDirectories': 0
+        }
+        
+        if monitor_instance and monitoring_active:
+            watched_paths = getattr(monitor_instance, 'watched_paths', [])
+            
+            for path in watched_paths:
+                if os.path.exists(path):
+                    path_obj = Path(path)
+                    
+                    # Count files in this directory
+                    md_files = []
+                    file_count = 0
+                    
+                    for f in path_obj.rglob('*.md'):
+                        if f.is_file():
+                            # Check if file would be watched (simplified check)
+                            rel_path = f.relative_to(path_obj) if f.is_relative_to(path_obj) else f
+                            if not any(part.startswith('.') for part in rel_path.parts):
+                                file_count += 1
+                                md_files.append({
+                                    'name': f.name,
+                                    'path': str(f),
+                                    'relativePath': str(rel_path),
+                                    'size': f.stat().st_size if f.exists() else 0,
+                                    'lastModified': f.stat().st_mtime if f.exists() else 0
+                                })
+                    
+                    watched_files_info['directories'].append({
+                        'path': str(path_obj),
+                        'name': path_obj.name or str(path_obj),
+                        'fileCount': file_count,
+                        'files': md_files[:10]  # Limit to first 10 files for performance
+                    })
+                    
+                    watched_files_info['totalFiles'] += file_count
+            
+            watched_files_info['totalDirectories'] = len(watched_files_info['directories'])
+        
+        return jsonify(watched_files_info)
+        
+    except Exception as e:
+        logger.error(f"Error getting watched files info: {e}")
+        return jsonify({'error': 'Failed to get watched files info'}), 500
+
 def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0) -> Dict[str, Any]:
     """Build a file tree structure focusing on relevant directories and markdown files"""
     if current_depth > max_depth:
