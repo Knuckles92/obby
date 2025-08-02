@@ -113,12 +113,27 @@ class APIObbyMonitor(ObbyMonitor):
         try:
             # Use our custom API-aware handler
             from utils.file_watcher import FileWatcher
+            from ai.openai_client import OpenAIClient
+            from config.settings import LIVING_NOTE_PATH
             
-            # Create file watcher with our custom handler
+            # Initialize AI client
+            ai_client = OpenAIClient()
+            
+            # Create file watcher with correct parameters
+            utils_folder = self.notes_folder.parent / "utils"
             self.file_watcher = FileWatcher(
-                handler_class=APIAwareNoteChangeHandler,
                 notes_folder=self.notes_folder,
-                check_interval=self.check_interval
+                ai_client=ai_client,
+                living_note_path=LIVING_NOTE_PATH,
+                utils_folder=utils_folder
+            )
+            
+            # Replace the default handler with our API-aware handler
+            self.file_watcher.handler = APIAwareNoteChangeHandler(
+                notes_folder=self.notes_folder,
+                ai_client=ai_client,
+                living_note_path=LIVING_NOTE_PATH,
+                utils_folder=utils_folder
             )
             
             # Start watching
@@ -126,9 +141,6 @@ class APIObbyMonitor(ObbyMonitor):
             self.running = True
             
             logger.info(f"API-aware monitoring started for {self.notes_folder}")
-            
-            # Run the main monitoring loop
-            self.run()
             
         except Exception as e:
             logger.error(f"Failed to start API-aware monitoring: {e}")

@@ -6,6 +6,12 @@
 # Living note file (to prevent feedback loops)
 living_note.md
 
+# Build and cache directories
+__pycache__/
+node_modules/
+*.pyc
+*.log
+
 # Temporary files
 *.tmp
 *.temp

@@ -316,7 +316,7 @@ def notify_living_note_change():
             with open(LIVING_NOTE_PATH, 'r', encoding='utf-8') as f:
                 content = f.read()
             # Get actual file modification time
-            stat = os.path.stat(LIVING_NOTE_PATH)
+            stat = os.stat(LIVING_NOTE_PATH)
             last_updated = datetime.fromtimestamp(stat.st_mtime).isoformat()
         
         # Calculate word count

@@ -40,10 +40,15 @@ class FileContentTracker:
             # Get previous state from database
             previous_state = FileStateModel.get_state(file_path)
             
-            # Check if file actually changed
+            # Check if file actually changed (with additional validation)
             if previous_state and previous_state.get('content_hash') == current_hash:
-                logger.debug(f"No content change detected for {file_path}")
-                return None
+                # Double-check with file modification time if available
+                if current_content and len(current_content.strip()) > 0:
+                    logger.debug(f"Content hash unchanged for {file_path}, but file has content - may be a false positive")
+                    # Allow processing to continue for non-empty files to catch edge cases
+                else:
+                    logger.debug(f"No content change detected for {file_path}")
+                    return None
             
             # Handle different change types
             if change_type == 'created':
@@ -277,10 +282,12 @@ class FileContentTracker:
             return None
     
     def _calculate_content_hash(self, content: str) -> str:
-        """Calculate SHA-256 hash of file content."""
+        """Calculate SHA-256 hash of file content with normalization."""
         if content is None:
             return ""
-        return hashlib.sha256(content.encode('utf-8')).hexdigest()
+        # Normalize line endings and whitespace for consistent hashing
+        normalized_content = content.replace('\r\n', '\n').replace('\r', '\n')
+        return hashlib.sha256(normalized_content.encode('utf-8')).hexdigest()
     
     def cleanup_old_versions(self, max_versions_per_file: int = 100) -> int:
         """Clean up old file versions to prevent database bloat."""

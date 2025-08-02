@@ -32,7 +32,7 @@ class NoteChangeHandler(FileSystemEventHandler):
         self.living_note_path = living_note_path
         self.file_tracker = file_tracker
         self.last_event_times = {}  # Track debounce per file
-        self.debounce_delay = 0.5  # 500ms debounce to prevent duplicate events
+        self.debounce_delay = 0.1  # 100ms debounce to prevent duplicate events (reduced for responsiveness)
         
         # Set up utils folder path
         if utils_folder is None:
@@ -66,9 +66,11 @@ class NoteChangeHandler(FileSystemEventHandler):
             current_time = time.time()
             last_time = self.last_event_times.get(str(file_path), 0)
             if current_time - last_time < self.debounce_delay:
+                logging.debug(f"Debounced modification event for {file_path.name} (too recent: {current_time - last_time:.3f}s)")
                 return
                 
             self.last_event_times[str(file_path)] = current_time
+            logging.info(f"Processing file modification: {file_path.name}")
             self._process_note_change(file_path, 'modified')
     
     def on_created(self, event):
@@ -170,9 +172,9 @@ class NoteChangeHandler(FileSystemEventHandler):
                 
                 # Log successful diff creation
                 if version_id:
-                    logging.info(f"Successfully created diff for {change_type} change in {file_path.name} (version_id: {version_id})")
+                    logging.info(f"✅ Successfully processed {change_type} change in {file_path.name} (version_id: {version_id})")
                 else:
-                    logging.warning(f"File tracker returned None for {change_type} change in {file_path.name}")
+                    logging.warning(f"⚠️ File tracker returned None for {change_type} change in {file_path.name} - change may not have been processed")
                 
                 if version_id and change_type != 'deleted':
                     # For created/modified files, update living note with AI analysis

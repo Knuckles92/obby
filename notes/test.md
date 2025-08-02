@@ -13,5 +13,11 @@
 - Review quarterly budget report
 - Send follow-up emails from last meeting
 - Update personal portfolio website
-- Research new productivity tools
-- Start daily exercise routine
+- Quick note: Test the new AI summarization feature
+- Remember to update documentation for the search API
+- Testing file watcher reliability improvements - this should be detected!
+- Weekend plans: hiking and reading
+- Try that new restaurant downtown
+- Learn about Docker containers
+- Fix the squeaky door hinge
+- Research vacation destinations for summer

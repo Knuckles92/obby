@@ -102,7 +102,6 @@ def update_config_compat():
     from flask import redirect, url_for
     return redirect(url_for('config.update_config_root'), code=307)
 
-
 @app.route('/api/models', methods=['GET'])
 def get_models_compat():
     """Backwards compatibility: redirect to config blueprint"""
@@ -119,6 +118,46 @@ def search_compat():
     if args:
         redirect_url += f'?{args}'
     return redirect(redirect_url)
+
+
+# Add diagnostic endpoint for file monitoring status
+@app.route('/api/monitor/status', methods=['GET'])
+def get_monitor_status():
+    """Get detailed monitoring system status for diagnostics"""
+    global monitor_instance, monitoring_active
+    
+    status = {
+        'monitoring_active': monitoring_active,
+        'monitor_instance_exists': monitor_instance is not None,
+        'file_watcher_running': False,
+        'periodic_check_enabled': False,
+        'check_interval': 0,
+        'watched_directories': [],
+        'recent_events_count': 0
+    }
+    
+    if monitor_instance:
+        try:
+            stats = monitor_instance.get_stats()
+            status.update({
+                'file_watcher_running': monitor_instance.is_running,
+                'periodic_check_enabled': monitor_instance.periodic_check_enabled,
+                'check_interval': monitor_instance.check_interval,
+                'recent_events_count': stats.get('recent_changes_count', 0)
+            })
+            
+            # Get watched directories
+            if monitor_instance.file_watcher and monitor_instance.file_watcher.handler:
+                try:
+                    watch_dirs = monitor_instance.file_watcher.handler.watch_handler.get_watch_directories()
+                    status['watched_directories'] = [str(d) for d in watch_dirs]
+                except Exception as e:
+                    logger.debug(f"Could not get watched directories: {e}")
+                    
+        except Exception as e:
+            logger.error(f"Error getting monitor status: {e}")
+            
+    return jsonify(status)
 
 
 # Static file serving for production
@@ -161,9 +200,44 @@ def serve_frontend(path=''):
     })
 
 
+def initialize_monitoring():
+    """Initialize the file monitoring system"""
+    global monitor_instance, monitor_thread, monitoring_active
+    try:
+        # Create monitor instance
+        monitor_instance = APIObbyMonitor()
+        monitoring_active = True
+        
+        # Start monitor in background thread
+        monitor_thread = threading.Thread(target=run_monitor, daemon=True)
+        monitor_thread.start()
+        
+        logger.info("File monitoring system initialized successfully")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to initialize monitoring system: {e}")
+        monitoring_active = False
+        return False
+
+def cleanup_monitoring():
+    """Clean up monitoring resources"""
+    global monitor_instance, monitoring_active
+    try:
+        if monitor_instance:
+            monitor_instance.stop()
+            monitoring_active = False
+            logger.info("File monitoring system stopped")
+    except Exception as e:
+        logger.error(f"Error stopping monitoring system: {e}")
+
 if __name__ == '__main__':
     logger.info("Starting Obby API server on http://localhost:8001")
     logger.info("Web interface will be available once the server starts")
+    
+    # Initialize the main file monitoring system
+    monitoring_initialized = initialize_monitoring()
+    if not monitoring_initialized:
+        logger.warning("File monitoring system failed to initialize - continuing without it")
     
     # Start the living note file watcher
     from routes.living_note import start_living_note_watcher, stop_living_note_watcher
@@ -174,3 +248,4 @@ if __name__ == '__main__':
     finally:
         # Clean up on shutdown
         stop_living_note_watcher()
+        cleanup_monitoring()
