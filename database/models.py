@@ -26,7 +26,7 @@ class DatabaseConnection:
     def __init__(self, db_path: str = "obby.db"):
         self.db_path = db_path
         self._local = threading.local()
-        self.schema_path = Path(__file__).parent / "schema.sql"
+        self.schema_path = Path(__file__).parent / "schema_new.sql"
         self._ensure_database()
     
     def _ensure_database(self):

@@ -27,19 +27,14 @@ def get_recent_events():
 
 @files_bp.route('/diffs', methods=['GET'])
 def get_recent_diffs():
-    """Get recent git commits from database (legacy compatibility endpoint)"""
+    """Get recent content diffs from database"""
     try:
-        # This is for backward compatibility - now handled by events
-        events = EventQueries.get_recent_events(limit=50)
-        diffs = []
-        for event in events:
-            if event.get('diff_content'):
-                diffs.append({
-                    'id': event['id'],
-                    'timestamp': event['timestamp'],
-                    'file_path': event['file_path'],
-                    'summary': event.get('summary', 'File changed')
-                })
+        limit = int(request.args.get('limit', 50))
+        file_path = request.args.get('file_path', None)
+        
+        # Get recent content diffs from content_diffs table
+        diffs = FileQueries.get_recent_diffs(limit=limit, file_path=file_path)
+        
         return jsonify({'diffs': diffs})
     except Exception as e:
         logger.error(f"Failed to get recent diffs: {e}")
@@ -52,18 +47,15 @@ def get_full_diff_content(diff_id):
     try:
         logger.info(f"FULL DIFF CONTENT API CALLED - ID: {diff_id}")
         
-        # Get event by ID (diff data is stored as events)
-        event = EventQueries.get_event_by_id(diff_id)
+        # Get content diff by ID from content_diffs table
+        diff_data = FileQueries.get_diff_content(diff_id)
         
-        if event is None:
+        if diff_data is None:
             logger.warning(f"Diff not found: {diff_id}")
             return jsonify({'error': 'Diff not found'}), 404
         
         logger.info(f"Retrieved full diff content for ID: {diff_id}")
-        return jsonify({
-            'id': diff_id,
-            'content': event.get('diff_content', event.get('content', ''))  # Extract diff content
-        })
+        return jsonify(diff_data)
         
     except Exception as e:
         logger.error(f"Error retrieving full diff content: {e}")
@@ -78,7 +70,21 @@ def get_recent_file_changes():
         change_type = request.args.get('type', None)
         
         from database.models import FileChangeModel
-        file_changes = FileChangeModel.get_recent(limit=limit, change_type=change_type)
+        raw_changes = FileChangeModel.get_recent(limit=limit, change_type=change_type)
+        
+        # Transform snake_case to camelCase for frontend
+        file_changes = []
+        for change in raw_changes:
+            transformed_change = {
+                'id': str(change['id']),
+                'filePath': change['file_path'],
+                'changeType': change['change_type'],
+                'oldContentHash': change.get('old_content_hash'),
+                'newContentHash': change.get('new_content_hash'),
+                'timestamp': change['timestamp']
+            }
+            file_changes.append(transformed_change)
+        
         logger.info(f"Retrieved {len(file_changes)} recent file changes")
         return jsonify(file_changes)
         

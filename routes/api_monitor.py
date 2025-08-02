@@ -19,7 +19,7 @@ class APIAwareNoteChangeHandler(NoteChangeHandler):
         super().__init__(*args, **kwargs)
         
     def _add_event(self, event_type, file_path, size=None):
-        """Add an event to the database instead of memory"""
+        """Add an event to the database for API tracking (in addition to content diff generation)"""
         try:
             file_size = size if size is not None else (
                 file_path.stat().st_size if file_path.exists() else 0
@@ -27,46 +27,57 @@ class APIAwareNoteChangeHandler(NoteChangeHandler):
         except:
             file_size = 0
             
-        # Store event in database instead of memory
+        # Store basic event in database for API compatibility
         path_str = str(file_path.relative_to(self.notes_folder.parent) if file_path.is_relative_to(self.notes_folder.parent) else file_path)
         
         try:
             EventQueries.add_event(event_type, path_str, file_size)
-            logger.debug(f"Added event to database: {event_type} {path_str}")
+            logger.debug(f"Added API event to database: {event_type} {path_str}")
         except Exception as e:
-            logger.error(f"Failed to add event to database: {e}")
-            # Log fallback error but don't maintain in-memory storage
-            logger.warning(f"Database event storage failed, event lost: {event_type} {path_str}")
-    
+            logger.error(f"Failed to add API event to database: {e}")
+
     def on_modified(self, event):
-        """Override to add API event tracking"""
+        """Override to add API event tracking while preserving content diff generation"""
+        # First call parent to generate content diffs via file_tracker
+        super().on_modified(event)
+        
+        # Then add basic event for API tracking  
         if not event.is_directory:
             file_path = Path(event.src_path)
             if not self.ignore_handler.should_ignore(file_path) and self.watch_handler.should_watch(file_path):
                 if file_path.suffix.lower() == '.md':
                     self._add_event('modified', file_path)
-        super().on_modified(event)
     
     def on_created(self, event):
-        """Override to add API event tracking"""
+        """Override to add API event tracking while preserving content diff generation"""
+        # First call parent to generate content diffs via file_tracker
+        super().on_created(event)
+        
+        # Then add basic event for API tracking
         file_path = Path(event.src_path)
         if not event.is_directory:
             if not self.ignore_handler.should_ignore(file_path) and self.watch_handler.should_watch(file_path):
                 if file_path.suffix.lower() == '.md':
                     self._add_event('created', file_path)
-        super().on_created(event)
     
     def on_deleted(self, event):
-        """Override to add API event tracking"""
+        """Override to add API event tracking while preserving content diff generation"""
+        # First call parent to generate content diffs via file_tracker
+        super().on_deleted(event)
+        
+        # Then add basic event for API tracking
         file_path = Path(event.src_path)
         if not event.is_directory:
             if not self.ignore_handler.should_ignore(file_path) and self.watch_handler.should_watch(file_path):
                 if file_path.suffix.lower() == '.md':
                     self._add_event('deleted', file_path, size=0)
-        super().on_deleted(event)
     
     def on_moved(self, event):
-        """Override to add API event tracking"""
+        """Override to add API event tracking while preserving content diff generation"""
+        # First call parent to generate content diffs via file_tracker  
+        super().on_moved(event)
+        
+        # Then add basic event for API tracking
         if not event.is_directory:
             src_path = Path(event.src_path)
             dest_path = Path(event.dest_path)
@@ -80,7 +91,6 @@ class APIAwareNoteChangeHandler(NoteChangeHandler):
             if (not src_ignored and src_watched) or (not dest_ignored and dest_watched):
                 if src_path.suffix.lower() == '.md' or dest_path.suffix.lower() == '.md':
                     self._add_event('moved', dest_path)
-        super().on_moved(event)
 
 
 class APIObbyMonitor(ObbyMonitor):
@@ -133,7 +143,8 @@ class APIObbyMonitor(ObbyMonitor):
                 notes_folder=self.notes_folder,
                 ai_client=ai_client,
                 living_note_path=LIVING_NOTE_PATH,
-                utils_folder=utils_folder
+                utils_folder=utils_folder,
+                file_tracker=self.file_tracker  # Pass file_tracker for content diff generation
             )
             
             # Start watching

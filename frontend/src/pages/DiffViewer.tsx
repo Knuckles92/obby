@@ -31,7 +31,8 @@ export default function DiffViewer() {
       if (!diffsResponse.ok) {
         throw new Error(`Failed to fetch diffs: ${diffsResponse.status}`)
       }
-      const diffsData = await diffsResponse.json()
+      const diffsResponseData = await diffsResponse.json()
+      const diffsData = diffsResponseData.diffs || []
       
       // Fetch recent file changes
       const changesResponse = await apiFetch('/api/files/changes?limit=50')
@@ -41,7 +42,7 @@ export default function DiffViewer() {
       const statusResponse = await apiFetch('/api/files/monitoring-status') 
       const statusData = statusResponse.ok ? await statusResponse.json() : null
       
-      setDiffs(Array.isArray(diffsData) ? diffsData : [])
+      setDiffs(diffsData)
       setFileChanges(Array.isArray(changesData) ? changesData : [])
       setMonitoringStatus(statusData)
       

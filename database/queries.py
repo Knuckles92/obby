@@ -64,6 +64,42 @@ class FileQueries:
             logger.error(f"Error retrieving recent diffs: {e}")
             return []
     
+    @staticmethod
+    def get_diff_content(diff_id: str) -> Optional[Dict[str, Any]]:
+        """Get content diff by ID."""
+        try:
+            query = """
+                SELECT cd.*, 
+                       fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                       fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+                FROM content_diffs cd
+                LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+                LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+                WHERE cd.id = ?
+            """
+            rows = db.execute_query(query, (diff_id,))
+            if rows:
+                diff = dict(rows[0])
+                logger.debug(f"Retrieved content diff by ID: {diff_id}")
+                return {
+                    'id': str(diff['id']),
+                    'content': diff['diff_content'],
+                    'filePath': diff['file_path'],
+                    'changeType': diff['change_type'],
+                    'linesAdded': diff['lines_added'],
+                    'linesRemoved': diff['lines_removed'],
+                    'timestamp': diff['timestamp'],
+                    'oldVersionId': diff['old_version_id'],
+                    'newVersionId': diff['new_version_id']
+                }
+            else:
+                logger.warning(f"Content diff not found: {diff_id}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error retrieving content diff by ID {diff_id}: {e}")
+            return None
+    
     @staticmethod  
     def get_recent_versions(limit: int = 20, file_path: str = None) -> List[Dict[str, Any]]:
         """Get recent file versions - replaces commit-based tracking."""
