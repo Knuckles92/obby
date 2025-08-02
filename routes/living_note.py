@@ -213,7 +213,7 @@ def trigger_living_note_update():
         if recent_events:
             event_summaries = []
             for event in recent_events:
-                summary = f"- {event['event_type']} in {event['file_path']}"
+                summary = f"- {event['type']} in {event['path']}"
                 if event.get('summary'):
                     summary += f": {event['summary']}"
                 event_summaries.append(summary)
@@ -224,9 +224,13 @@ def trigger_living_note_update():
             summary = openai_client.summarize_events(events_text)
             
             # Update living note
-            success = openai_client.update_living_note(summary)
+            success = openai_client.update_living_note(LIVING_NOTE_PATH, summary)
             
             if success:
+                # Small delay to ensure file is fully written before notification
+                import time
+                time.sleep(0.2)
+                
                 # Notify SSE clients
                 notify_living_note_change()
                 
@@ -244,9 +248,13 @@ def trigger_living_note_update():
         else:
             # Force update with placeholder content
             placeholder_summary = f"Living note manually updated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            success = openai_client.update_living_note(placeholder_summary)
+            success = openai_client.update_living_note(LIVING_NOTE_PATH, placeholder_summary)
             
             if success:
+                # Small delay to ensure file is fully written before notification
+                import time
+                time.sleep(0.2)
+                
                 notify_living_note_change()
                 return jsonify({
                     'success': True,
@@ -302,16 +310,24 @@ def notify_living_note_change():
     try:
         # Read current living note content
         content = ""
+        last_updated = datetime.now().isoformat()
+        
         if os.path.exists(LIVING_NOTE_PATH):
             with open(LIVING_NOTE_PATH, 'r', encoding='utf-8') as f:
                 content = f.read()
+            # Get actual file modification time
+            stat = os.path.stat(LIVING_NOTE_PATH)
+            last_updated = datetime.fromtimestamp(stat.st_mtime).isoformat()
         
-        # Create notification event
+        # Calculate word count
+        word_count = len(content.split()) if content else 0
+        
+        # Create notification event matching the LivingNote interface
         event = {
             'type': 'living_note_updated',
-            'timestamp': datetime.now().isoformat(),
             'content': content,
-            'path': LIVING_NOTE_PATH
+            'lastUpdated': last_updated,
+            'wordCount': word_count
         }
         
         # Send to all connected SSE clients
@@ -332,6 +348,7 @@ def notify_living_note_change():
                 sse_clients.remove(client)
         
         logger.info(f"Notified {len(sse_clients)} SSE clients of living note change")
+        logger.debug(f"Living note content length: {len(content)} characters, word count: {word_count}")
         
     except Exception as e:
         logger.error(f"Failed to notify SSE clients: {e}")

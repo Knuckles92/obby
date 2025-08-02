@@ -64,6 +64,7 @@ export default function LivingNote() {
   const [hasError, setHasError] = useState(false)
   const [updateLoading, setUpdateLoading] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const fallbackTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     try {
@@ -77,6 +78,11 @@ export default function LivingNote() {
     return () => {
       try {
         disconnectSSE()
+        // Clean up any pending fallback timeout
+        if (fallbackTimeoutRef.current) {
+          clearTimeout(fallbackTimeoutRef.current)
+          fallbackTimeoutRef.current = null
+        }
       } catch (error) {
         console.error('Error disconnecting SSE:', error)
       }
@@ -109,6 +115,12 @@ export default function LivingNote() {
               wordCount: data.wordCount,
               sections: data.sections
             })
+            
+            // Clear any pending fallback timeout since we received the update
+            if (fallbackTimeoutRef.current) {
+              clearTimeout(fallbackTimeoutRef.current)
+              fallbackTimeoutRef.current = null
+            }
           } else if (data.type === 'connected') {
             console.log('SSE connection established')
           }
@@ -165,17 +177,38 @@ export default function LivingNote() {
     setUpdateLoading(true)
     try {
       const response = await apiFetch('/api/living-note/update', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ force: false })
       })
       
       if (response.ok) {
         console.log('Update completed successfully')
+        // SSE will automatically refresh the content via notify_living_note_change()
+        
+        // Set up fallback mechanism in case SSE fails to deliver the update
+        if (!isConnected) {
+          // If SSE is not connected, immediately fetch the updated content
+          console.log('SSE disconnected, fetching content immediately')
+          await fetchLivingNote()
+        } else {
+          // If SSE is connected, wait for automatic update but have a fallback timeout
+          fallbackTimeoutRef.current = setTimeout(async () => {
+            console.log('SSE fallback timeout triggered, fetching content manually')
+            await fetchLivingNote()
+            fallbackTimeoutRef.current = null
+          }, 1500) // 1.5 second timeout for better responsiveness
+        }
       } else {
         const error = await response.json()
         console.error('Failed to trigger update:', error.error)
       }
     } catch (error) {
       console.error('Error triggering update:', error)
+      // On error, always try to fetch the latest content
+      await fetchLivingNote()
     } finally {
       setUpdateLoading(false)
     }

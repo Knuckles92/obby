@@ -113,6 +113,54 @@ class OpenAIClient:
         except Exception as e:
             return f"Error generating AI summary: {str(e)}"
     
+    def summarize_events(self, events_text, settings=None):
+        """
+        Summarize recent events for the living note.
+        
+        Args:
+            events_text: Formatted text describing recent events
+            settings: Optional living note settings for customization
+            
+        Returns:
+            str: AI-generated summary of events
+        """
+        try:
+            # Load settings if not provided
+            if settings is None:
+                settings = self._load_living_note_settings()
+            
+            # Build customized system prompt
+            system_prompt = self._build_system_prompt(settings, "events")
+            
+            # Adjust max_tokens based on summary length setting
+            max_tokens_map = {
+                'brief': 200,
+                'moderate': 400,
+                'detailed': 800
+            }
+            max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 400)
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": f"Please summarize the following recent events:\n\n{events_text}"
+                    }
+                ],
+                max_tokens=max_tokens,
+                temperature=0.3
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            return f"Error summarizing events: {str(e)}"
+    
     def _load_living_note_settings(self):
         """Load living note settings from config file."""
         import json
@@ -487,30 +535,12 @@ Be specific and actionable. Do not include additional text outside the bullet po
         except Exception as e:
             logging.warning(f"Failed to create semantic index entry: {e}")
         
-        # Automatically commit the living note update to git
-        try:
-            from git_integration.git_client import GitClient
-            git_client = GitClient()
-            
-            # Generate commit message based on the change type and content
-            if change_type == "content":
-                commit_msg = f"docs: update note '{summary[:50]}...'" if len(summary) > 50 else f"docs: update note '{summary}'"
-            elif change_type == "tree":
-                commit_msg = f"docs: update living note (tree change)"
-            else:
-                commit_msg = f"docs: update living note ({change_type})"
-                
-            # Auto-commit the living note file
-            commit_hash = git_client.auto_commit_file(str(living_note_path), commit_msg)
-            if commit_hash:
-                logging.info(f"Living note committed to git: {commit_hash[:8]}")
-            else:
-                logging.debug("No git commit needed - no changes detected")
-                
-        except Exception as e:
-            logging.warning(f"Failed to auto-commit living note: {e}")
+        # Git integration has been removed from Obby - living notes are saved without auto-commit
         
         logging.info(f"Living note updated with structured format and semantic indexing: {living_note_path}")
+        
+        # Return success status
+        return True
 
     def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None, update_type=None):
         """Create a new session entry in the structured format."""
@@ -544,6 +574,11 @@ Be specific and actionable. Do not include additional text outside the bullet po
         
         with open(living_note_path, "w", encoding='utf-8') as f:
             f.write(updated_content)
+            f.flush()  # Ensure content is written to disk
+        
+        # Small delay to ensure file system events are triggered
+        import time
+        time.sleep(0.1)
 
     def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line, settings=None, update_type=None):
         """Add to an existing session in the structured format."""
@@ -609,6 +644,11 @@ Be specific and actionable. Do not include additional text outside the bullet po
         # Write updated content back to file
         with open(living_note_path, "w", encoding='utf-8') as f:
             f.write('\n'.join(lines))
+            f.flush()  # Ensure content is written to disk
+        
+        # Small delay to ensure file system events are triggered
+        import time
+        time.sleep(0.1)
 
     def _generate_session_insights(self, summaries, change_types, is_new_session=True, settings=None, update_type=None):
         """Generate intelligent insights based on session patterns and changes."""
@@ -751,6 +791,9 @@ Be specific and actionable. Do not include additional text outside the bullet po
             logging.warning(f"Failed to create enhanced semantic index entry: {e}")
         
         logging.info(f"Living note updated with enhanced {update_type} processing: {living_note_path}")
+        
+        # Return success status
+        return True
 
     def extract_semantic_metadata(self, summary_text):
         """
