@@ -24,14 +24,17 @@ def get_config_root():
     except Exception as e:
         logger.error(f"Error loading config from database: {e}")
         # Fallback to defaults
-        from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER
+        from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER, AI_UPDATE_INTERVAL, AI_AUTO_UPDATE_ENABLED
         return jsonify({
             'checkInterval': CHECK_INTERVAL,
             'openaiApiKey': os.getenv('OPENAI_API_KEY', ''),
             'aiModel': OPENAI_MODEL,
             'watchPaths': [str(NOTES_FOLDER)],
             'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
-            'periodicCheckEnabled': True
+            'periodicCheckEnabled': True,
+            'aiUpdateInterval': AI_UPDATE_INTERVAL,
+            'aiAutoUpdateEnabled': AI_AUTO_UPDATE_ENABLED,
+            'lastAiUpdateTimestamp': None
         })
 
 
@@ -42,7 +45,7 @@ def update_config_root():
     
     try:
         # Validate the configuration data
-        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'ignorePatterns', 'periodicCheckEnabled']
+        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'ignorePatterns', 'periodicCheckEnabled', 'aiUpdateInterval', 'aiAutoUpdateEnabled', 'lastAiUpdateTimestamp']
         config_data = {}
         
         for field in valid_fields:
@@ -65,6 +68,18 @@ def update_config_root():
         if 'periodicCheckEnabled' in config_data:
             if not isinstance(config_data['periodicCheckEnabled'], bool):
                 return jsonify({'error': 'periodicCheckEnabled must be a boolean'}), 400
+        
+        if 'aiUpdateInterval' in config_data:
+            try:
+                config_data['aiUpdateInterval'] = int(config_data['aiUpdateInterval'])
+                if config_data['aiUpdateInterval'] < 1 or config_data['aiUpdateInterval'] > 168:  # 1 hour to 1 week
+                    return jsonify({'error': 'AI update interval must be between 1 and 168 hours'}), 400
+            except (ValueError, TypeError):
+                return jsonify({'error': 'Invalid AI update interval value'}), 400
+        
+        if 'aiAutoUpdateEnabled' in config_data:
+            if not isinstance(config_data['aiAutoUpdateEnabled'], bool):
+                return jsonify({'error': 'aiAutoUpdateEnabled must be a boolean'}), 400
         
         # Update configuration in database
         result = ConfigQueries.update_config(config_data)

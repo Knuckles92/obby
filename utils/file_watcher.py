@@ -176,30 +176,9 @@ class NoteChangeHandler(FileSystemEventHandler):
                 else:
                     logging.warning(f"⚠️ File tracker returned None for {change_type} change in {file_path.name} - change may not have been processed")
                 
-                if version_id and change_type != 'deleted':
-                    # For created/modified files, update living note with AI analysis
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as f:
-                            current_content = f.read()
-                        
-                        # Get recent events for context
-                        from database.models import EventModel
-                        recent_events = EventModel.get_recent(limit=5)
-                        
-                        # Generate AI summary
-                        summary = self.ai_client.summarize_diff(current_content, recent_tree_changes=recent_events)
-                        
-                        # Store the file path in AI client for semantic indexing
-                        self.ai_client._current_file_path = str(file_path)
-                        self.ai_client.update_living_note(self.living_note_path, summary, "content")
-                        
-                    except (UnicodeDecodeError, IOError) as e:
-                        logging.warning(f"Could not read file {file_path.name}: {e}")
-                        
-                elif change_type == 'deleted':
-                    # For deleted files, just update living note
-                    summary = f"File deleted: {file_path.name}"
-                    self.ai_client.update_living_note(self.living_note_path, summary, "deletion")
+                # Note: AI processing has been decoupled from file monitoring
+                # All file tracking, diff generation, and database storage is preserved
+                # AI analysis will be handled separately to reduce API usage
             else:
                 logging.warning("File tracker not available, using legacy processing")
                 # Fallback to legacy processing if no file tracker
@@ -210,18 +189,9 @@ class NoteChangeHandler(FileSystemEventHandler):
     
     def _legacy_process_note_change(self, file_path):
         """Legacy processing method for when file tracker is not available."""
-        if file_path.exists():
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    current_content = f.read()
-                    
-                # Simple AI processing without version tracking
-                summary = self.ai_client.summarize_diff(current_content, recent_tree_changes=[])
-                self.ai_client._current_file_path = str(file_path)
-                self.ai_client.update_living_note(self.living_note_path, summary, "content")
-                
-            except (UnicodeDecodeError, IOError) as e:
-                logging.warning(f"Could not read file {file_path.name}: {e}")
+        # Note: AI processing has been decoupled from file monitoring
+        # Legacy method preserved for compatibility but without AI calls
+        logging.info(f"Legacy processing for {file_path.name} - AI analysis will be handled separately")
     
     def _process_tree_change(self, event_type, src_path, dest_path=None, is_directory=False):
         """Process a detected file tree change."""
@@ -236,9 +206,8 @@ class NoteChangeHandler(FileSystemEventHandler):
             
             logging.info(f"{change_summary}")
             
-            # Generate AI summary for the tree change and update living note
-            tree_summary = self.ai_client.summarize_tree_change(change_summary)
-            self.ai_client.update_living_note(self.living_note_path, tree_summary, "tree")
+            # Note: AI processing has been decoupled from file monitoring
+            # Tree change logging is preserved but AI analysis will be handled separately
                 
         except Exception as e:
             logging.error(f"Error processing tree change: {e}")

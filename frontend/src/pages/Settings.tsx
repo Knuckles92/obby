@@ -10,7 +10,10 @@ export default function Settings() {
     openaiApiKey: '',
     aiModel: 'gpt-4.1-mini',
     ignorePatterns: [],
-    periodicCheckEnabled: true
+    periodicCheckEnabled: true,
+    aiUpdateInterval: 12,
+    aiAutoUpdateEnabled: true,
+    lastAiUpdateTimestamp: null
   })
   const [models, setModels] = useState<Record<string, string>>({})
   const [modelsLoading, setModelsLoading] = useState(true)
@@ -32,7 +35,10 @@ export default function Settings() {
         openaiApiKey: data.openaiApiKey || '',
         aiModel: data.aiModel || 'gpt-4.1-mini',
         ignorePatterns: data.ignorePatterns || [],
-        periodicCheckEnabled: data.periodicCheckEnabled ?? true
+        periodicCheckEnabled: data.periodicCheckEnabled ?? true,
+        aiUpdateInterval: data.aiUpdateInterval || 12,
+        aiAutoUpdateEnabled: data.aiAutoUpdateEnabled ?? true,
+        lastAiUpdateTimestamp: data.lastAiUpdateTimestamp || null
       })
     } catch (error) {
       console.error('Error fetching config:', error)
@@ -256,6 +262,62 @@ export default function Settings() {
                 placeholder="sk-..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
               />
+            </div>
+
+            {/* AI Update Frequency Section */}
+            <div className="border-t border-gray-200 pt-4">
+              <h4 className="text-md font-medium text-gray-900 mb-4">AI Update Frequency</h4>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={config.aiAutoUpdateEnabled || false}
+                      onChange={(e) => setConfig({ ...config, aiAutoUpdateEnabled: e.target.checked })}
+                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Enable Automatic AI Updates
+                    </span>
+                  </label>
+                  <p className="text-sm text-gray-500 mt-1 ml-7">
+                    When enabled, AI analysis will run automatically at the specified interval.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    AI Update Interval (hours)
+                  </label>
+                  <p className="text-sm text-gray-500 mb-2">
+                    How often AI processing runs (separate from file monitoring). Default is 12 hours (twice daily).
+                  </p>
+                  <input
+                    type="number"
+                    min="1"
+                    max="168"
+                    value={config.aiUpdateInterval || 12}
+                    onChange={(e) => setConfig({ ...config, aiUpdateInterval: parseInt(e.target.value) || 12 })}
+                    disabled={!config.aiAutoUpdateEnabled}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Range: 1 hour to 168 hours (1 week)
+                  </p>
+                </div>
+
+                {config.lastAiUpdateTimestamp && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Last AI Update
+                    </label>
+                    <p className="text-sm text-gray-600">
+                      {new Date(config.lastAiUpdateTimestamp).toLocaleString()}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

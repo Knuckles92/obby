@@ -942,3 +942,130 @@ Be specific and actionable. Do not include additional text outside the bullet po
             
         except Exception as e:
             logging.error(f"Error saving semantic index: {e}")
+    
+    def summarize_batch_changes(self, batch_data: dict, settings=None):
+        """
+        Summarize a batch of accumulated file changes for efficient processing.
+        
+        Args:
+            batch_data: Dictionary containing accumulated changes information
+            settings: Optional living note settings for customization
+            
+        Returns:
+            str: AI-generated batch summary with semantic metadata
+        """
+        try:
+            # Load settings if not provided
+            if settings is None:
+                settings = self._load_living_note_settings()
+            
+            # Build system prompt for batch processing
+            system_prompt = self._build_batch_system_prompt(settings)
+            
+            # Prepare batch context
+            files_changed = batch_data.get('files_count', 0)
+            total_changes = batch_data.get('total_changes', 0)
+            time_span = batch_data.get('time_span', 'unknown')
+            
+            # Build user content for batch processing
+            user_content = f"""Please analyze this batch of accumulated file changes:
+
+Batch Overview:
+- Files affected: {files_changed}
+- Total changes: {total_changes}
+- Time span: {time_span}
+
+"""
+            
+            # Add individual file summaries if available
+            if batch_data.get('file_summaries'):
+                user_content += "Individual File Changes:\n"
+                for file_summary in batch_data['file_summaries']:
+                    file_path = file_summary.get('file_path', 'unknown')
+                    summary = file_summary.get('summary', 'No summary')
+                    user_content += f"- {file_path}: {summary}\n"
+                user_content += "\n"
+            
+            # Add combined diff content if available (truncated for API limits)
+            if batch_data.get('combined_diff'):
+                user_content += "Key Changes Overview:\n"
+                combined_diff = batch_data['combined_diff']
+                # Truncate if too long to avoid API limits
+                if len(combined_diff) > 3000:
+                    user_content += combined_diff[:3000] + "\n... (truncated for brevity)\n"
+                else:
+                    user_content += combined_diff + "\n"
+            
+            # Add focus areas if specified
+            if settings.get('focusAreas'):
+                focus_areas_text = ", ".join(settings['focusAreas'])
+                user_content += f"\nPay special attention to these focus areas: {focus_areas_text}"
+            
+            # Adjust max_tokens for batch processing
+            max_tokens_map = {
+                'brief': 400,
+                'moderate': 800,
+                'detailed': 1200
+            }
+            max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 800)
+            
+            logging.info(f"Processing batch AI request for {files_changed} files, {total_changes} changes")
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": system_prompt
+                    },
+                    {
+                        "role": "user",
+                        "content": user_content
+                    }
+                ],
+                max_tokens=max_tokens,
+                temperature=0.3
+            )
+            
+            return response.choices[0].message.content.strip()
+            
+        except Exception as e:
+            return f"Error generating batch AI summary: {str(e)}"
+    
+    def _build_batch_system_prompt(self, settings):
+        """Build a system prompt optimized for batch processing."""
+        writing_style = settings.get('writingStyle', 'technical')
+        summary_length = settings.get('summaryLength', 'moderate')
+        include_metrics = settings.get('includeMetrics', True)
+        
+        # Load format configuration
+        format_config = self._load_format_config()
+        
+        # Get style and length instructions
+        style_instruction = format_config.get('style_variations', {}).get(
+            writing_style, 
+            'Use precise technical language and include technical details.'
+        )
+        
+        length_instruction = format_config.get('length_options', {}).get(
+            summary_length,
+            'Provide balanced summaries with good detail without being verbose.'
+        )
+        
+        metrics_instruction = ''
+        if include_metrics:
+            metrics_instruction = 'Include relevant metrics and quantitative information where applicable.'
+        
+        # Batch-specific prompt
+        batch_prompt = f"""You are an AI assistant for Obby, analyzing accumulated file changes in batch mode. {style_instruction} {length_instruction} {metrics_instruction}
+
+IMPORTANT: Format your response for batch processing EXACTLY as follows:
+**Batch Summary**: [Comprehensive overview of all changes across files]
+**Key Topics**: [3-7 main topics across all changes, comma-separated]
+**Key Keywords**: [5-10 important technical terms and concepts, comma-separated]
+**Overall Impact**: [brief/moderate/significant - assess cumulative impact]
+**Files Focus**: [Brief mention of most significantly changed files]
+
+Focus on patterns across multiple files, cumulative impact, and development themes. Synthesize information rather than listing individual changes. Do not include additional text outside this format."""
+        
+        return batch_prompt

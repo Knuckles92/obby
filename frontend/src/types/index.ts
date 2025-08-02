@@ -115,6 +115,9 @@ export interface ConfigSettings {
   aiModel: string;
   ignorePatterns: string[];
   periodicCheckEnabled?: boolean;
+  aiUpdateInterval?: number; // AI update frequency in hours
+  aiAutoUpdateEnabled?: boolean; // whether AI auto-updates are enabled
+  lastAiUpdateTimestamp?: string | null; // when AI was last run
 }
 
 export interface LivingNoteSection {

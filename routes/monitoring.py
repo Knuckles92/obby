@@ -204,6 +204,142 @@ def scan_files():
         }), 500
 
 
+@monitoring_bp.route('/batch-ai/status', methods=['GET'])
+def get_batch_ai_status():
+    """Get current batch AI processing status"""
+    global monitor_instance
+    
+    if not monitor_instance:
+        return jsonify({
+            'success': False,
+            'message': 'Monitoring is not active'
+        }), 400
+    
+    try:
+        status = monitor_instance.get_batch_processing_status()
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+    except Exception as e:
+        logger.error(f"Failed to get batch AI status: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to get batch AI status: {str(e)}'
+        }), 500
+
+
+@monitoring_bp.route('/batch-ai/trigger', methods=['POST'])
+def trigger_batch_ai():
+    """Manually trigger batch AI processing"""
+    global monitor_instance
+    
+    if not monitor_instance:
+        return jsonify({
+            'success': False,
+            'message': 'Monitoring is not active'
+        }), 400
+    
+    # Check for force parameter
+    data = request.get_json() or {}
+    force = data.get('force', False)
+    
+    try:
+        logger.info(f"Manual batch AI processing triggered (force={force})")
+        result = monitor_instance.trigger_batch_processing(force=force)
+        
+        if result.get('error'):
+            return jsonify({
+                'success': False,
+                'message': result['error']
+            }), 500
+        
+        return jsonify({
+            'success': True,
+            'message': 'Batch AI processing triggered successfully',
+            'result': result
+        })
+    except Exception as e:
+        logger.error(f"Failed to trigger batch AI processing: {e}")
+        return jsonify({
+            'success': False,
+            'message': f'Failed to trigger batch AI processing: {str(e)}'
+        }), 500
+
+
+@monitoring_bp.route('/batch-ai/config', methods=['GET', 'PUT'])
+def batch_ai_config():
+    """Get or update batch AI processing configuration"""
+    global monitor_instance
+    
+    if not monitor_instance:
+        return jsonify({
+            'success': False,
+            'message': 'Monitoring is not active'
+        }), 400
+    
+    if request.method == 'GET':
+        try:
+            status = monitor_instance.get_batch_processing_status()
+            return jsonify({
+                'success': True,
+                'config': {
+                    'enabled': status.get('enabled', False),
+                    'interval_seconds': status.get('interval_seconds', 300),
+                    'max_batch_size': status.get('max_batch_size', 50),
+                    'last_update': status.get('last_update'),
+                    'next_batch_in_seconds': status.get('next_batch_in_seconds', 0),
+                    'pending_changes_count': status.get('pending_changes_count', 0)
+                }
+            })
+        except Exception as e:
+            logger.error(f"Failed to get batch AI config: {e}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to get batch AI config: {str(e)}'
+            }), 500
+    
+    elif request.method == 'PUT':
+        try:
+            data = request.get_json() or {}
+            
+            # Extract configuration parameters
+            config_updates = {}
+            
+            if 'enabled' in data:
+                # Handle enabling/disabling batch processing
+                enabled = bool(data['enabled'])
+                monitor_instance.set_batch_processing_enabled(enabled)
+                logger.info(f"Batch AI processing {'enabled' if enabled else 'disabled'}")
+            
+            if 'interval' in data:
+                config_updates['interval'] = int(data['interval'])
+            
+            if 'max_batch_size' in data:
+                config_updates['max_batch_size'] = int(data['max_batch_size'])
+            
+            # Update configuration
+            if config_updates:
+                success = monitor_instance.update_batch_processing_config(**config_updates)
+                if not success:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Failed to update batch AI configuration'
+                    }), 500
+            
+            return jsonify({
+                'success': True,
+                'message': 'Batch AI configuration updated successfully'
+            })
+            
+        except Exception as e:
+            logger.error(f"Failed to update batch AI config: {e}")
+            return jsonify({
+                'success': False,
+                'message': f'Failed to update batch AI config: {str(e)}'
+            }), 500
+
+
 def run_monitor():
     """Run the monitor in a separate thread"""
     global monitor_instance
