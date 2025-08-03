@@ -32,8 +32,20 @@ def get_recent_diffs():
         limit = int(request.args.get('limit', 50))
         file_path = request.args.get('file_path', None)
         
-        # Get recent content diffs from content_diffs table
-        diffs = FileQueries.get_recent_diffs(limit=limit, file_path=file_path)
+        # Initialize watch handler to filter by watch patterns
+        watch_handler = None
+        try:
+            from utils.watch_handler import WatchHandler
+            from pathlib import Path
+            # Use the root directory which contains the user's .obbywatch file
+            root_folder = Path(__file__).parent.parent
+            watch_handler = WatchHandler(root_folder)
+            logger.debug(f"Loaded watch patterns: {watch_handler.watch_patterns}")
+        except Exception as e:
+            logger.warning(f"Could not load watch patterns, showing all diffs: {e}")
+        
+        # Get recent content diffs from content_diffs table with filtering
+        diffs = FileQueries.get_recent_diffs(limit=limit, file_path=file_path, watch_handler=watch_handler)
         
         return jsonify({'diffs': diffs})
     except Exception as e:
@@ -196,6 +208,39 @@ def clear_file_data():
     except Exception as e:
         logger.error(f"Error clearing file data: {e}")
         return jsonify({'error': f'Failed to clear file data: {str(e)}'}), 500
+
+
+@files_bp.route('/clear-unwatched', methods=['POST'])
+def clear_unwatched_file_diffs():
+    """Clear file diffs for files no longer being watched"""
+    try:
+        # Initialize watch handler
+        from utils.watch_handler import WatchHandler
+        from pathlib import Path
+        root_folder = Path(__file__).parent.parent
+        watch_handler = WatchHandler(root_folder)
+        
+        # Clear unwatched diffs
+        clear_result = FileQueries.clear_unwatched_file_diffs(watch_handler)
+        
+        if clear_result['success']:
+            logger.info(f"Cleared unwatched file diffs successfully")
+            return jsonify({
+                'message': 'Unwatched file diffs cleared successfully',
+                'clearedRecords': {
+                    'contentDiffs': clear_result.get('content_diffs_cleared', 0),
+                    'unwatchedFilesRemoved': clear_result.get('unwatched_files_removed', 0)
+                }
+            })
+        else:
+            return jsonify({
+                'error': 'Failed to clear unwatched file diffs',
+                'details': clear_result.get('error', 'Unknown error')
+            }), 500
+        
+    except Exception as e:
+        logger.error(f"Error clearing unwatched file diffs: {e}")
+        return jsonify({'error': f'Failed to clear unwatched file diffs: {str(e)}'}), 500
 
 
 @files_bp.route('/<path:file_path>/history', methods=['GET'])

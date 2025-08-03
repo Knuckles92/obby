@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Essential Commands
 
 ### Backend Development
-- **Start web application**: `python api_server.py` (serves built frontend at :8000)
+- **Start web application**: `python backend.py` (serves built frontend at :8001)
 - **Start CLI monitoring**: `python main.py` (displays usage instructions)
 - **Install dependencies**: `pip install -r requirements.txt`
 
@@ -39,7 +39,7 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 
 ### Key Components
 
-#### Backend (`api_server.py`)
+#### Backend (`backend.py`)
 - Flask REST API server with CORS support
 - SSE (Server-Sent Events) for real-time frontend updates
 - Database-backed storage replacing in-memory event tracking

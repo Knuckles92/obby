@@ -298,32 +298,19 @@ class OpenAIClient:
     def _get_fallback_format_config(self):
         """Return hardcoded fallback configuration when format.md is unavailable."""
         return {
-            'session_template': '''# Living Note - {date}
-
-## Session Summary ({time})
-**Focus**: {focus_description}
-**Changes**: {change_count}
-**Key Progress**: 
-{key_changes}
-
-### Detailed Changes:
+            'session_template': '''{timestamp} - {file_path}
 {detailed_entries}
-
-## Insights
 {ai_insights}
 
 ---
 
 ''',
-            'diff_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. {style_instruction} {length_instruction} {metrics_instruction}
+            'diff_prompt': '''You are an AI assistant for Obby. Generate VERY concise, targeted updates. {style_instruction} {length_instruction}
 
-IMPORTANT: Format your response EXACTLY as follows:
-**Summary**: [Concise description of what changed, added, or removed]
-**Topics**: [2-5 key technical topics, comma-separated]
-**Keywords**: [3-7 specific technical terms, function names, concepts, comma-separated]
-**Impact**: [brief/moderate/significant - assess the scope of changes]
+IMPORTANT: Format your response as a single bullet point:
+- [Brief summary of what changed between living note updates - focus only on the key change, not details]
 
-Focus on what was changed, added, or removed. Make keywords specific and searchable. Do not include additional text outside this format.''',
+Be extremely concise. Focus on WHAT changed, not HOW. Maximum one sentence. Make it specific and searchable but very brief.''',
             'tree_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing file tree changes, provide a structured summary optimized for search and discovery.
 
 IMPORTANT: Format your response EXACTLY as follows:
@@ -333,18 +320,18 @@ IMPORTANT: Format your response EXACTLY as follows:
 **Impact**: [brief/moderate/significant - assess organizational impact]
 
 Focus on the organizational impact and what it means for project structure. Do not include additional text outside this format.''',
-            'insights_prompt': '''You are an AI assistant that analyzes development sessions for patterns and insights. Provide concise, actionable insights about the developer's workflow and progress.
+            'insights_prompt': '''You are an AI assistant that analyzes development sessions. Be VERY reserved - only provide insights when there are clear, actionable takeaways or significant patterns.
 
-Analyze this development session with {total_changes} changes ({content_changes} content, {tree_changes} file structure):
+Analyze this development session with {total_changes} changes:
 
 {changes_text}
 
-IMPORTANT: Format your response as bullet points starting with '-'. Generate 2-3 concise insights about:
-1. Development patterns or workflow
-2. Project progress or focus areas  
-3. Potential next steps or recommendations
-
-Be specific and actionable. Do not include additional text outside the bullet point format.''',
+IMPORTANT: 
+- Only generate insights if there's a clear takeaway, pattern, or action item
+- If changes are routine/minor, respond with just "-" (no insights)
+- Maximum 2 concise bullet points starting with '-'
+- Focus on: significant patterns, important decisions, or clear next steps
+- Be specific and actionable. Avoid generic observations.''',
             'style_variations': {
                 'technical': 'Use precise technical language and include technical details.',
                 'casual': 'Use conversational tone and explain concepts in accessible terms.',
@@ -497,25 +484,8 @@ Be specific and actionable. Do not include additional text outside the bullet po
         if living_note_path.exists() and living_note_path.stat().st_size > 0:
             existing_content = living_note_path.read_text(encoding='utf-8')
         
-        # Check if we need to start a new session or add to existing one
-        lines = existing_content.split('\n')
-        today_header = f"# Living Note - {date_str}"
-        
-        # Find if today's session already exists
-        session_exists = False
-        session_start_line = -1
-        for i, line in enumerate(lines):
-            if line.strip() == today_header:
-                session_exists = True
-                session_start_line = i
-                break
-        
-        if session_exists:
-            # Add to existing session's detailed changes
-            self._add_to_existing_session(living_note_path, summary, change_type, lines, session_start_line, settings, update_type)
-        else:
-            # Create new session
-            self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings, update_type)
+        # Always create new entry with simple format (no session management needed)
+        self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings, update_type)
         
         # Extract semantic metadata and create searchable index entry
         try:
@@ -555,16 +525,14 @@ Be specific and actionable. Do not include additional text outside the bullet po
         template = format_config.get('session_template', '')
         
         # Prepare template variables
-        key_progress = f"- {change_type.title()} change: {summary[:100]}{'...' if len(summary) > 100 else ''}"
-        detailed_entries = f"- **{datetime.now().strftime('%H:%M:%S')}**: {summary}"
+        timestamp = datetime.now().strftime('%H:%M:%S')
+        file_path = getattr(self, '_current_file_path', 'multiple files')
+        detailed_entries = summary  # Summary is already clean bullet points from AI
         
         # Apply template with variable substitution
         session_header = template.format(
-            date=date_str,
-            time=time_str,
-            focus_description="Development Session",
-            change_count="1 change detected",
-            key_changes=key_progress,
+            timestamp=timestamp,
+            file_path=file_path,
             detailed_entries=detailed_entries,
             ai_insights=insights
         )
@@ -798,6 +766,7 @@ Be specific and actionable. Do not include additional text outside the bullet po
     def extract_semantic_metadata(self, summary_text):
         """
         Extract semantic metadata from AI-generated summaries for indexing.
+        Handles both new bullet-point format and legacy structured format.
         
         Args:
             summary_text: The formatted AI summary with semantic metadata
@@ -814,19 +783,42 @@ Be specific and actionable. Do not include additional text outside the bullet po
         
         try:
             lines = summary_text.splitlines()
+            
+            # Check for new bullet-point format
+            bullet_summaries = []
             for line in lines:
                 line = line.strip()
-                if line.startswith('**Brief**:'):
-                    metadata['summary'] = line.replace('**Brief**:', '').strip()
-                elif line.startswith('**Impact**:'):
-                    metadata['impact'] = line.replace('**Impact**:', '').strip().lower()
-                elif line.startswith('**Next**:'):
-                    # This field is not in the metadata so we will just ignore it
-                    pass
+                if line.startswith('- '):
+                    bullet_summaries.append(line[2:].strip())
             
-            # If no structured metadata found, treat entire text as summary
-            if not metadata['summary'] and not metadata['topics']:
-                metadata['summary'] = summary_text
+            if bullet_summaries:
+                # New format: combine bullet points into summary
+                metadata['summary'] = '; '.join(bullet_summaries)
+                # Set impact based on number of changes
+                if len(bullet_summaries) > 3:
+                    metadata['impact'] = 'significant'
+                elif len(bullet_summaries) > 1:
+                    metadata['impact'] = 'moderate'
+                else:
+                    metadata['impact'] = 'brief'
+            else:
+                # Legacy format parsing
+                for line in lines:
+                    line = line.strip()
+                    if line.startswith('**Summary**:'):
+                        metadata['summary'] = line.replace('**Summary**:', '').strip()
+                    elif line.startswith('**Topics**:'):
+                        topics_str = line.replace('**Topics**:', '').strip()
+                        metadata['topics'] = [t.strip() for t in topics_str.split(',') if t.strip()]
+                    elif line.startswith('**Keywords**:'):
+                        keywords_str = line.replace('**Keywords**:', '').strip()
+                        metadata['keywords'] = [k.strip() for k in keywords_str.split(',') if k.strip()]
+                    elif line.startswith('**Impact**:'):
+                        metadata['impact'] = line.replace('**Impact**:', '').strip().lower()
+                
+                # If no structured metadata found, treat entire text as summary
+                if not metadata['summary'] and not metadata['topics']:
+                    metadata['summary'] = summary_text
                 
         except Exception as e:
             logging.warning(f"Error extracting semantic metadata: {e}")

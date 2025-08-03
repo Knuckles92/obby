@@ -20,20 +20,39 @@ import {
 import { apiRequest } from '../utils/api'
 
 interface SystemStats {
-  uptime: string
-  memoryUsage: number
-  cpuUsage: number
-  diskUsage: number
-  activeConnections: number
-  totalEvents: number
-  databaseSize: string
+  stats: {
+    system: {
+      cpu_percent: number
+      cpu_count: number
+      memory_total: number
+      memory_available: number
+      memory_percent: number
+      disk_total: number
+      disk_used: number
+      disk_free: number
+      disk_percent: number
+    }
+    process: {
+      memory_rss: number
+      memory_vms: number
+      memory_percent: number
+      cpu_percent: number
+      pid: number
+      num_threads: number
+    }
+  }
+  timestamp: number
 }
 
 interface DatabaseStats {
-  totalRecords: number
-  indexSize: string
-  lastOptimized: string
-  queryPerformance: number
+  database_stats: {
+    total_records: number
+    total_diffs: number
+    index_size: string
+    last_optimized: string
+    query_performance: number
+  }
+  success: boolean
 }
 
 export default function Administration() {
@@ -49,7 +68,7 @@ export default function Administration() {
       setError(null)
       
       // Fetch system stats
-      const statsResponse = await apiRequest('/api/admin/stats')
+      const statsResponse = await apiRequest('/api/admin/system/stats')
       setSystemStats(statsResponse)
       
       // Fetch database stats
@@ -81,7 +100,7 @@ export default function Administration() {
     if (confirm('Are you sure you want to clear all logs? This action cannot be undone.')) {
       try {
         setLoading(true)
-        const response = await apiRequest('/api/admin/logs/clear', { method: 'DELETE' })
+        const response = await apiRequest('/api/admin/system/clear-logs', { method: 'POST' })
         alert(response.message || 'Logs cleared successfully!')
         fetchSystemStats()
       } catch (err) {
@@ -279,12 +298,12 @@ export default function Administration() {
 
           {systemStats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-              <StatCard title="System Uptime" value={systemStats.uptime} icon={Server} color="green" />
-              <StatCard title="Memory Usage" value={`${systemStats.memoryUsage}%`} icon={MemoryStick} color="blue" percentage={systemStats.memoryUsage} />
-              <StatCard title="CPU Usage" value={`${systemStats.cpuUsage}%`} icon={Cpu} color="orange" percentage={systemStats.cpuUsage} />
-              <StatCard title="Disk Usage" value={`${systemStats.diskUsage}%`} icon={HardDrive} color="purple" percentage={systemStats.diskUsage} />
-              <StatCard title="Active Connections" value={systemStats.activeConnections} icon={Activity} color="green" />
-              <StatCard title="Total Events" value={systemStats.totalEvents.toLocaleString()} icon={Database} color="blue" />
+              <StatCard title="CPU Cores" value={systemStats.stats.system.cpu_count} icon={Server} color="green" />
+              <StatCard title="Memory Usage" value={`${Math.round(systemStats.stats.system.memory_percent)}%`} icon={MemoryStick} color="blue" percentage={systemStats.stats.system.memory_percent} />
+              <StatCard title="CPU Usage" value={`${Math.round(systemStats.stats.system.cpu_percent)}%`} icon={Cpu} color="orange" percentage={systemStats.stats.system.cpu_percent} />
+              <StatCard title="Disk Usage" value={`${Math.round(systemStats.stats.system.disk_percent)}%`} icon={HardDrive} color="purple" percentage={systemStats.stats.system.disk_percent} />
+              <StatCard title="Process PID" value={systemStats.stats.process.pid} icon={Activity} color="green" />
+              <StatCard title="Process Memory" value={`${Math.round(systemStats.stats.process.memory_percent)}%`} icon={Database} color="blue" percentage={systemStats.stats.process.memory_percent} />
             </div>
           )}
 
@@ -316,9 +335,9 @@ export default function Administration() {
           
           {databaseStats && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-              <StatCard title="Total Records" value={databaseStats.totalRecords.toLocaleString()} icon={Database} color="blue" />
-              <StatCard title="Index Size" value={databaseStats.indexSize} icon={HardDrive} color="purple" />
-              <StatCard title="Query Performance" value={`${databaseStats.queryPerformance}%`} icon={Activity} color="green" percentage={databaseStats.queryPerformance} />
+              <StatCard title="Total Records" value={databaseStats.database_stats.total_records?.toLocaleString() || 'N/A'} icon={Database} color="blue" />
+              <StatCard title="Total Diffs" value={databaseStats.database_stats.total_diffs?.toLocaleString() || 'N/A'} icon={Activity} color="green" />
+              <StatCard title="Index Size" value={databaseStats.database_stats.index_size || 'N/A'} icon={HardDrive} color="purple" />
             </div>
           )}
 
@@ -354,15 +373,15 @@ export default function Administration() {
               <div style={{ display: 'grid', gap: 'var(--spacing-sm)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--color-text-secondary)' }}>Last Optimized:</span>
-                  <span>{databaseStats.lastOptimized}</span>
+                  <span>{databaseStats.database_stats.last_optimized || 'Never'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: 'var(--color-text-secondary)' }}>Database Size:</span>
-                  <span>{systemStats?.databaseSize}</span>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>Total Records:</span>
+                  <span>{databaseStats.database_stats.total_records?.toLocaleString() || 'N/A'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: 'var(--color-text-secondary)' }}>Index Size:</span>
-                  <span>{databaseStats.indexSize}</span>
+                  <span>{databaseStats.database_stats.index_size || 'N/A'}</span>
                 </div>
               </div>
             </div>

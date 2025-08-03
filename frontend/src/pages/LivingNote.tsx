@@ -248,56 +248,107 @@ export default function LivingNote() {
   const parseStructuredContent = (content: string): ParsedSession[] => {
     if (!content) return []
     
-    // Check if content has session structure
-    const sessionPattern = /^## Session \d+: (.+?)\n\*\*Timestamp:\*\* (.+?)\n([\s\S]*?)(?=^## Session \d+:|$)/gm
+    // Check for new simple format: timestamp - filepath followed by bullet points
+    const simplePattern = /(\d{2}:\d{2}:\d{2}) - (.+?)\n([\s\S]*?)(?=\d{2}:\d{2}:\d{2} -|\n---|\n# |$)/gm
     const sessions: ParsedSession[] = []
     let match
+    let sessionCount = 0
     
-    while ((match = sessionPattern.exec(content)) !== null) {
-      const [, title, timestamp, sessionContent] = match
+    while ((match = simplePattern.exec(content)) !== null) {
+      const [, timestamp, filePath, bulletContent] = match
+      sessionCount++
       
-      // Extract metadata from session content
-      const metadata: ParsedSession['metadata'] = {}
+      // Extract bullet points from content
+      const lines = bulletContent.split('\n').map(line => line.trim()).filter(line => line)
+      const bulletPoints = lines.filter(line => line.startsWith('-')).map(line => line.trim())
       
-      // Extract topics
-      const topicsMatch = sessionContent.match(/\*\*Topics:\*\* (.+)/)
-      if (topicsMatch) {
-        metadata.topics = topicsMatch[1].split(', ').map(t => t.trim())
+      // Separate summary bullets from insight bullets (insights tend to be more reflective)
+      const summaryBullets = bulletPoints.filter(bullet => 
+        !bullet.toLowerCase().includes('focus') && 
+        !bullet.toLowerCase().includes('pattern') &&
+        !bullet.toLowerCase().includes('suggests') &&
+        !bullet.toLowerCase().includes('indication')
+      )
+      const insightBullets = bulletPoints.filter(bullet => 
+        bullet.toLowerCase().includes('focus') || 
+        bullet.toLowerCase().includes('pattern') ||
+        bullet.toLowerCase().includes('suggests') ||
+        bullet.toLowerCase().includes('indication')
+      )
+      
+      // Create metadata
+      const metadata: ParsedSession['metadata'] = {
+        changes: summaryBullets.length,
+        impact: summaryBullets.length > 3 ? 'significant' : summaryBullets.length > 1 ? 'moderate' : 'brief'
       }
       
-      // Extract keywords
-      const keywordsMatch = sessionContent.match(/\*\*Keywords:\*\* (.+)/)
-      if (keywordsMatch) {
-        metadata.keywords = keywordsMatch[1].split(', ').map(k => k.trim())
-      }
-      
-      // Extract impact
-      const impactMatch = sessionContent.match(/\*\*Impact:\*\* (\w+)/)
-      if (impactMatch) {
-        metadata.impact = impactMatch[1].toLowerCase()
-      }
-      
-      // Extract changes count
-      const changesMatch = sessionContent.match(/(\d+) changes?/)
-      if (changesMatch) {
-        metadata.changes = parseInt(changesMatch[1])
-      }
+      // Combine content for display
+      const sessionContent = [
+        summaryBullets.length > 0 ? '**Changes:**' : '',
+        ...summaryBullets,
+        '',
+        insightBullets.length > 0 ? '**Insights:**' : '',
+        ...insightBullets
+      ].filter(line => line !== '').join('\n')
       
       sessions.push({
-        id: `session-${sessions.length + 1}`,
-        title: title.trim(),
-        timestamp: timestamp.trim(),
-        content: sessionContent.trim(),
+        id: `entry-${sessionCount}`,
+        title: `${filePath} (${summaryBullets.length} changes)`,
+        timestamp: new Date().toISOString(), // Use current date with the time
+        content: sessionContent,
         metadata
       })
+    }
+    
+    // Fallback to legacy formats if no simple format found
+    if (sessions.length === 0) {
+      // Try UPDATE INFO format
+      const updatePattern = /\*Living Note\*\s*\[UPDATE INFO\]\s*([\s\S]*?)\s*\[UPDATE_INFO\]\s*([\s\S]*?)\s*(\d{4}-\d{2}-\d{2})\s*---/gm
+      while ((match = updatePattern.exec(content)) !== null) {
+        const [, updateInfo, insights, dateStr] = match
+        sessionCount++
+        
+        const updateItems = updateInfo.split('\n').filter(line => line.trim().startsWith('-')).map(line => line.trim())
+        const insightItems = insights.trim() === '-' ? [] : 
+          insights.split('\n').filter(line => line.trim().startsWith('-')).map(line => line.trim())
+        
+        const metadata: ParsedSession['metadata'] = {
+          changes: updateItems.length,
+          impact: updateItems.length > 3 ? 'significant' : updateItems.length > 1 ? 'moderate' : 'brief'
+        }
+        
+        const sessionContent = [
+          '**Updates:**',
+          ...updateItems,
+          '',
+          insightItems.length > 0 ? '**Key Insights:**' : '',
+          ...insightItems
+        ].filter(line => line !== '').join('\n')
+        
+        sessions.push({
+          id: `update-${sessionCount}`,
+          title: `Updates (${updateItems.length} changes)`,
+          timestamp: new Date(dateStr).toISOString(),
+          content: sessionContent,
+          metadata
+        })
+      }
     }
     
     return sessions
   }
 
-  // Check if content is structured format
+  // Check if content is structured format  
   const isStructuredFormat = (content: string): boolean => {
-    return content.includes('## Session') && content.includes('**Timestamp:**')
+    // Check for new simple format (timestamp - filepath pattern)
+    const simpleFormatPattern = /\d{2}:\d{2}:\d{2} - .+/
+    if (simpleFormatPattern.test(content)) {
+      return true
+    }
+    
+    // Check for legacy formats
+    return (content.includes('*Living Note*') && content.includes('[UPDATE INFO]')) || 
+           (content.includes('## Session') && content.includes('**Timestamp:**'))
   }
 
   // Toggle session expansion

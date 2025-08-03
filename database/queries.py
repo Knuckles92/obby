@@ -22,7 +22,7 @@ class FileQueries:
     """File-focused queries for API endpoints."""
     
     @staticmethod
-    def get_recent_diffs(limit: int = 20, file_path: str = None) -> List[Dict[str, Any]]:
+    def get_recent_diffs(limit: int = 20, file_path: str = None, watch_handler = None) -> List[Dict[str, Any]]:
         """Get recent file diffs - replaces git-based diff endpoints."""
         try:
             if file_path:
@@ -44,6 +44,13 @@ class FileQueries:
             # Format for API response
             formatted_diffs = []
             for diff in diffs:
+                # Apply watch pattern filtering if watch_handler is provided
+                if watch_handler is not None:
+                    from pathlib import Path
+                    file_path_obj = Path(diff['file_path'])
+                    if not watch_handler.should_watch(file_path_obj):
+                        continue  # Skip files that don't match watch patterns
+                
                 formatted_diff = {
                     'id': str(diff['id']),
                     'filePath': diff['file_path'],
@@ -57,7 +64,7 @@ class FileQueries:
                 }
                 formatted_diffs.append(formatted_diff)
             
-            logger.info(f"Retrieved {len(formatted_diffs)} recent diffs")
+            logger.info(f"Retrieved {len(formatted_diffs)} recent diffs (after filtering)")
             return formatted_diffs
             
         except Exception as e:
@@ -239,6 +246,49 @@ class FileQueries:
             
         except Exception as e:
             logger.error(f"Error clearing file data: {e}")
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def clear_unwatched_file_diffs(watch_handler) -> Dict[str, Any]:
+        """Clear file diffs that no longer match watch patterns."""
+        try:
+            if watch_handler is None:
+                return {'success': False, 'error': 'No watch handler provided'}
+            
+            # Get all content diffs
+            query = "SELECT id, file_path FROM content_diffs"
+            rows = db.execute_query(query)
+            
+            unwatched_diff_ids = []
+            for row in rows:
+                diff_id, file_path = row
+                from pathlib import Path
+                if not watch_handler.should_watch(Path(file_path)):
+                    unwatched_diff_ids.append(diff_id)
+            
+            if not unwatched_diff_ids:
+                logger.info("No unwatched file diffs found to clear")
+                return {
+                    'success': True,
+                    'content_diffs_cleared': 0,
+                    'message': 'No unwatched diffs found'
+                }
+            
+            # Delete unwatched diffs
+            placeholders = ','.join(['?' for _ in unwatched_diff_ids])
+            delete_query = f"DELETE FROM content_diffs WHERE id IN ({placeholders})"
+            cleared_count = db.execute_update(delete_query, unwatched_diff_ids)
+            
+            logger.info(f"Cleared {cleared_count} unwatched file diffs")
+            return {
+                'success': True,
+                'content_diffs_cleared': cleared_count,
+                'unwatched_files_removed': len(unwatched_diff_ids),
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Error clearing unwatched file diffs: {e}")
             return {'success': False, 'error': str(e)}
 
 class EventQueries:
@@ -603,6 +653,72 @@ class AnalyticsQueries:
         except Exception as e:
             logger.error(f"Error retrieving file activity stats: {e}")
             return {}
+    
+    @staticmethod
+    def get_database_stats() -> Dict[str, Any]:
+        """Get database-specific statistics."""
+        try:
+            # Count total records from various tables
+            events_count_query = "SELECT COUNT(*) as count FROM events"
+            diffs_count_query = "SELECT COUNT(*) as count FROM diffs"
+            
+            events_count = db.execute_query(events_count_query)[0]['count']
+            diffs_count = db.execute_query(diffs_count_query)[0]['count']
+            
+            # Get database file size (approximate)
+            db_path = db.db_path if hasattr(db, 'db_path') else 'obby.db'
+            try:
+                import os
+                db_size_bytes = os.path.getsize(db_path)
+                db_size = f"{db_size_bytes / (1024*1024):.2f} MB"
+            except:
+                db_size = "Unknown"
+            
+            # Last optimization time (placeholder - would need to track this)
+            last_optimized = "Never"
+            
+            stats = {
+                'total_records': events_count,
+                'total_diffs': diffs_count,
+                'index_size': db_size,
+                'last_optimized': last_optimized,
+                'query_performance': 85  # Placeholder value
+            }
+            
+            logger.info("Retrieved database statistics")
+            return stats
+            
+        except Exception as e:
+            logger.error(f"Error retrieving database stats: {e}")
+            return {}
+    
+    @staticmethod
+    def optimize_database() -> Dict[str, Any]:
+        """Optimize the database by running VACUUM and ANALYZE commands."""
+        try:
+            results = {}
+            
+            # Run VACUUM to reclaim space
+            db.execute_query("VACUUM")
+            results['vacuum'] = 'completed'
+            
+            # Run ANALYZE to update query planner statistics
+            db.execute_query("ANALYZE")
+            results['analyze'] = 'completed'
+            
+            # Rebuild FTS indexes if they exist
+            try:
+                db.execute_query("INSERT INTO events_fts(events_fts) VALUES('rebuild')")
+                results['fts_rebuild'] = 'completed'
+            except:
+                results['fts_rebuild'] = 'skipped (no FTS tables)'
+            
+            logger.info("Database optimization completed successfully")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error optimizing database: {e}")
+            return {'error': str(e)}
 
 # Duplicate EventQueries class removed - methods merged into the first EventQueries class above
 
