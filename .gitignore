@@ -95,3 +95,7 @@ database/schema.sql
 obby.log
 format.md
 notes/living_note.md
+obby.log
+notes/living_note.md
+notes/test.md
+.gitignore

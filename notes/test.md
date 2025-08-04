@@ -10,8 +10,3 @@
 - Remember to water plants
 - Pay utility bills by the 15th
 - Book flight tickets for next month's conference
-- Update resume with recent projects
-- Research new coffee shops in the neighborhood
-- Start reading that book on productivity
-- Plan weekend hiking trip with friends
-- Clean out email inbox and unsubscribe from newsletters
