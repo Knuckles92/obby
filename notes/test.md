@@ -10,18 +10,8 @@
 - Remember to water plants
 - Pay utility bills by the 15th
 - Book flight tickets for next month's conference
-- Review quarterly budget report
-- Send follow-up emails from last meeting
-- Update personal portfolio website
-- Quick note: Test the new AI summarization feature
-- Remember to update documentation for the search API
-- Testing file watcher reliability improvements - this should be detected!
-- Weekend plans: hiking and reading
-- Try that new restaurant downtown
-- Learn about Docker containers
-- Fix the squeaky door hinge
-- Research vacation destinations for summer
-- Debug the CSS alignment issue on the dashboard
-- Compare different database migration strategies
-- Write unit tests for the new authentication module
-- Backup laptop files before OS upgrade
+- Update resume with recent projects
+- Research new coffee shops in the neighborhood
+- Start reading that book on productivity
+- Plan weekend hiking trip with friends
+- Clean out email inbox and unsubscribe from newsletters

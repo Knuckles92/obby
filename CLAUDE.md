@@ -31,19 +31,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ### Core Application Structure
 Obby is a dual-mode note monitoring application with both web and CLI interfaces:
 
-- **Primary mode**: Web application (`api_server.py`) serving React frontend from `frontend/dist/`
+- **Primary mode**: Web application (`backend.py`) serving React frontend from `frontend/dist/`
 - **Legacy mode**: CLI monitoring via `main.py` (redirects to usage instructions)
 - **Real-time monitoring**: Dual approach using `watchdog` events + optional periodic scanning
-- **AI integration**: OpenAI client for content summarization and semantic analysis
+- **AI integration**: OpenAI client with batch processing for content summarization and semantic analysis
 - **Database**: SQLite with WAL mode, FTS5 search, connection pooling
+- **File tracking**: Pure file-based monitoring without git dependencies
 
 ### Key Components
 
 #### Backend (`backend.py`)
-- Flask REST API server with CORS support
+- Flask REST API server with CORS support and modular blueprint architecture
 - SSE (Server-Sent Events) for real-time frontend updates
 - Database-backed storage replacing in-memory event tracking
-- Integrated file monitoring via `ObbyMonitor` class
+- Integrated file monitoring via `APIObbyMonitor` class
+- Organized route modules: `monitoring`, `files`, `living_note`, `search`, `config`, `data`, `admin`
 
 #### Core Monitoring (`core/monitor.py`)
 - `ObbyMonitor`: Main monitoring orchestrator
@@ -51,17 +53,27 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - Integrates with AI client for content analysis
 - Manages `.obbywatch` and `.obbyignore` configuration files
 
+#### File Tracking (`core/file_tracker.py`)
+- `FileContentTracker`: Pure file-based content tracking without git dependencies
+- Content hashing and native diff generation
+- File version management and change detection
+- Replaces git-based tracking with file system monitoring
+
 #### Database Layer (`database/`)
 - SQLite with optimized settings (WAL mode, foreign keys, FTS5)
-- Separate query classes: `DiffQueries`, `EventQueries`, `SemanticQueries`, `ConfigQueries`, `AnalyticsQueries`
-- Schema migration system via `migration.py`
+- File-focused query classes: `FileQueries` for API endpoints, plus legacy query classes
+- Enhanced models: `FileVersionModel`, `ContentDiffModel`, `FileStateModel`, `PerformanceModel`
+- Schema migration system via `migration.py` and `migration_git_to_file.py`
 - Connection pooling for thread-safe access
+- File-based API integration replacing git-based diff endpoints
 
-#### AI Integration (`ai/openai_client.py`)
-- OpenAI API integration for content summarization
+#### AI Integration (`ai/`)
+- `openai_client.py`: OpenAI API integration for content summarization
+- `batch_processor.py`: Scheduled batch processing replacing individual AI calls per file change
 - Structured JSON responses with topics, keywords, impact levels
 - Configurable models (default: `gpt-4.1-mini`)
 - Graceful degradation when API unavailable
+- Efficient batch processing for improved performance and reduced API costs
 
 #### File Monitoring (`utils/`)
 - `file_watcher.py`: Real-time `watchdog` integration
@@ -73,14 +85,15 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - React 18 + TypeScript + Tailwind CSS
 - Vite build system with development server
 - Real-time updates via SSE connection to backend
-- Main pages: Dashboard, Search, DiffViewer, LivingNote, Settings
+- Main pages: Dashboard, DiffViewer, LivingNote, Settings, Administration
 - Component-based architecture with reusable UI elements
+- Advanced theming system with multiple built-in themes
 
 ### Data Flow
 1. **File Change** → `watchdog` events or periodic scan
-2. **Event Processing** → Diff generation + content hashing
-3. **AI Analysis** → OpenAI summarization + topic/keyword extraction
-4. **Database Storage** → SQLite with FTS5 indexing
+2. **Event Processing** → Diff generation + content hashing via file tracker
+3. **Database Storage** → SQLite with FTS5 indexing (immediate)
+4. **Batch AI Analysis** → Scheduled OpenAI summarization + topic/keyword extraction
 5. **Real-time Updates** → SSE push to connected frontend clients
 
 ### Configuration Management
@@ -89,6 +102,16 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - **Watch paths**: `.obbywatch` (directories to monitor)
 - **Ignore patterns**: `.obbyignore` (glob patterns to skip)
 - **Environment**: `OPENAI_API_KEY` for AI features
+
+#### Route Organization (`routes/`)
+- **Modular blueprint architecture** for clean API organization
+- `monitoring.py`: File monitoring and system status endpoints
+- `files.py`: File operations and content management
+- `living_note.py`: Living note functionality and management
+- `search.py`: Search and semantic query endpoints
+- `config.py`: Configuration management endpoints
+- `data.py`: Data export and analytics endpoints
+- `admin.py`: Administrative functions and system management
 
 ### Search & Semantic Features
 - **Full-text search**: SQLite FTS5 for fast content matching
@@ -99,9 +122,11 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 ## Development Notes
 
 ### Database Operations
-- All database queries go through dedicated query classes in `database/queries.py`
+- File-focused queries via `FileQueries` class for API endpoints in `database/queries.py`
+- Legacy query classes maintained for backward compatibility
+- Enhanced models for file versions, content diffs, and performance tracking
 - Connection pooling handles thread safety automatically
-- Schema migrations run automatically on startup
+- Schema migrations run automatically on startup (including git-to-file migration)
 - FTS5 virtual tables enable fast content search
 
 ### File Monitoring Modes
@@ -117,6 +142,13 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 
 ### AI Processing
 - AI analysis is optional (requires `OPENAI_API_KEY`)
+- Batch processing replaces individual AI calls for improved efficiency
 - Structured prompts generate JSON with topics, keywords, summaries
 - Multiple OpenAI models supported (configured via settings)
 - Graceful fallback when AI services unavailable
+
+### Testing & Development
+- Test files: `test_batch_ai.py`, `test_file_tracking.py`, `test_file_watcher_fixes.py`
+- No formal test framework configured - tests are standalone Python scripts
+- Living Note functionality available via `notes/living_note.md`
+- Mock themes available in `mocks/` directory for UI development

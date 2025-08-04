@@ -49,7 +49,7 @@ class ObbyMonitor:
                 logger.info("Batch AI processor started")
             
             # Initialize file watcher with file tracking integration
-            utils_folder = NOTES_FOLDER.parent / "utils"
+            utils_folder = NOTES_FOLDER.parent
             self.file_watcher = FileWatcher(
                 NOTES_FOLDER, 
                 self.ai_client, 
