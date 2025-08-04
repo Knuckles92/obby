@@ -129,8 +129,8 @@ class APIObbyMonitor(ObbyMonitor):
             # Initialize AI client
             ai_client = OpenAIClient()
             
-            # Create file watcher with correct parameters
-            utils_folder = self.notes_folder.parent / "utils"
+            # Create file watcher with correct parameters  
+            utils_folder = self.notes_folder.parent  # Use root directory for config files
             self.file_watcher = FileWatcher(
                 notes_folder=self.notes_folder,
                 ai_client=ai_client,

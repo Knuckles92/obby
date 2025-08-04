@@ -51,7 +51,7 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - `ObbyMonitor`: Main monitoring orchestrator
 - Handles both real-time (`watchdog`) and periodic file scanning
 - Integrates with AI client for content analysis
-- Manages `.obbywatch` and `.obbyignore` configuration files
+- Manages `.obbywatch` and `.obbyignore` configuration files (located in project root)
 
 #### File Tracking (`core/file_tracker.py`)
 - `FileContentTracker`: Pure file-based content tracking without git dependencies
@@ -99,8 +99,8 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 ### Configuration Management
 - **Core settings**: `config/settings.py` (file paths, intervals, AI model)
 - **Runtime config**: `config.json` (managed via web interface)
-- **Watch paths**: `.obbywatch` (directories to monitor)
-- **Ignore patterns**: `.obbyignore` (glob patterns to skip)
+- **Watch paths**: `.obbywatch` (directories to monitor, located in project root)
+- **Ignore patterns**: `.obbyignore` (glob patterns to skip, located in project root)
 - **Environment**: `OPENAI_API_KEY` for AI features
 
 #### Route Organization (`routes/`)

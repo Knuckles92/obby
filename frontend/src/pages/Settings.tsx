@@ -327,11 +327,11 @@ export default function Settings() {
           <h3 className="text-lg font-medium text-gray-900 mb-4">Watch Configuration</h3>
           <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
             <p className="text-sm text-blue-800">
-              <strong>Directory Monitoring:</strong> Watch paths are now configured via the <code className="bg-blue-100 px-1 rounded">.obbywatch</code> file in the utils folder.
+              <strong>Directory Monitoring:</strong> Watch paths are now configured via the <code className="bg-blue-100 px-1 rounded">.obbywatch</code> file in the project root.
               This file specifies which directories and file patterns to monitor for changes.
             </p>
             <p className="text-sm text-blue-700 mt-2">
-              Edit <code className="bg-blue-100 px-1 rounded">utils/.obbywatch</code> to add or remove directories to monitor.
+              Edit <code className="bg-blue-100 px-1 rounded">.obbywatch</code> to add or remove directories to monitor.
             </p>
           </div>
         </div>

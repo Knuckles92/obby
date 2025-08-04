@@ -24,7 +24,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             notes_folder: Path to the folder containing markdown files to monitor
             ai_client: OpenAIClient instance for generating summaries
             living_note_path: Path to the living note file
-            utils_folder: Path to the utils folder (defaults to notes_folder/utils)
+            utils_folder: Path to config folder containing .obbywatch/.obbyignore (defaults to project root)
             file_tracker: FileContentTracker instance for change tracking
         """
         self.notes_folder = Path(notes_folder)
@@ -34,15 +34,16 @@ class NoteChangeHandler(FileSystemEventHandler):
         self.last_event_times = {}  # Track debounce per file
         self.debounce_delay = 0.1  # 100ms debounce to prevent duplicate events (reduced for responsiveness)
         
-        # Set up utils folder path
+        # Set up config folder path (root directory for .obbywatch/.obbyignore files)
         if utils_folder is None:
-            self.utils_folder = self.notes_folder / "utils"
+            # Default to parent of notes folder (project root)
+            self.config_folder = self.notes_folder.parent
         else:
-            self.utils_folder = Path(utils_folder)
+            self.config_folder = Path(utils_folder)
         
         # Initialize handlers
-        self.ignore_handler = IgnoreHandler(self.utils_folder, self.notes_folder)
-        self.watch_handler = WatchHandler(self.utils_folder)
+        self.ignore_handler = IgnoreHandler(self.config_folder, self.notes_folder)
+        self.watch_handler = WatchHandler(self.config_folder)
         
     def on_modified(self, event):
         """Handle file modification events."""
