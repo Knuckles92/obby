@@ -71,29 +71,19 @@ def clear_living_note():
     """Clear the living note content"""
     try:
         if os.path.exists(LIVING_NOTE_PATH):
-            # Create backup before clearing
-            backup_path = f"{LIVING_NOTE_PATH}.backup"
-            if os.path.exists(backup_path):
-                os.remove(backup_path)
-            
-            # Copy current content to backup
-            import shutil
-            shutil.copy2(LIVING_NOTE_PATH, backup_path)
-            
             # Clear the living note
             with open(LIVING_NOTE_PATH, 'w', encoding='utf-8') as f:
                 f.write("# Living Note\n\nCleared at " + 
                        str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "\n")
             
-            logger.info(f"Living note cleared, backup saved to {backup_path}")
+            logger.info("Living note cleared")
             
             # Notify SSE clients
             notify_living_note_change()
             
             return jsonify({
                 'success': True,
-                'message': 'Living note cleared successfully',
-                'backup_path': backup_path
+                'message': 'Living note cleared successfully'
             })
         else:
             return jsonify({
