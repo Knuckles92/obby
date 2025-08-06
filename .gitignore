@@ -89,13 +89,7 @@ Desktop.ini
 # Project specific
 snapshots/*
 database/schema.sql
-.gitignore
-.gitignore
 .codeiumignore
-obby.log
 format.md
 notes/living_note.md
-obby.log
-notes/living_note.md
 notes/test.md
-.gitignore
