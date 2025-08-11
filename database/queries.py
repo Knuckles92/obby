@@ -70,6 +70,67 @@ class FileQueries:
         except Exception as e:
             logger.error(f"Error retrieving recent diffs: {e}")
             return []
+
+    @staticmethod
+    def get_diffs_since(since: datetime, limit: int = 200, file_path: str = None, watch_handler = None) -> List[Dict[str, Any]]:
+        """Get content diffs strictly after a given timestamp, ordered ASC.
+
+        This enables creating summaries scoped to the window since the last
+        living-note update (cursor-based summarization).
+        """
+        try:
+            if file_path:
+                query = """
+                    SELECT cd.*, fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                           fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+                    FROM content_diffs cd
+                    LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+                    LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+                    WHERE cd.timestamp > ? AND cd.file_path = ?
+                    ORDER BY cd.timestamp ASC
+                    LIMIT ?
+                """
+                rows = db.execute_query(query, (since, file_path, limit))
+            else:
+                query = """
+                    SELECT cd.*, fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                           fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+                    FROM content_diffs cd
+                    LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+                    LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+                    WHERE cd.timestamp > ?
+                    ORDER BY cd.timestamp ASC
+                    LIMIT ?
+                """
+                rows = db.execute_query(query, (since, limit))
+
+            diffs = [dict(row) for row in rows]
+
+            formatted_diffs = []
+            for diff in diffs:
+                # Optional watch filtering
+                if watch_handler is not None:
+                    from pathlib import Path
+                    if not watch_handler.should_watch(Path(diff['file_path'])):
+                        continue
+
+                formatted_diffs.append({
+                    'id': str(diff['id']),
+                    'filePath': diff['file_path'],
+                    'changeType': diff['change_type'],
+                    'diffContent': diff['diff_content'],
+                    'linesAdded': diff['lines_added'],
+                    'linesRemoved': diff['lines_removed'],
+                    'timestamp': diff['timestamp'],
+                    'oldVersionId': diff['old_version_id'],
+                    'newVersionId': diff['new_version_id']
+                })
+
+            logger.info(f"Retrieved {len(formatted_diffs)} diffs since {since}")
+            return formatted_diffs
+        except Exception as e:
+            logger.error(f"Error retrieving diffs since {since}: {e}")
+            return []
     
     @staticmethod
     def get_diff_content(diff_id: str) -> Optional[Dict[str, Any]]:

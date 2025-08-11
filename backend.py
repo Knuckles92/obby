@@ -234,6 +234,15 @@ if __name__ == '__main__':
     logger.info("Starting Obby API server on http://localhost:8001")
     logger.info("Web interface will be available once the server starts")
     
+    # One-time migration for legacy files
+    try:
+        from utils.migrations import migrate_format_md
+        mig = migrate_format_md()
+        if mig.get('migrated'):
+            logger.info("format.md migrated to config/format.md")
+    except Exception as e:
+        logger.warning(f"Migration step skipped/failed: {e}")
+
     # Initialize the main file monitoring system
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:

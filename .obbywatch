@@ -5,8 +5,8 @@
 
 # Default directories to watch
 notes/
-docs/
-*.md
+#docs/
+#*.md
 
 # Example patterns:
 # project_notes/

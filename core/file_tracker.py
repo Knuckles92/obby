@@ -123,14 +123,26 @@ class FileContentTracker:
             change_description="File modified"
         )
         
-        # Generate diff if we have a previous version
+        # Generate diff
         if previous_version and previous_version.get('content'):
-            diff_id = self._create_content_diff(
+            # Normal modification diff
+            self._create_content_diff(
                 file_path=file_path,
                 old_version_id=previous_version['id'],
                 new_version_id=version_id,
                 old_content=previous_version['content'],
-                new_content=current_content
+                new_content=current_content,
+                change_type='modified'
+            )
+        else:
+            # First time seeing this file: create a 'created' diff against empty content
+            self._create_content_diff(
+                file_path=file_path,
+                old_version_id=None,
+                new_version_id=version_id,
+                old_content="",
+                new_content=current_content,
+                change_type='created'
             )
         
         # Update file state
@@ -174,9 +186,12 @@ class FileContentTracker:
         # In the future, could implement move detection by content hash
         return self._handle_file_creation(file_path, current_content, current_hash)
     
-    def _create_content_diff(self, file_path: str, old_version_id: int, new_version_id: int,
-                           old_content: str, new_content: str) -> Optional[int]:
-        """Create a content diff between two file versions."""
+    def _create_content_diff(self, file_path: str, old_version_id: Optional[int], new_version_id: int,
+                           old_content: str, new_content: str, change_type: str = 'modified') -> Optional[int]:
+        """Create a content diff between two file versions.
+
+        change_type may be one of: 'created', 'modified', 'deleted', 'moved'
+        """
         # Generate diff using difflib
         diff_content, lines_added, lines_removed = ContentDiffModel.generate_diff(
             old_content, new_content
@@ -187,7 +202,7 @@ class FileContentTracker:
             file_path=file_path,
             old_version_id=old_version_id,
             new_version_id=new_version_id,
-            change_type='modified',
+            change_type=change_type,
             diff_content=diff_content,
             lines_added=lines_added,
             lines_removed=lines_removed

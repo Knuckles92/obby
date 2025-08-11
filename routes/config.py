@@ -8,6 +8,7 @@ import logging
 import os
 from database.queries import ConfigQueries
 from ai.openai_client import OpenAIClient
+from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -96,21 +97,44 @@ def update_config_root():
 
 @config_bp.route('/models', methods=['GET'])
 def get_models():
-    """Get available OpenAI models"""
+    """Get available OpenAI models (dynamically from API, filtered to GPT-5 family when available)."""
     try:
-        models = OpenAIClient.MODELS
+        # Initialize OpenAI client (api key comes from env or was set via settings update)
+        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+
+        # List all models from OpenAI
+        api_models = client.models.list()
+        model_ids = [m.id for m in getattr(api_models, 'data', [])]
+
+        # Prefer GPT-5 family if available
+        gpt5_models = [mid for mid in model_ids if isinstance(mid, str) and mid.startswith('gpt-5')]
+
+        # Use GPT-5 models if present; otherwise fall back to all returned models
+        selected_models = gpt5_models if gpt5_models else model_ids
+
+        # Build mapping of name->id for frontend selector
+        models_map = {mid: mid for mid in selected_models}
+
+        # Determine defaults
         from config.settings import OPENAI_MODEL
+        default_model = selected_models[0] if selected_models else OPENAI_MODEL
+
         return jsonify({
-            'models': models,
-            'defaultModel': 'gpt-4o',
+            'models': models_map,
+            'defaultModel': default_model,
             'currentModel': OPENAI_MODEL
         })
     except Exception as e:
+        # Graceful fallback to static list if API call fails
+        try:
+            from config.settings import OPENAI_MODEL
+        except Exception:
+            OPENAI_MODEL = 'gpt-4o'
         return jsonify({
             'error': f'Failed to get models: {str(e)}',
-            'models': {},
-            'defaultModel': 'gpt-4o',
-            'currentModel': 'gpt-4o'
+            'models': OpenAIClient.MODELS,
+            'defaultModel': 'gpt-5-mini',
+            'currentModel': OPENAI_MODEL
         }), 500
 
 

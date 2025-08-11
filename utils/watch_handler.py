@@ -85,9 +85,9 @@ docs/
             # If no patterns specified, watch everything
             return True
         
-        # Use parent of utils folder as base path if not specified
+        # Use utils folder (where .obbywatch lives) as base path if not specified
         if base_path is None:
-            base_path = self.utils_folder.parent
+            base_path = self.utils_folder
         
         # Get relative path from base path
         try:
@@ -130,7 +130,7 @@ docs/
             List[Path]: List of directory paths to watch
         """
         if base_path is None:
-            base_path = self.utils_folder.parent
+            base_path = self.utils_folder
         
         watch_dirs = []
         

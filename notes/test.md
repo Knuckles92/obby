@@ -10,3 +10,15 @@
 - Remember to water plants
 - Pay utility bills by the 15th
 - Book flight tickets for next month's conference
+- Try new coffee shop downtown
+- Backup laptop files this week
+- Read "Atomic Habits" book
+- Plan weekend hiking trip
+- Update resume and LinkedIn profile
+- Organize photo library
+- Test new note-taking app
+- Learn basic Spanish phrases before vacation
+- Clean out the garage this month
+- Try a new recipe for dinner on Friday
+- Research best budget laptops for 2024
+- Set up automatic cloud photo backups

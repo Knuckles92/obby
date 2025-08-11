@@ -35,7 +35,7 @@ class OpenAIClient:
         # Format configuration caching
         self._format_config = None
         self._format_config_mtime = None
-        self._format_file_path = Path('format.md')
+        self._format_file_path = Path('config/format.md')
     
     def summarize_diff(self, diff_content, settings=None, recent_tree_changes=None):
         """

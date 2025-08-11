@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 from config.settings import LIVING_NOTE_PATH
 from ai.openai_client import OpenAIClient
+from services.living_note_service import LivingNoteService
 import queue
 from datetime import datetime
 from watchdog.observers import Observer
@@ -22,45 +23,26 @@ living_note_bp = Blueprint('living_note', __name__, url_prefix='/api/living-note
 # SSE client management
 sse_clients = []
 living_note_observer = None
+living_note_service = LivingNoteService(str(LIVING_NOTE_PATH))
 
 
 @living_note_bp.route('/', methods=['GET'])
 def get_living_note_root():
     """Get the current living note content (root endpoint)"""
-    living_note_path = Path('notes/living_note.md')
-    
-    if living_note_path.exists():
-        content = living_note_path.read_text(encoding='utf-8')
-        stat = living_note_path.stat()
-        
-        return jsonify({
-            'content': content,
-            'lastUpdated': datetime.fromtimestamp(stat.st_mtime).isoformat(),
-            'wordCount': len(content.split())
-        })
-    else:
-        return jsonify({
-            'content': '',
-            'lastUpdated': datetime.now().isoformat(),
-            'wordCount': 0
-        })
+    try:
+        data = living_note_service.get_content()
+        return jsonify(data)
+    except Exception as e:
+        logger.error(f"Failed to read living note: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @living_note_bp.route('/content', methods=['GET'])
 def get_living_note():
     """Get the current living note content"""
     try:
-        if os.path.exists(LIVING_NOTE_PATH):
-            with open(LIVING_NOTE_PATH, 'r', encoding='utf-8') as f:
-                content = f.read()
-        else:
-            content = "# Living Note\n\nNo content yet. Start monitoring to see automated summaries appear here."
-        
-        return jsonify({
-            'content': content,
-            'path': LIVING_NOTE_PATH,
-            'exists': os.path.exists(LIVING_NOTE_PATH)
-        })
+        data = living_note_service.get_content()
+        return jsonify(data)
     except Exception as e:
         logger.error(f"Failed to read living note: {e}")
         return jsonify({'error': str(e)}), 500
@@ -70,26 +52,10 @@ def get_living_note():
 def clear_living_note():
     """Clear the living note content"""
     try:
-        if os.path.exists(LIVING_NOTE_PATH):
-            # Clear the living note
-            with open(LIVING_NOTE_PATH, 'w', encoding='utf-8') as f:
-                f.write("# Living Note\n\nCleared at " + 
-                       str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "\n")
-            
-            logger.info("Living note cleared")
-            
-            # Notify SSE clients
-            notify_living_note_change()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Living note cleared successfully'
-            })
-        else:
-            return jsonify({
-                'success': True,
-                'message': 'Living note file does not exist'
-            })
+        result = living_note_service.clear()
+        logger.info("Living note cleared")
+        notify_living_note_change()
+        return jsonify(result)
     except Exception as e:
         logger.error(f"Failed to clear living note: {e}")
         return jsonify({'error': str(e)}), 500
@@ -107,35 +73,8 @@ def handle_living_note_settings():
 def get_living_note_settings():
     """Get living note customization settings"""
     try:
-        settings_path = "living_note_settings.json"
-        format_path = "format.md"
-        
-        # Default settings
-        default_settings = {
-            "enabled": True,
-            "update_frequency": "immediate",
-            "include_metadata": True,
-            "max_summary_length": 500,
-            "format_template": "## Summary\n\n{summary}\n\n## Key Changes\n\n{changes}\n\n---\n\n"
-        }
-        
-        # Load settings
-        if os.path.exists(settings_path):
-            with open(settings_path, 'r', encoding='utf-8') as f:
-                settings = json.load(f)
-        else:
-            settings = default_settings
-        
-        # Load format template
-        if os.path.exists(format_path):
-            with open(format_path, 'r', encoding='utf-8') as f:
-                settings['format_template'] = f.read()
-        
-        return jsonify({
-            'settings': settings,
-            'settings_path': settings_path,
-            'format_path': format_path
-        })
+        data = living_note_service.get_settings()
+        return jsonify(data)
     except Exception as e:
         logger.error(f"Failed to get living note settings: {e}")
         return jsonify({'error': str(e)}), 500
@@ -147,32 +86,9 @@ def save_living_note_settings():
         data = request.get_json()
         if not data:
             return jsonify({'error': 'No settings provided'}), 400
-        
-        settings_path = "living_note_settings.json"
-        format_path = "format.md"
-        
-        # Extract format template separately
-        format_template = data.get('format_template', '')
-        if 'format_template' in data:
-            del data['format_template']
-        
-        # Save settings (without format_template)
-        with open(settings_path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2)
-        
-        # Save format template
-        if format_template:
-            with open(format_path, 'w', encoding='utf-8') as f:
-                f.write(format_template)
-        
+        result = living_note_service.save_settings(data)
         logger.info("Living note settings saved successfully")
-        
-        return jsonify({
-            'success': True,
-            'message': 'Settings saved successfully',
-            'settings_path': settings_path,
-            'format_path': format_path
-        })
+        return jsonify(result)
     except Exception as e:
         logger.error(f"Failed to save living note settings: {e}")
         return jsonify({'error': str(e)}), 500
@@ -180,83 +96,22 @@ def save_living_note_settings():
 
 @living_note_bp.route('/update', methods=['POST'])
 def trigger_living_note_update():
-    """Simple update button - trigger a living note update"""
+    """Update the living note by summarizing content diffs since the last update.
+
+    This constrains the living note to summaries/insights strictly for the window
+    between update calls (cursor-based), instead of an arbitrary set of recent events.
+    """
     try:
         data = request.get_json() or {}
         force_update = data.get('force', False)
-        
-        # Get recent events from database to generate summary
-        from database.queries import EventQueries
-        recent_events = EventQueries.get_recent_events(limit=10)
-        
-        if not recent_events and not force_update:
-            return jsonify({
-                'success': True,
-                'message': 'No recent events to summarize',
-                'updated': False
-            })
-        
-        # Initialize OpenAI client
-        openai_client = OpenAIClient()
-        
-        # Create a summary of recent events
-        if recent_events:
-            event_summaries = []
-            for event in recent_events:
-                summary = f"- {event['type']} in {event['path']}"
-                if event.get('summary'):
-                    summary += f": {event['summary']}"
-                event_summaries.append(summary)
-            
-            events_text = "\n".join(event_summaries)
-            
-            # Generate AI summary
-            summary = openai_client.summarize_events(events_text)
-            
-            # Update living note
-            success = openai_client.update_living_note(LIVING_NOTE_PATH, summary)
-            
-            if success:
-                # Small delay to ensure file is fully written before notification
-                import time
-                time.sleep(0.2)
-                
-                # Notify SSE clients
-                notify_living_note_change()
-                
-                return jsonify({
-                    'success': True,
-                    'message': 'Living note updated successfully',
-                    'updated': True,
-                    'summary': summary
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'Failed to update living note'
-                }), 500
-        else:
-            # Force update with placeholder content
-            placeholder_summary = f"Living note manually updated at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-            success = openai_client.update_living_note(LIVING_NOTE_PATH, placeholder_summary)
-            
-            if success:
-                # Small delay to ensure file is fully written before notification
-                import time
-                time.sleep(0.2)
-                
-                notify_living_note_change()
-                return jsonify({
-                    'success': True,
-                    'message': 'Living note updated with placeholder content',
-                    'updated': True
-                })
-            else:
-                return jsonify({
-                    'success': False,
-                    'message': 'Failed to update living note'
-                }), 500
-                
+        result = living_note_service.update(force=force_update)
+        # Notify SSE clients after a short delay to ensure the filesystem write is visible
+        import time
+        time.sleep(0.2)
+        notify_living_note_change()
+        status = 200 if result.get('success') else 500
+        return jsonify(result), status
+
     except Exception as e:
         logger.error(f"Failed to trigger living note update: {e}")
         return jsonify({'error': str(e)}), 500
