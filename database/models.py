@@ -163,6 +163,22 @@ class ContentDiffModel:
     """File content difference tracking without git dependency."""
     
     @classmethod
+    def should_create_diff(cls, old_version_id: int = None, new_version_id: int = None,
+                          old_content: str = "", new_content: str = "") -> bool:
+        """Check if a content diff should be created based on version IDs and content."""
+        # Don't create diff if version IDs are the same (duplicate processing)
+        if old_version_id is not None and old_version_id == new_version_id:
+            logger.debug(f"Skipping diff creation: identical version IDs {old_version_id}")
+            return False
+        
+        # Don't create diff if content is identical
+        if old_content == new_content:
+            logger.debug("Skipping diff creation: identical content")
+            return False
+        
+        return True
+    
+    @classmethod
     def insert(cls, file_path: str, old_version_id: int = None, new_version_id: int = None,
                change_type: str = 'modified', diff_content: str = None, 
                lines_added: int = 0, lines_removed: int = 0, 
@@ -183,7 +199,14 @@ class ContentDiffModel:
             
             result = db.execute_query("SELECT last_insert_rowid() as id")
             diff_id = result[0]['id']
-            logger.debug(f"Created content diff {diff_id}: {change_type} {file_path}")
+            
+            # Enhanced logging for debugging duplicate processing
+            if lines_added == 0 and lines_removed == 0:
+                logger.warning(f"Created +0/-0 content diff {diff_id}: {change_type} {file_path} "
+                             f"(versions: {old_version_id} -> {new_version_id})")
+            else:
+                logger.debug(f"Created content diff {diff_id}: {change_type} {file_path} "
+                           f"(+{lines_added}/-{lines_removed} lines)")
             return diff_id
             
         except sqlite3.Error as e:
@@ -191,8 +214,8 @@ class ContentDiffModel:
             return None
     
     @classmethod
-    def get_for_file(cls, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get all content diffs for a specific file."""
+    def get_for_file(cls, file_path: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get all content diffs for a specific file with pagination support."""
         query = """
             SELECT cd.*, 
                    fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
@@ -202,9 +225,9 @@ class ContentDiffModel:
             LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
             WHERE cd.file_path = ? 
             ORDER BY cd.timestamp DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
         """
-        rows = db.execute_query(query, (file_path, limit))
+        rows = db.execute_query(query, (file_path, limit, offset))
         return [dict(row) for row in rows]
     
     @classmethod
@@ -264,8 +287,8 @@ class FileChangeModel:
             return None
     
     @classmethod
-    def get_recent(cls, limit: int = 50, change_type: str = None) -> List[Dict[str, Any]]:
-        """Get recent file changes."""
+    def get_recent(cls, limit: int = 50, offset: int = 0, change_type: str = None) -> List[Dict[str, Any]]:
+        """Get recent file changes with pagination support."""
         query = "SELECT * FROM file_changes"
         params = []
         
@@ -273,23 +296,43 @@ class FileChangeModel:
             query += " WHERE change_type = ?"
             params.append(change_type)
         
-        query += " ORDER BY timestamp DESC LIMIT ?"
-        params.append(limit)
+        query += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        params.extend([limit, offset])
         
         rows = db.execute_query(query, tuple(params))
         return [dict(row) for row in rows]
     
     @classmethod
-    def get_for_file(cls, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
-        """Get change history for a specific file."""
+    def get_for_file(cls, file_path: str, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get change history for a specific file with pagination support."""
         query = """
             SELECT * FROM file_changes 
             WHERE file_path = ?
             ORDER BY timestamp DESC
-            LIMIT ?
+            LIMIT ? OFFSET ?
         """
-        rows = db.execute_query(query, (file_path, limit))
+        rows = db.execute_query(query, (file_path, limit, offset))
         return [dict(row) for row in rows]
+    
+    @classmethod
+    def get_count(cls, change_type: str = None, file_path: str = None) -> int:
+        """Get total count of file changes for pagination metadata."""
+        query = "SELECT COUNT(*) as count FROM file_changes"
+        params = []
+        
+        conditions = []
+        if change_type:
+            conditions.append("change_type = ?")
+            params.append(change_type)
+        if file_path:
+            conditions.append("file_path = ?")
+            params.append(file_path)
+        
+        if conditions:
+            query += " WHERE " + " AND ".join(conditions)
+        
+        rows = db.execute_query(query, tuple(params))
+        return rows[0]['count'] if rows else 0
 
 
 class EventModel:

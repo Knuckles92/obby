@@ -248,13 +248,19 @@ if __name__ == '__main__':
     if not monitoring_initialized:
         logger.warning("File monitoring system failed to initialize - continuing without it")
     
-    # Start the living note file watcher
-    from routes.living_note import start_living_note_watcher, stop_living_note_watcher
-    start_living_note_watcher()
-    
+    # Optionally start the living note file watcher (deferred by default)
+    watcher_enabled = os.getenv('LIVING_NOTE_WATCHER_ENABLED', 'false').lower() == 'true'
+    if watcher_enabled:
+        from routes.living_note import start_living_note_watcher, stop_living_note_watcher
+        start_living_note_watcher()
+    else:
+        stop_living_note_watcher = None
+        logger.info("Living note watcher disabled (LIVING_NOTE_WATCHER_ENABLED=false)")
+
     try:
         app.run(debug=True, port=8001, host='0.0.0.0', threaded=True)
     finally:
         # Clean up on shutdown
-        stop_living_note_watcher()
+        if stop_living_note_watcher:
+            stop_living_note_watcher()
         cleanup_monitoring()

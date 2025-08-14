@@ -200,8 +200,9 @@ obby/
 │   ├── database/
 │   │   └── obby.db               # Main SQLite database
 │   ├── notes/                    # Watched markdown files
-│   │   ├── test.md              # Sample note
-│   │   └── living_note.md       # AI-generated summary
+│   │   ├── test.md               # Sample note
+│   │   └── daily/                # Daily Living Notes (default)
+│   │       └── Living Note - YYYY-MM-DD.md
 │   └── diffs/                   # Legacy file-based diffs (migrated to DB)
 │
 ├── ⚙️ Configuration

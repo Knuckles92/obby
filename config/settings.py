@@ -3,7 +3,19 @@ from pathlib import Path
 # File paths
 NOTES_FOLDER = Path("notes")  # Folder containing all markdown files to monitor
 DIFF_PATH = Path("diffs")
+
+# Living Note configuration
+# Mode can be "single" (append to one file) or "daily" (one file per day)
+LIVING_NOTE_MODE = "daily"
+
+# Single-file fallback path (used when LIVING_NOTE_MODE == "single")
 LIVING_NOTE_PATH = Path("notes/living_note.md")
+
+# Daily mode configuration (used when LIVING_NOTE_MODE == "daily")
+# The daily notes will be created inside this directory with the filename format below
+LIVING_NOTE_DAILY_DIR = NOTES_FOLDER / "daily"
+# Filename may include {date} placeholder in YYYY-MM-DD format
+LIVING_NOTE_DAILY_FILENAME_TEMPLATE = "Living Note - {date}.md"
 
 # Timing settings
 CHECK_INTERVAL = 20  # seconds

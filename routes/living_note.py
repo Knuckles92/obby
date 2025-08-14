@@ -8,7 +8,8 @@ import logging
 import os
 import json
 from pathlib import Path
-from config.settings import LIVING_NOTE_PATH
+from config.settings import LIVING_NOTE_PATH, LIVING_NOTE_MODE, LIVING_NOTE_DAILY_DIR, LIVING_NOTE_DAILY_FILENAME_TEMPLATE
+from utils.living_note_path import resolve_living_note_path
 from ai.openai_client import OpenAIClient
 from services.living_note_service import LivingNoteService
 import queue
@@ -156,12 +157,13 @@ def notify_living_note_change():
         # Read current living note content
         content = ""
         last_updated = datetime.now().isoformat()
-        
-        if os.path.exists(LIVING_NOTE_PATH):
-            with open(LIVING_NOTE_PATH, 'r', encoding='utf-8') as f:
+
+        current_path = _resolve_current_living_note_path()
+        if current_path.exists():
+            with open(current_path, 'r', encoding='utf-8') as f:
                 content = f.read()
             # Get actual file modification time
-            stat = os.stat(LIVING_NOTE_PATH)
+            stat = os.stat(current_path)
             last_updated = datetime.fromtimestamp(stat.st_mtime).isoformat()
         
         # Calculate word count
@@ -214,6 +216,10 @@ class LivingNoteFileHandler(FileSystemEventHandler):
             notify_living_note_change()
 
 
+def _resolve_current_living_note_path() -> Path:
+    """Resolve the current living note path according to mode (single/daily)."""
+    return resolve_living_note_path()
+
 def start_living_note_watcher():
     """Start watching the living note file for changes"""
     global living_note_observer
@@ -222,7 +228,7 @@ def start_living_note_watcher():
         return  # Already watching
     
     try:
-        living_note_path = Path(LIVING_NOTE_PATH)
+        living_note_path = _resolve_current_living_note_path()
         watch_dir = living_note_path.parent
         
         # Ensure the directory exists

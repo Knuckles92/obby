@@ -22,11 +22,11 @@ class FileQueries:
     """File-focused queries for API endpoints."""
     
     @staticmethod
-    def get_recent_diffs(limit: int = 20, file_path: str = None, watch_handler = None) -> List[Dict[str, Any]]:
-        """Get recent file diffs - replaces git-based diff endpoints."""
+    def get_recent_diffs(limit: int = 20, offset: int = 0, file_path: str = None, watch_handler = None) -> List[Dict[str, Any]]:
+        """Get recent file diffs with pagination support - replaces git-based diff endpoints."""
         try:
             if file_path:
-                diffs = ContentDiffModel.get_for_file(file_path, limit=limit)
+                diffs = ContentDiffModel.get_for_file(file_path, limit=limit, offset=offset)
             else:
                 # Get recent diffs from all files
                 query = """
@@ -36,9 +36,9 @@ class FileQueries:
                     LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
                     LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
                     ORDER BY cd.timestamp DESC
-                    LIMIT ?
+                    LIMIT ? OFFSET ?
                 """
-                rows = db.execute_query(query, (limit,))
+                rows = db.execute_query(query, (limit, offset))
                 diffs = [dict(row) for row in rows]
             
             # Format for API response
@@ -168,6 +168,48 @@ class FileQueries:
             logger.error(f"Error retrieving content diff by ID {diff_id}: {e}")
             return None
     
+    @staticmethod
+    def get_diffs_count(file_path: str = None, watch_handler = None) -> int:
+        """Get total count of diffs for pagination metadata."""
+        try:
+            if file_path:
+                query = "SELECT COUNT(*) as count FROM content_diffs WHERE file_path = ?"
+                params = (file_path,)
+            else:
+                query = "SELECT COUNT(*) as count FROM content_diffs"
+                params = ()
+            
+            rows = db.execute_query(query, params)
+            total_count = rows[0]['count'] if rows else 0
+            
+            # Apply watch pattern filtering if needed (approximation)
+            if watch_handler is not None and not file_path:
+                # Get sample of diffs to estimate filtered count
+                sample_query = """
+                    SELECT file_path FROM content_diffs 
+                    ORDER BY timestamp DESC LIMIT 100
+                """
+                sample_rows = db.execute_query(sample_query)
+                if sample_rows:
+                    filtered_sample = 0
+                    for row in sample_rows:
+                        from pathlib import Path
+                        file_path_obj = Path(row['file_path'])
+                        if watch_handler.should_watch(file_path_obj):
+                            filtered_sample += 1
+                    
+                    # Estimate total filtered count based on sample ratio
+                    if len(sample_rows) > 0:
+                        filter_ratio = filtered_sample / len(sample_rows)
+                        total_count = int(total_count * filter_ratio)
+            
+            logger.info(f"Retrieved diffs count: {total_count}")
+            return total_count
+            
+        except Exception as e:
+            logger.error(f"Error retrieving diffs count: {e}")
+            return 0
+    
     @staticmethod  
     def get_recent_versions(limit: int = 20, file_path: str = None) -> List[Dict[str, Any]]:
         """Get recent file versions - replaces commit-based tracking."""
@@ -196,10 +238,10 @@ class FileQueries:
             return []
     
     @staticmethod
-    def get_working_changes(status: str = None) -> List[Dict[str, Any]]:
-        """Get recent file changes - replaces git working changes."""
+    def get_working_changes(status: str = None, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get recent file changes with pagination support - replaces git working changes."""
         try:
-            file_changes = FileChangeModel.get_recent(limit=100, change_type=status)
+            file_changes = FileChangeModel.get_recent(limit=limit, offset=offset, change_type=status)
             
             # Format for API response
             formatted_changes = []
@@ -220,6 +262,17 @@ class FileQueries:
         except Exception as e:
             logger.error(f"Error retrieving file changes: {e}")
             return []
+    
+    @staticmethod
+    def get_file_changes_count(status: str = None) -> int:
+        """Get total count of file changes for pagination metadata."""
+        try:
+            count = FileChangeModel.get_count(change_type=status)
+            logger.info(f"Retrieved file changes count: {count}")
+            return count
+        except Exception as e:
+            logger.error(f"Error retrieving file changes count: {e}")
+            return 0
     
     @staticmethod
     def get_repository_status() -> Dict[str, Any]:
@@ -417,6 +470,22 @@ class EventQueries:
             
         except Exception as e:
             logger.error(f"Error retrieving recent events: {e}")
+            return []
+
+    @staticmethod
+    def get_events_since(since: datetime, event_type: str = None) -> List[Dict[str, Any]]:
+        """Get events since a timestamp, optionally filtered by type (e.g., 'created')."""
+        try:
+            query = "SELECT id, type, path, timestamp, size, processed FROM events WHERE timestamp > ?"
+            params: List[Any] = [since]
+            if event_type:
+                query += " AND type = ?"
+                params.append(event_type)
+            query += " ORDER BY timestamp ASC"
+            rows = db.execute_query(query, tuple(params))
+            return [dict(row) for row in rows]
+        except Exception as e:
+            logger.error(f"Error retrieving events since {since}: {e}")
             return []
     
     @staticmethod

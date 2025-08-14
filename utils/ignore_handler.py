@@ -55,6 +55,7 @@ class IgnoreHandler:
 
 # Living note file (to prevent feedback loops)
 living_note.md
+daily/
 
 # Temporary files
 *.tmp

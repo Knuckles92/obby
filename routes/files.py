@@ -27,9 +27,10 @@ def get_recent_events():
 
 @files_bp.route('/diffs', methods=['GET'])
 def get_recent_diffs():
-    """Get recent content diffs from database"""
+    """Get recent content diffs from database with pagination support"""
     try:
         limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
         file_path = request.args.get('file_path', None)
         
         # Initialize watch handler to filter by watch patterns
@@ -45,9 +46,30 @@ def get_recent_diffs():
             logger.warning(f"Could not load watch patterns, showing all diffs: {e}")
         
         # Get recent content diffs from content_diffs table with filtering
-        diffs = FileQueries.get_recent_diffs(limit=limit, file_path=file_path, watch_handler=watch_handler)
+        diffs = FileQueries.get_recent_diffs(limit=limit, offset=offset, file_path=file_path, watch_handler=watch_handler)
         
-        return jsonify({'diffs': diffs})
+        # Get total count for pagination metadata
+        total_count = FileQueries.get_diffs_count(file_path=file_path, watch_handler=watch_handler)
+        
+        # Calculate pagination metadata
+        has_more = offset + len(diffs) < total_count
+        current_page = (offset // limit) + 1 if limit > 0 else 1
+        total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+        
+        response = {
+            'diffs': diffs,
+            'pagination': {
+                'total': total_count,
+                'count': len(diffs),
+                'offset': offset,
+                'limit': limit,
+                'hasMore': has_more,
+                'currentPage': current_page,
+                'totalPages': total_pages
+            }
+        }
+        
+        return jsonify(response)
     except Exception as e:
         logger.error(f"Failed to get recent diffs: {e}")
         return jsonify({'error': str(e)}), 500
@@ -76,13 +98,14 @@ def get_full_diff_content(diff_id):
 
 @files_bp.route('/changes', methods=['GET'])
 def get_recent_file_changes():
-    """Get recent file changes"""
+    """Get recent file changes with pagination support"""
     try:
         limit = int(request.args.get('limit', 50))
+        offset = int(request.args.get('offset', 0))
         change_type = request.args.get('type', None)
         
         from database.models import FileChangeModel
-        raw_changes = FileChangeModel.get_recent(limit=limit, change_type=change_type)
+        raw_changes = FileChangeModel.get_recent(limit=limit, offset=offset, change_type=change_type)
         
         # Transform snake_case to camelCase for frontend
         file_changes = []
@@ -97,8 +120,29 @@ def get_recent_file_changes():
             }
             file_changes.append(transformed_change)
         
+        # Get total count for pagination metadata
+        total_count = FileChangeModel.get_count(change_type=change_type)
+        
+        # Calculate pagination metadata
+        has_more = offset + len(file_changes) < total_count
+        current_page = (offset // limit) + 1 if limit > 0 else 1
+        total_pages = (total_count + limit - 1) // limit if limit > 0 else 1
+        
+        response = {
+            'changes': file_changes,
+            'pagination': {
+                'total': total_count,
+                'count': len(file_changes),
+                'offset': offset,
+                'limit': limit,
+                'hasMore': has_more,
+                'currentPage': current_page,
+                'totalPages': total_pages
+            }
+        }
+        
         logger.info(f"Retrieved {len(file_changes)} recent file changes")
-        return jsonify(file_changes)
+        return jsonify(response)
         
     except Exception as e:
         logger.error(f"Error retrieving file changes: {e}")

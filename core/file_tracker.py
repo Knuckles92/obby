@@ -40,15 +40,10 @@ class FileContentTracker:
             # Get previous state from database
             previous_state = FileStateModel.get_state(file_path)
             
-            # Check if file actually changed (with additional validation)
+            # Check if file actually changed using content hash comparison
             if previous_state and previous_state.get('content_hash') == current_hash:
-                # Double-check with file modification time if available
-                if current_content and len(current_content.strip()) > 0:
-                    logger.debug(f"Content hash unchanged for {file_path}, but file has content - may be a false positive")
-                    # Allow processing to continue for non-empty files to catch edge cases
-                else:
-                    logger.debug(f"No content change detected for {file_path}")
-                    return None
+                logger.debug(f"No content change detected for {file_path}: hash {current_hash[:8] if current_hash else 'None'} unchanged")
+                return None
             
             # Handle different change types
             if change_type == 'created':
@@ -90,6 +85,16 @@ class FileContentTracker:
             file_size=len(content.encode('utf-8'))
         )
         
+        # Create content diff for file creation (diff against empty content)
+        self._create_content_diff(
+            file_path=file_path,
+            old_version_id=None,
+            new_version_id=version_id,
+            old_content="",
+            new_content=content,
+            change_type='created'
+        )
+        
         # Record file change
         FileChangeModel.insert(
             file_path=file_path,
@@ -105,9 +110,14 @@ class FileContentTracker:
         """Handle file modification."""
         if not current_content:
             return None
+        
+        # Check if content has actually changed by comparing hashes
+        previous_hash = previous_state.get('content_hash') if previous_state else None
+        if previous_hash == current_hash:
+            logger.debug(f"Skipping modification processing for {file_path}: content hash unchanged")
+            return None
             
         # Get previous version for diff
-        previous_hash = previous_state.get('content_hash') if previous_state else None
         previous_version = None
         
         if previous_hash:
@@ -192,6 +202,11 @@ class FileContentTracker:
 
         change_type may be one of: 'created', 'modified', 'deleted', 'moved'
         """
+        # Check if we should create this diff to avoid +0/-0 entries
+        if not ContentDiffModel.should_create_diff(old_version_id, new_version_id, old_content, new_content):
+            logger.debug(f"Skipping diff creation for {file_path}: no actual changes detected")
+            return None
+        
         # Generate diff using difflib
         diff_content, lines_added, lines_removed = ContentDiffModel.generate_diff(
             old_content, new_content
@@ -208,7 +223,12 @@ class FileContentTracker:
             lines_removed=lines_removed
         )
         
-        logger.debug(f"Created content diff {diff_id}: +{lines_added}/-{lines_removed} lines")
+        # Enhanced logging for debugging
+        if lines_added == 0 and lines_removed == 0:
+            logger.warning(f"Created +0/-0 content diff {diff_id} for {file_path}: {change_type} "
+                         f"(versions: {old_version_id} -> {new_version_id})")
+        else:
+            logger.debug(f"Created content diff {diff_id}: +{lines_added}/-{lines_removed} lines")
         return diff_id
     
     def get_file_history(self, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy } from 'lucide-react'
-import { ContentDiff, FileChange, FileMonitoringStatus } from '../types'
+import { ContentDiff, FileChange, FileMonitoringStatus, PaginatedDiffsResponse, PaginatedChangesResponse, PaginationMetadata } from '../types'
 import { apiFetch } from '../utils/api'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 
@@ -18,32 +18,49 @@ export default function DiffViewer() {
   const [activeTab, setActiveTab] = useState<'diffs' | 'changes'>('diffs')
   const [copied, setCopied] = useState(false)
 
+  // Pagination state
+  const [diffsPagination, setDiffsPagination] = useState<PaginationMetadata | null>(null)
+  const [changesPagination, setChangesPagination] = useState<PaginationMetadata | null>(null)
+  const [loadingMore, setLoadingMore] = useState(false)
+
   useEffect(() => {
     fetchFileData()
   }, [])
 
-  const fetchFileData = async () => {
+  const fetchFileData = async (reset: boolean = true) => {
     try {
       setError(null)
+      
+      // Reset pagination and data if this is a fresh fetch
+      if (reset) {
+        setDiffs([])
+        setFileChanges([])
+        setDiffsPagination(null)
+        setChangesPagination(null)
+      }
       
       // Fetch recent diffs
       const diffsResponse = await apiFetch('/api/files/diffs?limit=50')
       if (!diffsResponse.ok) {
         throw new Error(`Failed to fetch diffs: ${diffsResponse.status}`)
       }
-      const diffsResponseData = await diffsResponse.json()
-      const diffsData = diffsResponseData.diffs || []
+      const diffsResponseData: PaginatedDiffsResponse = await diffsResponse.json()
       
       // Fetch recent file changes
       const changesResponse = await apiFetch('/api/files/changes?limit=50')
-      const changesData = changesResponse.ok ? await changesResponse.json() : []
+      if (!changesResponse.ok) {
+        throw new Error(`Failed to fetch changes: ${changesResponse.status}`)
+      }
+      const changesResponseData: PaginatedChangesResponse = await changesResponse.json()
       
       // Fetch file monitoring status
       const statusResponse = await apiFetch('/api/files/monitoring-status') 
       const statusData = statusResponse.ok ? await statusResponse.json() : null
       
-      setDiffs(diffsData)
-      setFileChanges(Array.isArray(changesData) ? changesData : [])
+      setDiffs(diffsResponseData.diffs || [])
+      setDiffsPagination(diffsResponseData.pagination)
+      setFileChanges(changesResponseData.changes || [])
+      setChangesPagination(changesResponseData.pagination)
       setMonitoringStatus(statusData)
       
     } catch (error) {
@@ -51,6 +68,8 @@ export default function DiffViewer() {
       setError(error instanceof Error ? error.message : 'Failed to load file data')
       setDiffs([])
       setFileChanges([])
+      setDiffsPagination(null)
+      setChangesPagination(null)
     } finally {
       setLoading(false)
     }
@@ -62,6 +81,58 @@ export default function DiffViewer() {
       await fetchFileData()
     } finally {
       setRefreshing(false)
+    }
+  }
+
+  const loadMoreDiffs = async () => {
+    if (!diffsPagination?.hasMore || loadingMore) return
+    
+    setLoadingMore(true)
+    try {
+      const offset = diffsPagination.offset + diffsPagination.limit
+      const response = await apiFetch(`/api/files/diffs?limit=50&offset=${offset}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more diffs: ${response.status}`)
+      }
+      
+      const responseData: PaginatedDiffsResponse = await response.json()
+      
+      // Append new diffs to existing ones
+      setDiffs(prevDiffs => [...prevDiffs, ...(responseData.diffs || [])])
+      setDiffsPagination(responseData.pagination)
+      
+    } catch (error) {
+      console.error('Error loading more diffs:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load more diffs')
+    } finally {
+      setLoadingMore(false)
+    }
+  }
+
+  const loadMoreChanges = async () => {
+    if (!changesPagination?.hasMore || loadingMore) return
+    
+    setLoadingMore(true)
+    try {
+      const offset = changesPagination.offset + changesPagination.limit
+      const response = await apiFetch(`/api/files/changes?limit=50&offset=${offset}`)
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch more changes: ${response.status}`)
+      }
+      
+      const responseData: PaginatedChangesResponse = await response.json()
+      
+      // Append new changes to existing ones
+      setFileChanges(prevChanges => [...prevChanges, ...(responseData.changes || [])])
+      setChangesPagination(responseData.pagination)
+      
+    } catch (error) {
+      console.error('Error loading more changes:', error)
+      setError(error instanceof Error ? error.message : 'Failed to load more changes')
+    } finally {
+      setLoadingMore(false)
     }
   }
 
@@ -272,7 +343,7 @@ export default function DiffViewer() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                Content Diffs ({diffs.length})
+                Content Diffs ({diffsPagination?.total ?? diffs.length})
               </button>
               <button
                 onClick={() => setActiveTab('changes')}
@@ -282,7 +353,7 @@ export default function DiffViewer() {
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
-                File Changes ({fileChanges.length})
+                File Changes ({changesPagination?.total ?? fileChanges.length})
               </button>
             </div>
             
@@ -394,6 +465,58 @@ export default function DiffViewer() {
               
               {activeTab === 'changes' && fileChanges.length === 0 && (
                 <p className="text-gray-600 text-center py-8">No file changes found</p>
+              )}
+
+              {/* Load More Buttons */}
+              {activeTab === 'diffs' && diffsPagination?.hasMore && (
+                <div className="text-center py-4">
+                  <button
+                    onClick={loadMoreDiffs}
+                    disabled={loadingMore}
+                    className="flex items-center justify-center mx-auto px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Loading more...
+                      </>
+                    ) : (
+                      `Load More (${diffsPagination.total - diffs.length} remaining)`
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {activeTab === 'changes' && changesPagination?.hasMore && (
+                <div className="text-center py-4">
+                  <button
+                    onClick={loadMoreChanges}
+                    disabled={loadingMore}
+                    className="flex items-center justify-center mx-auto px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {loadingMore ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Loading more...
+                      </>
+                    ) : (
+                      `Load More (${changesPagination.total - fileChanges.length} remaining)`
+                    )}
+                  </button>
+                </div>
+              )}
+
+              {/* Pagination Info */}
+              {activeTab === 'diffs' && diffsPagination && diffs.length > 0 && (
+                <div className="text-center py-2 border-t border-gray-200 text-xs text-gray-500">
+                  Showing {diffs.length} of {diffsPagination.total} content diffs
+                </div>
+              )}
+
+              {activeTab === 'changes' && changesPagination && fileChanges.length > 0 && (
+                <div className="text-center py-2 border-t border-gray-200 text-xs text-gray-500">
+                  Showing {fileChanges.length} of {changesPagination.total} file changes
+                </div>
               )}
             </div>
           )}

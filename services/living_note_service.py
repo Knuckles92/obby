@@ -17,6 +17,7 @@ class LivingNoteService:
     """
 
     def __init__(self, living_note_path: str):
+        # Base path provided by caller; final path may be dynamically resolved (daily mode)
         self.living_note_path = Path(living_note_path)
         self.settings_path = Path('config/living_note_settings.json')
         self.format_path = Path('config/format.md')
@@ -28,12 +29,48 @@ class LivingNoteService:
         except Exception:
             pass
 
+        # Load dynamic living note configuration (daily vs single file)
+        try:
+            from config.settings import (
+                LIVING_NOTE_MODE,
+                LIVING_NOTE_DAILY_DIR,
+                LIVING_NOTE_DAILY_FILENAME_TEMPLATE,
+                LIVING_NOTE_PATH as LIVING_NOTE_SINGLE_PATH,
+            )
+            self._LIVING_NOTE_MODE = str(LIVING_NOTE_MODE).lower()
+            self._LIVING_NOTE_DAILY_DIR = Path(LIVING_NOTE_DAILY_DIR)
+            self._LIVING_NOTE_DAILY_FILENAME_TEMPLATE = LIVING_NOTE_DAILY_FILENAME_TEMPLATE
+            self._LIVING_NOTE_SINGLE_PATH = Path(LIVING_NOTE_SINGLE_PATH)
+        except Exception:
+            # Fallback defaults
+            self._LIVING_NOTE_MODE = "single"
+            self._LIVING_NOTE_DAILY_DIR = Path('notes/daily')
+            self._LIVING_NOTE_DAILY_FILENAME_TEMPLATE = "Living Note - {date}.md"
+            self._LIVING_NOTE_SINGLE_PATH = Path('notes/living_note.md')
+
+    def _resolve_living_note_path(self, now: datetime = None) -> Path:
+        """Resolve current living note file path based on configured mode."""
+        if now is None:
+            now = datetime.now()
+        if self._LIVING_NOTE_MODE == "daily":
+            self._LIVING_NOTE_DAILY_DIR.mkdir(parents=True, exist_ok=True)
+            date_str = now.strftime('%Y-%m-%d')
+            filename = self._LIVING_NOTE_DAILY_FILENAME_TEMPLATE.format(date=date_str)
+            resolved = self._LIVING_NOTE_DAILY_DIR / filename
+        else:
+            self._LIVING_NOTE_SINGLE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            resolved = self._LIVING_NOTE_SINGLE_PATH
+        # Cache resolved path
+        self.living_note_path = resolved
+        return resolved
+
     # ---------- Content ----------
     def get_content(self):
         try:
-            if self.living_note_path.exists():
-                content = self.living_note_path.read_text(encoding='utf-8')
-                stat = self.living_note_path.stat()
+            current_path = self._resolve_living_note_path()
+            if current_path.exists():
+                content = current_path.read_text(encoding='utf-8')
+                stat = current_path.stat()
                 last_updated = datetime.fromtimestamp(stat.st_mtime).isoformat()
             else:
                 content = "# Living Note\n\nNo content yet. Start monitoring to see automated summaries appear here."
@@ -41,8 +78,8 @@ class LivingNoteService:
 
             return {
                 'content': content,
-                'path': str(self.living_note_path),
-                'exists': self.living_note_path.exists(),
+                'path': str(current_path),
+                'exists': current_path.exists(),
                 'lastUpdated': last_updated,
                 'wordCount': len(content.split()) if content else 0,
             }
@@ -52,8 +89,9 @@ class LivingNoteService:
 
     def clear(self):
         try:
-            self.living_note_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.living_note_path, 'w', encoding='utf-8') as f:
+            current_path = self._resolve_living_note_path()
+            current_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(current_path, 'w', encoding='utf-8') as f:
                 f.write("# Living Note\n\nCleared at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n")
             return {
                 'success': True,
@@ -134,6 +172,9 @@ class LivingNoteService:
         Returns dict with success, updated, message, and summary when applicable.
         """
         try:
+            # Resolve target path (daily or single)
+            target_path = self._resolve_living_note_path()
+
             # Cursor window
             from database.models import ConfigModel
             last_ts_str = ConfigModel.get('living_note_last_update', None)
@@ -163,18 +204,52 @@ class LivingNoteService:
                         'message': 'No diffs since last update',
                         'updated': False
                     }
+                else:
+                    # Proceed with an empty set of diffs when forced
+                    diffs = []
 
+            # Build AI context and metrics
             if diffs:
-                combined = []
-                for d in diffs:
-                    combined.append(f"File: {d['filePath']} ({d['timestamp']})\n{d.get('diffContent') or ''}")
-                full_diff_content = "\n\n---\n\n".join(combined)
-                summary = self.openai_client.summarize_diff(full_diff_content)
+                combined_parts = []
+                max_items = min(len(diffs), 12)
+                for d in diffs[:max_items]:
+                    file_path = d.get('filePath') or d.get('path') or 'unknown'
+                    ts = d.get('timestamp') or ''
+                    diff_text = d.get('diffContent') or ''
+                    if isinstance(diff_text, str) and len(diff_text) > 800:
+                        diff_text = diff_text[:800] + "\n..."
+                    combined_parts.append(f"File: {file_path} ({ts})\n{diff_text}")
+                context_text = "\n\n---\n\n".join(combined_parts)
             else:
-                summary = f"No changes detected since {window_start.isoformat()}"
+                context_text = ""
 
-            # Update the living note file
-            success = self.openai_client.update_living_note(str(self.living_note_path), summary)
+            total_changes = len(diffs)
+            files_affected = len({d.get('filePath') for d in diffs})
+            lines_added = sum(int(d.get('linesAdded') or 0) for d in diffs)
+            lines_removed = sum(int(d.get('linesRemoved') or 0) for d in diffs)
+            notes_added_count = len({d.get('filePath') for d in diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
+
+            # AI-generated summary bullets and proposed questions
+            summary_bullets = self.openai_client.summarize_minimal(context_text) if context_text else "- no meaningful changes"
+            questions_text = self.openai_client.generate_proposed_questions(context_text) if context_text else ""
+
+            metrics_line = f"- Metrics: {total_changes} changes across {files_affected} files (+{lines_added}/-{lines_removed}); {notes_added_count} new notes"
+            parts = [metrics_line]
+            if summary_bullets:
+                parts.append(summary_bullets)
+            if questions_text and questions_text.strip():
+                parts.append("Questions:")
+                parts.append(questions_text.strip())
+            summary_block = "\n".join(parts)
+
+            # Update the living note file with structured append
+            success = self.openai_client.update_living_note(
+                str(target_path),
+                summary_block,
+                change_type="content",
+                settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
+                update_type=None,
+            )
             if not success:
                 return {'success': False, 'message': 'Failed to update living note'}
 
@@ -190,7 +265,7 @@ class LivingNoteService:
                 'success': True,
                 'message': 'Living note updated from diffs since last check',
                 'updated': True,
-                'summary': summary
+                'summary': summary_block
             }
 
         except Exception as e:

@@ -42,18 +42,16 @@ class ObbyMonitor:
             # Initialize AI client for content analysis
             self.ai_client = OpenAIClient()
             
-            # Initialize batch AI processor
-            if self.batch_processing_enabled:
-                self.batch_processor = BatchAIProcessor(self.ai_client)
-                self.batch_processor.start_scheduler()
-                logger.info("Batch AI processor started")
+            # Disable automatic batch AI processing by default for leaner operation
+            self.batch_processing_enabled = False
             
             # Initialize file watcher with file tracking integration
             utils_folder = NOTES_FOLDER.parent
+            from utils.living_note_path import resolve_living_note_path
             self.file_watcher = FileWatcher(
                 NOTES_FOLDER, 
                 self.ai_client, 
-                LIVING_NOTE_PATH, 
+                resolve_living_note_path(), 
                 utils_folder,
                 file_tracker=self.file_tracker  # Pass file tracker to watcher
             )
@@ -291,23 +289,8 @@ class ObbyMonitor:
             if len(content.strip()) < 50:  # Skip very short content
                 return
                 
-            # Generate AI analysis
-            response = self.ai_client.summarize_changes(content, file_path)
-            
-            if response and isinstance(response, dict):
-                # Store semantic analysis
-                from database.models import SemanticModel
-                SemanticModel.insert_entry(
-                    summary=response.get('summary', 'File content analyzed'),
-                    entry_type='individual_analysis',
-                    impact=response.get('impact', 'minor'),
-                    topics=response.get('topics', []),
-                    keywords=response.get('keywords', []),
-                    file_path=file_path,
-                    version_id=version_id
-                )
-                
-                logger.debug(f"Individual AI analysis completed for {file_path}")
+            # Legacy individual AI analysis disabled; batch and living-note updates handle summarization
+            return
                 
         except Exception as e:
             logger.error(f"Error in AI processing for {file_path}: {e}")

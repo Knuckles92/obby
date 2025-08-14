@@ -213,8 +213,13 @@ class MigrationManager:
         return count
     
     def migrate_living_note(self) -> int:
-        """Migrate living note to versioned storage."""
-        living_note_path = Path("notes/living_note.md")
+        """Migrate legacy single-file living note into the database once, if present."""
+        # Use utility resolver to support daily mode paths transparently
+        try:
+            from utils.living_note_path import resolve_living_note_path
+            living_note_path = resolve_living_note_path()
+        except Exception:
+            living_note_path = Path("notes/living_note.md")
         
         if not living_note_path.exists():
             logger.info("No living note found")

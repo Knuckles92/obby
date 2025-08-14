@@ -59,6 +59,30 @@ export interface FileMonitoringStatus {
   version: string;
 }
 
+// Pagination interfaces
+export interface PaginationMetadata {
+  total: number;
+  count: number;
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  currentPage: number;
+  totalPages: number;
+}
+
+export interface PaginatedResponse<T> {
+  pagination: PaginationMetadata;
+  data?: T[];
+}
+
+export interface PaginatedDiffsResponse extends PaginatedResponse<ContentDiff> {
+  diffs: ContentDiff[];
+}
+
+export interface PaginatedChangesResponse extends PaginatedResponse<FileChange> {
+  changes: FileChange[];
+}
+
 // Legacy git interfaces (deprecated - for backwards compatibility)
 export interface GitCommit {
   id: string;
