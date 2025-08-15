@@ -107,16 +107,29 @@ class FileQueries:
             diffs = [dict(row) for row in rows]
 
             formatted_diffs = []
+            total_diffs_processed = 0
+            filtered_out_count = 0
+            
             for diff in diffs:
+                total_diffs_processed += 1
+                file_path = diff['file_path']
+                
                 # Optional watch filtering
                 if watch_handler is not None:
                     from pathlib import Path
-                    if not watch_handler.should_watch(Path(diff['file_path'])):
+                    should_include = watch_handler.should_watch(Path(file_path))
+                    logger.debug(f"Watch filter for '{file_path}': {'INCLUDE' if should_include else 'EXCLUDE'}")
+                    
+                    if not should_include:
+                        filtered_out_count += 1
+                        logger.debug(f"Filtering out file: {file_path}")
                         continue
+                else:
+                    logger.debug(f"No watch handler, including file: {file_path}")
 
                 formatted_diffs.append({
                     'id': str(diff['id']),
-                    'filePath': diff['file_path'],
+                    'filePath': file_path,
                     'changeType': diff['change_type'],
                     'diffContent': diff['diff_content'],
                     'linesAdded': diff['lines_added'],
@@ -126,7 +139,11 @@ class FileQueries:
                     'newVersionId': diff['new_version_id']
                 })
 
-            logger.info(f"Retrieved {len(formatted_diffs)} diffs since {since}")
+            logger.info(f"Diffs since {since}: processed {total_diffs_processed}, filtered out {filtered_out_count}, returning {len(formatted_diffs)}")
+            if formatted_diffs:
+                included_files = [d['filePath'] for d in formatted_diffs]
+                logger.info(f"Included files: {included_files}")
+            
             return formatted_diffs
         except Exception as e:
             logger.error(f"Error retrieving diffs since {since}: {e}")

@@ -22,5 +22,6 @@
       "mcp__ide__getDiagnostics"
     ],
     "deny": []
-  }
+  },
+  "outputStyle": "Explanatory"
 }

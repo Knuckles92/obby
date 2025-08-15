@@ -92,7 +92,7 @@ class LivingNoteService:
             current_path = self._resolve_living_note_path()
             current_path.parent.mkdir(parents=True, exist_ok=True)
             with open(current_path, 'w', encoding='utf-8') as f:
-                f.write("# Living Note\n\nCleared at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n")
+                f.write("# Living Note\n\nCleared at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n\n")
             return {
                 'success': True,
                 'message': 'Living note cleared successfully'
@@ -186,18 +186,42 @@ class LivingNoteService:
                 from utils.watch_handler import WatchHandler
                 root_folder = Path(__file__).parent.parent
                 watch_handler = WatchHandler(root_folder)
+                logger.info(f"Living note: initialized WatchHandler with root_folder: {root_folder}")
+                logger.info(f"Living note: loaded watch patterns: {watch_handler.watch_patterns}")
+                logger.info(f"Living note: watch file path: {watch_handler.watch_file}")
             except Exception as e:
                 logger.debug(f"Watch patterns unavailable, proceeding without filter: {e}")
 
             # Fetch diffs
             from database.queries import FileQueries
-            diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
+            all_diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
+            
+            # Exclude the living note file itself to prevent feedback loops
+            target_path = self._resolve_living_note_path().resolve()
+            diffs = []
+            excluded_count = 0
+            for diff in all_diffs:
+                diff_path = Path(diff.get('filePath', '')).resolve()
+                if diff_path == target_path:
+                    excluded_count += 1
+                    logger.debug(f"Excluding living note file from its own update: {diff_path}")
+                    continue
+                diffs.append(diff)
+            
+            logger.info(f"Living note: excluded {excluded_count} self-references, processing {len(diffs)} actual content diffs")
 
             # Fallback to recent diffs to avoid empty updates
             if not diffs:
-                recent_diffs = FileQueries.get_recent_diffs(limit=10, watch_handler=watch_handler)
+                all_recent_diffs = FileQueries.get_recent_diffs(limit=10, watch_handler=watch_handler)
+                # Also exclude living note file from recent diffs
+                recent_diffs = []
+                for diff in all_recent_diffs:
+                    diff_path = Path(diff.get('filePath', '')).resolve()
+                    if diff_path != target_path:
+                        recent_diffs.append(diff)
                 if recent_diffs:
                     diffs = recent_diffs
+                    logger.info(f"Living note: using {len(recent_diffs)} recent diffs (excluded living note file)")
                 elif not force:
                     return {
                         'success': True,
@@ -212,16 +236,20 @@ class LivingNoteService:
             if diffs:
                 combined_parts = []
                 max_items = min(len(diffs), 12)
+                files_for_ai = []
                 for d in diffs[:max_items]:
                     file_path = d.get('filePath') or d.get('path') or 'unknown'
+                    files_for_ai.append(file_path)
                     ts = d.get('timestamp') or ''
                     diff_text = d.get('diffContent') or ''
                     if isinstance(diff_text, str) and len(diff_text) > 800:
                         diff_text = diff_text[:800] + "\n..."
                     combined_parts.append(f"File: {file_path} ({ts})\n{diff_text}")
                 context_text = "\n\n---\n\n".join(combined_parts)
+                logger.info(f"Living note: sending {len(files_for_ai)} files to AI: {files_for_ai}")
             else:
                 context_text = ""
+                logger.info("Living note: no diffs to send to AI")
 
             total_changes = len(diffs)
             files_affected = len({d.get('filePath') for d in diffs})
@@ -249,7 +277,7 @@ class LivingNoteService:
             if questions_text and questions_text.strip():
                 # Add a proper markdown heading and spacing for questions section
                 parts.append("")
-                parts.append("### Questions")
+                parts.append("### Proposed Questions for AI Agent")
                 parts.append("")
                 parts.append(questions_text.strip())
             summary_block = "\n".join(parts)

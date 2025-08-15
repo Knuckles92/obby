@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { 
   Shield, 
   Database, 
-  Users, 
   Settings, 
   Activity, 
   Server, 
@@ -13,9 +12,7 @@ import {
   Trash2,
   Download,
   Upload,
-  AlertTriangle,
-  CheckCircle,
-  XCircle
+  AlertTriangle
 } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 
@@ -119,7 +116,6 @@ export default function Administration() {
   const tabs = [
     { id: 'overview', name: 'System Overview', icon: Activity },
     { id: 'database', name: 'Database', icon: Database },
-    { id: 'users', name: 'User Management', icon: Users },
     { id: 'config', name: 'Configuration', icon: Settings },
   ]
 
@@ -389,33 +385,6 @@ export default function Administration() {
         </div>
       )}
 
-      {activeTab === 'users' && (
-        <div>
-          <h2 style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--spacing-lg)' }}>User Management</h2>
-          
-          <div style={{
-            backgroundColor: 'var(--color-surface)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--border-radius-lg)',
-            padding: 'var(--spacing-lg)',
-            textAlign: 'center'
-          }}>
-            <Users style={{ width: '3rem', height: '3rem', color: 'var(--color-text-secondary)', margin: '0 auto var(--spacing-md)' }} />
-            <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--spacing-sm)' }}>User Management Coming Soon</h3>
-            <p style={{ color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-lg)' }}>
-              User authentication and role-based access control features are planned for a future release.
-            </p>
-            <div style={{ display: 'flex', gap: 'var(--spacing-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
-              <ActionButton onClick={() => alert('Feature coming soon!')} icon={Users} variant="secondary">
-                Manage Users
-              </ActionButton>
-              <ActionButton onClick={() => alert('Feature coming soon!')} icon={Shield} variant="secondary">
-                Role Permissions
-              </ActionButton>
-            </div>
-          </div>
-        </div>
-      )}
 
       {activeTab === 'config' && (
         <div>

@@ -671,8 +671,13 @@ IMPORTANT:
             ai_header=ai_header,
         )
 
-        # Prepend new session to existing content
-        updated_content = session_header + existing_content
+        # Prepend new session to existing content with proper spacing
+        # Ensure proper separation between session content and existing content
+        if existing_content and not existing_content.startswith('\n'):
+            # Add extra newline if existing content doesn't start with one
+            updated_content = session_header + '\n' + existing_content
+        else:
+            updated_content = session_header + existing_content
 
         with open(living_note_path, "w", encoding='utf-8') as f:
             f.write(updated_content)
