@@ -176,6 +176,29 @@ class ContentDiffModel:
             logger.debug("Skipping diff creation: identical content")
             return False
         
+        # Check if a diff with this version combination already exists
+        if old_version_id is not None and new_version_id is not None:
+            existing_query = """
+                SELECT id FROM content_diffs 
+                WHERE old_version_id = ? AND new_version_id = ?
+                LIMIT 1
+            """
+            existing = db.execute_query(existing_query, (old_version_id, new_version_id))
+            if existing:
+                logger.debug(f"Skipping diff creation: diff already exists for versions {old_version_id} -> {new_version_id}")
+                return False
+        elif old_version_id is None and new_version_id is not None:
+            # Check for creation diffs (old_version_id = NULL, new_version_id = specific)
+            existing_query = """
+                SELECT id FROM content_diffs 
+                WHERE old_version_id IS NULL AND new_version_id = ?
+                LIMIT 1
+            """
+            existing = db.execute_query(existing_query, (new_version_id,))
+            if existing:
+                logger.debug(f"Skipping diff creation: creation diff already exists for version {new_version_id}")
+                return False
+        
         return True
     
     @classmethod

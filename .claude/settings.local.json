@@ -18,7 +18,8 @@
       "Bash(ls:*)",
       "Bash(grep:*)",
       "Bash(npm run lint)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }

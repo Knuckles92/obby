@@ -389,7 +389,7 @@ export default function DiffViewer() {
               <p className="text-red-600 mb-2">Error loading file data</p>
               <p className="text-sm text-gray-600 mb-4">{error}</p>
               <button
-                onClick={fetchFileData}
+                onClick={() => fetchFileData()}
                 className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
               >
                 Retry
