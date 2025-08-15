@@ -183,6 +183,46 @@ class OpenAIClient:
         except Exception:
             return ""
 
+    def generate_session_title(self, context_text: str) -> str:
+        """Generate a short, punchy header for the session from context.
+
+        Rules:
+        - 3–7 words, Title Case
+        - Optional 1 relevant emoji prefix
+        - No trailing punctuation
+        - If trivial/noisy context, return 'Minor Updates'
+        """
+        try:
+            system_prompt = (
+                "You create concise, punchy titles for development session summaries. "
+                "Return ONLY the title. 3–7 words, Title Case, no trailing punctuation. "
+                "Optionally start with ONE relevant emoji if it clearly fits."
+            )
+            user_content = (
+                "Create a concise title that captures the main theme of these changes.\n\n"
+                f"Changes:\n{context_text}"
+            )
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                max_tokens=20,
+                temperature=0.4,
+            )
+            title = response.choices[0].message.content.strip()
+            # Post-process: collapse lines, strip quotes/backticks, trim length
+            title = title.replace('\n', ' ').strip().strip('"\'`')
+            if not title:
+                return "Minor Updates"
+            # Keep it reasonably short
+            if len(title) > 60:
+                title = title[:60].rstrip()
+            return title
+        except Exception:
+            return "Minor Updates"
+
     def summarize_events(self, events_text, settings=None):
         """
         Summarize recent events for the living note.
@@ -368,7 +408,10 @@ class OpenAIClient:
     def _get_fallback_format_config(self):
         """Return hardcoded fallback configuration when format.md is unavailable."""
         return {
-            'session_template': '''{timestamp} - {file_path}
+            'session_template': '''## {ai_header}
+
+> {timestamp} • {file_path}
+
 {detailed_entries}
 {ai_insights}
 
@@ -594,17 +637,38 @@ IMPORTANT:
         format_config = self._load_format_config()
         template = format_config.get('session_template', '')
 
-        # Prepare template variables
-        timestamp = datetime.now().strftime('%H:%M:%S')
-        file_path = getattr(self, '_current_file_path', 'multiple files')
+        # Prepare template variables (nicer timestamp + AI header)
+        now_dt = datetime.now()
+        date_part = f"{now_dt.strftime('%A')}, {now_dt.strftime('%B')} {now_dt.day}, {now_dt.year}"
+        time_part = now_dt.strftime('%I:%M %p').lstrip('0')
+        timestamp = f"{date_part} at {time_part}"
+
+        # Derive a friendly file_path label
+        file_path = getattr(self, '_current_file_path', None)
+        if not file_path or file_path == 'multiple files':
+            # Try to infer from metrics in the summary
+            try:
+                m = re.search(r"Files affected:\s*(\d+)", summary)
+                if m:
+                    n = int(m.group(1))
+                    file_path = f"{n} file{'s' if n != 1 else ''}"
+                else:
+                    file_path = 'multiple files'
+            except Exception:
+                file_path = 'multiple files'
+
+        # AI-generated session header/title
+        ai_header = self.generate_session_title(summary)
+
         detailed_entries = summary  # Summary is already clean bullet points from AI
 
-        # Apply template with variable substitution
+        # Apply template with variable substitution (extra keys are safe if unused)
         session_header = template.format(
             timestamp=timestamp,
             file_path=file_path,
             detailed_entries=detailed_entries,
-            ai_insights=insights
+            ai_insights=insights,
+            ai_header=ai_header,
         )
 
         # Prepend new session to existing content

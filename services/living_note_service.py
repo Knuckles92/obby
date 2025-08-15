@@ -225,20 +225,32 @@ class LivingNoteService:
 
             total_changes = len(diffs)
             files_affected = len({d.get('filePath') for d in diffs})
-            lines_added = sum(int(d.get('linesAdded') or 0) for d in diffs)
-            lines_removed = sum(int(d.get('linesRemoved') or 0) for d in diffs)
+            # Filter out zero-change diffs to avoid counting meaningless +0/-0 entries
+            meaningful_diffs = [d for d in diffs if int(d.get('linesAdded') or 0) > 0 or int(d.get('linesRemoved') or 0) > 0]
+            lines_added = sum(int(d.get('linesAdded') or 0) for d in meaningful_diffs)
+            lines_removed = sum(int(d.get('linesRemoved') or 0) for d in meaningful_diffs)
             notes_added_count = len({d.get('filePath') for d in diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
 
             # AI-generated summary bullets and proposed questions
             summary_bullets = self.openai_client.summarize_minimal(context_text) if context_text else "- no meaningful changes"
             questions_text = self.openai_client.generate_proposed_questions(context_text) if context_text else ""
-
-            metrics_line = f"- Metrics: {total_changes} changes across {files_affected} files (+{lines_added}/-{lines_removed}); {notes_added_count} new notes"
-            parts = [metrics_line]
+            
+            # Metrics section formatted consistently with a header (like Questions)
+            parts = [
+                "### Metrics",
+                "",
+                f"- Total changes: {total_changes}",
+                f"- Files affected: {files_affected}",
+                f"- Lines: +{lines_added}/-{lines_removed}",
+                f"- New notes: {notes_added_count}",
+            ]
             if summary_bullets:
                 parts.append(summary_bullets)
             if questions_text and questions_text.strip():
-                parts.append("Questions:")
+                # Add a proper markdown heading and spacing for questions section
+                parts.append("")
+                parts.append("### Questions")
+                parts.append("")
                 parts.append(questions_text.strip())
             summary_block = "\n".join(parts)
 

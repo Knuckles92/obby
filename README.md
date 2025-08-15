@@ -109,7 +109,7 @@
 4. **Initialize Database**
    ```bash
    # Database and directories are created automatically on first run
-   python api_server.py
+   python backend.py
    ```
 
 ### Running the Application
@@ -117,21 +117,21 @@
 **Production Mode (Recommended)**
 ```bash
 # Start the combined API + Frontend server
-python api_server.py
+python backend.py
 
-# Open http://localhost:8000 in your browser
+# Open http://localhost:8001 in your browser
 ```
 
 **Development Mode**
 ```bash
 # Terminal 1: Backend API with auto-reload
-python api_server.py
+python backend.py
 
 # Terminal 2: Frontend development server with hot reload
 cd frontend
 npm run dev
 # Access frontend at http://localhost:5173
-# API available at http://localhost:8000
+# API available at http://localhost:8001
 ```
 
 ### First Run Experience
@@ -147,27 +147,39 @@ Obby automatically sets up your environment:
 ```
 obby/
 ├── 🔧 Backend (Python)
-│   ├── main.py                    # Application entry point
-│   ├── api_server.py              # Flask API server (943 lines)
+│   ├── backend.py                 # Flask API server + SPA host (port 8001)
+│   ├── main.py                    # CLI helper / legacy entry
 │   ├── config/
 │   │   ├── settings.py            # Core configuration
 │   │   └── living_note_settings.json # AI behavior configuration
 │   ├── core/
-│   │   └── monitor.py             # File monitoring orchestration
+│   │   ├── monitor.py             # File monitoring orchestration
+│   │   └── file_tracker.py        # On-demand directory scanning
 │   ├── ai/
-│   │   └── openai_client.py       # OpenAI integration (851 lines)
+│   │   ├── openai_client.py       # OpenAI integration
+│   │   └── batch_processor.py     # Batch AI processing
+│   ├── routes/
+│   │   ├── monitoring.py          # /api/monitor/* (control, status, batch AI)
+│   │   ├── files.py               # /api/files/* (events, diffs, tree, scans)
+│   │   ├── living_note.py         # /api/living-note/* (content, settings, SSE)
+│   │   ├── search.py              # /api/search/* (semantic, topics, keywords)
+│   │   ├── config.py              # /api/config/* (settings, models)
+│   │   ├── data.py                # /api/data/* (clear data)
+│   │   └── admin.py               # /api/admin/* (system/db stats)
 │   ├── database/
-│   │   ├── models.py              # SQLite models with FTS5 (423 lines)
-│   │   ├── queries.py             # Optimized query layer (548 lines)
-│   │   ├── migration.py           # Data migration system (481 lines)
-│   │   └── schema.sql             # Database schema definitions
-│   ├── diffing/
-│   │   └── diff_tracker.py        # Content diff generation
+│   │   ├── models.py              # SQLite models with FTS5
+│   │   ├── queries.py             # Optimized query layer
+│   │   ├── migration.py           # Data migration system
+│   │   ├── migration_git_to_file.py # Legacy migration helper
+│   │   ├── schema.sql             # Database schema definitions
+│   │   └── schema_new.sql         # Latest schema iteration
 │   └── utils/
 │       ├── file_helpers.py        # File system utilities
 │       ├── file_watcher.py        # Real-time monitoring
 │       ├── ignore_handler.py      # .obbyignore pattern matching
-│       └── watch_handler.py       # .obbywatch directory management
+│       ├── watch_handler.py       # .obbywatch directory management
+│       ├── migrations.py          # One-off migration tasks
+│       └── living_note_path.py    # Living note path resolution
 │
 ├── 🎨 Frontend (React + TypeScript)
 │   ├── src/
@@ -224,71 +236,6 @@ obby/
 - **Activity Stream**: Real-time feed of file change events with timestamps
 - **Performance Metrics**: Events today, database size, search index statistics
 - **Quick Controls**: Start/stop monitoring, force refresh, system health checks
-
-### 🔍 **Semantic Search Interface**
-- **Natural Language Queries**: Search using plain English or technical terms
-- **Advanced Filters**: Topic chips, keyword selection, date ranges, impact levels
-- **Query Syntax**: Support for `topic:ai`, `keyword:function`, `impact:significant`
-- **Result Analytics**: Relevance scoring, search performance, result clustering
-- **Export Options**: Save results as JSON, CSV, or formatted reports
-
-### 📁 **Intelligent File Explorer**
-- **Tree Visualization**: Hierarchical view of watched directories
-- **File Metadata**: Size, modification time, change frequency, AI analysis status
-- **Smart Filtering**: Hide ignored files, show only changed files, filter by type
-- **Real-time Updates**: Tree refreshes automatically as files change
-
-### 📈 **Diff Timeline Viewer**
-- **Chronological Timeline**: All changes displayed in temporal order
-- **Content Previews**: Syntax-highlighted diff snippets with full view option
-- **Metadata Display**: File paths, timestamps, change sizes, AI summaries
-- **Advanced Search**: Find specific changes across all history
-
-### 📝 **Living Note Interface**
-- **Rich Display**: AI-generated summaries with topic highlighting
-- **Structured Sections**: Organized content with metadata and statistics
-- **Auto-refresh**: Content updates automatically as changes occur
-- **Export Options**: Save summaries in multiple formats
-
-### ⚙️ **Settings Management**
-- **Watch Configuration**: Visual directory picker with pattern validation
-- **AI Model Selection**: Choose from multiple OpenAI models with capability descriptions
-- **Theme Customization**: Preview and select from 11 professional themes
-- **Accessibility Options**: High contrast, large text, motion reduction
-- **System Configuration**: Monitoring intervals, database optimization, performance tuning
-
-## 🔧 Database Architecture
-
-### **High-Performance SQLite Design**
-```sql
--- Core tables with optimized indexes
-events              -- File system events (CREATE, MODIFY, DELETE)
-diffs               -- Content changes with SHA-256 deduplication  
-semantic_entries    -- AI-generated summaries and analysis
-semantic_topics     -- Normalized topic extraction
-semantic_keywords   -- Normalized keyword extraction
-config_values       -- Type-safe configuration storage
-file_states         -- File content tracking for change detection
-
--- FTS5 Virtual Tables for Search
-semantic_search     -- Full-text search index with ranking
-```
-
-### **Advanced Features**
-- **WAL Mode**: Write-Ahead Logging for maximum concurrency
-- **Foreign Keys**: Referential integrity across all tables
-- **FTS5 Integration**: SQLite's latest full-text search engine
-- **Automatic Indexing**: Optimized indexes for all query patterns
-- **Connection Pooling**: Thread-safe access with automatic cleanup
-- **Performance Monitoring**: Built-in query analysis and optimization
-
-### **Migration System**
-- **Automatic Upgrades**: Database schema versioning with seamless updates
-- **Data Validation**: Comprehensive checks during migration
-- **Rollback Support**: Safe migration with backup and recovery
-- **Legacy Import**: Migrate from file-based storage to database
-
-## 🎨 Theme System Deep Dive
 
 ### **Professional Themes**
 - **Corporate**: Clean, business-focused design with high contrast
@@ -410,57 +357,82 @@ node_modules/
 
 ### **Monitoring Endpoints**
 ```http
-GET    /api/status                 # Get monitoring status and statistics
+GET    /api/monitor/status         # Monitoring status and statistics
 POST   /api/monitor/start          # Start file monitoring
 POST   /api/monitor/stop           # Stop monitoring
+POST   /api/monitor/scan           # Manually scan files for changes
+
+# Batch AI processing controls
+GET    /api/monitor/batch-ai/status # Get batch AI processing status
+POST   /api/monitor/batch-ai/trigger # Trigger batch AI processing (JSON: { force: boolean })
+GET    /api/monitor/batch-ai/config  # Get batch AI configuration
+PUT    /api/monitor/batch-ai/config  # Update batch AI configuration (enabled, interval, max_batch_size)
 ```
 
-### **Data Access Endpoints**
+### **File Endpoints**
 ```http
-GET    /api/events                 # Get recent file events with pagination
-DELETE /api/events                 # Clear all events
-GET    /api/diffs                  # Get recent diff entries  
-GET    /api/diffs/{id}             # Get specific diff content
-DELETE /api/diffs                  # Clear all diffs
+GET    /api/files/events                 # Recent file events
+GET    /api/files/diffs                  # Recent content diffs (limit, offset, file_path)
+GET    /api/files/diffs/{id}             # Full diff content by ID
+GET    /api/files/changes                # Recent file changes (pagination)
+GET    /api/files/recent-changes         # Alias for /changes
+POST   /api/files/scan                   # Manually scan files (JSON: directory, recursive)
+POST   /api/files/clear                  # Clear all file tracking data
+POST   /api/files/clear-unwatched        # Clear diffs for unwatched files
+GET    /api/files/{path}/history         # Version history for a file
+GET    /api/files/{path}/diff?version1=&version2= # Diff between versions
+GET    /api/files/{path}/state           # Current state of a file
+GET    /api/files/tree                   # File tree structure
+GET    /api/files/watched                # Watched files with metadata
+```
+
+### **Data Management Endpoints**
+```http
+POST   /api/data/files/clear            # Clear file records (files, events)
+POST   /api/data/events/clear           # Clear all events
+POST   /api/data/diffs/clear            # Clear file-based diffs
 ```
 
 ### **Search Endpoints**
 ```http
-GET    /api/search                 # Semantic search with query parameters
-  ?q=query                         # Search query string
-  &topics=ai,ml                    # Topic filters
-  &keywords=function,class         # Keyword filters  
-  &date_from=2024-01-01           # Date range start
-  &date_to=2024-12-31             # Date range end
-  &impact=significant             # Impact level filter
-  &limit=50                       # Result limit
-  &offset=0                       # Pagination offset
+GET    /api/search/                # Search with query params
+  ?q=query                         # Required query string
+  &limit=20                        # Result limit (default 20)
+  &type=content|tree               # Optional change type filter
 
-GET    /api/search/topics          # Get all available topics with counts
-GET    /api/search/keywords        # Get all keywords with frequency
+POST   /api/search/semantic        # Search via JSON body
+  { "query": "text", "limit": 10 }
+
+GET    /api/search/topics          # All topics with counts
+GET    /api/search/keywords        # All keywords with frequency
 ```
 
 ### **Living Note Endpoints**
 ```http
-GET    /api/living-note            # Get current living note content
-DELETE /api/living-note            # Clear living note content
-POST   /api/living-note/regenerate # Force regeneration from AI
+GET    /api/living-note/           # Get current living note content (root)
+GET    /api/living-note/content    # Get current living note content
+POST   /api/living-note/clear      # Clear living note content
+POST   /api/living-note/update     # Update/regenerate from AI (JSON: { force: boolean })
+GET    /api/living-note/events     # Server-Sent Events stream for updates
+GET    /api/living-note/settings   # Get living note settings
+POST   /api/living-note/settings   # Save living note settings
 ```
 
 ### **Configuration Endpoints**
 ```http
 GET    /api/config                 # Get current configuration
 PUT    /api/config                 # Update configuration
-GET    /api/models                 # Get available AI models
-GET    /api/files/tree            # Get file tree structure
+GET    /api/config/models          # Get available AI models
+# Backwards compat: GET /api/models -> redirects to /api/config/models
 ```
 
-### **System Endpoints**
+### **Admin/System Endpoints**
 ```http
-GET    /api/health                 # System health check
-GET    /api/metrics                # Performance metrics
-POST   /api/database/optimize      # Database maintenance
-GET    /api/database/stats         # Database statistics
+GET    /api/admin/system/stats      # System statistics
+GET    /api/admin/system/health     # System health check
+POST   /api/admin/system/clear-logs # Clear system logs (backs up first)
+POST   /api/admin/database/optimize # Database maintenance
+GET    /api/admin/database/stats    # Database statistics
 ```
 
 ## 🚀 Development & Deployment
@@ -469,7 +441,7 @@ GET    /api/database/stats         # Database statistics
 ```bash
 # Backend development with auto-reload
 pip install -r requirements.txt
-python api_server.py
+python backend.py
 
 # Frontend development with hot reload
 cd frontend
@@ -506,8 +478,8 @@ RUN pip install -r requirements.txt
 COPY . .
 RUN cd frontend && npm install && npm run build
 
-EXPOSE 8000
-CMD ["python", "api_server.py"]
+EXPOSE 8001
+CMD ["python", "backend.py"]
 ```
 
 **Manual Deployment**
@@ -517,7 +489,7 @@ cd frontend && npm run build && cd ..
 
 # Production server
 pip install gunicorn
-gunicorn -w 4 -b 0.0.0.0:8000 api_server:app
+gunicorn -w 4 -b 0.0.0.0:8001 backend:app
 
 # Environment variables
 export FLASK_ENV=production
@@ -534,7 +506,7 @@ After=network.target
 Type=simple
 User=obby
 WorkingDirectory=/opt/obby
-ExecStart=/opt/obby/venv/bin/python api_server.py
+ExecStart=/opt/obby/venv/bin/python backend.py
 Restart=always
 
 [Install]
@@ -566,7 +538,7 @@ Generate structured output with:
 # Programmatic search API usage
 import requests
 
-response = requests.get('http://localhost:8000/api/search', {
+response = requests.get('http://localhost:8001/api/search', {
     'q': 'machine learning',
     'topics': 'ai,algorithms',
     'limit': 100
