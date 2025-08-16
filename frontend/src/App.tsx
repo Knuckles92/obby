@@ -6,6 +6,7 @@ import ThemeEffects from './components/ThemeEffects'
 import Dashboard from './pages/Dashboard'
 import DiffViewer from './pages/DiffViewer'
 import LivingNote from './pages/LivingNote'
+import SummaryNotes from './pages/SummaryNotes'
 import Administration from './pages/Administration'
 import Settings from './pages/Settings'
 
@@ -35,6 +36,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diffs" element={<DiffViewer />} />
                 <Route path="/living-note" element={<LivingNote />} />
+                <Route path="/summary-notes" element={<SummaryNotes />} />
                 <Route path="/admin" element={<Administration />} />
                 <Route path="/settings" element={<Settings />} />
               </Routes>

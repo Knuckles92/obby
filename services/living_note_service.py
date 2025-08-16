@@ -293,6 +293,13 @@ class LivingNoteService:
             if not success:
                 return {'success': False, 'message': 'Failed to update living note'}
 
+            # Also create individual summary file for pagination
+            individual_summary_created = self._create_individual_summary(summary_block)
+            if individual_summary_created:
+                logger.info("Individual summary file created successfully")
+                # Notify summary note SSE clients
+                self._notify_summary_note_clients()
+
             # Advance cursor
             try:
                 latest_ts = diffs[-1]['timestamp'] if diffs else datetime.now().isoformat()
@@ -305,12 +312,85 @@ class LivingNoteService:
                 'success': True,
                 'message': 'Living note updated from diffs since last check',
                 'updated': True,
-                'summary': summary_block
+                'summary': summary_block,
+                'individual_summary_created': individual_summary_created
             }
 
         except Exception as e:
             logger.error(f"Failed to update living note: {e}")
             raise
 
+    def _create_individual_summary(self, summary_block: str) -> bool:
+        """Create an individual summary file for pagination.
+        
+        Args:
+            summary_block: The summary content to save
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        try:
+            from services.summary_note_service import SummaryNoteService
+            
+            # Create timestamp and formatted content
+            now = datetime.now()
+            
+            # Format content with header and footer
+            formatted_content = self._format_individual_summary(summary_block, now)
+            
+            # Create the summary file
+            summary_service = SummaryNoteService()
+            result = summary_service.create_summary(formatted_content, now)
+            
+            return result.get('success', False)
+            
+        except Exception as e:
+            logger.error(f"Failed to create individual summary: {e}")
+            return False
+    
+    def _format_individual_summary(self, summary_block: str, timestamp: datetime) -> str:
+        """Format the summary content for individual file storage.
+        
+        Args:
+            summary_block: Raw summary content
+            timestamp: Creation timestamp
+            
+        Returns:
+            str: Formatted markdown content
+        """
+        try:
+            # Format timestamp for display
+            date_str = timestamp.strftime('%Y-%m-%d %H:%M')
+            day_name = timestamp.strftime('%A, %B %d, %Y at %I:%M %p')
+            
+            # Create formatted content
+            content_parts = [
+                f"# Summary - {date_str}",
+                "",
+                f"*Created: {day_name}*",
+                "",
+                "---",
+                "",
+                summary_block,
+                "",
+                "---",
+                "",
+                "*Generated automatically by Obby*"
+            ]
+            
+            return "\n".join(content_parts)
+            
+        except Exception as e:
+            logger.error(f"Failed to format individual summary: {e}")
+            return summary_block  # Fallback to original content
+    
+    def _notify_summary_note_clients(self):
+        """Notify summary note SSE clients about new summary creation."""
+        try:
+            # Import here to avoid circular imports
+            from routes.summary_note import notify_summary_note_change
+            notify_summary_note_change('created')
+        except Exception as e:
+            logger.debug(f"Failed to notify summary note clients: {e}")
 
 

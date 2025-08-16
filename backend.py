@@ -9,6 +9,7 @@ from pathlib import Path
 from routes.monitoring import monitoring_bp
 from routes.files import files_bp
 from routes.living_note import living_note_bp
+from routes.summary_note import summary_note_bp
 from routes.search import search_bp
 from routes.config import config_bp
 from routes.data import data_bp
@@ -45,6 +46,7 @@ monitoring_active = False
 app.register_blueprint(monitoring_bp)
 app.register_blueprint(files_bp)
 app.register_blueprint(living_note_bp)
+app.register_blueprint(summary_note_bp)
 app.register_blueprint(search_bp)
 app.register_blueprint(config_bp)
 app.register_blueprint(data_bp)

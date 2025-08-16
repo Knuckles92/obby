@@ -18,7 +18,7 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
-  { name: 'Obby Summary', href: '/living-note', icon: FileText },
+  { name: 'Obby Summary', href: '/summary-notes', icon: FileText },
   { name: 'Administration', href: '/admin', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
