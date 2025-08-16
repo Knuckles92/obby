@@ -17,7 +17,7 @@ node_modules/
 *.temp
 *~
 .DS_Store
-Thumbs.db
+Thums.db
 
 # Version control
 .git/
@@ -28,3 +28,40 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+# Additional editor temporary files
+*.bak
+*.backup
+*_backup
+*.orig
+*.rej
+
+# Editor auto-save and recovery files
+.#*
+#*#
+*#
+*.autosave
+*.recover
+*.recovery
+
+# File locks and temporary editor files
+*.lock
+*.lck
+.~lock.*
+~$*
+
+# System and application temporary files
+*.cache
+*.crdownload
+*.part
+*.partial
+
+# Text editor specific patterns
+*.kate-swp
+*.sublime-workspace
+*.sublime-project
+
+# File system events that don't represent real changes
+.fuse_hidden*
+.nfs*
+.goutputstream-*

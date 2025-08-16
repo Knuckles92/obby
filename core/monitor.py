@@ -1,5 +1,8 @@
 # Local imports
 from config.settings import *
+from config.settings import (
+    PERIODIC_SCAN_ENABLED, WATCHDOG_COORDINATION_ENABLED, VERBOSE_MONITORING_LOGS
+)
 from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
 from core.file_tracker import file_tracker
@@ -23,11 +26,13 @@ class ObbyMonitor:
         self.file_watcher = None
         self.is_running = False
         self.watched_paths = [str(NOTES_FOLDER)]
-        self.periodic_check_enabled = True  # Enable periodic checking by default
+        self.periodic_check_enabled = PERIODIC_SCAN_ENABLED  # Enable periodic checking based on configuration
         self.periodic_check_thread = None
         self.check_interval = CHECK_INTERVAL
         self.last_check_times = {}  # Track last check time for each file
         self.batch_processing_enabled = True  # Enable batch AI processing by default
+        self.watchdog_active = False  # Track if watchdog is running properly
+        self.last_watchdog_event = 0  # Timestamp of last watchdog event
         
     def start(self):
         """Start the file-based monitoring system"""
@@ -108,14 +113,26 @@ class ObbyMonitor:
     
     def _perform_periodic_check(self):
         """Perform a periodic file-based check for changes"""
-        logger.debug("Performing periodic file check...")
+        current_time = time.time()
+        
+        # Check if watchdog coordination is enabled and watchdog is active
+        if WATCHDOG_COORDINATION_ENABLED:
+            watchdog_recently_active = (current_time - self.last_watchdog_event) < 60
+            
+            if watchdog_recently_active:
+                if VERBOSE_MONITORING_LOGS:
+                    logger.debug("[PERIODIC] Skipping periodic check - watchdog is active")
+                return
+            
+        if VERBOSE_MONITORING_LOGS:
+            logger.debug("[PERIODIC] Performing periodic file check (watchdog inactive)...")
         
         try:
             # Check for file system changes
             self._check_filesystem_changes()
             
         except Exception as e:
-            logger.error(f"Error in periodic file check: {e}")
+            logger.error(f"[PERIODIC] Error in periodic file check: {e}")
     
     def _check_filesystem_changes(self):
         """Check for filesystem changes in watched directories"""
@@ -134,15 +151,20 @@ class ObbyMonitor:
             files_changed = self.file_tracker.scan_directory(str(watch_dir), recursive=True)
             
             if files_changed > 0:
-                logger.info(f"Periodic scan detected {files_changed} changed files in {watch_dir}")
+                logger.info(f"[PERIODIC] Scan detected {files_changed} changed files in {watch_dir}")
                 checked_count += files_changed
         
         if checked_count > 0:
-            logger.debug(f"Filesystem check processed {checked_count} changed files")
+            logger.debug(f"[PERIODIC] Filesystem check processed {checked_count} changed files")
+        else:
+            logger.debug(f"[PERIODIC] Filesystem check complete - no changes detected")
     
     def process_file_change(self, file_path: str, change_type: str = 'modified'):
         """Process a file change through the tracking system"""
         try:
+            # Update watchdog activity timestamp
+            self.last_watchdog_event = time.time()
+            
             version_id = self.file_tracker.track_file_change(file_path, change_type)
             
             if version_id and self.ai_client:

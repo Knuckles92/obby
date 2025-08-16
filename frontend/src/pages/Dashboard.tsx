@@ -37,6 +37,18 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [])
 
+  // Listen for admin-triggered clear events to refresh immediately
+  useEffect(() => {
+    const onCleared = () => {
+      // Force a refresh outside of the 5s polling cycle
+      fetchDashboardData()
+    }
+    window.addEventListener('dashboard-data-cleared', onCleared as EventListener)
+    return () => {
+      window.removeEventListener('dashboard-data-cleared', onCleared as EventListener)
+    }
+  }, [])
+
   const fetchDashboardData = async () => {
     try {
       const [statusRes, eventsRes, diffsRes] = await Promise.all([

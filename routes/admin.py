@@ -183,3 +183,86 @@ def get_system_health():
     except Exception as e:
         logger.error(f"Failed to get system health: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/database/reset', methods=['POST'])
+def reset_database():
+    """Reset the entire database with safety confirmations"""
+    try:
+        # Parse request data
+        data = request.get_json() or {}
+        
+        # Extract safety confirmation parameters
+        confirmation_phrase = data.get('confirmationPhrase', '')
+        slider_confirmed = data.get('sliderConfirmed', False)
+        backup_enabled = data.get('enableBackup', True)
+        
+        # Validate that both safety measures are confirmed
+        if not slider_confirmed:
+            return jsonify({
+                'success': False,
+                'error': 'Slider confirmation required. Reset aborted.',
+                'required_confirmations': {
+                    'slider': False,
+                    'phrase': len(confirmation_phrase.strip()) > 0
+                }
+            }), 400
+        
+        # Validate confirmation phrase (case-insensitive)
+        expected_phrase = "if I ruin my database it is my fault"
+        if confirmation_phrase.strip().lower() != expected_phrase:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid confirmation phrase. Reset aborted.',
+                'expected_phrase': expected_phrase,
+                'required_confirmations': {
+                    'slider': True,
+                    'phrase': False
+                }
+            }), 400
+        
+        # Both safety measures confirmed, proceed with reset
+        logger.warning(f"Database reset initiated with confirmations")
+        
+        # Call the reset method from AnalyticsQueries
+        reset_results = AnalyticsQueries.reset_database(
+            confirmation_phrase=confirmation_phrase,
+            backup_enabled=backup_enabled
+        )
+        
+        if reset_results.get('success'):
+            logger.info(f"Database reset completed successfully: {reset_results.get('total_records_deleted', 0)} records deleted")
+            
+            # Return success response with detailed results
+            return jsonify({
+                'success': True,
+                'message': reset_results.get('message', 'Database reset completed'),
+                'results': {
+                    'backup_created': reset_results.get('backup_created', False),
+                    'backup_path': reset_results.get('backup_path'),
+                    'total_records_deleted': reset_results.get('total_records_deleted', 0),
+                    'tables_reset': len(reset_results.get('tables_reset', [])),
+                    'reset_timestamp': reset_results.get('reset_timestamp'),
+                    'post_reset_optimization': reset_results.get('post_reset_optimization')
+                },
+                'recovery_info': {
+                    'backup_available': reset_results.get('backup_created', False),
+                    'backup_location': reset_results.get('backup_path'),
+                    'recovery_instructions': 'To restore, stop the application and replace obby.db with the backup file.'
+                } if reset_results.get('backup_created') else None
+            })
+        else:
+            # Reset failed
+            logger.error(f"Database reset failed: {reset_results.get('error')}")
+            return jsonify({
+                'success': False,
+                'error': reset_results.get('error', 'Unknown error during reset'),
+                'backup_path': reset_results.get('backup_path')
+            }), 500
+            
+    except Exception as e:
+        logger.error(f"Failed to reset database: {e}")
+        return jsonify({
+            'success': False,
+            'error': f'Server error during database reset: {str(e)}'
+        }), 500

@@ -563,8 +563,8 @@ class EventQueries:
             return 0
 
     @staticmethod
-    def clear_all_events() -> Dict[str, Any]:
-        """Clear all events from the database."""
+    def clear_all_events() -> int:
+        """Clear all events from the database and return number cleared."""
         try:
             # Count events before clearing
             count_query = "SELECT COUNT(*) as count FROM events"
@@ -573,21 +573,14 @@ class EventQueries:
             
             # Clear all events
             delete_query = "DELETE FROM events"
-            db.execute_query(delete_query)
+            db.execute_update(delete_query)
             
             logger.info(f"Cleared {events_count} events from database")
-            return {
-                'success': True,
-                'message': f'Successfully cleared {events_count} events',
-                'events_cleared': events_count
-            }
+            return events_count
             
         except Exception as e:
             logger.error(f"Error clearing events: {e}")
-            return {
-                'success': False,
-                'error': f'Failed to clear events: {str(e)}'
-            }
+            return 0
     
     @staticmethod
     def mark_events_processed(event_ids: List[int]) -> bool:
@@ -598,7 +591,7 @@ class EventQueries:
                 
             placeholders = ','.join(['?' for _ in event_ids])
             query = f"UPDATE events SET processed = TRUE WHERE id IN ({placeholders})"
-            db.execute_query(query, event_ids)
+            db.execute_update(query, event_ids)
             
             logger.info(f"Marked {len(event_ids)} events as processed")
             return True
@@ -866,6 +859,173 @@ class AnalyticsQueries:
         except Exception as e:
             logger.error(f"Error optimizing database: {e}")
             return {'error': str(e)}
+    
+    @staticmethod
+    def reset_database(confirmation_phrase: str, backup_enabled: bool = True) -> Dict[str, Any]:
+        """Completely reset the database with safety measures and backup creation."""
+        try:
+            import shutil
+            import os
+            from datetime import datetime
+            
+            # Validate confirmation phrase exactly
+            expected_phrase = "if i ruin my database it is my fault"
+            if confirmation_phrase.strip().lower() != expected_phrase:
+                return {
+                    'success': False,
+                    'error': 'Invalid confirmation phrase. Reset aborted.',
+                    'expected_phrase': expected_phrase
+                }
+            
+            results = {
+                'backup_created': False,
+                'backup_path': None,
+                'tables_reset': [],
+                'total_records_deleted': 0,
+                'reset_timestamp': datetime.now().isoformat()
+            }
+            
+            # Create backup if enabled
+            if backup_enabled:
+                try:
+                    db_path = db.db_path if hasattr(db, 'db_path') else 'obby.db'
+                    if os.path.exists(db_path):
+                        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                        backup_path = f"{db_path}.backup_{timestamp}"
+                        shutil.copy2(db_path, backup_path)
+                        results['backup_created'] = True
+                        results['backup_path'] = backup_path
+                        logger.info(f"Database backup created at: {backup_path}")
+                except Exception as backup_error:
+                    logger.warning(f"Failed to create backup: {backup_error}")
+                    results['backup_error'] = str(backup_error)
+            
+            # Define all tables to reset (from both old and new schema)
+            tables_to_reset = [
+                # Core file tracking tables
+                'content_diffs',
+                'file_versions', 
+                'file_changes',
+                'events',
+                'file_states',
+                
+                # Semantic analysis tables
+                'semantic_entries',
+                'semantic_topics', 
+                'semantic_keywords',
+                
+                # Living note tables
+                'living_note_sessions',
+                'living_note_entries',
+                
+                # Legacy git tables (if they exist)
+                'git_commits',
+                'git_file_changes', 
+                'git_working_changes',
+                'git_repository_state',
+                
+                # Metadata tables
+                'migration_log',
+                'watch_patterns'
+            ]
+            
+            # Reset tables in transaction for safety
+            total_deleted = 0
+            
+            # Start transaction
+            db.execute_query("BEGIN TRANSACTION")
+            
+            try:
+                for table in tables_to_reset:
+                    try:
+                        # Check if table exists
+                        check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name=?"
+                        table_exists = db.execute_query(check_query, (table,))
+                        
+                        if table_exists:
+                            # Count records before deletion
+                            count_query = f"SELECT COUNT(*) as count FROM {table}"
+                            count_result = db.execute_query(count_query)
+                            record_count = count_result[0]['count'] if count_result else 0
+                            
+                            # Delete all records from table
+                            delete_query = f"DELETE FROM {table}"
+                            db.execute_query(delete_query)
+                            
+                            results['tables_reset'].append({
+                                'table': table,
+                                'records_deleted': record_count
+                            })
+                            total_deleted += record_count
+                            
+                            logger.info(f"Reset table {table}: {record_count} records deleted")
+                    
+                    except Exception as table_error:
+                        logger.warning(f"Failed to reset table {table}: {table_error}")
+                        # Continue with other tables
+                
+                # Clear FTS tables if they exist
+                try:
+                    db.execute_query("DELETE FROM semantic_search")
+                    logger.info("Cleared FTS semantic_search table")
+                except:
+                    pass  # FTS table might not exist
+                
+                # Reset critical configuration values to defaults
+                try:
+                    # Keep essential config but reset others
+                    essential_keys = ['dbVersion', 'openaiModel', 'checkInterval']
+                    placeholders = ','.join(['?' for _ in essential_keys])
+                    reset_config_query = f"DELETE FROM config_values WHERE key NOT IN ({placeholders})"
+                    config_deleted = db.execute_update(reset_config_query, essential_keys)
+                    
+                    # Re-insert default values
+                    default_configs = [
+                        ('enableRealTimeUpdates', 'true', 'bool', 'Enable real-time WebSocket updates'),
+                        ('fileMonitoringEnabled', 'true', 'bool', 'Enable file-based change tracking'),
+                        ('maxFileVersions', '100', 'int', 'Maximum number of versions to retain per file')
+                    ]
+                    
+                    for key, value, type_val, desc in default_configs:
+                        insert_config = "INSERT OR REPLACE INTO config_values (key, value, type, description) VALUES (?, ?, ?, ?)"
+                        db.execute_query(insert_config, (key, value, type_val, desc))
+                    
+                    results['config_reset'] = f"{config_deleted} config values reset"
+                    
+                except Exception as config_error:
+                    logger.warning(f"Failed to reset config: {config_error}")
+                
+                # Commit transaction
+                db.execute_query("COMMIT")
+                
+                results['success'] = True
+                results['total_records_deleted'] = total_deleted
+                results['message'] = f"Database reset successfully. {total_deleted} total records deleted from {len(results['tables_reset'])} tables."
+                
+                logger.info(f"Database reset completed successfully: {total_deleted} records deleted")
+                
+                # Run optimization after reset
+                try:
+                    db.execute_query("VACUUM")
+                    db.execute_query("ANALYZE") 
+                    results['post_reset_optimization'] = 'completed'
+                except Exception as opt_error:
+                    logger.warning(f"Post-reset optimization failed: {opt_error}")
+                
+                return results
+                
+            except Exception as reset_error:
+                # Rollback transaction on error
+                db.execute_query("ROLLBACK")
+                raise reset_error
+                
+        except Exception as e:
+            logger.error(f"Error resetting database: {e}")
+            return {
+                'success': False,
+                'error': f'Failed to reset database: {str(e)}',
+                'backup_path': results.get('backup_path') if 'results' in locals() else None
+            }
 
 # Duplicate EventQueries class removed - methods merged into the first EventQueries class above
 

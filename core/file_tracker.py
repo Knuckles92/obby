@@ -42,7 +42,7 @@ class FileContentTracker:
             
             # Check if file actually changed using content hash comparison
             if previous_state and previous_state.get('content_hash') == current_hash:
-                logger.debug(f"No content change detected for {file_path}: hash {current_hash[:8] if current_hash else 'None'} unchanged")
+                logger.debug(f"[FILE_TRACKER] No content change detected for {file_path}: hash {current_hash[:8] if current_hash else 'None'} unchanged")
                 return None
             
             # Handle different change types
@@ -102,7 +102,7 @@ class FileContentTracker:
             new_content_hash=content_hash
         )
         
-        logger.info(f"Tracked file creation: {file_path}")
+        logger.info(f"[FILE_TRACKER] Tracked file creation: {file_path}")
         return version_id
     
     def _handle_file_modification(self, file_path: str, current_content: str, 
@@ -114,7 +114,7 @@ class FileContentTracker:
         # Check if content has actually changed by comparing hashes
         previous_hash = previous_state.get('content_hash') if previous_state else None
         if previous_hash == current_hash:
-            logger.debug(f"Skipping modification processing for {file_path}: content hash unchanged")
+            logger.debug(f"[FILE_TRACKER] Skipping modification processing for {file_path}: content hash unchanged")
             return None
             
         # Get previous version for diff
@@ -171,7 +171,7 @@ class FileContentTracker:
             new_content_hash=current_hash
         )
         
-        logger.info(f"Tracked file modification: {file_path}")
+        logger.info(f"[FILE_TRACKER] Tracked file modification: {file_path}")
         return version_id
     
     def _handle_file_deletion(self, file_path: str, previous_state: Dict[str, Any]) -> Optional[int]:
@@ -187,7 +187,7 @@ class FileContentTracker:
         )
         
         # Note: We keep the file state and versions for history
-        logger.info(f"Tracked file deletion: {file_path}")
+        logger.info(f"[FILE_TRACKER] Tracked file deletion: {file_path}")
         return change_id
     
     def _handle_file_move(self, file_path: str, current_content: str, current_hash: str) -> Optional[int]:
@@ -204,7 +204,7 @@ class FileContentTracker:
         """
         # Check if we should create this diff to avoid +0/-0 entries
         if not ContentDiffModel.should_create_diff(old_version_id, new_version_id, old_content, new_content):
-            logger.debug(f"Skipping diff creation for {file_path}: no actual changes detected")
+            logger.debug(f"[FILE_TRACKER] Skipping diff creation for {file_path}: no actual changes detected")
             return None
         
         # Generate diff using difflib
@@ -225,10 +225,10 @@ class FileContentTracker:
         
         # Enhanced logging for debugging
         if lines_added == 0 and lines_removed == 0:
-            logger.warning(f"Created +0/-0 content diff {diff_id} for {file_path}: {change_type} "
+            logger.warning(f"[FILE_TRACKER] Created +0/-0 content diff {diff_id} for {file_path}: {change_type} "
                          f"(versions: {old_version_id} -> {new_version_id})")
         else:
-            logger.debug(f"Created content diff {diff_id}: +{lines_added}/-{lines_removed} lines")
+            logger.debug(f"[FILE_TRACKER] Created content diff {diff_id}: +{lines_added}/-{lines_removed} lines")
         return diff_id
     
     def get_file_history(self, file_path: str, limit: int = 50) -> List[Dict[str, Any]]:
@@ -289,13 +289,17 @@ class FileContentTracker:
                         current_hash = self._calculate_content_hash(current_content)
                         
                         if FileStateModel.has_changed(str(file_path), current_hash):
+                            logger.debug(f"[FILE_TRACKER] Periodic scan found change in {file_path}")
                             self.track_file_change(str(file_path), 'modified')
                             files_processed += 1
                             
                 except Exception as e:
                     logger.error(f"Error scanning file {file_path}: {e}")
         
-        logger.info(f"Scanned directory {directory_path}: {files_processed} files processed")
+        if files_processed > 0:
+            logger.info(f"[FILE_TRACKER] Scanned directory {directory_path}: {files_processed} files processed")
+        else:
+            logger.debug(f"[FILE_TRACKER] Scanned directory {directory_path}: no changes detected")
         return files_processed
     
     def _read_file_safely(self, file_path: str) -> Optional[str]:

@@ -5,6 +5,7 @@ Uses watchdog for instant, efficient file change detection.
 
 import time
 import logging
+import os
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -32,7 +33,9 @@ class NoteChangeHandler(FileSystemEventHandler):
         self.living_note_path = living_note_path
         self.file_tracker = file_tracker
         self.last_event_times = {}  # Track debounce per file
-        self.debounce_delay = 0.1  # 100ms debounce to prevent duplicate events (reduced for responsiveness)
+        self.debounce_delay = 0.5  # 500ms debounce to prevent duplicate events (increased to handle editor patterns)
+        self.file_size_cache = {}  # Cache file sizes for quick change detection
+        self.file_mtime_cache = {}  # Cache modification times
         
         # Set up config folder path (root directory for .obbywatch/.obbyignore files)
         if utils_folder is None:
@@ -63,15 +66,22 @@ class NoteChangeHandler(FileSystemEventHandler):
             
         if file_path.suffix.lower() == '.md':
             
-            # Debounce rapid-fire events per file (editors often save multiple times)
+            # Enhanced validation and debouncing
             current_time = time.time()
             last_time = self.last_event_times.get(str(file_path), 0)
+            
+            # Debounce rapid-fire events per file (editors often save multiple times)
             if current_time - last_time < self.debounce_delay:
-                logging.debug(f"Debounced modification event for {file_path.name} (too recent: {current_time - last_time:.3f}s)")
+                logging.debug(f"[WATCHDOG] Debounced modification event for {file_path.name} (too recent: {current_time - last_time:.3f}s)")
+                return
+            
+            # Quick pre-validation using file size and modification time
+            if not self._has_file_changed_quick(file_path):
+                logging.debug(f"[WATCHDOG] Skipped {file_path.name}: no size/mtime change detected")
                 return
                 
             self.last_event_times[str(file_path)] = current_time
-            logging.info(f"Processing file modification: {file_path.name}")
+            logging.info(f"[WATCHDOG] Processing file modification: {file_path.name}")
             self._process_note_change(file_path, 'modified')
     
     def on_created(self, event):
@@ -93,7 +103,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             return
             
         if file_path.suffix.lower() == '.md':
-            logging.info(f"Note file created: {file_path}")
+            logging.info(f"[WATCHDOG] Note file created: {file_path}")
             self._process_note_change(file_path, 'created')
         
         # Also log any file creation for tree tracking
@@ -118,7 +128,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             return
             
         if file_path.suffix.lower() == '.md':
-            logging.info(f"Note file deleted: {file_path}")
+            logging.info(f"[WATCHDOG] Note file deleted: {file_path}")
             # For deleted files, track the deletion event
             self._process_note_change(file_path, 'deleted')
             self._process_tree_change("deleted", event.src_path, is_directory=False)
@@ -154,7 +164,7 @@ class NoteChangeHandler(FileSystemEventHandler):
         dest_is_md = dest_path.suffix.lower() == '.md'
         
         if src_is_md or dest_is_md:
-            logging.info(f"Note file moved: {src_path} → {dest_path}")
+            logging.info(f"[WATCHDOG] Note file moved: {src_path} → {dest_path}")
             # If the destination is a markdown file in our folder, process it
             if dest_is_md:
                 self._process_note_change(dest_path)
@@ -162,31 +172,68 @@ class NoteChangeHandler(FileSystemEventHandler):
         # Log any file move for tree tracking
         self._process_tree_change("moved", event.src_path, dest_path=event.dest_path, is_directory=False)
     
+    def _has_file_changed_quick(self, file_path: Path) -> bool:
+        """Quick check if file has changed using size and modification time."""
+        try:
+            if not file_path.exists():
+                return True  # File was deleted or moved
+                
+            stat = file_path.stat()
+            current_size = stat.st_size
+            current_mtime = stat.st_mtime
+            
+            file_str = str(file_path)
+            cached_size = self.file_size_cache.get(file_str)
+            cached_mtime = self.file_mtime_cache.get(file_str)
+            
+            # Update cache
+            self.file_size_cache[file_str] = current_size
+            self.file_mtime_cache[file_str] = current_mtime
+            
+            # Check if file has changed
+            if cached_size is None or cached_mtime is None:
+                return True  # First time seeing this file
+                
+            size_changed = current_size != cached_size if FILE_SIZE_CHANGE_VALIDATION else False
+            mtime_changed = abs(current_mtime - cached_mtime) > 0.1 if FILE_MTIME_CHANGE_VALIDATION else False  # 100ms tolerance for filesystem precision
+            
+            if VERBOSE_MONITORING_LOGS:
+                logging.debug(f"File change check for {file_path.name}: size_changed={size_changed}, mtime_changed={mtime_changed}")
+            
+            # Return True if either validation is disabled (to allow content hash validation) or if changes detected
+            if not FILE_SIZE_CHANGE_VALIDATION and not FILE_MTIME_CHANGE_VALIDATION:
+                return True  # Skip pre-validation, rely on content hash
+            return size_changed or mtime_changed
+            
+        except Exception as e:
+            logging.debug(f"Error in quick file change check for {file_path}: {e}")
+            return True  # Assume changed if we can't check
+    
     def _process_note_change(self, file_path, change_type='modified'):
         """Process a detected note change using file tracker."""
         try:
-            logging.debug(f"Processing {change_type} change in: {file_path.name}")
+            logging.debug(f"[WATCHDOG] Processing {change_type} change in: {file_path.name}")
             
             # Use file tracker to process the change
             if self.file_tracker:
                 version_id = self.file_tracker.track_file_change(str(file_path), change_type)
                 
-                # Log successful diff creation
+                # Enhanced logging for debugging
                 if version_id:
-                    logging.info(f"✅ Successfully processed {change_type} change in {file_path.name} (version_id: {version_id})")
+                    logging.info(f"[WATCHDOG] ✅ Successfully processed {change_type} change in {file_path.name} (version_id: {version_id})")
                 else:
-                    logging.warning(f"⚠️ File tracker returned None for {change_type} change in {file_path.name} - change may not have been processed")
+                    logging.info(f"[WATCHDOG] ⚠️ File tracker returned None for {change_type} change in {file_path.name} - no content change detected")
                 
                 # Note: AI processing has been decoupled from file monitoring
                 # All file tracking, diff generation, and database storage is preserved
                 # AI analysis will be handled separately to reduce API usage
             else:
-                logging.warning("File tracker not available, using legacy processing")
+                logging.warning("[WATCHDOG] File tracker not available, using legacy processing")
                 # Fallback to legacy processing if no file tracker
                 self._legacy_process_note_change(file_path)
                 
         except Exception as e:
-            logging.error(f"Error processing note change in {file_path.name}: {e}")
+            logging.error(f"[WATCHDOG] Error processing note change in {file_path.name}: {e}")
     
     def _legacy_process_note_change(self, file_path):
         """Legacy processing method for when file tracker is not available."""
