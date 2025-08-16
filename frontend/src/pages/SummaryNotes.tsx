@@ -561,17 +561,18 @@ export default function SummaryNotes() {
                     </ReactMarkdown>
                   </div>
 
-                  {/* Delete Button - Bottom Right */}
-                  <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
+                  {/* Delete button - subtle within container */}
+                  <div className="flex justify-end mt-3">
                     <button
                       onClick={() => {
                         setSelectedSummary(currentSummaryContent.filename)
                         setDeleteDialogOpen(true)
                       }}
-                      className="flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
+                      className="flex items-center px-2 py-1 text-xs font-medium text-gray-500 rounded-md hover:bg-red-50 hover:text-red-600 transition-colors"
+                      title="Delete summary"
                     >
                       <Trash2 className="h-4 w-4 mr-1" />
-                      Delete
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   </div>
                 </>
