@@ -18,7 +18,8 @@ files_bp = Blueprint('files', __name__, url_prefix='/api/files')
 def get_recent_events():
     """Get recent file events from database"""
     try:
-        events = EventQueries.get_recent_events()
+        limit = int(request.args.get('limit', 50))
+        events = EventQueries.get_recent_events(limit=limit)
         return jsonify({'events': events})
     except Exception as e:
         logger.error(f"Failed to get recent events: {e}")

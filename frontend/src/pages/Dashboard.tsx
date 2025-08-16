@@ -62,8 +62,8 @@ export default function Dashboard() {
       const diffsData = await diffsRes.json()
 
       setStatus(statusData)
-      setRecentEvents(eventsData)
-      setRecentDiffs(diffsData)
+      setRecentEvents(eventsData.events || [])
+      setRecentDiffs(diffsData.diffs || [])
 
       // Auto-start monitoring if it's not active and we haven't tried yet
       if (!statusData.isActive && !autoStartAttempted) {

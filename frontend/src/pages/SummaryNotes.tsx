@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, Trash2, RefreshCw, ChevronLeft, ChevronRight, Grid, Square } from 'lucide-react'
+import { FileText, Clock, Trash2, RefreshCw, ChevronLeft, ChevronRight, Grid, Square, Search } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -41,6 +41,7 @@ export default function SummaryNotes() {
     sortBy: 'newest'
   })
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
+  const [isSearchVisible, setIsSearchVisible] = useState(false)
   const [allSummaries, setAllSummaries] = useState<SummaryNote[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -292,6 +293,12 @@ export default function SummaryNotes() {
     setSearchFilters(newFilters)
     // Reset to first page when filters change
     await fetchSummaries(1, viewMode, newFilters)
+    
+    // Auto-show search when filters are applied
+    const hasActiveFilters = newFilters.searchTerm || newFilters.dateRange || newFilters.sortBy !== 'newest'
+    if (hasActiveFilters && !isSearchVisible) {
+      setIsSearchVisible(true)
+    }
   }
 
   const handleViewSummary = async (filename: string) => {
@@ -364,6 +371,27 @@ export default function SummaryNotes() {
         </div>
         
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
+          {/* Search Toggle Button */}
+          <button
+            onClick={() => setIsSearchVisible(!isSearchVisible)}
+            className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+              isSearchVisible || searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest'
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+            }`}
+            title={isSearchVisible ? "Hide Search" : "Show Search"}
+          >
+            <Search className={`h-4 w-4 mr-1 sm:mr-2 transition-transform duration-200 ${
+              isSearchVisible ? 'rotate-90' : 'rotate-0'
+            }`} />
+            <span className="hidden sm:inline">Search</span>
+            {(searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest') && (
+              <span className="ml-1 px-1.5 py-0.5 text-xs bg-white text-blue-600 rounded-full font-medium">
+                !
+              </span>
+            )}
+          </button>
+
           {/* View Mode Toggle */}
           <div className="flex items-center space-x-2">
             <button
@@ -418,42 +446,62 @@ export default function SummaryNotes() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-2 bg-blue-100 rounded-md">
-              <FileText className="h-6 w-6 text-blue-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Total Summaries</p>
-              <p className="text-lg font-semibold text-gray-900">{pagination.total_count}</p>
-            </div>
+      {/* Stats and Navigation - Different for single vs grid view */}
+      {viewMode === 'grid' ? (
+        /* Simple stats for grid view */
+        <div className="flex items-center justify-center space-x-6 py-2 px-4 bg-gray-50 rounded-md text-xs text-gray-500">
+          <div className="flex items-center space-x-1.5">
+            <FileText className="h-3.5 w-3.5" />
+            <span>{pagination.total_count} total</span>
           </div>
         </div>
+      ) : (
+        /* Summary navigation for single view */
+        pagination.total_count > 1 && (
+          <div className="card">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => handlePageChange(pagination.current_page - 1)}
+                disabled={!pagination.has_previous}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ChevronLeft className="h-5 w-5 mr-2" />
+                Previous Summary
+              </button>
+              
+              <div className="text-center">
+                <p className="text-sm font-medium text-gray-900">
+                  Summary {pagination.current_page} of {pagination.total_count}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {currentSummaryContent?.filename}
+                </p>
+              </div>
+              
+              <button
+                onClick={() => handlePageChange(pagination.current_page + 1)}
+                disabled={!pagination.has_next}
+                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Next Summary
+                <ChevronRight className="h-5 w-5 ml-2" />
+              </button>
+            </div>
+          </div>
+        )
+      )}
 
-        <div className="card">
-          <div className="flex items-center">
-            <div className="p-2 bg-green-100 rounded-md">
-              <Clock className="h-6 w-6 text-green-600" />
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Viewing</p>
-              <p className="text-lg font-semibold text-gray-900">
-                {pagination.current_page} of {pagination.total_count}
-              </p>
-            </div>
-          </div>
-        </div>
+      {/* Search and Filter Controls - Only show when search is visible */}
+      <div className={`transition-all duration-300 ease-in-out ${
+        isSearchVisible ? 'opacity-100 max-h-96 mb-6' : 'opacity-0 max-h-0 overflow-hidden'
+      }`}>
+        <SearchFilters
+          filters={searchFilters}
+          onFiltersChange={handleFiltersChange}
+          isExpanded={isFiltersExpanded}
+          onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
+        />
       </div>
-
-      {/* Search and Filter Controls */}
-      <SearchFilters
-        filters={searchFilters}
-        onFiltersChange={handleFiltersChange}
-        isExpanded={isFiltersExpanded}
-        onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
-      />
 
       {/* Content Area - Conditional based on view mode */}
       {viewMode === 'grid' ? (
@@ -478,53 +526,55 @@ export default function SummaryNotes() {
             </div>
           ) : currentSummaryContent ? (
             <div className="card">
-              {/* Delete Button - Top Right */}
-              <div className="flex justify-end mb-4">
-                <button
-                  onClick={() => {
-                    setSelectedSummary(currentSummaryContent.filename)
-                    setDeleteDialogOpen(true)
-                  }}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete
-                </button>
-              </div>
-
               {/* Summary Content */}
               {contentLoading ? (
                 <div className="flex items-center justify-center h-32">
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
                 </div>
               ) : (
-                <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:mt-2 prose-li:my-1 marker:text-gray-500">
-                  <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code({ node, inline, className, children, ...props }: CodeComponentProps) {
-                        const match = /language-(\w+)/.exec(className || '')
-                        return !inline && match ? (
-                          <SyntaxHighlighter
-                            style={oneDark}
-                            language={match[1]}
-                            PreTag="div"
-                            className="rounded-md !mt-0 !mb-4"
-                            {...props}
-                          >
-                            {String(children).replace(/\n$/, '')}
-                          </SyntaxHighlighter>
-                        ) : (
-                          <code className={className} {...props}>
-                            {children}
-                          </code>
-                        )
-                      }
-                    }}
-                  >
-                    {currentSummaryContent.content}
-                  </ReactMarkdown>
-                </div>
+                <>
+                  <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:mt-2 prose-li:my-1 marker:text-gray-500">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({ node, inline, className, children, ...props }: CodeComponentProps) {
+                          const match = /language-(\w+)/.exec(className || '')
+                          return !inline && match ? (
+                            <SyntaxHighlighter
+                              style={oneDark}
+                              language={match[1]}
+                              PreTag="div"
+                              className="rounded-md !mt-0 !mb-4"
+                              {...props}
+                            >
+                              {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <code className={className} {...props}>
+                              {children}
+                            </code>
+                          )
+                        }
+                      }}
+                    >
+                      {currentSummaryContent.content}
+                    </ReactMarkdown>
+                  </div>
+
+                  {/* Delete Button - Bottom Right */}
+                  <div className="flex justify-end mt-6 pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        setSelectedSummary(currentSummaryContent.filename)
+                        setDeleteDialogOpen(true)
+                      }}
+                      className="flex items-center px-3 py-2 text-sm font-medium text-red-700 bg-red-100 rounded-md hover:bg-red-200 transition-colors"
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete
+                    </button>
+                  </div>
+                </>
               )}
             </div>
           ) : pagination.total_count > 0 ? (
@@ -542,40 +592,6 @@ export default function SummaryNotes() {
                 <p className="text-sm text-gray-500 mt-2">
                   AI-generated summaries will appear here as you make changes to your notes
                 </p>
-              </div>
-            </div>
-          )}
-          
-          {/* Navigation Controls - Only shown in single view */}
-          {pagination.total_count > 1 && (
-            <div className="card">
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => handlePageChange(pagination.current_page - 1)}
-                  disabled={!pagination.has_previous}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <ChevronLeft className="h-5 w-5 mr-2" />
-                  Previous Summary
-                </button>
-                
-                <div className="text-center">
-                  <p className="text-sm font-medium text-gray-900">
-                    Summary {pagination.current_page} of {pagination.total_count}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {currentSummaryContent?.filename}
-                  </p>
-                </div>
-                
-                <button
-                  onClick={() => handlePageChange(pagination.current_page + 1)}
-                  disabled={!pagination.has_next}
-                  className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Next Summary
-                  <ChevronRight className="h-5 w-5 ml-2" />
-                </button>
               </div>
             </div>
           )}
