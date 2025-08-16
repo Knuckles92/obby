@@ -162,6 +162,7 @@ def get_monitor_status():
     return jsonify(status)
 
 
+
 # Static file serving for production
 @app.route('/', defaults={'path': ''})
 @app.route('/<path:path>')

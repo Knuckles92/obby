@@ -361,3 +361,51 @@ export interface ThemePreferences {
   largeText: boolean;
   customCssVariables: Record<string, string>;
 }
+
+// Summary Notes interfaces
+export interface SummaryNote {
+  filename: string;
+  timestamp: string;
+  title: string;
+  preview: string;
+  word_count: number;
+  created_time: string;
+  file_size: number;
+  last_modified: string;
+}
+
+export interface SummaryPaginationInfo {
+  current_page: number;
+  page_size: number;
+  total_count: number;
+  total_pages: number;
+  has_next: boolean;
+  has_previous: boolean;
+}
+
+export interface SummaryListResponse {
+  summaries: SummaryNote[];
+  pagination: SummaryPaginationInfo;
+}
+
+export interface SummaryContentResponse {
+  filename: string;
+  content: string;
+  timestamp: string;
+  title: string;
+  word_count: number;
+  created_time: string;
+  file_size: number;
+  last_modified: string;
+}
+
+export type SummaryViewMode = 'single' | 'grid';
+
+export interface SummarySearchFilters {
+  searchTerm: string;
+  sortBy: 'newest' | 'oldest' | 'word_count';
+  dateRange?: {
+    start: string;
+    end: string;
+  };
+}
