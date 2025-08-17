@@ -23,7 +23,8 @@ def get_project_root():
 def get_handlers():
     """Get initialized watch and ignore handlers"""
     project_root = get_project_root()
-    notes_folder = project_root / "notes"  # Default notes folder
+    from config.settings import get_configured_notes_folder
+    notes_folder = get_configured_notes_folder()
     
     watch_handler = WatchHandler(project_root)
     ignore_handler = IgnoreHandler(project_root, notes_folder)

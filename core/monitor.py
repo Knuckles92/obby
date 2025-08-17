@@ -1,7 +1,8 @@
 # Local imports
 from config.settings import *
 from config.settings import (
-    PERIODIC_SCAN_ENABLED, WATCHDOG_COORDINATION_ENABLED, VERBOSE_MONITORING_LOGS
+    PERIODIC_SCAN_ENABLED, WATCHDOG_COORDINATION_ENABLED, VERBOSE_MONITORING_LOGS,
+    get_configured_notes_folder
 )
 from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
@@ -23,7 +24,7 @@ class ObbyMonitor:
         self.ai_client = None
         self.file_watcher = None
         self.is_running = False
-        self.watched_paths = [str(NOTES_FOLDER)]
+        self.watched_paths = [str(get_configured_notes_folder())]
         self.periodic_check_enabled = PERIODIC_SCAN_ENABLED  # Enable periodic checking based on configuration
         self.periodic_check_thread = None
         self.check_interval = CHECK_INTERVAL
@@ -38,18 +39,20 @@ class ObbyMonitor:
             
         try:
             # Setup directories
-            ensure_directories(NOTES_FOLDER)
-            setup_test_file(NOTES_FOLDER / "test.md")
+            notes_folder = get_configured_notes_folder()
+            ensure_directories(notes_folder)
+            setup_test_file(notes_folder / "test.md")
             
             # Initialize AI client for content analysis
             self.ai_client = OpenAIClient()
             
             
             # Initialize file watcher with file tracking integration
-            utils_folder = NOTES_FOLDER.parent
+            notes_folder = get_configured_notes_folder()
+            utils_folder = notes_folder.parent
             from utils.living_note_path import resolve_living_note_path
             self.file_watcher = FileWatcher(
-                NOTES_FOLDER, 
+                notes_folder, 
                 self.ai_client, 
                 resolve_living_note_path(), 
                 utils_folder,
@@ -132,7 +135,7 @@ class ObbyMonitor:
         if self.file_watcher and self.file_watcher.handler:
             watch_dirs = self.file_watcher.handler.watch_handler.get_watch_directories()
         else:
-            watch_dirs = [NOTES_FOLDER]
+            watch_dirs = [get_configured_notes_folder()]
         
         checked_count = 0
         for watch_dir in watch_dirs:

@@ -138,6 +138,7 @@ export interface ConfigSettings {
   openaiApiKey: string;
   aiModel: string;
   ignorePatterns: string[];
+  monitoringDirectory?: string; // base directory to monitor for changes
   periodicCheckEnabled?: boolean;
   aiUpdateInterval?: number; // AI update frequency in hours
   aiAutoUpdateEnabled?: boolean; // whether AI auto-updates are enabled

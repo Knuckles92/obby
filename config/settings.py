@@ -1,7 +1,17 @@
 from pathlib import Path
 
 # File paths
-NOTES_FOLDER = Path("notes")  # Folder containing all markdown files to monitor
+NOTES_FOLDER = Path("notes")  # Default folder containing all markdown files to monitor
+
+def get_configured_notes_folder():
+    """Get the configured monitoring directory from database, with fallback to default"""
+    try:
+        from database.models import ConfigModel
+        configured_dir = ConfigModel.get('monitoringDirectory', str(NOTES_FOLDER))
+        return Path(configured_dir)
+    except Exception:
+        # Fallback if database is not available yet
+        return NOTES_FOLDER
 DIFF_PATH = Path("diffs")
 
 # Living Note configuration

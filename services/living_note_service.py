@@ -321,7 +321,7 @@ class LivingNoteService:
             raise
 
     def _create_individual_summary(self, summary_block: str) -> bool:
-        """Create an individual summary file for pagination.
+        """Create an individual summary with dual-write: markdown file + database entry.
         
         Args:
             summary_block: The summary content to save
@@ -331,6 +331,7 @@ class LivingNoteService:
         """
         try:
             from services.summary_note_service import SummaryNoteService
+            from database.models import db
             
             # Create timestamp and formatted content
             now = datetime.now()
@@ -338,11 +339,92 @@ class LivingNoteService:
             # Format content with header and footer
             formatted_content = self._format_individual_summary(summary_block, now)
             
-            # Create the summary file
+            # Create the markdown summary file (existing functionality)
             summary_service = SummaryNoteService()
-            result = summary_service.create_summary(formatted_content, now)
+            file_result = summary_service.create_summary(formatted_content, now)
             
-            return result.get('success', False)
+            if not file_result.get('success', False):
+                logger.error("Failed to create markdown summary file")
+                return False
+            
+            # Extract semantic metadata from summary content using AI client
+            metadata = self.openai_client.extract_semantic_metadata(summary_block)
+            
+            # Get the markdown file path
+            markdown_filename = file_result.get('filename', '')
+            markdown_file_path = f"output/summaries/{markdown_filename}"
+            
+            # Create database entry with semantic metadata
+            try:
+                # Insert semantic entry (connection manager handles transactions)
+                semantic_query = """
+                    INSERT INTO semantic_entries 
+                    (timestamp, date, time, type, summary, impact, file_path, searchable_text, 
+                     markdown_file_path, source_type, version_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """
+                
+                # Create searchable text
+                searchable_text = f"{metadata.get('summary', '')} {' '.join(metadata.get('topics', []))} {' '.join(metadata.get('keywords', []))} {metadata.get('impact', '')}".lower()
+                
+                params = (
+                    now.isoformat(),
+                    now.strftime('%Y-%m-%d'),
+                    now.strftime('%H:%M:%S'),
+                    'living_note_summary',
+                    metadata.get('summary', summary_block[:200]),  # Fallback to truncated summary_block
+                    metadata.get('impact', 'moderate'),
+                    markdown_file_path,  # Use markdown file path as file_path
+                    searchable_text,
+                    markdown_file_path,  # This is the key linking field
+                    'living_note',
+                    None  # version_id not applicable for living notes
+                )
+                
+                db.execute_update(semantic_query, params)
+                
+                # Get the inserted entry ID
+                entry_id_result = db.execute_query("SELECT last_insert_rowid() as id")
+                entry_id = entry_id_result[0]['id'] if entry_id_result else None
+                
+                if entry_id:
+                    # Insert topics
+                    topics = metadata.get('topics', [])
+                    if topics:
+                        topic_params = [(entry_id, topic.strip()) for topic in topics if topic.strip()]
+                        if topic_params:
+                            db.execute_many(
+                                "INSERT INTO semantic_topics (entry_id, topic) VALUES (?, ?)",
+                                topic_params
+                            )
+                    
+                    # Insert keywords
+                    keywords = metadata.get('keywords', [])
+                    if keywords:
+                        keyword_params = [(entry_id, keyword.strip()) for keyword in keywords if keyword.strip()]
+                        if keyword_params:
+                            db.execute_many(
+                                "INSERT INTO semantic_keywords (entry_id, keyword) VALUES (?, ?)",
+                                keyword_params
+                            )
+                
+                logger.info(f"Created hybrid summary: file={markdown_filename}, db_entry={entry_id}, topics={len(metadata.get('topics', []))}, keywords={len(metadata.get('keywords', []))}")
+                return True
+                
+            except Exception as db_error:
+                logger.error(f"Database error in dual-write, cleaning up file: {db_error}")
+                
+                # Clean up the created markdown file since database failed
+                try:
+                    import os
+                    file_path = Path(summary_service.summaries_dir) / markdown_filename
+                    if file_path.exists():
+                        os.remove(file_path)
+                        logger.info(f"Cleaned up orphaned file: {file_path}")
+                except Exception as cleanup_error:
+                    logger.error(f"Failed to clean up file after database error: {cleanup_error}")
+                
+                return False
             
         except Exception as e:
             logger.error(f"Failed to create individual summary: {e}")

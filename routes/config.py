@@ -25,12 +25,14 @@ def get_config_root():
     except Exception as e:
         logger.error(f"Error loading config from database: {e}")
         # Fallback to defaults
-        from config.settings import CHECK_INTERVAL, OPENAI_MODEL, NOTES_FOLDER, AI_UPDATE_INTERVAL, AI_AUTO_UPDATE_ENABLED
+        from config.settings import CHECK_INTERVAL, OPENAI_MODEL, get_configured_notes_folder, AI_UPDATE_INTERVAL, AI_AUTO_UPDATE_ENABLED
+        notes_folder = get_configured_notes_folder()
         return jsonify({
             'checkInterval': CHECK_INTERVAL,
             'openaiApiKey': os.getenv('OPENAI_API_KEY', ''),
             'aiModel': OPENAI_MODEL,
-            'watchPaths': [str(NOTES_FOLDER)],
+            'watchPaths': [str(notes_folder)],
+            'monitoringDirectory': str(notes_folder),
             'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
             'periodicCheckEnabled': True,
             'aiUpdateInterval': AI_UPDATE_INTERVAL,
@@ -46,7 +48,7 @@ def update_config_root():
     
     try:
         # Validate the configuration data
-        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'ignorePatterns', 'periodicCheckEnabled', 'aiUpdateInterval', 'aiAutoUpdateEnabled', 'lastAiUpdateTimestamp']
+        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'ignorePatterns', 'periodicCheckEnabled', 'aiUpdateInterval', 'aiAutoUpdateEnabled', 'lastAiUpdateTimestamp', 'monitoringDirectory']
         config_data = {}
         
         for field in valid_fields:
@@ -82,12 +84,59 @@ def update_config_root():
             if not isinstance(config_data['aiAutoUpdateEnabled'], bool):
                 return jsonify({'error': 'aiAutoUpdateEnabled must be a boolean'}), 400
         
+        if 'monitoringDirectory' in config_data:
+            if not isinstance(config_data['monitoringDirectory'], str):
+                return jsonify({'error': 'monitoringDirectory must be a string'}), 400
+            
+            # Prevent setting monitoring directory to output to avoid feedback loops
+            monitoring_dir = config_data['monitoringDirectory'].strip()
+            if not monitoring_dir:
+                return jsonify({'error': 'monitoringDirectory cannot be empty'}), 400
+            
+            # Check for potential feedback loops
+            if monitoring_dir.startswith('output') or monitoring_dir == 'output':
+                return jsonify({'error': 'Cannot monitor the output directory to prevent feedback loops'}), 400
+            
+            # Normalize the path
+            from pathlib import Path
+            try:
+                normalized_path = str(Path(monitoring_dir))
+                config_data['monitoringDirectory'] = normalized_path
+            except Exception as e:
+                return jsonify({'error': f'Invalid directory path: {str(e)}'}), 400
+        
         # Update configuration in database
         result = ConfigQueries.update_config(config_data)
         
         # Update environment variable if API key is provided
         if 'openaiApiKey' in config_data and config_data['openaiApiKey']:
             os.environ['OPENAI_API_KEY'] = config_data['openaiApiKey']
+        
+        # Update .obbywatch file if monitoring directory changed
+        if 'monitoringDirectory' in config_data and result.get('success', False):
+            try:
+                from utils.watch_handler import WatchHandler
+                from pathlib import Path
+                
+                # Get project root and create watch handler
+                project_root = Path(__file__).parent.parent
+                watch_handler = WatchHandler(project_root)
+                
+                # Remove old patterns and add new monitoring directory
+                monitoring_dir = config_data['monitoringDirectory']
+                
+                # Clear existing patterns and add the new monitoring directory
+                watch_handler.watch_patterns.clear()
+                watch_handler.watch_patterns.add(f"{monitoring_dir}/")
+                
+                # Write updated patterns to .obbywatch file
+                _write_watch_patterns_from_config(watch_handler)
+                
+                logger.info(f"Updated .obbywatch file to monitor: {monitoring_dir}/")
+                
+            except Exception as e:
+                logger.error(f"Failed to update .obbywatch file: {e}")
+                # Don't fail the config update just because .obbywatch update failed
         
         return jsonify(result)
     
@@ -204,6 +253,43 @@ def update_config():
     except Exception as e:
         logger.error(f"Failed to update config: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+def _write_watch_patterns_from_config(watch_handler):
+    """Write watch patterns to .obbywatch file (helper for config updates)"""
+    try:
+        content = """# Obby watch file
+# This file specifies directories that Obby should monitor for changes
+# Use glob patterns (* and ?) and one pattern per line
+# Lines starting with # are comments
+
+"""
+        
+        # Add current patterns
+        for pattern in sorted(watch_handler.watch_patterns):
+            content += f"{pattern}\n"
+        
+        # Add example patterns as comments if file is empty
+        if not watch_handler.watch_patterns:
+            content += """
+# Example patterns:
+# notes/
+# docs/
+# *.md
+# project_notes/
+# research/
+# writing/
+# *.txt
+"""
+        
+        with open(watch_handler.watch_file, 'w', encoding='utf-8') as f:
+            f.write(content)
+        
+        logger.info(f"Updated .obbywatch file with {len(watch_handler.watch_patterns)} patterns")
+        
+    except Exception as e:
+        logger.error(f"Error writing watch patterns: {e}")
+        raise
 
 
 # Duplicate get_models function removed

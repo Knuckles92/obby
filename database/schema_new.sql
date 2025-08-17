@@ -61,7 +61,7 @@ CREATE TABLE events (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Semantic Entries: AI-powered change analysis (updated for file-based)
+-- Semantic Entries: AI-powered change analysis (updated for file-based + hybrid markdown)
 CREATE TABLE semantic_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     version_id INTEGER REFERENCES file_versions(id) ON DELETE CASCADE,
@@ -73,6 +73,8 @@ CREATE TABLE semantic_entries (
     impact TEXT NOT NULL CHECK (impact IN ('minor', 'moderate', 'significant')),
     file_path TEXT NOT NULL,
     searchable_text TEXT NOT NULL,
+    markdown_file_path TEXT,
+    source_type TEXT DEFAULT 'living_note',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 

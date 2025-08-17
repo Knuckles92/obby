@@ -10,6 +10,7 @@ export default function Settings() {
     openaiApiKey: '',
     aiModel: 'gpt-4.1-mini',
     ignorePatterns: [],
+    monitoringDirectory: 'notes',
     periodicCheckEnabled: true,
     aiUpdateInterval: 12,
     aiAutoUpdateEnabled: true,
@@ -44,6 +45,7 @@ export default function Settings() {
         openaiApiKey: data.openaiApiKey || '',
         aiModel: data.aiModel || 'gpt-4.1-mini',
         ignorePatterns: data.ignorePatterns || [],
+        monitoringDirectory: data.monitoringDirectory || 'notes',
         periodicCheckEnabled: data.periodicCheckEnabled ?? true,
         aiUpdateInterval: data.aiUpdateInterval || 12,
         aiAutoUpdateEnabled: data.aiAutoUpdateEnabled ?? true,
@@ -361,6 +363,26 @@ export default function Settings() {
               <p className="text-sm text-gray-500 mt-1 ml-7">
                 When enabled, Obby will check all watched files at the specified interval,
                 in addition to real-time change detection.
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <FolderOpen className="h-4 w-4 inline mr-2" />
+                Monitoring Directory
+              </label>
+              <p className="text-sm text-gray-500 mb-2">
+                The base directory that Obby monitors for changes. All generated summaries will be saved to the output/ directory.
+              </p>
+              <input
+                type="text"
+                value={config.monitoringDirectory || 'notes'}
+                onChange={(e) => setConfig({ ...config, monitoringDirectory: e.target.value })}
+                placeholder="notes"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+              />
+              <p className="text-sm text-gray-400 mt-1">
+                ⚠️ Cannot be set to 'output' to prevent feedback loops
               </p>
             </div>
 

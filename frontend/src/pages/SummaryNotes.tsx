@@ -422,22 +422,18 @@ export default function SummaryNotes() {
       setGenerateError(null)
       setGenerateSuccess(null)
       
-      console.log('Triggering manual summary generation...')
-      const result = await triggerManualSummaryGeneration(true)
+      console.log('Triggering Living Note update...')
+      const result = await triggerLivingNoteUpdate(true)
       
       if (result.success) {
-        const changesCount = result.result?.changes_count || 0
-        const processingTime = result.result?.processing_time || 0
-        const processed = result.result?.processed || false
-        
-        if (processed && changesCount > 0) {
-          setGenerateSuccess(`Successfully generated summaries for ${changesCount} changes in ${processingTime.toFixed(1)}s`)
-          // Refresh the summary list to show new summaries
+        if (result.updated && result.individual_summary_created) {
+          setGenerateSuccess('Living Note updated and new summary created successfully!')
+          // Refresh the summaries list to show the new entry
           await fetchSummaries()
-        } else if (processed && changesCount === 0) {
-          setGenerateSuccess('No new changes found to process. All summaries are up to date.')
+        } else if (result.updated) {
+          setGenerateSuccess('Living Note updated successfully!')
         } else {
-          setGenerateSuccess(result.message || 'Summary generation completed')
+          setGenerateSuccess(result.message || 'No new changes to summarize')
         }
         
         // Clear success message after 5 seconds

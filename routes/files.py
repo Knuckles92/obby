@@ -204,10 +204,11 @@ def scan_files():
     """Manually scan files for changes"""
     try:
         from core.file_tracker import file_tracker
-        from config.settings import NOTES_FOLDER
+        from config.settings import get_configured_notes_folder
         
         # Get scan parameters
-        directory = request.json.get('directory', str(NOTES_FOLDER)) if request.json else str(NOTES_FOLDER)
+        notes_folder = get_configured_notes_folder()
+        directory = request.json.get('directory', str(notes_folder)) if request.json else str(notes_folder)
         recursive = request.json.get('recursive', True) if request.json else True
         
         # Perform file scan
@@ -331,8 +332,8 @@ def get_file_state(file_path):
 def get_file_tree():
     """Get file tree structure"""
     try:
-        from config.settings import NOTES_FOLDER
-        root_path = Path(NOTES_FOLDER)
+        from config.settings import get_configured_notes_folder
+        root_path = get_configured_notes_folder()
         tree = build_file_tree(root_path)
         return jsonify({'tree': tree})
     except Exception as e:
@@ -344,14 +345,15 @@ def get_file_tree():
 def get_watched_files():
     """Get detailed information about watched files"""
     try:
-        from config.settings import NOTES_FOLDER
+        from config.settings import get_configured_notes_folder
         from routes.monitoring import monitoring_active
         
         watched_files = []
         directories = {}
         
-        if os.path.exists(NOTES_FOLDER):
-            root_path = Path(NOTES_FOLDER)
+        notes_folder = get_configured_notes_folder()
+        if os.path.exists(notes_folder):
+            root_path = Path(notes_folder)
             
             for file_path in root_path.rglob('*.md'):
                 if file_path.is_file():

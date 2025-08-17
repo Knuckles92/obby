@@ -10,7 +10,6 @@ from database.models import db
 
 logger = logging.getLogger(__name__)
 
-
 class SummaryNoteService:
     """Service layer for individual summary note operations.
     
@@ -97,21 +96,22 @@ class SummaryNoteService:
             # Get semantic entries from database instead of files
             offset = (page - 1) * page_size
             
-            # Query for semantic entries with pagination
+            # Query for living note semantic entries with pagination
             query = """
-                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path,
+                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
                        GROUP_CONCAT(st.topic) as topics,
                        GROUP_CONCAT(sk.keyword) as keywords
                 FROM semantic_entries se
                 LEFT JOIN semantic_topics st ON se.id = st.entry_id
                 LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path
+                WHERE se.source_type = 'living_note'
+                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
                 ORDER BY se.timestamp DESC
                 LIMIT ? OFFSET ?
             """
             
-            # Get total count for pagination
-            count_query = "SELECT COUNT(*) as count FROM semantic_entries"
+            # Get total count for pagination (living notes only)
+            count_query = "SELECT COUNT(*) as count FROM semantic_entries WHERE source_type = 'living_note'"
             count_result = db.execute_query(count_query)
             total_count = count_result[0]['count'] if count_result else 0
             
@@ -121,9 +121,13 @@ class SummaryNoteService:
             # Convert database entries to summary format expected by frontend
             summaries = []
             for row in rows:
-                # Create a filename based on the semantic entry ID and source file
-                file_stem = Path(row['file_path']).stem if row['file_path'] else 'summary'
-                filename = f"Summary-{row['id']}-{file_stem}.md"
+                # Use the actual markdown filename from database
+                markdown_path = row['markdown_file_path'] or ''
+                if markdown_path:
+                    filename = Path(markdown_path).name
+                else:
+                    # Fallback filename
+                    filename = f"Summary-{row['id']}-living-note.md"
                 
                 # Parse timestamp
                 timestamp = datetime.fromisoformat(row['timestamp']) if row['timestamp'] else datetime.now()
@@ -185,54 +189,90 @@ class SummaryNoteService:
             raise
     
     def get_summary_content(self, filename: str) -> Dict:
-        """Get content of a specific summary from database.
+        """Get content of a specific summary from hybrid database + file system.
         
         Args:
-            filename: Name of the summary file (format: Summary-{id}-{stem}.md)
+            filename: Name of the summary file (actual markdown filename)
             
         Returns:
             Dict containing summary content and metadata
         """
         try:
-            # Extract semantic ID from filename (format: Summary-{id}-{stem}.md)
-            import re
-            match = re.match(r'Summary-(\d+)-.*\.md', filename)
-            if not match:
-                raise FileNotFoundError(f"Invalid summary filename format: {filename}")
-            
-            semantic_id = int(match.group(1))
-            
-            # Query database for semantic entry
+            # First try to find by exact filename match in markdown_file_path
             query = """
-                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path,
+                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
                        GROUP_CONCAT(st.topic) as topics,
                        GROUP_CONCAT(sk.keyword) as keywords
                 FROM semantic_entries se
                 LEFT JOIN semantic_topics st ON se.id = st.entry_id
                 LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                WHERE se.id = ?
-                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path
+                WHERE se.source_type = 'living_note' AND 
+                      (se.markdown_file_path LIKE ? OR se.markdown_file_path = ?)
+                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
+                ORDER BY se.timestamp DESC
+                LIMIT 1
             """
             
-            rows = db.execute_query(query, (semantic_id,))
+            # Try exact match first, then pattern match
+            rows = db.execute_query(query, (f"%/{filename}", filename))
+            
+            # Fallback: try to extract semantic ID from old format (Summary-{id}-{stem}.md)
+            if not rows:
+                import re
+                match = re.match(r'Summary-(\d+)-.*\.md', filename)
+                if match:
+                    semantic_id = int(match.group(1))
+                    id_query = """
+                        SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
+                               GROUP_CONCAT(st.topic) as topics,
+                               GROUP_CONCAT(sk.keyword) as keywords
+                        FROM semantic_entries se
+                        LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                        LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                        WHERE se.id = ? AND se.source_type = 'living_note'
+                        GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
+                    """
+                    rows = db.execute_query(id_query, (semantic_id,))
+            
             if not rows:
                 raise FileNotFoundError(f"Summary not found for {filename}")
             
             row = rows[0]
             timestamp = datetime.fromisoformat(row['timestamp']) if row['timestamp'] else datetime.now()
             
-            # Format as markdown content
-            content = self._format_summary_as_markdown(row, timestamp)
+            # Read content from the actual markdown file
+            markdown_file_path = row['markdown_file_path']
+            if not markdown_file_path:
+                raise FileNotFoundError(f"No markdown file linked for {filename}")
+            
+            # Handle both relative and absolute paths
+            file_path = Path(markdown_file_path)
+            if not file_path.is_absolute():
+                file_path = Path.cwd() / file_path
+            
+            if not file_path.exists():
+                raise FileNotFoundError(f"Markdown file not found: {file_path}")
+            
+            # Read the actual markdown content
+            with open(file_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Get file stats
+            file_stats = file_path.stat()
+            file_size = file_stats.st_size
+            last_modified = datetime.fromtimestamp(file_stats.st_mtime)
+            
+            # Content is already in markdown format from file
             
             return {
                 'filename': filename,
                 'content': content,
                 'timestamp': timestamp.isoformat(),
-                'title': f"Summary of {Path(row['file_path']).name}" if row['file_path'] else "AI Summary",
-                'word_count': len(row['summary'].split()) if row['summary'] else 0,
+                'title': f"Living Note Summary - {timestamp.strftime('%Y-%m-%d')}",
+                'word_count': len(content.split()) if content else 0,
                 'created_time': f"*Created: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}*",
-                'file_size': len(content.encode('utf-8')),
-                'last_modified': timestamp.isoformat(),
+                'file_size': file_size,
+                'last_modified': last_modified.isoformat(),
                 'semantic_id': row['id'],
                 'impact': row['impact'],
                 'topics': row['topics'].split(',') if row['topics'] else [],
@@ -273,37 +313,75 @@ class SummaryNoteService:
         return content
     
     def delete_summary(self, filename: str) -> Dict:
-        """Delete a specific summary from database.
+        """Delete a specific summary from hybrid database + file system.
         
         Args:
-            filename: Name of the summary file to delete (format: Summary-{id}-{stem}.md)
+            filename: Name of the summary file to delete
             
         Returns:
             Dict containing success status and message
         """
         try:
-            # Extract semantic ID from filename (format: Summary-{id}-{stem}.md)
-            import re
-            match = re.match(r'Summary-(\d+)-.*\.md', filename)
-            if not match:
-                raise FileNotFoundError(f"Invalid summary filename format: {filename}")
+            import os
             
-            semantic_id = int(match.group(1))
+            # Find the database entry by filename
+            query = """
+                SELECT se.id, se.markdown_file_path
+                FROM semantic_entries se
+                WHERE se.source_type = 'living_note' AND 
+                      (se.markdown_file_path LIKE ? OR se.markdown_file_path = ?)
+                ORDER BY se.timestamp DESC
+                LIMIT 1
+            """
             
-            # Check if semantic entry exists
-            check_query = "SELECT id FROM semantic_entries WHERE id = ?"
-            check_result = db.execute_query(check_query, (semantic_id,))
-            if not check_result:
+            rows = db.execute_query(query, (f"%/{filename}", filename))
+            
+            # Fallback: try to extract semantic ID from old format
+            if not rows:
+                import re
+                match = re.match(r'Summary-(\d+)-.*\.md', filename)
+                if match:
+                    semantic_id = int(match.group(1))
+                    id_query = "SELECT id, markdown_file_path FROM semantic_entries WHERE id = ? AND source_type = 'living_note'"
+                    rows = db.execute_query(id_query, (semantic_id,))
+            
+            if not rows:
                 raise FileNotFoundError(f"Summary not found: {filename}")
             
-            # Delete from database (foreign keys will handle related tables)
-            delete_query = "DELETE FROM semantic_entries WHERE id = ?"
-            db.execute_update(delete_query, (semantic_id,))
+            row = rows[0]
+            semantic_id = row['id']
+            markdown_file_path = row['markdown_file_path']
             
-            return {
-                'success': True,
-                'message': f'Summary {filename} deleted successfully'
-            }
+            # Use transaction to ensure atomicity
+            try:
+                db.execute_query("BEGIN TRANSACTION")
+                
+                # Delete from database (foreign keys will handle related tables)
+                delete_query = "DELETE FROM semantic_entries WHERE id = ?"
+                db.execute_update(delete_query, (semantic_id,))
+                
+                # Delete the markdown file if it exists
+                if markdown_file_path:
+                    file_path = Path(markdown_file_path)
+                    if not file_path.is_absolute():
+                        file_path = Path.cwd() / file_path
+                    
+                    if file_path.exists():
+                        os.remove(file_path)
+                        logger.info(f"Deleted markdown file: {file_path}")
+                    else:
+                        logger.warning(f"Markdown file not found for deletion: {file_path}")
+                
+                db.execute_query("COMMIT")
+                
+                return {
+                    'success': True,
+                    'message': f'Summary {filename} deleted successfully'
+                }
+                
+            except Exception as tx_error:
+                db.execute_query("ROLLBACK")
+                raise tx_error
             
         except Exception as e:
             logger.error(f"Failed to delete summary {filename}: {e}")
@@ -351,43 +429,23 @@ class SummaryNoteService:
                         failed_files.append(filename)
                         continue
                     
-                    # Extract semantic ID from filename (format: Summary-{id}-{stem}.md)
-                    import re
-                    match = re.match(r'Summary-(\d+)-.*\.md', filename)
-                    if not match:
+                    # Use the single delete method for consistency and proper file cleanup
+                    delete_result = self.delete_summary(filename)
+                    if delete_result.get('success', False):
+                        results.append({
+                            'filename': filename,
+                            'success': True,
+                            'message': f'Successfully deleted {filename}'
+                        })
+                        succeeded += 1
+                    else:
                         results.append({
                             'filename': filename,
                             'success': False,
-                            'error': 'Invalid filename format'
+                            'error': delete_result.get('message', 'Unknown error')
                         })
                         failed += 1
                         failed_files.append(filename)
-                        continue
-                    
-                    semantic_id = int(match.group(1))
-                    
-                    # Check if semantic entry exists
-                    check_query = "SELECT id FROM semantic_entries WHERE id = ?"
-                    check_result = db.execute_query(check_query, (semantic_id,))
-                    if not check_result:
-                        results.append({
-                            'filename': filename,
-                            'success': False,
-                            'error': 'Summary not found'
-                        })
-                        failed += 1
-                        failed_files.append(filename)
-                        continue
-                    
-                    # Delete from database (foreign keys will handle related tables)
-                    delete_query = "DELETE FROM semantic_entries WHERE id = ?"
-                    db.execute_update(delete_query, (semantic_id,))
-                    results.append({
-                        'filename': filename,
-                        'success': True,
-                        'message': f'Successfully deleted {filename}'
-                    })
-                    succeeded += 1
                     
                 except Exception as e:
                     error_msg = str(e)

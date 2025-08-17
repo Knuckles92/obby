@@ -78,6 +78,30 @@ export const triggerManualSummaryGeneration = async (force: boolean = true): Pro
 }
 
 /**
+ * Living Note update API response type
+ */
+export interface LivingNoteUpdateResponse {
+  success: boolean
+  message: string
+  updated: boolean
+  summary?: string
+  individual_summary_created?: boolean
+}
+
+/**
+ * Trigger Living Note update (for hybrid summary system)
+ */
+export const triggerLivingNoteUpdate = async (force: boolean = true): Promise<LivingNoteUpdateResponse> => {
+  return apiRequest<LivingNoteUpdateResponse>('/api/living-note/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ force })
+  })
+}
+
+/**
  * Comprehensive summary generation API response type
  */
 export interface ComprehensiveSummaryGenerationResponse {

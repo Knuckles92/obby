@@ -15,8 +15,7 @@ import hashlib
 import difflib
 
 from .models import (
-    db, DiffModel, EventModel, SemanticModel, 
-    ConfigModel, FileStateModel
+    db, EventModel, ConfigModel, FileStateModel
 )
 
 logger = logging.getLogger(__name__)
