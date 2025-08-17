@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, Trash2, RefreshCw, ChevronLeft, ChevronRight, Grid, Square, Search, Zap } from 'lucide-react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { FileText, Trash2, ChevronLeft, ChevronRight, Grid, Square, Search, Zap } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -7,7 +7,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import SummaryGrid from '../components/SummaryGrid'
 import SearchFilters from '../components/SearchFilters'
-import { apiFetch, triggerManualSummaryGeneration } from '../utils/api'
+import { apiFetch, triggerLivingNoteUpdate } from '../utils/api'
 import { 
   SummaryNote, 
   SummaryPaginationInfo, 
@@ -18,14 +18,32 @@ import {
   BulkDeleteRequest
 } from '../types'
 
-// TypeScript interface for ReactMarkdown code component props
-
-interface CodeComponentProps {
-  node?: any
+// Local props for the code renderer to avoid implicit any
+interface MarkdownCodeProps {
   inline?: boolean
   className?: string
-  children?: React.ReactNode
-  [key: string]: any
+  children?: ReactNode
+  [key: string]: unknown
+}
+
+// Code renderer for ReactMarkdown
+const CodeBlock: any = ({ inline, className, children, ...props }: MarkdownCodeProps) => {
+  const match = /language-(\w+)/.exec(className || '')
+  return !inline && match ? (
+    <SyntaxHighlighter
+      style={oneDark}
+      language={match[1]}
+      PreTag="div"
+      className="rounded-md !mt-0 !mb-4"
+      {...props}
+    >
+      {String(children).replace(/\n$/, '')}
+    </SyntaxHighlighter>
+  ) : (
+    <code className={className} {...props}>
+      {children}
+    </code>
+  )
 }
 
 interface SummaryListResponse {
@@ -50,7 +68,6 @@ export default function SummaryNotes() {
   })
   const [isFiltersExpanded, setIsFiltersExpanded] = useState(false)
   const [isSearchVisible, setIsSearchVisible] = useState(false)
-  const [allSummaries, setAllSummaries] = useState<SummaryNote[]>([])
   const [loading, setLoading] = useState(true)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
@@ -75,6 +92,7 @@ export default function SummaryNotes() {
   
   const eventSourceRef = useRef<EventSource | null>(null)
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     try {
       fetchSummaries()
@@ -499,19 +517,10 @@ export default function SummaryNotes() {
     }
   }
 
-  const formatDate = (timestamp: string) => {
-    return new Date(timestamp).toLocaleString()
-  }
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
+  // (helpers removed: formatDate, formatFileSize) — unused
 
   // Keyboard shortcuts - placed after function definitions
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Only handle shortcuts in grid view
@@ -541,7 +550,7 @@ export default function SummaryNotes() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [viewMode, isSelectMode, selectedItems.size, handleSelectAll])
+  }, [viewMode, isSelectMode, selectedItems])
 
   if (hasError) {
     return (
@@ -824,26 +833,7 @@ export default function SummaryNotes() {
                   <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:mt-2 prose-li:my-1 marker:text-gray-500">
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
-                      components={{
-                        code({ node, inline, className, children, ...props }: CodeComponentProps) {
-                          const match = /language-(\w+)/.exec(className || '')
-                          return !inline && match ? (
-                            <SyntaxHighlighter
-                              style={oneDark}
-                              language={match[1]}
-                              PreTag="div"
-                              className="rounded-md !mt-0 !mb-4"
-                              {...props}
-                            >
-                              {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
-                          ) : (
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          )
-                        }
-                      }}
+                      components={{ code: CodeBlock }}
                     >
                       {currentSummaryContent.content}
                     </ReactMarkdown>
