@@ -3,13 +3,5 @@
 # Use glob patterns (* and ?) and one pattern per line
 # Lines starting with # are comments
 
-# Default directories to watch
+docs/
 notes/
-#docs/
-#*.md
-
-# Example patterns:
-# project_notes/
-# research/
-# writing/
-# *.txt

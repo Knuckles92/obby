@@ -9,11 +9,11 @@ DIFF_PATH = Path("diffs")
 LIVING_NOTE_MODE = "daily"
 
 # Single-file fallback path (used when LIVING_NOTE_MODE == "single")
-LIVING_NOTE_PATH = Path("notes/living_note.md")
+LIVING_NOTE_PATH = Path("output/living_note.md")
 
 # Daily mode configuration (used when LIVING_NOTE_MODE == "daily")
 # The daily notes will be created inside this directory with the filename format below
-LIVING_NOTE_DAILY_DIR = NOTES_FOLDER / "daily"
+LIVING_NOTE_DAILY_DIR = Path("output/daily")
 # Filename may include {date} placeholder in YYYY-MM-DD format
 LIVING_NOTE_DAILY_FILENAME_TEMPLATE = "Living Note - {date}.md"
 

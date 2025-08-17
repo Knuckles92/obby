@@ -409,3 +409,37 @@ export interface SummarySearchFilters {
     end: string;
   };
 }
+
+// Watch Configuration interfaces
+export interface WatchPatternsResponse {
+  patterns: string[];
+  watchDirectories: string[];
+  watchFile: string;
+  success: boolean;
+}
+
+export interface IgnorePatternsResponse {
+  patterns: string[];
+  ignoreFile: string;
+  success: boolean;
+}
+
+export interface WatchConfigResponse {
+  success: boolean;
+  message: string;
+  patterns: string[];
+}
+
+export interface PatternValidationResponse {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  pattern: string;
+}
+
+export interface WatchConfigReloadResponse {
+  success: boolean;
+  message: string;
+  watchPatterns: string[];
+  ignorePatterns: string[];
+}

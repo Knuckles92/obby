@@ -3,65 +3,44 @@
 # Use glob patterns (* and ?) and one pattern per line
 # Lines starting with # are comments
 
-# Living note file (to prevent feedback loops)
-living_note.md
-
-# Build and cache directories
-__pycache__/
-node_modules/
-*.pyc
-*.log
-
-# Temporary files
-*.tmp
-*.temp
-*~
-.DS_Store
-Thums.db
-
-# Version control
-.git/
-.svn/
-
-# Common editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Additional editor temporary files
-*.bak
-*.backup
-*_backup
-*.orig
-*.rej
-
-# Editor auto-save and recovery files
-.#*
-#*#
 *#
 *.autosave
-*.recover
-*.recovery
-
-# File locks and temporary editor files
-*.lock
-*.lck
-.~lock.*
-~$*
-
-# System and application temporary files
+*.backup
+*.bak
 *.cache
 *.crdownload
+*.kate-swp
+*.lck
+*.lock
+*.log
+*.orig
 *.part
 *.partial
-
-# Text editor specific patterns
-*.kate-swp
-*.sublime-workspace
+*.pyc
+*.recover
+*.recovery
+*.rej
 *.sublime-project
-
-# File system events that don't represent real changes
+*.sublime-workspace
+*.swo
+*.swp
+*.temp
+*.tmp
+*_backup
+*~
+.#*
+.DS_Store
 .fuse_hidden*
-.nfs*
+.git/
 .goutputstream-*
+.idea/
+.nfs*
+.svn/
+.vscode/
+.~lock.*
+Thums.db
+__pycache__/
+living_note.md
+node_modules/
+test_*.md
+~$*

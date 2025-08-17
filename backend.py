@@ -14,6 +14,7 @@ from routes.search import search_bp
 from routes.config import config_bp
 from routes.data import data_bp
 from routes.admin import admin_bp
+from routes.watch_config import watch_config_bp
 
 # Import API-aware monitoring classes
 from routes.api_monitor import APIObbyMonitor
@@ -51,10 +52,9 @@ app.register_blueprint(search_bp)
 app.register_blueprint(config_bp)
 app.register_blueprint(data_bp)
 app.register_blueprint(admin_bp)
+app.register_blueprint(watch_config_bp)
 
-# Initialize monitoring routes with shared state
-from routes.monitoring import init_monitoring_routes
-init_monitoring_routes(monitor_instance, monitor_thread, monitoring_active)
+# Note: monitoring routes will be initialized after the monitoring system starts
 
 # Helper function for monitor thread
 def run_monitor():
@@ -122,9 +122,9 @@ def search_compat():
     return redirect(redirect_url)
 
 
-# Add diagnostic endpoint for file monitoring status
-@app.route('/api/monitor/status', methods=['GET'])
-def get_monitor_status():
+# Diagnostic endpoint moved to different path to avoid conflicts with blueprint
+@app.route('/api/monitor/diagnostics', methods=['GET'])
+def get_monitor_diagnostics():
     """Get detailed monitoring system status for diagnostics"""
     global monitor_instance, monitoring_active
     
@@ -214,6 +214,10 @@ def initialize_monitoring():
         # Start monitor in background thread
         monitor_thread = threading.Thread(target=run_monitor, daemon=True)
         monitor_thread.start()
+        
+        # Initialize monitoring routes with the now-active state
+        from routes.monitoring import init_monitoring_routes
+        init_monitoring_routes(monitor_instance, monitor_thread, monitoring_active)
         
         logger.info("File monitoring system initialized successfully")
         return True

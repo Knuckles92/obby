@@ -13,10 +13,10 @@ class SummaryNoteService:
     """Service layer for individual summary note operations.
     
     Handles pagination, file management, and operations for individual summary files
-    stored in the notes/summaries/ directory.
+    stored in the output/summaries/ directory.
     """
     
-    def __init__(self, summaries_dir: str = "notes/summaries"):
+    def __init__(self, summaries_dir: str = "output/summaries"):
         self.summaries_dir = Path(summaries_dir)
         self.summaries_dir.mkdir(parents=True, exist_ok=True)
         

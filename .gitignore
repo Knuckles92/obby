@@ -94,3 +94,5 @@ format.md
 notes/living_note.md
 notes/test.md
 utils/.obbyignore
+ouput/*
+output/summaries/*

@@ -345,8 +345,11 @@ def get_watched_files():
     """Get detailed information about watched files"""
     try:
         from config.settings import NOTES_FOLDER
+        from routes.monitoring import monitoring_active
         
         watched_files = []
+        directories = {}
+        
         if os.path.exists(NOTES_FOLDER):
             root_path = Path(NOTES_FOLDER)
             
@@ -361,31 +364,51 @@ def get_watched_files():
                         relative_path = file_path.relative_to(root_path)
                         
                         file_info = {
-                            'path': str(file_path),
-                            'relative_path': str(relative_path),
+                            'path': str(relative_path),
+                            'relativePath': str(relative_path),
                             'name': file_path.name,
                             'size': stat.st_size,
-                            'modified': stat.st_mtime,
-                            'is_watching': True  # All found files are being watched
+                            'lastModified': int(stat.st_mtime)
                         }
                         
-                        # Get recent events for this file
-                        recent_events = EventQueries.get_events_for_file(str(file_path), limit=1)
-                        if recent_events:
-                            file_info['last_event'] = recent_events[0]
+                        # Group files by directory
+                        dir_path = relative_path.parent if relative_path.parent != Path('.') else Path('')
+                        dir_key = str(dir_path) if str(dir_path) != '.' else 'root'
                         
+                        if dir_key not in directories:
+                            directories[dir_key] = {
+                                'path': str(dir_path) if str(dir_path) != '.' else 'notes',
+                                'name': dir_path.name if dir_path.name else 'notes',
+                                'fileCount': 0,
+                                'files': []
+                            }
+                        
+                        directories[dir_key]['files'].append(file_info)
+                        directories[dir_key]['fileCount'] += 1
                         watched_files.append(file_info)
+                        
                     except (OSError, PermissionError) as e:
                         logger.warning(f"Could not access file {file_path}: {e}")
                         continue
         
-        # Sort by modification time (most recent first)
-        watched_files.sort(key=lambda x: x.get('modified', 0), reverse=True)
+        # Convert directories dict to list and sort files within each directory
+        directories_list = []
+        for dir_data in directories.values():
+            # Sort files by last modified (most recent first)
+            dir_data['files'].sort(key=lambda x: x.get('lastModified', 0), reverse=True)
+            # Limit to first 10 files for display (keep fileCount accurate)
+            if len(dir_data['files']) > 10:
+                dir_data['files'] = dir_data['files'][:10]
+            directories_list.append(dir_data)
+        
+        # Sort directories by name
+        directories_list.sort(key=lambda x: x['name'])
         
         return jsonify({
-            'watched_files': watched_files,
-            'total_count': len(watched_files),
-            'base_path': str(NOTES_FOLDER) if os.path.exists(NOTES_FOLDER) else None
+            'isActive': monitoring_active,
+            'directories': directories_list,
+            'totalFiles': len(watched_files),
+            'totalDirectories': len(directories_list)
         })
     except Exception as e:
         logger.error(f"Failed to get watched files: {e}")

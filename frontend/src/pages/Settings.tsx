@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Trash2, Palette } from 'lucide-react'
-import { ConfigSettings, ModelsResponse } from '../types'
+import { Settings as SettingsIcon, Save, Trash2, Palette, FolderOpen, Plus, RefreshCw, FileText, Eye, EyeOff } from 'lucide-react'
+import { ConfigSettings, ModelsResponse, WatchPatternsResponse, IgnorePatternsResponse, WatchConfigResponse } from '../types'
 import { apiFetch } from '../utils/api'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 
@@ -20,10 +20,19 @@ export default function Settings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [newIgnorePattern, setNewIgnorePattern] = useState('')
+  
+  // Watch configuration state
+  const [watchPatterns, setWatchPatterns] = useState<string[]>([])
+  const [ignorePatterns, setIgnorePatterns] = useState<string[]>([])
+  const [newWatchPattern, setNewWatchPattern] = useState('')
+  const [watchConfigLoading, setWatchConfigLoading] = useState(true)
+  const [showWatchHelp, setShowWatchHelp] = useState(false)
+  const [showIgnoreHelp, setShowIgnoreHelp] = useState(false)
 
   useEffect(() => {
     fetchConfig()
     fetchModels()
+    fetchWatchConfig()
   }, [])
 
   const fetchConfig = async () => {
@@ -99,6 +108,145 @@ export default function Settings() {
       alert('Error saving configuration')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const fetchWatchConfig = async () => {
+    try {
+      const [watchResponse, ignoreResponse] = await Promise.all([
+        apiFetch('/api/watch-config/watch-patterns'),
+        apiFetch('/api/watch-config/ignore-patterns')
+      ])
+      
+      const watchData: WatchPatternsResponse = await watchResponse.json()
+      const ignoreData: IgnorePatternsResponse = await ignoreResponse.json()
+      
+      if (watchData.success) {
+        setWatchPatterns(watchData.patterns)
+      }
+      
+      if (ignoreData.success) {
+        setIgnorePatterns(ignoreData.patterns)
+      }
+    } catch (error) {
+      console.error('Error fetching watch config:', error)
+    } finally {
+      setWatchConfigLoading(false)
+    }
+  }
+
+  const addWatchPattern = async () => {
+    if (!newWatchPattern.trim()) return
+    
+    try {
+      const response = await apiFetch('/api/watch-config/watch-patterns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pattern: newWatchPattern.trim() })
+      })
+      
+      const data: WatchConfigResponse = await response.json()
+      
+      if (data.success) {
+        setWatchPatterns(data.patterns)
+        setNewWatchPattern('')
+        alert(data.message)
+      } else {
+        alert(`Failed to add pattern: ${data.message}`)
+      }
+    } catch (error) {
+      console.error('Error adding watch pattern:', error)
+      alert('Error adding watch pattern')
+    }
+  }
+
+  const removeWatchPattern = async (pattern: string) => {
+    try {
+      const response = await apiFetch('/api/watch-config/watch-patterns', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pattern })
+      })
+      
+      const data: WatchConfigResponse = await response.json()
+      
+      if (data.success) {
+        setWatchPatterns(data.patterns)
+        alert(data.message)
+      } else {
+        alert(`Failed to remove pattern: ${data.message}`)
+      }
+    } catch (error) {
+      console.error('Error removing watch pattern:', error)
+      alert('Error removing watch pattern')
+    }
+  }
+
+  const addIgnorePatternAPI = async () => {
+    if (!newIgnorePattern.trim()) return
+    
+    try {
+      const response = await apiFetch('/api/watch-config/ignore-patterns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pattern: newIgnorePattern.trim() })
+      })
+      
+      const data: WatchConfigResponse = await response.json()
+      
+      if (data.success) {
+        setIgnorePatterns(data.patterns)
+        setNewIgnorePattern('')
+        alert(data.message)
+      } else {
+        alert(`Failed to add pattern: ${data.message}`)
+      }
+    } catch (error) {
+      console.error('Error adding ignore pattern:', error)
+      alert('Error adding ignore pattern')
+    }
+  }
+
+  const removeIgnorePatternAPI = async (pattern: string) => {
+    try {
+      const response = await apiFetch('/api/watch-config/ignore-patterns', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pattern })
+      })
+      
+      const data: WatchConfigResponse = await response.json()
+      
+      if (data.success) {
+        setIgnorePatterns(data.patterns)
+        alert(data.message)
+      } else {
+        alert(`Failed to remove pattern: ${data.message}`)
+      }
+    } catch (error) {
+      console.error('Error removing ignore pattern:', error)
+      alert('Error removing ignore pattern')
+    }
+  }
+
+  const reloadWatchConfig = async () => {
+    try {
+      const response = await apiFetch('/api/watch-config/reload', {
+        method: 'POST'
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setWatchPatterns(data.watchPatterns)
+        setIgnorePatterns(data.ignorePatterns)
+        alert('Watch configuration reloaded successfully!')
+      } else {
+        alert('Failed to reload watch configuration')
+      }
+    } catch (error) {
+      console.error('Error reloading watch config:', error)
+      alert('Error reloading watch configuration')
     }
   }
 
@@ -322,23 +470,125 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* Watch Paths are now configured in .obbywatch file */}
+        {/* Interactive Watch Configuration */}
         <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Watch Configuration</h3>
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-            <p className="text-sm text-blue-800">
-              <strong>Directory Monitoring:</strong> Watch paths are now configured via the <code className="bg-blue-100 px-1 rounded">.obbywatch</code> file in the project root.
-              This file specifies which directories and file patterns to monitor for changes.
-            </p>
-            <p className="text-sm text-blue-700 mt-2">
-              Edit <code className="bg-blue-100 px-1 rounded">.obbywatch</code> to add or remove directories to monitor.
-            </p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <FolderOpen className="h-5 w-5 text-primary-600 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Watch Directories</h3>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => setShowWatchHelp(!showWatchHelp)}
+                className="p-2 text-gray-500 hover:text-gray-700"
+                title="Show help"
+              >
+                {showWatchHelp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+              <button
+                onClick={reloadWatchConfig}
+                className="p-2 text-gray-500 hover:text-gray-700"
+                title="Reload configuration"
+              >
+                <RefreshCw className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+          
+          {showWatchHelp && (
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">Watch Pattern Examples:</h4>
+              <ul className="text-sm text-blue-700 space-y-1">
+                <li>• <code className="bg-blue-100 px-1 rounded">notes/</code> - Monitor entire notes directory</li>
+                <li>• <code className="bg-blue-100 px-1 rounded">*.md</code> - Monitor all markdown files</li>
+                <li>• <code className="bg-blue-100 px-1 rounded">docs/</code> - Monitor docs directory</li>
+                <li>• <code className="bg-blue-100 px-1 rounded">project_notes/</code> - Monitor specific subdirectory</li>
+              </ul>
+              <p className="text-sm text-blue-600 mt-2">
+                Patterns are saved to <code className="bg-blue-100 px-1 rounded">.obbywatch</code> file in project root.
+              </p>
+            </div>
+          )}
+          
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={newWatchPattern}
+                onChange={(e) => setNewWatchPattern(e.target.value)}
+                placeholder="Enter watch pattern (e.g., notes/, *.md, docs/)"
+                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                onKeyPress={(e) => e.key === 'Enter' && addWatchPattern()}
+              />
+              <button
+                onClick={addWatchPattern}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </button>
+            </div>
+
+            {watchConfigLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-2">
+                {watchPatterns.map((pattern, index) => (
+                  <div key={index} className="flex items-center justify-between p-3 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-center">
+                      <FolderOpen className="h-4 w-4 text-green-600 mr-2" />
+                      <span className="text-sm text-gray-700 font-mono">{pattern}</span>
+                    </div>
+                    <button
+                      onClick={() => removeWatchPattern(pattern)}
+                      className="p-1 text-red-600 hover:bg-red-100 rounded"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!watchConfigLoading && watchPatterns.length === 0 && (
+              <p className="text-gray-500 text-center py-4">No watch patterns configured</p>
+            )}
           </div>
         </div>
 
-        {/* Ignore Patterns */}
+        {/* Enhanced Ignore Patterns */}
         <div className="card lg:col-span-2">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Ignore Patterns</h3>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center">
+              <FileText className="h-5 w-5 text-primary-600 mr-3" />
+              <h3 className="text-lg font-medium text-gray-900">Ignore Patterns</h3>
+            </div>
+            <button
+              onClick={() => setShowIgnoreHelp(!showIgnoreHelp)}
+              className="p-2 text-gray-500 hover:text-gray-700"
+              title="Show help"
+            >
+              {showIgnoreHelp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
+          
+          {showIgnoreHelp && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-4">
+              <h4 className="text-sm font-medium text-yellow-900 mb-2">Ignore Pattern Examples:</h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• <code className="bg-yellow-100 px-1 rounded">*.tmp</code> - Ignore temporary files</li>
+                <li>• <code className="bg-yellow-100 px-1 rounded">.git/</code> - Ignore git directory</li>
+                <li>• <code className="bg-yellow-100 px-1 rounded">node_modules/</code> - Ignore node modules</li>
+                <li>• <code className="bg-yellow-100 px-1 rounded">living_note.md</code> - Ignore specific file</li>
+                <li>• <code className="bg-yellow-100 px-1 rounded">*.swp</code> - Ignore editor swap files</li>
+              </ul>
+              <p className="text-sm text-yellow-600 mt-2">
+                Patterns are saved to <code className="bg-yellow-100 px-1 rounded">.obbyignore</code> file in project root.
+              </p>
+            </div>
+          )}
           
           <div className="space-y-4">
             <div className="flex gap-2">
@@ -348,31 +598,41 @@ export default function Settings() {
                 onChange={(e) => setNewIgnorePattern(e.target.value)}
                 placeholder="Enter ignore pattern (e.g., *.tmp, .git/, node_modules/)"
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                onKeyPress={(e) => e.key === 'Enter' && addIgnorePattern()}
+                onKeyPress={(e) => e.key === 'Enter' && addIgnorePatternAPI()}
               />
               <button
-                onClick={addIgnorePattern}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                onClick={addIgnorePatternAPI}
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
               >
+                <Plus className="h-4 w-4 mr-1" />
                 Add
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-              {config.ignorePatterns.map((pattern, index) => (
-                <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-                  <span className="text-sm text-gray-700 font-mono">{pattern}</span>
-                  <button
-                    onClick={() => removeIgnorePattern(index)}
-                    className="p-1 text-red-600 hover:bg-red-100 rounded"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
+            {watchConfigLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                {ignorePatterns.map((pattern, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 bg-red-50 border border-red-200 rounded-md">
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 text-red-600 mr-2" />
+                      <span className="text-sm text-gray-700 font-mono">{pattern}</span>
+                    </div>
+                    <button
+                      onClick={() => removeIgnorePatternAPI(pattern)}
+                      className="p-1 text-red-600 hover:bg-red-100 rounded"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
-            {config.ignorePatterns.length === 0 && (
+            {!watchConfigLoading && ignorePatterns.length === 0 && (
               <p className="text-gray-500 text-center py-4">No ignore patterns configured</p>
             )}
           </div>
