@@ -71,6 +71,7 @@ export default function SummaryNotes() {
   const [generateSuccess, setGenerateSuccess] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   
+  
   const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -653,6 +654,7 @@ export default function SummaryNotes() {
               )}
               Generate Summary
             </button>
+            
             
             <div className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md ${
               isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

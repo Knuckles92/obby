@@ -6,6 +6,7 @@ Handles file monitoring start/stop, status, and scanning operations
 from flask import Blueprint, jsonify, request
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from database.queries import EventQueries
 
@@ -204,140 +205,106 @@ def scan_files():
         }), 500
 
 
-@monitoring_bp.route('/batch-ai/status', methods=['GET'])
-def get_batch_ai_status():
-    """Get current batch AI processing status"""
-    global monitor_instance
-    
-    if not monitor_instance:
-        return jsonify({
-            'success': False,
-            'message': 'Monitoring is not active'
-        }), 400
-    
-    try:
-        status = monitor_instance.get_batch_processing_status()
-        return jsonify({
-            'success': True,
-            'status': status
-        })
-    except Exception as e:
-        logger.error(f"Failed to get batch AI status: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to get batch AI status: {str(e)}'
-        }), 500
+
+
+
+
 
 
 @monitoring_bp.route('/batch-ai/trigger', methods=['POST'])
-def trigger_batch_ai():
-    """Manually trigger batch AI processing"""
-    global monitor_instance
-    
-    if not monitor_instance:
-        return jsonify({
-            'success': False,
-            'message': 'Monitoring is not active'
-        }), 400
-    
-    # Check for force parameter
-    data = request.get_json() or {}
-    force = data.get('force', False)
-    
+def trigger_manual_ai_processing():
+    """Manually trigger AI processing for recent file changes"""
     try:
-        logger.info(f"Manual batch AI processing triggered (force={force})")
-        result = monitor_instance.trigger_batch_processing(force=force)
+        from database.queries import FileQueries
+        from database.models import SemanticModel
+        from ai.openai_client import OpenAIClient
+        import time
         
-        if result.get('error'):
+        start_time = time.time()
+        
+        # Get request data
+        data = request.get_json() or {}
+        force = data.get('force', True)
+        
+        logger.info(f"Manual AI processing triggered (force={force})")
+        
+        # Initialize AI client
+        ai_client = OpenAIClient()
+        
+        # Get recent file changes that don't have AI summaries yet
+        recent_changes = FileQueries.get_recent_changes_without_ai_summary(limit=50)
+        
+        if not recent_changes:
             return jsonify({
-                'success': False,
-                'message': result['error']
-            }), 500
+                'success': True,
+                'message': 'No new changes found to process',
+                'result': {
+                    'processed': True,
+                    'changes_count': 0,
+                    'processing_time': time.time() - start_time,
+                    'reason': 'All recent changes already have AI summaries'
+                }
+            })
+        
+        changes_processed = 0
+        
+        # Process each change
+        for change in recent_changes:
+            try:
+                # Get the content diff for this change
+                diff_content = change.get('diff_content', '')
+                file_path = change.get('file_path', '')
+                
+                if not diff_content:
+                    logger.warning(f"No diff content for change: {file_path}")
+                    continue
+                
+                # Generate AI summary
+                ai_summary = ai_client.summarize_diff(diff_content)
+                
+                if ai_summary:
+                    # Store semantic entry
+                    semantic_id = SemanticModel.insert(
+                        file_path=file_path,
+                        summary=ai_summary.get('summary', ''),
+                        impact=ai_summary.get('impact', 'medium'),
+                        topics=ai_summary.get('topics', []),
+                        keywords=ai_summary.get('keywords', [])
+                    )
+                    
+                    if semantic_id:
+                        changes_processed += 1
+                        logger.info(f"Generated AI summary for {file_path} (ID: {semantic_id})")
+                    
+            except Exception as e:
+                logger.error(f"Failed to process change for {change.get('file_path', 'unknown')}: {e}")
+                continue
+        
+        processing_time = time.time() - start_time
         
         return jsonify({
             'success': True,
-            'message': 'Batch AI processing triggered successfully',
-            'result': result
+            'message': f'Successfully processed {changes_processed} changes',
+            'result': {
+                'processed': True,
+                'changes_count': changes_processed,
+                'processing_time': processing_time,
+                'last_update': datetime.now().isoformat()
+            }
         })
+        
     except Exception as e:
-        logger.error(f"Failed to trigger batch AI processing: {e}")
+        logger.error(f"Manual AI processing failed: {e}")
         return jsonify({
             'success': False,
-            'message': f'Failed to trigger batch AI processing: {str(e)}'
+            'message': f'Manual AI processing failed: {str(e)}',
+            'result': {
+                'processed': False,
+                'changes_count': 0,
+                'processing_time': 0,
+                'error': str(e)
+            }
         }), 500
-
-
-@monitoring_bp.route('/batch-ai/config', methods=['GET', 'PUT'])
-def batch_ai_config():
-    """Get or update batch AI processing configuration"""
-    global monitor_instance
-    
-    if not monitor_instance:
-        return jsonify({
-            'success': False,
-            'message': 'Monitoring is not active'
-        }), 400
-    
-    if request.method == 'GET':
-        try:
-            status = monitor_instance.get_batch_processing_status()
-            return jsonify({
-                'success': True,
-                'config': {
-                    'enabled': status.get('enabled', False),
-                    'interval_seconds': status.get('interval_seconds', 300),
-                    'max_batch_size': status.get('max_batch_size', 50),
-                    'last_update': status.get('last_update'),
-                    'next_batch_in_seconds': status.get('next_batch_in_seconds', 0),
-                    'pending_changes_count': status.get('pending_changes_count', 0)
-                }
-            })
-        except Exception as e:
-            logger.error(f"Failed to get batch AI config: {e}")
-            return jsonify({
-                'success': False,
-                'message': f'Failed to get batch AI config: {str(e)}'
-            }), 500
-    
-    elif request.method == 'PUT':
-        try:
-            data = request.get_json() or {}
-            
-            # Extract configuration parameters
-            config_updates = {}
-            
-            if 'enabled' in data:
-                # Handle enabling/disabling batch processing
-                enabled = bool(data['enabled'])
-                monitor_instance.set_batch_processing_enabled(enabled)
-                logger.info(f"Batch AI processing {'enabled' if enabled else 'disabled'}")
-            
-            if 'interval' in data:
-                config_updates['interval'] = int(data['interval'])
-            
-            if 'max_batch_size' in data:
-                config_updates['max_batch_size'] = int(data['max_batch_size'])
-            
-            # Update configuration
-            if config_updates:
-                success = monitor_instance.update_batch_processing_config(**config_updates)
-                if not success:
-                    return jsonify({
-                        'success': False,
-                        'message': 'Failed to update batch AI configuration'
-                    }), 500
-            
-            return jsonify({
-                'success': True,
-                'message': 'Batch AI configuration updated successfully'
-            })
-            
-        except Exception as e:
-            logger.error(f"Failed to update batch AI config: {e}")
-            return jsonify({
-                'success': False,
-                'message': f'Failed to update batch AI config: {str(e)}'
-            }), 500
 
 
 def run_monitor():

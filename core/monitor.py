@@ -7,7 +7,6 @@ from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
 from core.file_tracker import file_tracker
 from ai.openai_client import OpenAIClient
-from ai.batch_processor import BatchAIProcessor
 import threading
 import time
 import logging
@@ -22,7 +21,6 @@ class ObbyMonitor:
     def __init__(self):
         self.file_tracker = file_tracker
         self.ai_client = None
-        self.batch_processor = None
         self.file_watcher = None
         self.is_running = False
         self.watched_paths = [str(NOTES_FOLDER)]
@@ -30,7 +28,6 @@ class ObbyMonitor:
         self.periodic_check_thread = None
         self.check_interval = CHECK_INTERVAL
         self.last_check_times = {}  # Track last check time for each file
-        self.batch_processing_enabled = True  # Enable batch AI processing by default
         self.watchdog_active = False  # Track if watchdog is running properly
         self.last_watchdog_event = 0  # Timestamp of last watchdog event
         
@@ -47,8 +44,6 @@ class ObbyMonitor:
             # Initialize AI client for content analysis
             self.ai_client = OpenAIClient()
             
-            # Disable automatic batch AI processing by default for leaner operation
-            self.batch_processing_enabled = False
             
             # Initialize file watcher with file tracking integration
             utils_folder = NOTES_FOLDER.parent
@@ -78,9 +73,6 @@ class ObbyMonitor:
         """Stop the monitoring system"""
         self.is_running = False
         
-        # Stop batch AI processor
-        if self.batch_processor:
-            self.batch_processor.stop_scheduler()
         
         # Stop periodic checking
         if self.periodic_check_thread and self.periodic_check_thread.is_alive():
@@ -224,97 +216,58 @@ class ObbyMonitor:
         
         return stats
     
-    def trigger_batch_processing(self, force: bool = False):
-        """Manually trigger batch AI processing."""
-        if not self.batch_processor:
-            logger.warning("Batch processor not initialized")
-            return {'error': 'Batch processor not available'}
-        
-        try:
-            result = self.batch_processor.process_batch(force=force)
-            logger.info(f"Manual batch processing triggered: {result}")
-            return result
-        except Exception as e:
-            logger.error(f"Error triggering batch processing: {e}")
-            return {'error': str(e)}
     
-    def get_batch_processing_status(self):
-        """Get current batch processing status and configuration."""
-        if not self.batch_processor:
-            return {'error': 'Batch processor not available'}
-        
-        try:
-            return self.batch_processor.get_batch_status()
-        except Exception as e:
-            logger.error(f"Error getting batch processing status: {e}")
-            return {'error': str(e)}
     
-    def update_batch_processing_config(self, **kwargs):
-        """Update batch processing configuration."""
-        if not self.batch_processor:
-            logger.warning("Batch processor not initialized")
-            return False
-        
-        try:
-            result = self.batch_processor.update_config(**kwargs)
-            if result:
-                logger.info(f"Batch processing configuration updated: {kwargs}")
-            return result
-        except Exception as e:
-            logger.error(f"Error updating batch processing config: {e}")
-            return False
     
-    def set_batch_processing_enabled(self, enabled: bool):
-        """Enable or disable batch AI processing."""
-        self.batch_processing_enabled = enabled
-        
-        if enabled and not self.batch_processor and self.ai_client:
-            # Initialize and start batch processor
-            try:
-                self.batch_processor = BatchAIProcessor(self.ai_client)
-                self.batch_processor.start_scheduler()
-                logger.info("Batch AI processor enabled and started")
-            except Exception as e:
-                logger.error(f"Error starting batch AI processor: {e}")
-        elif not enabled and self.batch_processor:
-            # Stop batch processor
-            try:
-                self.batch_processor.stop_scheduler()
-                logger.info("Batch AI processor disabled")
-            except Exception as e:
-                logger.error(f"Error stopping batch AI processor: {e}")
-    
-    def _process_with_ai(self, file_path: str, version_id: int):
+    def process_with_ai_immediate(self, file_path: str, version_id: int):
         """
-        Process file content with AI for semantic analysis.
-        
-        Modified to work with batch processing - individual AI calls are reduced
-        and processing is deferred to batch operations when batch mode is enabled.
+        Process file content immediately with AI for semantic analysis.
+        This replaces the batch processing system with immediate processing.
         """
         try:
-            # If batch processing is enabled, skip individual AI processing
-            # The batch processor will handle accumulated changes
-            if self.batch_processing_enabled and self.batch_processor:
-                logger.debug(f"Skipping individual AI processing for {file_path} - batch mode enabled")
+            if not self.ai_client:
+                logger.warning(f"AI client not available for processing {file_path}")
                 return
-            
-            # Fallback to individual processing if batch mode is disabled
+                
             # Get file content from version
             from database.models import FileVersionModel
-            version = FileVersionModel.get_by_hash("", file_path)  # Get latest version
+            version = FileVersionModel.get_by_id(version_id)
             
             if not version or not version.get('content'):
+                logger.debug(f"No content found for version {version_id} of {file_path}")
                 return
                 
-            # Use AI to analyze content
             content = version['content']
             if len(content.strip()) < 50:  # Skip very short content
+                logger.debug(f"Skipping AI processing for {file_path} - content too short")
                 return
                 
-            # Legacy individual AI analysis disabled; batch and living-note updates handle summarization
-            return
+            logger.info(f"Processing {file_path} with AI immediately...")
+            
+            # Generate AI summary
+            summary = self.ai_client.generate_summary(content)
+            if summary:
+                # Extract semantic metadata
+                metadata = self.ai_client.extract_semantic_metadata(summary)
+                
+                # Store in database immediately
+                from database.models import SemanticModel
+                semantic_id = SemanticModel.insert_entry(
+                    summary=metadata.get('summary', 'AI-generated summary'),
+                    entry_type='immediate_processing',
+                    impact=metadata.get('impact', 'minor'),
+                    topics=metadata.get('topics', []),
+                    keywords=metadata.get('keywords', []),
+                    file_path=file_path,
+                    version_id=version_id
+                )
+                
+                logger.info(f"✅ Created semantic entry {semantic_id} for {file_path}")
+                return semantic_id
+            else:
+                logger.warning(f"AI client returned no summary for {file_path}")
                 
         except Exception as e:
-            logger.error(f"Error in AI processing for {file_path}: {e}")
+            logger.error(f"Error in immediate AI processing for {file_path}: {e}")
 
 logger.info("File-based monitoring system initialized")

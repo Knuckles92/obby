@@ -421,6 +421,45 @@ class FileQueries:
         except Exception as e:
             logger.error(f"Error clearing unwatched file diffs: {e}")
             return {'success': False, 'error': str(e)}
+    
+    @staticmethod
+    def get_recent_changes_without_ai_summary(limit: int = 50) -> List[Dict[str, Any]]:
+        """Get recent file changes that don't have corresponding AI summaries yet."""
+        try:
+            # Get content diffs that don't have semantic entries
+            query = """
+                SELECT cd.id, cd.file_path, cd.diff_content, cd.timestamp, cd.change_type,
+                       cd.lines_added, cd.lines_removed
+                FROM content_diffs cd
+                LEFT JOIN semantic_entries se ON cd.file_path = se.file_path 
+                    AND cd.timestamp <= se.timestamp
+                WHERE se.id IS NULL
+                    AND cd.diff_content IS NOT NULL 
+                    AND cd.diff_content != ''
+                ORDER BY cd.timestamp DESC
+                LIMIT ?
+            """
+            
+            rows = db.execute_query(query, (limit,))
+            
+            changes = []
+            for row in rows:
+                changes.append({
+                    'id': row['id'],
+                    'file_path': row['file_path'],
+                    'diff_content': row['diff_content'],
+                    'timestamp': row['timestamp'],
+                    'change_type': row['change_type'],
+                    'lines_added': row['lines_added'],
+                    'lines_removed': row['lines_removed']
+                })
+            
+            logger.info(f"Found {len(changes)} recent changes without AI summaries")
+            return changes
+            
+        except Exception as e:
+            logger.error(f"Error getting recent changes without AI summaries: {e}")
+            return []
 
 class EventQueries:
     """Event-focused queries for real-time updates and API endpoints."""

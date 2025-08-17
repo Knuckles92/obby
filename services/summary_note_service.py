@@ -5,6 +5,7 @@ import re
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
+from database.models import db
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class SummaryNoteService:
         return metadata
     
     def get_summary_list(self, page: int = 1, page_size: int = 10) -> Dict:
-        """Get paginated list of summary notes with metadata.
+        """Get paginated list of summary notes from database.
         
         Args:
             page: Page number (1-based)
@@ -92,53 +93,61 @@ class SummaryNoteService:
             Dict containing summaries, pagination info, and metadata
         """
         try:
-            # Get all .md files in summaries directory
-            summary_files = list(self.summaries_dir.glob('*.md'))
+            # Get semantic entries from database instead of files
+            offset = (page - 1) * page_size
             
-            # Parse and sort by timestamp (newest first)
-            file_data = []
-            for file_path in summary_files:
-                timestamp = self._parse_filename_timestamp(file_path.name)
-                if timestamp:
-                    file_data.append({
-                        'filename': file_path.name,
-                        'path': file_path,
-                        'timestamp': timestamp,
-                        'file_stat': file_path.stat()
-                    })
+            # Query for semantic entries with pagination
+            query = """
+                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path,
+                       GROUP_CONCAT(st.topic) as topics,
+                       GROUP_CONCAT(sk.keyword) as keywords
+                FROM semantic_entries se
+                LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path
+                ORDER BY se.timestamp DESC
+                LIMIT ? OFFSET ?
+            """
             
-            # Sort by timestamp descending (newest first)
-            file_data.sort(key=lambda x: x['timestamp'], reverse=True)
+            # Get total count for pagination
+            count_query = "SELECT COUNT(*) as count FROM semantic_entries"
+            count_result = db.execute_query(count_query)
+            total_count = count_result[0]['count'] if count_result else 0
+            
+            # Get paginated results
+            rows = db.execute_query(query, (page_size, offset))
+            
+            # Convert database entries to summary format expected by frontend
+            summaries = []
+            for row in rows:
+                # Create a filename based on the semantic entry ID and source file
+                file_stem = Path(row['file_path']).stem if row['file_path'] else 'summary'
+                filename = f"Summary-{row['id']}-{file_stem}.md"
+                
+                # Parse timestamp
+                timestamp = datetime.fromisoformat(row['timestamp']) if row['timestamp'] else datetime.now()
+                
+                # Create summary data structure
+                summary_preview = row['summary'][:150] + '...' if row['summary'] and len(row['summary']) > 150 else row['summary']
+                word_count = len(row['summary'].split()) if row['summary'] else 0
+                
+                summaries.append({
+                    'filename': filename,
+                    'timestamp': timestamp.isoformat(),
+                    'title': f"Summary of {Path(row['file_path']).name}" if row['file_path'] else "AI Summary",
+                    'preview': summary_preview,
+                    'word_count': word_count,
+                    'created_time': f"*Created: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}*",
+                    'file_size': len(row['summary'].encode('utf-8')) if row['summary'] else 0,
+                    'last_modified': timestamp.isoformat(),
+                    'semantic_id': row['id'],  # Add semantic ID for reference
+                    'impact': row['impact'],
+                    'topics': row['topics'].split(',') if row['topics'] else [],
+                    'keywords': row['keywords'].split(',') if row['keywords'] else []
+                })
             
             # Calculate pagination
-            total_count = len(file_data)
             total_pages = (total_count + page_size - 1) // page_size
-            start_idx = (page - 1) * page_size
-            end_idx = start_idx + page_size
-            
-            # Get page data
-            page_files = file_data[start_idx:end_idx]
-            
-            # Load content and extract metadata for each file
-            summaries = []
-            for file_info in page_files:
-                try:
-                    content = file_info['path'].read_text(encoding='utf-8')
-                    metadata = self._extract_metadata_from_content(content)
-                    
-                    summaries.append({
-                        'filename': file_info['filename'],
-                        'timestamp': file_info['timestamp'].isoformat(),
-                        'title': metadata['title'],
-                        'preview': metadata['preview'],
-                        'word_count': metadata['word_count'],
-                        'created_time': metadata['created_time'],
-                        'file_size': file_info['file_stat'].st_size,
-                        'last_modified': datetime.fromtimestamp(file_info['file_stat'].st_mtime).isoformat()
-                    })
-                except Exception as e:
-                    logger.error(f"Failed to read summary file {file_info['filename']}: {e}")
-                    continue
             
             return {
                 'summaries': summaries,
@@ -157,60 +166,124 @@ class SummaryNoteService:
             raise
     
     def get_summary_content(self, filename: str) -> Dict:
-        """Get content of a specific summary file.
+        """Get content of a specific summary from database.
         
         Args:
-            filename: Name of the summary file
+            filename: Name of the summary file (format: Summary-{id}-{stem}.md)
             
         Returns:
-            Dict containing file content and metadata
+            Dict containing summary content and metadata
         """
         try:
-            file_path = self.summaries_dir / filename
+            # Extract semantic ID from filename (format: Summary-{id}-{stem}.md)
+            import re
+            match = re.match(r'Summary-(\d+)-.*\.md', filename)
+            if not match:
+                raise FileNotFoundError(f"Invalid summary filename format: {filename}")
             
-            if not file_path.exists():
-                raise FileNotFoundError(f"Summary file not found: {filename}")
+            semantic_id = int(match.group(1))
             
-            content = file_path.read_text(encoding='utf-8')
-            metadata = self._extract_metadata_from_content(content)
-            timestamp = self._parse_filename_timestamp(filename)
-            file_stat = file_path.stat()
+            # Query database for semantic entry
+            query = """
+                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path,
+                       GROUP_CONCAT(st.topic) as topics,
+                       GROUP_CONCAT(sk.keyword) as keywords
+                FROM semantic_entries se
+                LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                WHERE se.id = ?
+                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path
+            """
+            
+            rows = db.execute_query(query, (semantic_id,))
+            if not rows:
+                raise FileNotFoundError(f"Summary not found for {filename}")
+            
+            row = rows[0]
+            timestamp = datetime.fromisoformat(row['timestamp']) if row['timestamp'] else datetime.now()
+            
+            # Format as markdown content
+            content = self._format_summary_as_markdown(row, timestamp)
             
             return {
                 'filename': filename,
                 'content': content,
-                'timestamp': timestamp.isoformat() if timestamp else None,
-                'title': metadata['title'],
-                'word_count': metadata['word_count'],
-                'created_time': metadata['created_time'],
-                'file_size': file_stat.st_size,
-                'last_modified': datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                'timestamp': timestamp.isoformat(),
+                'title': f"Summary of {Path(row['file_path']).name}" if row['file_path'] else "AI Summary",
+                'word_count': len(row['summary'].split()) if row['summary'] else 0,
+                'created_time': f"*Created: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}*",
+                'file_size': len(content.encode('utf-8')),
+                'last_modified': timestamp.isoformat(),
+                'semantic_id': row['id'],
+                'impact': row['impact'],
+                'topics': row['topics'].split(',') if row['topics'] else [],
+                'keywords': row['keywords'].split(',') if row['keywords'] else []
             }
             
         except Exception as e:
             logger.error(f"Failed to get summary content for {filename}: {e}")
             raise
     
+    def _format_summary_as_markdown(self, row: dict, timestamp: datetime) -> str:
+        """Format semantic entry as markdown content."""
+        file_name = Path(row['file_path']).name if row['file_path'] else "Unknown File"
+        
+        content = f"""# Summary of {file_name}
+
+*Created: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}*
+*Impact: {row['impact']}*
+
+---
+
+## Summary
+
+{row['summary'] or 'No summary available'}
+
+---
+
+## Metadata
+
+**Topics:** {row['topics'] or 'None'}
+
+**Keywords:** {row['keywords'] or 'None'}
+
+**Source File:** {row['file_path'] or 'Unknown'}
+
+**Generated:** {timestamp.strftime('%Y-%m-%d at %H:%M:%S')}
+"""
+        return content
+    
     def delete_summary(self, filename: str) -> Dict:
-        """Delete a specific summary file.
+        """Delete a specific summary from database.
         
         Args:
-            filename: Name of the summary file to delete
+            filename: Name of the summary file to delete (format: Summary-{id}-{stem}.md)
             
         Returns:
             Dict containing success status and message
         """
         try:
-            file_path = self.summaries_dir / filename
+            # Extract semantic ID from filename (format: Summary-{id}-{stem}.md)
+            import re
+            match = re.match(r'Summary-(\d+)-.*\.md', filename)
+            if not match:
+                raise FileNotFoundError(f"Invalid summary filename format: {filename}")
             
-            if not file_path.exists():
-                raise FileNotFoundError(f"Summary file not found: {filename}")
+            semantic_id = int(match.group(1))
             
-            file_path.unlink()
+            # Check if semantic entry exists
+            check_query = "SELECT id FROM semantic_entries WHERE id = ?"
+            check_result = db.execute_query(check_query, (semantic_id,))
+            if not check_result:
+                raise FileNotFoundError(f"Summary not found: {filename}")
+            
+            # Delete from database (foreign keys will handle related tables)
+            delete_query = "DELETE FROM semantic_entries WHERE id = ?"
+            db.execute_update(delete_query, (semantic_id,))
             
             return {
                 'success': True,
-                'message': f'Summary file {filename} deleted successfully'
+                'message': f'Summary {filename} deleted successfully'
             }
             
         except Exception as e:
@@ -218,10 +291,10 @@ class SummaryNoteService:
             raise
     
     def delete_multiple_summaries(self, filenames: List[str]) -> Dict:
-        """Delete multiple summary files in bulk.
+        """Delete multiple summaries from database in bulk.
         
         Args:
-            filenames: List of summary file names to delete
+            filenames: List of summary file names to delete (format: Summary-{id}-{stem}.md)
             
         Returns:
             Dict containing overall success status, detailed results, and summary
@@ -248,7 +321,7 @@ class SummaryNoteService:
             # Process each file
             for filename in filenames:
                 try:
-                    # Validate filename to prevent path traversal
+                    # Validate filename to prevent path traversal and check format
                     if not filename.endswith('.md') or '/' in filename or '\\' in filename or '..' in filename:
                         results.append({
                             'filename': filename,
@@ -259,20 +332,37 @@ class SummaryNoteService:
                         failed_files.append(filename)
                         continue
                     
-                    file_path = self.summaries_dir / filename
-                    
-                    if not file_path.exists():
+                    # Extract semantic ID from filename (format: Summary-{id}-{stem}.md)
+                    import re
+                    match = re.match(r'Summary-(\d+)-.*\.md', filename)
+                    if not match:
                         results.append({
                             'filename': filename,
                             'success': False,
-                            'error': 'File not found'
+                            'error': 'Invalid filename format'
                         })
                         failed += 1
                         failed_files.append(filename)
                         continue
                     
-                    # Delete the file
-                    file_path.unlink()
+                    semantic_id = int(match.group(1))
+                    
+                    # Check if semantic entry exists
+                    check_query = "SELECT id FROM semantic_entries WHERE id = ?"
+                    check_result = db.execute_query(check_query, (semantic_id,))
+                    if not check_result:
+                        results.append({
+                            'filename': filename,
+                            'success': False,
+                            'error': 'Summary not found'
+                        })
+                        failed += 1
+                        failed_files.append(filename)
+                        continue
+                    
+                    # Delete from database (foreign keys will handle related tables)
+                    delete_query = "DELETE FROM semantic_entries WHERE id = ?"
+                    db.execute_update(delete_query, (semantic_id,))
                     results.append({
                         'filename': filename,
                         'success': True,

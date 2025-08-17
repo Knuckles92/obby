@@ -68,7 +68,7 @@ export interface ManualSummaryGenerationResponse {
  * Manually trigger batch AI processing for summary generation
  */
 export const triggerManualSummaryGeneration = async (force: boolean = true): Promise<ManualSummaryGenerationResponse> => {
-  return apiRequest<ManualSummaryGenerationResponse>('/api/monitoring/batch-ai/trigger', {
+  return apiRequest<ManualSummaryGenerationResponse>('/api/monitor/batch-ai/trigger', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

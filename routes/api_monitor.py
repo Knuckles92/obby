@@ -128,6 +128,7 @@ class APIObbyMonitor(ObbyMonitor):
             
             # Initialize AI client
             ai_client = OpenAIClient()
+            self.ai_client = ai_client
             
             # Create file watcher with correct parameters  
             utils_folder = self.notes_folder.parent  # Use root directory for config files
@@ -149,11 +150,11 @@ class APIObbyMonitor(ObbyMonitor):
             
             # Start watching (no batch AI scheduler here; Living Note updates are triggered explicitly)
             self.file_watcher.start()
-            self.running = True
+            self.is_running = True
             
             logger.info(f"API-aware monitoring started for {self.notes_folder}")
             
         except Exception as e:
             logger.error(f"Failed to start API-aware monitoring: {e}")
-            self.running = False
+            self.is_running = False
             raise
