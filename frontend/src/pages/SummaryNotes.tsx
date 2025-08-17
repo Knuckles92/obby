@@ -72,6 +72,7 @@ export default function SummaryNotes() {
   const [generateError, setGenerateError] = useState<string | null>(null)
   
   
+  
   const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -428,6 +429,7 @@ export default function SummaryNotes() {
     }
   }
 
+
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.total_pages) {
       // Clear selection when changing pages
@@ -554,7 +556,7 @@ export default function SummaryNotes() {
           <FileText className="h-6 w-6 text-gray-600 mr-3" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Obby Summary</h1>
-            <p className="text-gray-600">Individual AI-generated summaries with pagination</p>
+            <p className="text-gray-600">AI-generated summaries of your file changes</p>
           </div>
         </div>
         
@@ -645,7 +647,7 @@ export default function SummaryNotes() {
               onClick={handleManualSummaryGeneration}
               disabled={generateLoading || loading}
               className="btn-primary btn-gradient flex items-center justify-center"
-              title="Generate new summaries from recent file changes"
+              title="Generate comprehensive summaries for all recent file changes"
             >
               {generateLoading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -700,6 +702,7 @@ export default function SummaryNotes() {
           </div>
         </div>
       )}
+
 
       {/* Stats and Navigation - Different for single vs grid view */}
       {viewMode === 'grid' ? (

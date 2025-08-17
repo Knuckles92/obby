@@ -423,11 +423,11 @@ class FileQueries:
             return {'success': False, 'error': str(e)}
     
     @staticmethod
-    def get_recent_changes_without_ai_summary(limit: int = 50) -> List[Dict[str, Any]]:
+    def get_recent_changes_without_ai_summary(limit: int = None) -> List[Dict[str, Any]]:
         """Get recent file changes that don't have corresponding AI summaries yet."""
         try:
             # Get content diffs that don't have semantic entries
-            query = """
+            base_query = """
                 SELECT cd.id, cd.file_path, cd.diff_content, cd.timestamp, cd.change_type,
                        cd.lines_added, cd.lines_removed
                 FROM content_diffs cd
@@ -437,10 +437,16 @@ class FileQueries:
                     AND cd.diff_content IS NOT NULL 
                     AND cd.diff_content != ''
                 ORDER BY cd.timestamp DESC
-                LIMIT ?
             """
             
-            rows = db.execute_query(query, (limit,))
+            # Add LIMIT only if specified
+            if limit is not None:
+                query = base_query + " LIMIT ?"
+                rows = db.execute_query(query, (limit,))
+            else:
+                # No limit - get ALL changes without AI summaries  
+                query = base_query
+                rows = db.execute_query(query)
             
             changes = []
             for row in rows:

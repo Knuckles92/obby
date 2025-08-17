@@ -76,3 +76,93 @@ export const triggerManualSummaryGeneration = async (force: boolean = true): Pro
     body: JSON.stringify({ force })
   })
 }
+
+/**
+ * Comprehensive summary generation API response type
+ */
+export interface ComprehensiveSummaryGenerationResponse {
+  success: boolean
+  message: string
+  result?: {
+    processed: boolean
+    summary_id?: number
+    changes_count: number
+    files_count: number
+    time_range_start: string
+    time_range_end: string
+    processing_time: number
+    time_span: string
+    summary_preview?: string
+    reason?: string
+    error?: string
+  }
+}
+
+/**
+ * Comprehensive summary data type
+ */
+export interface ComprehensiveSummary {
+  id: number
+  timestamp: string
+  time_range_start: string
+  time_range_end: string
+  summary_content: string
+  key_topics: string[]
+  key_keywords: string[]
+  overall_impact: 'brief' | 'moderate' | 'significant'
+  files_affected_count: number
+  changes_count: number
+  time_span: string
+  created_at: string
+}
+
+/**
+ * Comprehensive summaries list response type
+ */
+export interface ComprehensiveSummariesResponse {
+  summaries: ComprehensiveSummary[]
+  pagination: {
+    current_page: number
+    page_size: number
+    total_count: number
+    total_pages: number
+    has_next: boolean
+    has_previous: boolean
+  }
+}
+
+/**
+ * Generate comprehensive summary covering everything since last summary
+ */
+export const triggerComprehensiveSummaryGeneration = async (force: boolean = true): Promise<ComprehensiveSummaryGenerationResponse> => {
+  return apiRequest<ComprehensiveSummaryGenerationResponse>('/api/monitor/comprehensive-summary/generate', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ force })
+  })
+}
+
+/**
+ * Get paginated list of comprehensive summaries
+ */
+export const getComprehensiveSummaries = async (page: number = 1, pageSize: number = 10): Promise<ComprehensiveSummariesResponse> => {
+  return apiRequest<ComprehensiveSummariesResponse>(`/api/monitor/comprehensive-summary/list?page=${page}&page_size=${pageSize}`)
+}
+
+/**
+ * Get details of a specific comprehensive summary
+ */
+export const getComprehensiveSummary = async (summaryId: number): Promise<ComprehensiveSummary> => {
+  return apiRequest<ComprehensiveSummary>(`/api/monitor/comprehensive-summary/${summaryId}`)
+}
+
+/**
+ * Delete a comprehensive summary
+ */
+export const deleteComprehensiveSummary = async (summaryId: number): Promise<{success: boolean, message: string}> => {
+  return apiRequest(`/api/monitor/comprehensive-summary/${summaryId}`, {
+    method: 'DELETE'
+  })
+}

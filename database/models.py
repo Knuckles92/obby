@@ -679,4 +679,148 @@ class PerformanceModel:
         db.execute_update("ANALYZE")
         logger.info("Database analysis completed")
 
+class ComprehensiveSummaryModel:
+    """Comprehensive summary storage and management."""
+    
+    @classmethod
+    def create_summary(cls, time_range_start: datetime, time_range_end: datetime,
+                      summary_content: str, key_topics: List[str] = None, 
+                      key_keywords: List[str] = None, overall_impact: str = 'moderate',
+                      files_affected_count: int = 0, changes_count: int = 0,
+                      time_span: str = None) -> Optional[int]:
+        """Create a new comprehensive summary."""
+        try:
+            # Apply migration if table doesn't exist
+            from .migration_comprehensive_summaries import apply_migration
+            apply_migration()
+            
+            timestamp = datetime.now()
+            
+            # Convert lists to JSON strings
+            topics_json = json.dumps(key_topics) if key_topics else None
+            keywords_json = json.dumps(key_keywords) if key_keywords else None
+            
+            query = """
+                INSERT INTO comprehensive_summaries 
+                (timestamp, time_range_start, time_range_end, summary_content,
+                 key_topics, key_keywords, overall_impact, files_affected_count,
+                 changes_count, time_span)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            result = db.execute_update(query, (
+                timestamp, time_range_start, time_range_end, summary_content,
+                topics_json, keywords_json, overall_impact, files_affected_count,
+                changes_count, time_span
+            ))
+            
+            if result > 0:
+                # Update last comprehensive summary timestamp
+                ConfigModel.set('last_comprehensive_summary', timestamp.isoformat(),
+                              'Timestamp of last comprehensive summary generation')
+                
+                # Get the inserted ID
+                id_result = db.execute_query("SELECT last_insert_rowid() as id")
+                return id_result[0]['id'] if id_result else None
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to create comprehensive summary: {e}")
+            return None
+    
+    @classmethod
+    def get_latest_summary(cls) -> Optional[Dict[str, Any]]:
+        """Get the most recent comprehensive summary."""
+        try:
+            query = """
+                SELECT * FROM comprehensive_summaries 
+                ORDER BY timestamp DESC 
+                LIMIT 1
+            """
+            rows = db.execute_query(query)
+            
+            if rows:
+                summary = dict(rows[0])
+                # Parse JSON fields
+                summary['key_topics'] = json.loads(summary['key_topics']) if summary['key_topics'] else []
+                summary['key_keywords'] = json.loads(summary['key_keywords']) if summary['key_keywords'] else []
+                return summary
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get latest comprehensive summary: {e}")
+            return None
+    
+    @classmethod
+    def get_last_summary_timestamp(cls) -> Optional[datetime]:
+        """Get timestamp of last comprehensive summary."""
+        try:
+            last_timestamp_str = ConfigModel.get('last_comprehensive_summary')
+            if last_timestamp_str:
+                return datetime.fromisoformat(last_timestamp_str)
+            
+            # Fallback: check actual summaries table
+            latest = cls.get_latest_summary()
+            return datetime.fromisoformat(latest['timestamp']) if latest else None
+            
+        except Exception as e:
+            logger.error(f"Failed to get last summary timestamp: {e}")
+            return None
+    
+    @classmethod
+    def get_summaries_paginated(cls, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
+        """Get comprehensive summaries with pagination."""
+        try:
+            offset = (page - 1) * page_size
+            
+            # Get total count
+            count_result = db.execute_query("SELECT COUNT(*) as count FROM comprehensive_summaries")
+            total_count = count_result[0]['count'] if count_result else 0
+            
+            # Get paginated results
+            query = """
+                SELECT * FROM comprehensive_summaries 
+                ORDER BY timestamp DESC 
+                LIMIT ? OFFSET ?
+            """
+            rows = db.execute_query(query, (page_size, offset))
+            
+            summaries = []
+            for row in rows:
+                summary = dict(row)
+                # Parse JSON fields
+                summary['key_topics'] = json.loads(summary['key_topics']) if summary['key_topics'] else []
+                summary['key_keywords'] = json.loads(summary['key_keywords']) if summary['key_keywords'] else []
+                summaries.append(summary)
+            
+            total_pages = (total_count + page_size - 1) // page_size
+            
+            return {
+                'summaries': summaries,
+                'pagination': {
+                    'current_page': page,
+                    'page_size': page_size,
+                    'total_count': total_count,
+                    'total_pages': total_pages,
+                    'has_next': page < total_pages,
+                    'has_previous': page > 1
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get paginated summaries: {e}")
+            return {'summaries': [], 'pagination': {}}
+    
+    @classmethod
+    def delete_summary(cls, summary_id: int) -> bool:
+        """Delete a comprehensive summary."""
+        try:
+            result = db.execute_update("DELETE FROM comprehensive_summaries WHERE id = ?", (summary_id,))
+            return result > 0
+        except Exception as e:
+            logger.error(f"Failed to delete comprehensive summary {summary_id}: {e}")
+            return False
+
 logger.info("File-based database models initialized successfully")
