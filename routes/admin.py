@@ -209,8 +209,8 @@ def reset_database():
             }), 400
         
         # Validate confirmation phrase (case-insensitive)
-        expected_phrase = "if I ruin my database it is my fault"
-        if confirmation_phrase.strip().lower() != expected_phrase:
+        expected_phrase = "if i ruin my database it is my fault"
+        if confirmation_phrase.strip().lower() != expected_phrase.lower():
             return jsonify({
                 'success': False,
                 'error': 'Invalid confirmation phrase. Reset aborted.',

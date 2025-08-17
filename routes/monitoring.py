@@ -263,13 +263,29 @@ def trigger_manual_ai_processing():
                 ai_summary = ai_client.summarize_diff(diff_content)
                 
                 if ai_summary:
-                    # Store semantic entry
-                    semantic_id = SemanticModel.insert(
-                        file_path=file_path,
-                        summary=ai_summary.get('summary', ''),
-                        impact=ai_summary.get('impact', 'medium'),
-                        topics=ai_summary.get('topics', []),
-                        keywords=ai_summary.get('keywords', [])
+                    # Extract semantic metadata from the AI summary
+                    metadata = ai_client.extract_semantic_metadata(ai_summary)
+                    
+                    # Map AI impact values to database schema values
+                    impact_mapping = {
+                        'brief': 'minor',
+                        'medium': 'moderate', 
+                        'major': 'significant',
+                        'minor': 'minor',
+                        'moderate': 'moderate',
+                        'significant': 'significant'
+                    }
+                    ai_impact = metadata.get('impact', 'moderate')
+                    db_impact = impact_mapping.get(ai_impact, 'moderate')
+                    
+                    # Store semantic entry with extracted metadata
+                    semantic_id = SemanticModel.insert_entry(
+                        summary=metadata.get('summary', ai_summary),
+                        entry_type='diff',
+                        impact=db_impact,
+                        topics=metadata.get('topics', []),
+                        keywords=metadata.get('keywords', []),
+                        file_path=file_path
                     )
                     
                     if semantic_id:
