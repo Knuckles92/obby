@@ -2,6 +2,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
@@ -161,6 +162,24 @@ class SummaryNoteService:
                 }
             }
             
+        except sqlite3.OperationalError as e:
+            # If the semantic_entries table doesn't exist yet, return an empty result
+            if 'no such table: semantic_entries' in str(e):
+                logger.warning("semantic_entries table not found; returning empty summaries list")
+                return {
+                    'summaries': [],
+                    'pagination': {
+                        'current_page': page,
+                        'page_size': page_size,
+                        'total_count': 0,
+                        'total_pages': 0,
+                        'has_next': False,
+                        'has_previous': False
+                    }
+                }
+            # Re-raise for other operational errors
+            logger.error(f"Operational error getting summary list: {e}")
+            raise
         except Exception as e:
             logger.error(f"Failed to get summary list: {e}")
             raise

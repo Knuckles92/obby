@@ -161,10 +161,30 @@ export default function SummaryNotes() {
       const fetchPage = (filters.searchTerm || filters.dateRange) ? 1 : page
       
       const response = await apiFetch(`/api/summary-notes/?page=${fetchPage}&page_size=${fetchSize}`)
-      const data: SummaryListResponse = await response.json()
+      if (!response.ok) {
+        // Try to extract error message but don't fail if body isn't JSON
+        let errText = `HTTP ${response.status}`
+        try {
+          const err = await response.json()
+          errText = err?.error || errText
+        } catch {}
+        throw new Error(errText)
+      }
+      const raw = await response.json().catch(() => ({} as any))
+      const data: SummaryListResponse = {
+        summaries: Array.isArray(raw?.summaries) ? raw.summaries : [],
+        pagination: raw?.pagination || {
+          current_page: fetchPage,
+          page_size: fetchSize,
+          total_count: Array.isArray(raw?.summaries) ? raw.summaries.length : 0,
+          total_pages: Array.isArray(raw?.summaries) ? Math.ceil(raw.summaries.length / fetchSize) : 0,
+          has_next: false,
+          has_previous: false
+        }
+      }
       
       // Apply client-side filtering
-      const filteredSummaries = applyFilters(data.summaries, filters)
+      const filteredSummaries = applyFilters(data.summaries || [], filters)
       
       // Handle pagination of filtered results
       let displaySummaries: SummaryNote[]
@@ -252,6 +272,14 @@ export default function SummaryNotes() {
     try {
       setContentLoading(true)
       const response = await apiFetch(`/api/summary-notes/${filename}`)
+      if (!response.ok) {
+        let errText = `HTTP ${response.status}`
+        try {
+          const err = await response.json()
+          errText = err?.error || errText
+        } catch {}
+        throw new Error(errText)
+      }
       const data: SummaryContentResponse = await response.json()
       setCurrentSummaryContent(data)
     } catch (error) {
