@@ -148,7 +148,13 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - Graceful fallback when AI services unavailable
 
 ### Testing & Development
-- Test files: `test_batch_ai.py`, `test_file_tracking.py`, `test_file_watcher_fixes.py`
-- No formal test framework configured - tests are standalone Python scripts
+- **Debug scripts**: Located in `debug/` directory (database investigation, diff analysis, simulation tools)
+- **Formal tests**: `tests/` directory reserved for future unit/integration tests
+- **No formal test framework configured** - debugging uses standalone Python scripts
+
+### Backup & Log Management
+- **Database backups**: Automatic retention policy (7 days) via `utils/backup_retention.py`
+- **Log files**: Automatic cleanup for log backups (3 days) and general logs (14 days)
+- **Manual cleanup**: Run `python utils/backup_retention.py` for dry-run analysis
  - Living Note: Daily mode enabled by default. Notes are written to `notes/daily/Living Note - YYYY-MM-DD.md` (configurable in `config/settings.py`). Single-file mode `notes/living_note.md` remains available if explicitly configured.
 - Mock themes available in `mocks/` directory for UI development

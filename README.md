@@ -171,8 +171,8 @@ obby/
 │   │   ├── queries.py             # Optimized query layer
 │   │   ├── migration.py           # Data migration system
 │   │   ├── migration_git_to_file.py # Legacy migration helper
-│   │   ├── schema.sql             # Database schema definitions
-│   │   └── schema_new.sql         # Latest schema iteration
+│   │   ├── schema.sql             # File-based database schema (current)
+│   │   └── archive/               # Archived schema files
 │   └── utils/
 │       ├── file_helpers.py        # File system utilities
 │       ├── file_watcher.py        # Real-time monitoring
@@ -448,8 +448,8 @@ cd frontend
 npm install
 npm run dev
 
-# Database development
-python -c "from database.migration import MigrationManager; MigrationManager().run_complete_migration()"
+# Database development (legacy migration in archive/ if needed)
+# Note: Current system uses automatic migrations via migration_git_to_file.py and migration_comprehensive_summaries.py
 ```
 
 ### **Testing**

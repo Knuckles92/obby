@@ -25,7 +25,7 @@ class GitToFileMigration:
     def __init__(self, db_path: str = "obby.db", backup_suffix: str = ".git-backup"):
         self.db_path = db_path
         self.backup_path = f"{db_path}{backup_suffix}"
-        self.new_schema_path = Path(__file__).parent / "schema_new.sql"
+        self.new_schema_path = Path(__file__).parent / "schema.sql"
         
     def run_migration(self) -> bool:
         """Execute the complete migration process."""

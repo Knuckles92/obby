@@ -292,8 +292,12 @@ class FileQueries:
             return 0
     
     @staticmethod
-    def get_repository_status() -> Dict[str, Any]:
-        """Get file monitoring system status - replaces git repository status."""
+    def get_repository_status(monitoring_active: bool = None) -> Dict[str, Any]:
+        """Get file monitoring system status - replaces git repository status.
+        
+        Args:
+            monitoring_active: Optional monitoring status. If None, defaults to False (safe fallback).
+        """
         try:
             # Get performance stats
             perf_stats = PerformanceModel.get_stats()
@@ -306,7 +310,7 @@ class FileQueries:
             tracked_files = FileStateModel.get_all_tracked_files()
             
             status = {
-                'monitoring_active': True,  # TODO: Get from monitor instance
+                'monitoring_active': monitoring_active if monitoring_active is not None else False,
                 'tracked_files_count': len(tracked_files),
                 'recent_versions_count': len(recent_versions),
                 'recent_changes_count': len(recent_changes),

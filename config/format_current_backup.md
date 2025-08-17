@@ -1,4 +1,6 @@
-# Obby AI Assistant Configuration
+# Obby AI Assistant Configuration (BACKUP - Alternative Configuration Approach)
+# This file contains an alternative, more sophisticated configuration system
+# that was developed but not currently implemented. Keep for future reference.
 
 ## Living Note Session Template
 

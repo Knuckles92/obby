@@ -20,7 +20,7 @@ def main():
     print("\n💡 For the web interface (recommended):")
     print("cd frontend")
     print("npm run dev")
-    print("   python api_server.py")
+    print("   python backend.py")
     print("   Then open: http://localhost:3001")
     print("\n See README.md for detailed setup instructions")
 

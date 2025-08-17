@@ -83,15 +83,6 @@ class OpenAIClient:
                 focus_areas_text = ", ".join(settings['focusAreas'])
                 user_content += f"\n\nPay special attention to these focus areas: {focus_areas_text}"
 
-            # DEBUG LOGGING: Log what's being sent to the model
-            logging.info("=== AI MODEL INPUT DEBUG ===")
-            logging.info(f"Model: {self.model}")
-            logging.info(f"Max tokens: {max_tokens}")
-            logging.info(f"Settings: {settings}")
-            logging.info(f"System prompt: {system_prompt}")
-            logging.info(f"User content: {user_content}")
-            logging.info("=== END AI INPUT DEBUG ===")
-
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=[
