@@ -800,7 +800,7 @@ class AnalyticsQueries:
         try:
             # Count total records from various tables
             events_count_query = "SELECT COUNT(*) as count FROM events"
-            diffs_count_query = "SELECT COUNT(*) as count FROM diffs"
+            diffs_count_query = "SELECT COUNT(*) as count FROM content_diffs"
             
             events_count = db.execute_query(events_count_query)[0]['count']
             diffs_count = db.execute_query(diffs_count_query)[0]['count']

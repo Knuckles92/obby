@@ -3,5 +3,4 @@
 # Use glob patterns (* and ?) and one pattern per line
 # Lines starting with # are comments
 
-docs/
 notes/

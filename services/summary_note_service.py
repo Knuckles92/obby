@@ -217,6 +217,117 @@ class SummaryNoteService:
             logger.error(f"Failed to delete summary {filename}: {e}")
             raise
     
+    def delete_multiple_summaries(self, filenames: List[str]) -> Dict:
+        """Delete multiple summary files in bulk.
+        
+        Args:
+            filenames: List of summary file names to delete
+            
+        Returns:
+            Dict containing overall success status, detailed results, and summary
+        """
+        if not filenames:
+            return {
+                'success': True,
+                'message': 'No files specified for deletion',
+                'results': [],
+                'summary': {
+                    'total': 0,
+                    'succeeded': 0,
+                    'failed': 0,
+                    'failed_files': []
+                }
+            }
+        
+        results = []
+        succeeded = 0
+        failed = 0
+        failed_files = []
+        
+        try:
+            # Process each file
+            for filename in filenames:
+                try:
+                    # Validate filename to prevent path traversal
+                    if not filename.endswith('.md') or '/' in filename or '\\' in filename or '..' in filename:
+                        results.append({
+                            'filename': filename,
+                            'success': False,
+                            'error': 'Invalid filename'
+                        })
+                        failed += 1
+                        failed_files.append(filename)
+                        continue
+                    
+                    file_path = self.summaries_dir / filename
+                    
+                    if not file_path.exists():
+                        results.append({
+                            'filename': filename,
+                            'success': False,
+                            'error': 'File not found'
+                        })
+                        failed += 1
+                        failed_files.append(filename)
+                        continue
+                    
+                    # Delete the file
+                    file_path.unlink()
+                    results.append({
+                        'filename': filename,
+                        'success': True,
+                        'message': f'Successfully deleted {filename}'
+                    })
+                    succeeded += 1
+                    
+                except Exception as e:
+                    error_msg = str(e)
+                    logger.error(f"Failed to delete summary {filename}: {error_msg}")
+                    results.append({
+                        'filename': filename,
+                        'success': False,
+                        'error': error_msg
+                    })
+                    failed += 1
+                    failed_files.append(filename)
+            
+            # Generate overall response
+            total = len(filenames)
+            overall_success = failed == 0
+            
+            if overall_success:
+                message = f"Successfully deleted all {succeeded} files"
+            elif succeeded == 0:
+                message = f"Failed to delete all {failed} files"
+            else:
+                message = f"Partially successful: {succeeded} deleted, {failed} failed"
+            
+            return {
+                'success': overall_success,
+                'message': message,
+                'results': results,
+                'summary': {
+                    'total': total,
+                    'succeeded': succeeded,
+                    'failed': failed,
+                    'failed_files': failed_files
+                }
+            }
+            
+        except Exception as e:
+            logger.error(f"Critical error during bulk delete: {e}")
+            return {
+                'success': False,
+                'message': f'Critical error during bulk delete: {str(e)}',
+                'results': results,
+                'summary': {
+                    'total': len(filenames),
+                    'succeeded': succeeded,
+                    'failed': len(filenames) - succeeded,
+                    'failed_files': [f for f in filenames if f not in [r['filename'] for r in results if r.get('success', False)]]
+                }
+            }
+    
     def create_summary_filename(self, timestamp: datetime = None) -> str:
         """Generate a filename for a new summary.
         

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, Trash2, RefreshCw, ChevronLeft, ChevronRight, Grid, Square, Search } from 'lucide-react'
+import { FileText, Clock, Trash2, RefreshCw, ChevronLeft, ChevronRight, Grid, Square, Search, Zap } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -7,8 +7,16 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import SummaryGrid from '../components/SummaryGrid'
 import SearchFilters from '../components/SearchFilters'
-import { apiFetch } from '../utils/api'
-import { SummaryNote, SummaryPaginationInfo, SummaryContentResponse, SummaryViewMode, SummarySearchFilters } from '../types'
+import { apiFetch, triggerManualSummaryGeneration } from '../utils/api'
+import { 
+  SummaryNote, 
+  SummaryPaginationInfo, 
+  SummaryContentResponse, 
+  SummaryViewMode, 
+  SummarySearchFilters,
+  BulkDeleteResponse,
+  BulkDeleteRequest
+} from '../types'
 
 // TypeScript interface for ReactMarkdown code component props
 
@@ -51,6 +59,18 @@ export default function SummaryNotes() {
   const [hasError, setHasError] = useState(false)
   const [currentSummaryContent, setCurrentSummaryContent] = useState<SummaryContentResponse | null>(null)
   const [contentLoading, setContentLoading] = useState(false)
+  
+  // Multi-select state
+  const [selectedItems, setSelectedItems] = useState<Set<string>>(new Set())
+  const [isSelectMode, setIsSelectMode] = useState(false)
+  const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
+  
+  // Manual summary generation state
+  const [generateLoading, setGenerateLoading] = useState(false)
+  const [generateSuccess, setGenerateSuccess] = useState<string | null>(null)
+  const [generateError, setGenerateError] = useState<string | null>(null)
+  
   const eventSourceRef = useRef<EventSource | null>(null)
 
   useEffect(() => {
@@ -277,14 +297,149 @@ export default function SummaryNotes() {
     }
   }
 
+  // Multi-select handlers
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode)
+    if (isSelectMode) {
+      // Exiting select mode, clear selection
+      setSelectedItems(new Set())
+    }
+  }
+
+  const handleSelectItem = (filename: string) => {
+    setSelectedItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(filename)) {
+        newSet.delete(filename)
+      } else {
+        newSet.add(filename)
+      }
+      return newSet
+    })
+  }
+
+  const handleSelectAll = () => {
+    if (selectedItems.size === summaries.length) {
+      // If all visible items are selected, clear selection
+      setSelectedItems(new Set())
+    } else {
+      // Select all visible items on current page
+      setSelectedItems(new Set(summaries.map(s => s.filename)))
+    }
+  }
+
+  const handleClearSelection = () => {
+    setSelectedItems(new Set())
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedItems.size === 0) return
+
+    try {
+      setBulkDeleteLoading(true)
+      const filenames = Array.from(selectedItems)
+      
+      const response = await apiFetch('/api/summary-notes/bulk', {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ filenames } as BulkDeleteRequest)
+      })
+
+      const result: BulkDeleteResponse = await response.json()
+      
+      if (response.ok || response.status === 207) { // 207 = Multi-Status (partial success)
+        console.log('Bulk delete completed:', result)
+        
+        // Show summary of results
+        if (result.summary.failed > 0) {
+          alert(`Bulk delete completed: ${result.summary.succeeded} succeeded, ${result.summary.failed} failed`)
+        } else {
+          console.log(`Successfully deleted ${result.summary.succeeded} files`)
+        }
+        
+        // Clear selection and refresh
+        setSelectedItems(new Set())
+        setIsSelectMode(false)
+        
+        // Refresh the current page or go to previous page if current page is empty
+        const remainingOnPage = summaries.length - result.summary.succeeded
+        const shouldGoToPrevious = pagination.current_page > 1 && remainingOnPage === 0
+        
+        if (shouldGoToPrevious) {
+          await fetchSummaries(pagination.current_page - 1)
+        } else {
+          await fetchSummaries()
+        }
+        
+        setBulkDeleteDialogOpen(false)
+      } else {
+        console.error('Bulk delete failed:', result.message)
+        alert('Bulk delete failed: ' + result.message)
+      }
+    } catch (error) {
+      console.error('Error during bulk delete:', error)
+      alert('Failed to delete selected items. Please try again.')
+    } finally {
+      setBulkDeleteLoading(false)
+    }
+  }
+
+  const handleManualSummaryGeneration = async () => {
+    try {
+      setGenerateLoading(true)
+      setGenerateError(null)
+      setGenerateSuccess(null)
+      
+      console.log('Triggering manual summary generation...')
+      const result = await triggerManualSummaryGeneration(true)
+      
+      if (result.success) {
+        const changesCount = result.result?.changes_count || 0
+        const processingTime = result.result?.processing_time || 0
+        const processed = result.result?.processed || false
+        
+        if (processed && changesCount > 0) {
+          setGenerateSuccess(`Successfully generated summaries for ${changesCount} changes in ${processingTime.toFixed(1)}s`)
+          // Refresh the summary list to show new summaries
+          await fetchSummaries()
+        } else if (processed && changesCount === 0) {
+          setGenerateSuccess('No new changes found to process. All summaries are up to date.')
+        } else {
+          setGenerateSuccess(result.message || 'Summary generation completed')
+        }
+        
+        // Clear success message after 5 seconds
+        setTimeout(() => setGenerateSuccess(null), 5000)
+      } else {
+        setGenerateError(result.message || 'Failed to generate summaries')
+        // Clear error message after 8 seconds
+        setTimeout(() => setGenerateError(null), 8000)
+      }
+    } catch (error) {
+      console.error('Error generating summaries:', error)
+      setGenerateError(error instanceof Error ? error.message : 'Failed to generate summaries. Please try again.')
+      // Clear error message after 8 seconds
+      setTimeout(() => setGenerateError(null), 8000)
+    } finally {
+      setGenerateLoading(false)
+    }
+  }
+
   const handlePageChange = (newPage: number) => {
     if (newPage >= 1 && newPage <= pagination.total_pages) {
+      // Clear selection when changing pages
+      setSelectedItems(new Set())
       fetchSummaries(newPage, viewMode, searchFilters)
     }
   }
 
   const handleViewModeChange = async (newMode: SummaryViewMode) => {
     setViewMode(newMode)
+    // Clear selection and exit select mode when changing view modes
+    setSelectedItems(new Set())
+    setIsSelectMode(false)
     // Reset to first page when changing view modes
     await fetchSummaries(1, newMode, searchFilters)
   }
@@ -328,6 +483,38 @@ export default function SummaryNotes() {
     const i = Math.floor(Math.log(bytes) / Math.log(k))
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
+
+  // Keyboard shortcuts - placed after function definitions
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Only handle shortcuts in grid view
+      if (viewMode !== 'grid') return
+      
+      // Handle Escape key to exit selection mode
+      if (event.key === 'Escape' && isSelectMode) {
+        setIsSelectMode(false)
+        setSelectedItems(new Set())
+        return
+      }
+      
+      // Handle Ctrl/Cmd + A to select all (only in select mode)
+      if (event.key === 'a' && (event.ctrlKey || event.metaKey) && isSelectMode) {
+        event.preventDefault()
+        handleSelectAll()
+        return
+      }
+      
+      // Handle Delete key to trigger bulk delete (only when items are selected)
+      if (event.key === 'Delete' && isSelectMode && selectedItems.size > 0) {
+        event.preventDefault()
+        setBulkDeleteDialogOpen(true)
+        return
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [viewMode, isSelectMode, selectedItems.size, handleSelectAll])
 
   if (hasError) {
     return (
@@ -392,6 +579,27 @@ export default function SummaryNotes() {
             )}
           </button>
 
+          {/* Select Mode Toggle - Only show in grid view */}
+          {viewMode === 'grid' && (
+            <button
+              onClick={handleToggleSelectMode}
+              className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                isSelectMode
+                  ? 'bg-green-600 text-white'
+                  : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+              }`}
+              title={isSelectMode ? "Exit Select Mode" : "Select Multiple"}
+            >
+              <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">{isSelectMode ? 'Cancel' : 'Select'}</span>
+              {selectedItems.size > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 text-xs bg-white text-green-600 rounded-full font-medium">
+                  {selectedItems.size}
+                </span>
+              )}
+            </button>
+          )}
+
           {/* View Mode Toggle */}
           <div className="flex items-center space-x-2">
             <button
@@ -432,6 +640,20 @@ export default function SummaryNotes() {
               Refresh
             </button>
             
+            <button
+              onClick={handleManualSummaryGeneration}
+              disabled={generateLoading || loading}
+              className="btn-primary btn-gradient flex items-center justify-center"
+              title="Generate new summaries from recent file changes"
+            >
+              {generateLoading ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+              ) : (
+                <Zap className="h-4 w-4 mr-2" />
+              )}
+              Generate Summary
+            </button>
+            
             <div className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md ${
               isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
             }`}>
@@ -445,6 +667,37 @@ export default function SummaryNotes() {
           </div>
         </div>
       </div>
+
+      {/* Success/Error Messages for Manual Generation */}
+      {generateSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <Zap className="h-5 w-5 text-green-400" />
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-green-800">
+                {generateSuccess}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {generateError && (
+        <div className="bg-red-50 border border-red-200 rounded-md p-4">
+          <div className="flex">
+            <div className="flex-shrink-0">
+              <div className="h-5 w-5 text-red-400">⚠</div>
+            </div>
+            <div className="ml-3">
+              <p className="text-sm font-medium text-red-800">
+                {generateError}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats and Navigation - Different for single vs grid view */}
       {viewMode === 'grid' ? (
@@ -516,6 +769,12 @@ export default function SummaryNotes() {
             setDeleteDialogOpen(true)
           }}
           selectedSummary={selectedSummary}
+          isSelectMode={isSelectMode}
+          selectedItems={selectedItems}
+          onSelectItem={handleSelectItem}
+          onSelectAll={handleSelectAll}
+          onClearSelection={handleClearSelection}
+          onBulkDelete={() => setBulkDeleteDialogOpen(true)}
         />
       ) : (
         /* Single Summary Display */
@@ -614,6 +873,22 @@ export default function SummaryNotes() {
         danger={true}
         loading={deleteLoading}
         extraWarning="The summary file will be permanently removed from your system."
+      />
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        isOpen={bulkDeleteDialogOpen}
+        onClose={() => {
+          setBulkDeleteDialogOpen(false)
+        }}
+        onConfirm={handleBulkDelete}
+        title="Delete Multiple Summaries"
+        message={`Are you sure you want to delete ${selectedItems.size} selected ${selectedItems.size === 1 ? 'summary' : 'summaries'}? This action cannot be undone.`}
+        confirmText={`Delete ${selectedItems.size} ${selectedItems.size === 1 ? 'File' : 'Files'}`}
+        cancelText="Cancel"
+        danger={true}
+        loading={bulkDeleteLoading}
+        extraWarning="All selected summary files will be permanently removed from your system."
       />
     </div>
   )

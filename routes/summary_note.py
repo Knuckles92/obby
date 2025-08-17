@@ -81,6 +81,52 @@ def delete_summary_note(filename):
         return jsonify({'error': str(e)}), 500
 
 
+@summary_note_bp.route('/bulk', methods=['DELETE'])
+def delete_multiple_summary_notes():
+    """Delete multiple summary notes in bulk"""
+    try:
+        data = request.get_json()
+        if not data or 'filenames' not in data:
+            return jsonify({'error': 'filenames array is required'}), 400
+        
+        filenames = data['filenames']
+        if not isinstance(filenames, list):
+            return jsonify({'error': 'filenames must be an array'}), 400
+        
+        if len(filenames) == 0:
+            return jsonify({'error': 'At least one filename must be provided'}), 400
+        
+        if len(filenames) > 50:  # Reasonable limit to prevent abuse
+            return jsonify({'error': 'Cannot delete more than 50 files at once'}), 400
+        
+        # Perform bulk deletion
+        result = summary_note_service.delete_multiple_summaries(filenames)
+        
+        # Notify SSE clients about the bulk deletion
+        for filename in filenames:
+            # Only notify for successfully deleted files
+            deleted_files = [r['filename'] for r in result.get('results', []) if r.get('success', False)]
+            if filename in deleted_files:
+                notify_summary_note_change('deleted', filename)
+        
+        # Also send a bulk notification
+        notify_summary_note_change('bulk_deleted', None)
+        
+        # Return appropriate status code based on results
+        if result['success']:
+            return jsonify(result), 200
+        elif result['summary']['succeeded'] > 0:
+            # Partial success
+            return jsonify(result), 207  # Multi-Status
+        else:
+            # Complete failure
+            return jsonify(result), 400
+        
+    except Exception as e:
+        logger.error(f"Failed to delete multiple summary notes: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 @summary_note_bp.route('/', methods=['POST'])
 def create_summary_note():
     """Create a new summary note"""

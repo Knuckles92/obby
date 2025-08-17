@@ -160,6 +160,34 @@
     outline-offset: 2px;
   }
   
+  /* Multicolored gradient variant for primary buttons */
+  .btn-gradient {
+    background-image: linear-gradient(135deg, #ff6b6b 0%, #f7b42c 30%, #3ec5ff 65%, #845ec2 100%);
+    background-size: 200% 200%;
+    color: var(--color-text-inverse);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    font-weight: 700;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 8px rgba(0, 0, 0, 0.2);
+    transition: background-position var(--duration-normal) var(--easing-ease),
+                box-shadow var(--duration-fast) var(--easing-ease),
+                transform var(--duration-fast) var(--easing-ease);
+  }
+  
+  .btn-gradient:hover {
+    background-position: 100% 0;
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+  }
+  
+  .btn-gradient:active {
+    transform: translateY(0);
+  }
+  
+  .btn-gradient:disabled {
+    filter: saturate(0.75) brightness(0.95);
+    cursor: not-allowed;
+  }
+  
   .btn-secondary {
     background-color: var(--color-surface);
     color: var(--color-text-primary);

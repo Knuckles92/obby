@@ -443,3 +443,29 @@ export interface WatchConfigReloadResponse {
   watchPatterns: string[];
   ignorePatterns: string[];
 }
+
+// Bulk delete operation interfaces
+export interface BulkDeleteResult {
+  filename: string;
+  success: boolean;
+  message?: string;
+  error?: string;
+}
+
+export interface BulkDeleteSummary {
+  total: number;
+  succeeded: number;
+  failed: number;
+  failed_files: string[];
+}
+
+export interface BulkDeleteResponse {
+  success: boolean;
+  message: string;
+  results: BulkDeleteResult[];
+  summary: BulkDeleteSummary;
+}
+
+export interface BulkDeleteRequest {
+  filenames: string[];
+}
