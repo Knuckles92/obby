@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Backend Development
 - **Start web application**: `python backend.py` (serves built frontend at :8001)
-- **Start CLI monitoring**: `python main.py` (displays usage instructions)
+- **Start CLI monitoring**: `python main.py` (displays usage instructions and redirects to web mode)
 - **Install dependencies**: `pip install -r requirements.txt`
 
 ### Frontend Development
@@ -45,7 +45,7 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - SSE (Server-Sent Events) for real-time frontend updates
 - Database-backed storage replacing in-memory event tracking
 - Integrated file monitoring via `APIObbyMonitor` class
-- Organized route modules: `monitoring`, `files`, `living_note`, `search`, `config`, `data`, `admin`
+- Organized route modules: `monitoring`, `files`, `living_note`, `summary_note`, `search`, `config`, `data`, `admin`, `watch_config`
 
 #### Core Monitoring (`core/monitor.py`)
 - `ObbyMonitor`: Main monitoring orchestrator
@@ -62,18 +62,26 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 #### Database Layer (`database/`)
 - SQLite with optimized settings (WAL mode, foreign keys, FTS5)
 - File-focused query classes: `FileQueries` for API endpoints, plus legacy query classes
-- Enhanced models: `FileVersionModel`, `ContentDiffModel`, `FileStateModel`, `PerformanceModel`
-- Schema migration system via `migration.py` and `migration_git_to_file.py`
-- Connection pooling for thread-safe access
+- Enhanced models: `FileVersionModel`, `ContentDiffModel`, `FileStateModel`, `PerformanceModel`, `SemanticModel`, `ConfigModel`, `EventModel`, `FileChangeModel`
+- Schema migration system:
+  - `migration.py`: Core migration utilities
+  - `migration_git_to_file.py`: Git-to-file system migration
+  - `migration_comprehensive_summaries.py`: Summary system enhancements
+  - `archive/`: Legacy migration files and schemas
+- Connection pooling for thread-safe access with `DatabaseConnection` class
 - File-based API integration replacing git-based diff endpoints
 
 #### AI Integration (`ai/`)
-- `openai_client.py`: OpenAI API integration for content summarization
-- `batch_processor.py`: Scheduled batch processing replacing individual AI calls per file change
-- Structured JSON responses with topics, keywords, impact levels
-- Configurable models (default: `gpt-4.1-mini`)
+- `openai_client.py`: OpenAI API integration for content summarization and semantic analysis
+  - Supported models: `gpt-4o`, `gpt-4.1`, `gpt-4.1-mini` (default), `o4-mini`, `gpt-4.1-nano`
+  - Automatic format configuration loading from `config/format.md`
+  - Structured JSON responses with topics, keywords, impact levels
+- `batch_processor.py`: Scheduled batch processing system for efficient AI analysis
+  - Replaces individual AI calls per file change with batch operations
+  - Configurable batch size and processing intervals
+  - Database-stored configuration for batch settings and last update tracking
 - Graceful degradation when API unavailable
-- Efficient batch processing for improved performance and reduced API costs
+- Multiple processing modes: immediate processing and scheduled batch processing
 
 #### File Monitoring (`utils/`)
 - `file_watcher.py`: Real-time `watchdog` integration
@@ -82,12 +90,17 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - `file_helpers.py`: File operation utilities
 
 #### Frontend (`frontend/src/`)
-- React 18 + TypeScript + Tailwind CSS
-- Vite build system with development server
-- Real-time updates via SSE connection to backend
-- Main pages: Dashboard, DiffViewer, LivingNote, Settings, Administration
-- Component-based architecture with reusable UI elements
-- Advanced theming system with multiple built-in themes
+- **React 18 + TypeScript + Tailwind CSS** for modern UI development
+- **Vite build system** with hot reload development server
+- **Key dependencies**:
+  - `react-router-dom`: Client-side routing and navigation
+  - `react-markdown` + `remark-gfm`: Markdown rendering with GitHub flavor
+  - `react-syntax-highlighter`: Code syntax highlighting
+  - `lucide-react`: Modern icon library
+- **Real-time updates** via SSE connection to backend at `/api/events/stream`
+- **Main pages**: Dashboard, DiffViewer, LivingNote, Settings, Administration, SummaryNotes
+- **Component architecture** with reusable UI elements and contexts
+- **Advanced theming system** with multiple built-in themes and dynamic switching
 
 ### Data Flow
 1. **File Change** → `watchdog` events or periodic scan
@@ -99,6 +112,8 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 ### Configuration Management
 - **Core settings**: `config/settings.py` (file paths, intervals, AI model)
 - **Runtime config**: `config.json` (managed via web interface)
+- **Living note config**: `config/living_note_settings.json` (living note specific settings)
+- **Format templates**: `config/format.md` and `config/format_current_backup.md` (AI formatting templates)
 - **Watch paths**: `.obbywatch` (directories to monitor, located in project root)
 - **Ignore patterns**: `.obbyignore` (glob patterns to skip, located in project root)
 - **Environment**: `OPENAI_API_KEY` for AI features
@@ -108,10 +123,20 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - `monitoring.py`: File monitoring and system status endpoints
 - `files.py`: File operations and content management
 - `living_note.py`: Living note functionality and management
+- `summary_note.py`: Summary note generation and management endpoints
 - `search.py`: Search and semantic query endpoints
 - `config.py`: Configuration management endpoints
 - `data.py`: Data export and analytics endpoints
 - `admin.py`: Administrative functions and system management
+- `watch_config.py`: Watch configuration management (obbywatch/obbyignore files)
+- `api_monitor.py`: API-aware monitoring classes extending core monitoring
+
+#### Services Layer (`services/`)
+- **Business logic abstraction** providing core functionality for routes
+- `living_note_service.py`: Living note creation, update, and management logic
+- `summary_note_service.py`: Summary note generation and processing services
+- Services handle complex operations and integrate with multiple data models
+- Provides reusable business logic across different API endpoints
 
 ### Search & Semantic Features
 - **Full-text search**: SQLite FTS5 for fast content matching
@@ -122,12 +147,17 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 ## Development Notes
 
 ### Database Operations
-- File-focused queries via `FileQueries` class for API endpoints in `database/queries.py`
-- Legacy query classes maintained for backward compatibility
-- Enhanced models for file versions, content diffs, and performance tracking
-- Connection pooling handles thread safety automatically
-- Schema migrations run automatically on startup (including git-to-file migration)
-- FTS5 virtual tables enable fast content search
+- **File-focused queries** via `FileQueries` class for API endpoints in `database/queries.py`
+- **Legacy compatibility** with EventQueries, ConfigQueries for backward compatibility
+- **Enhanced models** for comprehensive file tracking:
+  - File versions, content diffs, file state tracking
+  - Performance monitoring and semantic analysis
+  - Configuration management and event logging
+- **Thread-safe operations** with connection pooling via `DatabaseConnection` class
+- **Automatic migrations** run on startup including:
+  - Git-to-file system migration for legacy installations
+  - Comprehensive summaries migration for enhanced AI features
+- **FTS5 full-text search** virtual tables for fast content indexing and search
 
 ### File Monitoring Modes
 - **Real-time**: Primary monitoring via `watchdog` library (zero latency)
@@ -142,13 +172,21 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 
 ### AI Processing
 - AI analysis is optional (requires `OPENAI_API_KEY`)
-- Batch processing replaces individual AI calls for improved efficiency
-- Structured prompts generate JSON with topics, keywords, summaries
-- Multiple OpenAI models supported (configured via settings)
+- **Dual processing modes**: Immediate processing for real-time updates and scheduled batch processing for efficiency
+- **Model selection**: Supports latest OpenAI models including gpt-4o, gpt-4.1 series, and o4-mini
+- **Semantic analysis**: Structured prompts generate JSON with topics, keywords, summaries, and impact levels
+- **Format templating**: AI responses use configurable format templates from `config/format.md`
+- **Batch optimization**: Configurable batch sizes and intervals reduce API costs and improve performance
 - Graceful fallback when AI services unavailable
 
 ### Testing & Development
-- **Debug scripts**: Located in `debug/` directory (database investigation, diff analysis, simulation tools)
+- **Debug scripts**: Located in `debug/` directory with specialized tools:
+  - `database_diff_investigation.py`: Database diff analysis and debugging
+  - `diff_analysis.py`: Content diff investigation utilities
+  - `duplicate_processing_simulation.py`: Processing simulation and testing
+- **Mock resources**: `mocks/` directory contains theme development files for UI testing
+  - Multiple theme HTML files for frontend theme development and testing
+  - Helps developers test theming system without full application setup
 - **Formal tests**: `tests/` directory reserved for future unit/integration tests
 - **No formal test framework configured** - debugging uses standalone Python scripts
 
@@ -156,5 +194,5 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - **Database backups**: Automatic retention policy (7 days) via `utils/backup_retention.py`
 - **Log files**: Automatic cleanup for log backups (3 days) and general logs (14 days)
 - **Manual cleanup**: Run `python utils/backup_retention.py` for dry-run analysis
- - Living Note: Daily mode enabled by default. Notes are written to `notes/daily/Living Note - YYYY-MM-DD.md` (configurable in `config/settings.py`). Single-file mode `notes/living_note.md` remains available if explicitly configured.
-- Mock themes available in `mocks/` directory for UI development
+- Living Note: Daily mode enabled by default. Notes are written to `output/daily/Living Note - YYYY-MM-DD.md` (configurable in `config/settings.py`). Single-file mode `output/living_note.md` remains available if explicitly configured.
+- Summary Notes: Generated summaries are stored in `output/summaries/` directory with timestamped filenames

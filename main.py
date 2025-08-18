@@ -15,14 +15,14 @@ from core.monitor import ObbyMonitor
 
 def main():
     """Main entry point - directs users to the appropriate mode"""
-    print("🔍 Obby - Note Change Tracker")
+    print("Obby - Note Change Tracker")
     print("=" * 40)
-    print("\n💡 For the web interface (recommended):")
-    print("cd frontend")
-    print("npm run dev")
-    print("   python backend.py")
-    print("   Then open: http://localhost:3001")
-    print("\n See README.md for detailed setup instructions")
+    print("\nFor the web interface (recommended):")
+    print("1. Start backend: python backend.py")
+    print("2. Start frontend: cd frontend && npm run dev")
+    print("3. Open: http://localhost:8001 (backend with built frontend)")
+    print("   Or: http://localhost:5173 (development frontend)")
+    print("\nSee CLAUDE.md for detailed setup instructions")
 
 if __name__ == "__main__":
     main()
