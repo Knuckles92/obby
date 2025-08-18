@@ -106,16 +106,23 @@ def trigger_living_note_update():
         data = request.get_json() or {}
         force_update = data.get('force', False)
         result = living_note_service.update(force=force_update)
+        
         # Notify SSE clients after a short delay to ensure the filesystem write is visible
         import time
         time.sleep(0.2)
         notify_living_note_change()
-        status = 200 if result.get('success') else 500
-        return jsonify(result), status
+        
+        # Always return 200 for successful service calls - let the frontend handle the response
+        # The service already indicates success/failure in the result dict
+        return jsonify(result), 200
 
     except Exception as e:
         logger.error(f"Failed to trigger living note update: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'message': f'Failed to update living note: {str(e)}',
+            'updated': False
+        }), 500
 
 
 @living_note_bp.route('/events')

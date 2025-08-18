@@ -7,13 +7,15 @@
 // Determine the API base URL based on the environment
 const getApiBaseUrl = (): string => {
   // In development mode (Vite dev server), the proxy handles the routing
-  if (import.meta.env.DEV) {
+  // Force empty string in development to ensure proxy usage
+  if (import.meta.env.DEV || import.meta.env.MODE === 'development') {
     return ''
   }
   
   // In production mode, we need to specify the full backend URL
   // You can customize this URL based on your production setup
-  return import.meta.env.VITE_API_URL || 'http://localhost:8001'
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8001'
+  return apiUrl
 }
 
 const API_BASE_URL = getApiBaseUrl()
@@ -41,8 +43,15 @@ export const apiRequest = async <T = any>(
   const response = await apiFetch(endpoint, options)
   
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-    throw new Error(error.error || `HTTP error! status: ${response.status}`)
+    let errorMessage = 'Unknown error'
+    try {
+      const errorData = await response.json()
+      // Try multiple possible error field names
+      errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}: ${response.statusText}`
+    } catch {
+      errorMessage = `HTTP ${response.status}: ${response.statusText}`
+    }
+    throw new Error(errorMessage)
   }
   
   return response.json()

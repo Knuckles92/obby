@@ -229,8 +229,14 @@ class LivingNoteService:
                         'updated': False
                     }
                 else:
-                    # Proceed with an empty set of diffs when forced
-                    diffs = []
+                    # When forced but no diffs found, return success without processing
+                    logger.info("Living note: forced update requested but no content changes found")
+                    return {
+                        'success': True,
+                        'message': 'No new changes to summarize',
+                        'updated': False,
+                        'individual_summary_created': False
+                    }
 
             # Build AI context and metrics
             if diffs:
