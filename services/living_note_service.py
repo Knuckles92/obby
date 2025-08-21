@@ -3,6 +3,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from pathlib import Path
+import time
 
 from ai.openai_client import OpenAIClient
 
@@ -172,6 +173,7 @@ class LivingNoteService:
         Returns dict with success, updated, message, and summary when applicable.
         """
         try:
+            t_total_start = time.perf_counter()
             # Resolve target path (daily or single)
             target_path = self._resolve_living_note_path()
 
@@ -194,7 +196,10 @@ class LivingNoteService:
 
             # Fetch diffs
             from database.queries import FileQueries
+            t_diffs_start = time.perf_counter()
             all_diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
+            t_diffs = time.perf_counter() - t_diffs_start
+            logger.info(f"Living note timing: get_diffs_since took {t_diffs:.3f}s (window_start={window_start.isoformat()})")
             
             # Exclude the living note file itself to prevent feedback loops
             target_path = self._resolve_living_note_path().resolve()
@@ -212,7 +217,10 @@ class LivingNoteService:
 
             # Fallback to recent diffs to avoid empty updates
             if not diffs:
+                t_recent_start = time.perf_counter()
                 all_recent_diffs = FileQueries.get_recent_diffs(limit=10, watch_handler=watch_handler)
+                t_recent = time.perf_counter() - t_recent_start
+                logger.info(f"Living note timing: get_recent_diffs took {t_recent:.3f}s")
                 # Also exclude living note file from recent diffs
                 recent_diffs = []
                 for diff in all_recent_diffs:
@@ -266,8 +274,13 @@ class LivingNoteService:
             notes_added_count = len({d.get('filePath') for d in diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
 
             # AI-generated summary bullets and proposed questions
+            t_ai_start = time.perf_counter()
             summary_bullets = self.openai_client.summarize_minimal(context_text) if context_text else "- no meaningful changes"
+            t_ai_summary = time.perf_counter() - t_ai_start
+            t_ai_q_start = time.perf_counter()
             questions_text = self.openai_client.generate_proposed_questions(context_text) if context_text else ""
+            t_ai_questions = time.perf_counter() - t_ai_q_start
+            logger.info(f"Living note timing: AI summarize_minimal={t_ai_summary:.3f}s, generate_proposed_questions={t_ai_questions:.3f}s")
             
             # Metrics section formatted consistently with a header (like Questions)
             parts = [
@@ -289,6 +302,7 @@ class LivingNoteService:
             summary_block = "\n".join(parts)
 
             # Update the living note file with structured append
+            t_write_start = time.perf_counter()
             success = self.openai_client.update_living_note(
                 str(target_path),
                 summary_block,
@@ -296,11 +310,16 @@ class LivingNoteService:
                 settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
                 update_type=None,
             )
+            t_write = time.perf_counter() - t_write_start
+            logger.info(f"Living note timing: update_living_note (file write + semantic index) took {t_write:.3f}s")
             if not success:
                 return {'success': False, 'message': 'Failed to update living note'}
 
             # Also create individual summary file for pagination
+            t_individual_start = time.perf_counter()
             individual_summary_created = self._create_individual_summary(summary_block)
+            t_individual = time.perf_counter() - t_individual_start
+            logger.info(f"Living note timing: _create_individual_summary took {t_individual:.3f}s (created={bool(individual_summary_created)})")
             if individual_summary_created:
                 logger.info("Individual summary file created successfully")
                 # Notify summary note SSE clients
@@ -308,12 +327,17 @@ class LivingNoteService:
 
             # Advance cursor
             try:
+                t_cursor_start = time.perf_counter()
                 latest_ts = diffs[-1]['timestamp'] if diffs else datetime.now().isoformat()
                 latest_ts_str = latest_ts if isinstance(latest_ts, str) else latest_ts.isoformat()
                 ConfigModel.set('living_note_last_update', latest_ts_str, 'Living note last update')
+                t_cursor = time.perf_counter() - t_cursor_start
+                logger.info(f"Living note timing: ConfigModel.set cursor update took {t_cursor:.3f}s")
             except Exception:
                 ConfigModel.set('living_note_last_update', datetime.now().isoformat(), 'Living note last update')
 
+            t_total = time.perf_counter() - t_total_start
+            logger.info(f"Living note timing: total update duration {t_total:.3f}s")
             return {
                 'success': True,
                 'message': 'Living note updated from diffs since last check',

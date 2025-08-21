@@ -25,12 +25,24 @@ class OpenAIClient:
 
     def __init__(self, api_key=None, model="gpt-4.1-mini"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.model = model
-        self.client = OpenAI(api_key=self.api_key)
+        # Allow override via env while keeping default arg behavior
+        self.model = os.getenv("OBBY_OPENAI_MODEL", model)
+        # Client-wide network safeguards
+        try:
+            self._timeout = float(os.getenv("OBBY_OPENAI_TIMEOUT", "15"))
+        except Exception:
+            self._timeout = 15.0
+        try:
+            self._max_retries = int(os.getenv("OBBY_OPENAI_MAX_RETRIES", "1"))
+        except Exception:
+            self._max_retries = 1
+        # Configure OpenAI SDK with explicit timeout/retry to avoid hangs
+        self.client = OpenAI(api_key=self.api_key, timeout=self._timeout, max_retries=self._max_retries)
 
         # Validate model selection
-        if model not in self.MODELS.values():
-            logging.warning(f"Model '{model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
+        if self.model not in self.MODELS.values():
+            logging.warning(f"Model '{self.model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
+        logging.info(f"OpenAI client configured: model={self.model}, timeout={self._timeout}s, max_retries={self._max_retries}")
 
         # Format configuration caching
         self._format_config = None

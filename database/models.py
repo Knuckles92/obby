@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 from contextlib import contextmanager
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -65,21 +66,35 @@ class DatabaseConnection:
     def execute_query(self, query: str, params: tuple = ()) -> List[sqlite3.Row]:
         """Execute SELECT query and return results."""
         with self.get_connection() as conn:
+            t0 = time.perf_counter()
             cursor = conn.execute(query, params)
-            return cursor.fetchall()
+            rows = cursor.fetchall()
+            dt = time.perf_counter() - t0
+            # Log only the first line of the query to keep logs concise
+            first_line = query.strip().splitlines()[0] if query else ""
+            logger.info(f"DB timing: execute_query {dt:.3f}s rows={len(rows)} | {first_line[:120]}")
+            return rows
     
     def execute_update(self, query: str, params: tuple = ()) -> int:
         """Execute INSERT/UPDATE/DELETE and return affected rows."""
         with self.get_connection() as conn:
+            t0 = time.perf_counter()
             cursor = conn.execute(query, params)
             conn.commit()
+            dt = time.perf_counter() - t0
+            first_line = query.strip().splitlines()[0] if query else ""
+            logger.info(f"DB timing: execute_update {dt:.3f}s affected={cursor.rowcount} | {first_line[:120]}")
             return cursor.rowcount
     
     def execute_many(self, query: str, params_list: List[tuple]) -> int:
         """Execute query with multiple parameter sets."""
         with self.get_connection() as conn:
+            t0 = time.perf_counter()
             cursor = conn.executemany(query, params_list)
             conn.commit()
+            dt = time.perf_counter() - t0
+            first_line = query.strip().splitlines()[0] if query else ""
+            logger.info(f"DB timing: execute_many {dt:.3f}s affected={cursor.rowcount} batches={len(params_list)} | {first_line[:120]}")
             return cursor.rowcount
 
 # Global database instance
@@ -158,6 +173,12 @@ class FileVersionModel:
         """
         rows = db.execute_query(query, (file_path, limit))
         return [dict(row) for row in rows]
+    
+    @classmethod
+    def get_by_id(cls, version_id: int) -> Optional[Dict[str, Any]]:
+        """Get a single file version by its primary key ID."""
+        rows = db.execute_query("SELECT * FROM file_versions WHERE id = ?", (version_id,))
+        return dict(rows[0]) if rows else None
 
 class ContentDiffModel:
     """File content difference tracking without git dependency."""

@@ -16,6 +16,8 @@ import queue
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +27,7 @@ living_note_bp = Blueprint('living_note', __name__, url_prefix='/api/living-note
 sse_clients = []
 living_note_observer = None
 living_note_service = LivingNoteService(str(LIVING_NOTE_PATH))
+living_note_update_lock = threading.Lock()
 
 
 @living_note_bp.route('/', methods=['GET'])
@@ -95,26 +98,83 @@ def save_living_note_settings():
         return jsonify({'error': str(e)}), 500
 
 
+def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
+    """Background worker to perform the living note update with locking.
+
+    Writes the result dict into result_box['result'] when done.
+    """
+    acquired = living_note_update_lock.acquire(timeout=max(lock_timeout, 0.0))
+    if not acquired:
+        logger.info("Living note update: another run is in progress; skipping new execution")
+        result_box['result'] = {
+            'success': True,
+            'updated': False,
+            'message': 'Update already in progress'
+        }
+        return
+    try:
+        logger.info(f"Living note update: starting (force={force})")
+        res = living_note_service.update(force=force)
+        result_box['result'] = res
+        # Small delay to ensure FS timestamps are visible
+        time.sleep(0.2)
+        notify_living_note_change()
+        logger.info("Living note update: completed and SSE notified")
+    except Exception as e:
+        logger.error(f"Living note update failed in worker: {e}")
+        result_box['result'] = {
+            'success': False,
+            'updated': False,
+            'message': f'Living note update failed: {str(e)}'
+        }
+    finally:
+        try:
+            living_note_update_lock.release()
+        except Exception:
+            pass
+
+
 @living_note_bp.route('/update', methods=['POST'])
 def trigger_living_note_update():
-    """Update the living note by summarizing content diffs since the last update.
+    """Update the living note with optional async execution and overall timeout ceiling.
 
-    This constrains the living note to summaries/insights strictly for the window
-    between update calls (cursor-based), instead of an arbitrary set of recent events.
+    Request body supports:
+      - force (bool): force update even with no diffs
+      - async (bool): when true, start in background and return 202 immediately
+      - lock_timeout (float): seconds to wait for acquiring update lock (default 1.0)
+      - max_duration_secs (float): ceiling for synchronous wait before returning 202 (default 15.0)
     """
     try:
         data = request.get_json() or {}
-        force_update = data.get('force', False)
-        result = living_note_service.update(force=force_update)
-        
-        # Notify SSE clients after a short delay to ensure the filesystem write is visible
-        import time
-        time.sleep(0.2)
-        notify_living_note_change()
-        
-        # Always return 200 for successful service calls - let the frontend handle the response
-        # The service already indicates success/failure in the result dict
-        return jsonify(result), 200
+        force_update = bool(data.get('force', False))
+        run_async = bool(data.get('async', False))
+        lock_timeout = float(data.get('lock_timeout', 1.0))
+        max_duration = float(data.get('max_duration_secs', 15.0))
+
+        # Always run the update in a worker thread to allow early return if needed
+        result_box = {'result': None}
+        worker = threading.Thread(target=_run_update_worker, args=(force_update, lock_timeout, result_box), daemon=True)
+        worker.start()
+
+        if run_async:
+            logger.info("Living note update: triggered asynchronously; returning 202")
+            return jsonify({
+                'accepted': True,
+                'success': True,
+                'message': 'Living note update started in background',
+            }), 202
+
+        # Synchronous path with protective ceiling
+        worker.join(timeout=max(0.0, max_duration))
+        if result_box['result'] is not None:
+            return jsonify(result_box['result']), 200
+        else:
+            logger.info(f"Living note update: still running after {max_duration:.1f}s; returning 202 to avoid blocking")
+            return jsonify({
+                'accepted': True,
+                'success': True,
+                'message': 'Living note update continuing in background',
+            }), 202
 
     except Exception as e:
         logger.error(f"Failed to trigger living note update: {e}")

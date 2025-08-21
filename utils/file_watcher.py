@@ -220,14 +220,14 @@ class NoteChangeHandler(FileSystemEventHandler):
                 
                 # Enhanced logging for debugging
                 if version_id:
-                    logging.info(f"[WATCHDOG] ✅ Successfully processed {change_type} change in {file_path.name} (version_id: {version_id})")
+                    logging.info(f"[WATCHDOG] Successfully processed {change_type} change in {file_path.name} (version_id: {version_id})")
                     
                     # Trigger immediate AI processing if AI client is available
                     if self.ai_client and change_type in ['created', 'modified']:
                         self._process_with_ai_immediate(str(file_path), version_id)
                     
                 else:
-                    logging.info(f"[WATCHDOG] ⚠️ File tracker returned None for {change_type} change in {file_path.name} - no content change detected")
+                    logging.info(f"[WATCHDOG] File tracker returned None for {change_type} change in {file_path.name} - no content change detected")
                 
             else:
                 logging.warning("[WATCHDOG] File tracker not available, using legacy processing")
@@ -277,7 +277,7 @@ class NoteChangeHandler(FileSystemEventHandler):
                     version_id=version_id
                 )
                 
-                logging.info(f"[AI] ✅ Created semantic entry {semantic_id} for {Path(file_path).name}")
+                logging.info(f"[AI] Created semantic entry {semantic_id} for {Path(file_path).name}")
                 
                 # Notify summary note service about new summary
                 self._notify_summary_created(file_path, semantic_id)
