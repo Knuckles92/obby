@@ -23,6 +23,12 @@ class LivingNoteService:
         self.settings_path = Path('config/living_note_settings.json')
         self.format_path = Path('config/format.md')
         self.openai_client = OpenAIClient()
+        # Proactively warm up OpenAI client to avoid first-request cold starts
+        try:
+            warmed = self.openai_client.warm_up()
+            logger.info(f"OpenAI client warm-up complete: {warmed}")
+        except Exception as e:
+            logger.debug(f"OpenAI client warm-up skipped due to non-fatal error: {e}")
         # Ensure format.md is in config if legacy file exists
         try:
             from utils.migrations import migrate_format_md
@@ -504,5 +510,3 @@ class LivingNoteService:
             notify_summary_note_change('created')
         except Exception as e:
             logger.debug(f"Failed to notify summary note clients: {e}")
-
-

@@ -37,7 +37,20 @@ class OpenAIClient:
         except Exception:
             self._max_retries = 1
         # Configure OpenAI SDK with explicit timeout/retry to avoid hangs
-        self.client = OpenAI(api_key=self.api_key, timeout=self._timeout, max_retries=self._max_retries)
+        try:
+            self.client = OpenAI(api_key=self.api_key, timeout=self._timeout, max_retries=self._max_retries)
+        except TypeError:
+            # Fallback for SDKs without these kwargs
+            logging.warning("OpenAI client does not support timeout/max_retries at construction; using basic client")
+            self.client = OpenAI(api_key=self.api_key)
+        except Exception as e:
+            logging.error(f"Failed to initialize OpenAI client with advanced options: {e}")
+            try:
+                self.client = OpenAI(api_key=self.api_key)
+            except Exception as e2:
+                # As a last resort, set to None; callers handle errors gracefully
+                logging.error(f"Failed to initialize basic OpenAI client: {e2}")
+                self.client = None
 
         # Validate model selection
         if self.model not in self.MODELS.values():
@@ -48,6 +61,28 @@ class OpenAIClient:
         self._format_config = None
         self._format_config_mtime = None
         self._format_file_path = Path('config/format.md')
+
+    def warm_up(self) -> bool:
+        """Perform lightweight local warm-up to avoid first-call delays/errors.
+
+        Loads living note settings and format configuration. Does not make network calls.
+        Returns True if completed without critical errors.
+        """
+        try:
+            _ = self._load_living_note_settings()
+            _ = self._load_format_config()
+            # Touch client attribute to ensure construction happened; do not call the API
+            if self.client is None:
+                # Try a best-effort basic initialization if not yet created
+                try:
+                    self.client = OpenAI(api_key=self.api_key)
+                except Exception:
+                    # Not fatal for warm-up; actual calls still handle errors
+                    pass
+            return True
+        except Exception as e:
+            logging.debug(f"OpenAI warm-up encountered a non-fatal issue: {e}")
+            return False
 
     def summarize_diff(self, diff_content, settings=None, recent_tree_changes=None):
         """
