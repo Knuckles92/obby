@@ -119,7 +119,7 @@ export default function SummaryCard({
               e.stopPropagation()
               onDelete(summary.filename)
             }}
-            className="opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-200 p-2 hover:bg-red-100 rounded-md touch-manipulation"
+            className="opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-200 p-2 hover:bg-red-100 rounded-md touch-manipulation flex items-center justify-center"
             style={{
               color: 'var(--color-error)',
               transition: 'opacity 0.2s ease, background-color 0.2s ease',
