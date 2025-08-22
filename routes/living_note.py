@@ -1,3 +1,4 @@
+
 """
 Living Notes API routes
 Handles living note content, settings, updates, and SSE events
