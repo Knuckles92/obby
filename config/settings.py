@@ -53,6 +53,19 @@ OPENAI_TEMPERATURES = {
     "batch_summary": 0.7,
 }
 
+# OpenAI token limits (centralized)
+# These are per-feature caps for `max_tokens` (or equivalent). Override at runtime if needed.
+OPENAI_TOKEN_LIMITS = {
+    "diff_summary": 800,
+    "minimal_summary": 400,
+    "proposed_questions": 300,
+    "session_title": 50,
+    "events_summary": 700,
+    "tree_summary": 900,
+    "insights": 800,
+    "batch_summary": 1200,
+}
+
 # AI Update settings (separate from file monitoring frequency)
 AI_UPDATE_INTERVAL = 12  # hours - how often AI processing runs (default: twice daily)
 AI_AUTO_UPDATE_ENABLED = True  # whether AI auto-updates are enabled
