@@ -174,16 +174,36 @@ def get_models():
             'currentModel': OPENAI_MODEL
         })
     except Exception as e:
-        # Graceful fallback to static list if API call fails
+        # Improved fallback chain: user config first, then hardcoded list
         try:
             from config.settings import OPENAI_MODEL
         except Exception:
-            OPENAI_MODEL = 'gpt-4o'
+            OPENAI_MODEL = 'gpt-4.1-mini'  # Match the actual default from settings.py
+        
+        # Check for environment variable override
+        env_model = os.getenv("OBBY_OPENAI_MODEL")
+        current_model = env_model if env_model else OPENAI_MODEL
+        
+        # Build fallback models list starting with user's configured model
+        fallback_models = {}
+        
+        # Add user's configured model first (if it's valid)
+        if current_model and current_model in OpenAIClient.MODELS.values():
+            fallback_models[current_model] = current_model
+        
+        # Add remaining hardcoded models
+        for name, model_id in OpenAIClient.MODELS.items():
+            if model_id not in fallback_models:
+                fallback_models[name] = model_id
+        
+        # Default should be user's configured model, or first available
+        default_model = current_model if current_model in fallback_models.values() else next(iter(fallback_models.values()), 'gpt-4.1-mini')
+        
         return jsonify({
-            'error': f'Failed to get models: {str(e)}',
-            'models': OpenAIClient.MODELS,
-            'defaultModel': 'gpt-5-mini',
-            'currentModel': OPENAI_MODEL
+            'error': f'Failed to get models from API: {str(e)}',
+            'models': fallback_models,
+            'defaultModel': default_model,
+            'currentModel': current_model
         }), 500
 
 

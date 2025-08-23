@@ -15,15 +15,14 @@ class OpenAIClient:
     """Handles OpenAI API calls for diff summarization."""
 
     # Latest OpenAI models as of July 2025
-    MODELS = {
-        'gpt-4o': 'gpt-4o',           # Latest GPT-4 model with improved capabilities
+    MODELS = {        # Latest GPT-4 model with improved capabilities
+        'gpt-5-mini': 'gpt-5-mini',         # GPT-5 mini model
+        'gpt-5': 'gpt-5',         # GPT-5 model
         'gpt-4.1': 'gpt-4.1',         # GPT-4.1 model
-        'gpt-4.1-mini': 'gpt-4.1-mini',  # GPT-4.1 mini model
-        'o4-mini': 'o4-mini',         # O4 mini model
-        'gpt-4.1-nano': 'gpt-4.1-nano'  # GPT-4.1 nano model
+        'gpt-4.1-mini': 'gpt-4.1-mini'  # GPT-4.1 mini model
     }
 
-    def __init__(self, api_key=None, model="gpt-4.1-mini"):
+    def __init__(self, api_key=None, model="gpt-5-mini"):
         self.api_key = api_key or os.getenv("OPENAI_API_KEY")
         # Allow override via env while keeping default arg behavior
         self.model = os.getenv("OBBY_OPENAI_MODEL", model)
