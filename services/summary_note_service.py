@@ -313,18 +313,16 @@ class SummaryNoteService:
         return content
     
     def delete_summary(self, filename: str) -> Dict:
-        """Delete a specific summary from hybrid database + file system.
+        """Delete a specific summary from database and file system.
         
         Args:
             filename: Name of the summary file to delete
-            
+        
         Returns:
             Dict containing success status and message
         """
         try:
-            import os
-            
-            # Find the database entry by filename
+            # Find the database entry by filename (exact or suffix match)
             query = """
                 SELECT se.id, se.markdown_file_path
                 FROM semantic_entries se
@@ -333,60 +331,52 @@ class SummaryNoteService:
                 ORDER BY se.timestamp DESC
                 LIMIT 1
             """
-            
             rows = db.execute_query(query, (f"%/{filename}", filename))
-            
-            # Fallback: try to extract semantic ID from old format
+
+            # Fallback: try to extract semantic ID from old format Summary-{id}-....md
             if not rows:
-                import re
                 match = re.match(r'Summary-(\d+)-.*\.md', filename)
                 if match:
                     semantic_id = int(match.group(1))
-                    id_query = "SELECT id, markdown_file_path FROM semantic_entries WHERE id = ? AND source_type = 'living_note'"
+                    id_query = (
+                        "SELECT id, markdown_file_path FROM semantic_entries "
+                        "WHERE id = ? AND source_type = 'living_note'"
+                    )
                     rows = db.execute_query(id_query, (semantic_id,))
-            
+
             if not rows:
                 raise FileNotFoundError(f"Summary not found: {filename}")
-            
+
             row = rows[0]
             semantic_id = row['id']
             markdown_file_path = row['markdown_file_path']
-            
-            # Use transaction to ensure atomicity
-            try:
-                db.execute_query("BEGIN TRANSACTION")
-                
-                # Delete from database (foreign keys will handle related tables)
-                delete_query = "DELETE FROM semantic_entries WHERE id = ?"
-                db.execute_update(delete_query, (semantic_id,))
-                
-                # Delete the markdown file if it exists
-                if markdown_file_path:
-                    file_path = Path(markdown_file_path)
-                    if not file_path.is_absolute():
-                        file_path = Path.cwd() / file_path
-                    
-                    if file_path.exists():
+
+            # Delete from database (auto-commit handled by execute_update)
+            delete_query = "DELETE FROM semantic_entries WHERE id = ?"
+            db.execute_update(delete_query, (semantic_id,))
+
+            # Best-effort delete the markdown file if it exists
+            if markdown_file_path:
+                file_path = Path(markdown_file_path)
+                if not file_path.is_absolute():
+                    file_path = Path.cwd() / file_path
+                if file_path.exists():
+                    try:
                         os.remove(file_path)
                         logger.info(f"Deleted markdown file: {file_path}")
-                    else:
-                        logger.warning(f"Markdown file not found for deletion: {file_path}")
-                
-                db.execute_query("COMMIT")
-                
-                return {
-                    'success': True,
-                    'message': f'Summary {filename} deleted successfully'
-                }
-                
-            except Exception as tx_error:
-                db.execute_query("ROLLBACK")
-                raise tx_error
-            
+                    except Exception as file_err:
+                        logger.warning(f"Failed to delete markdown file {file_path}: {file_err}")
+                else:
+                    logger.warning(f"Markdown file not found for deletion: {file_path}")
+
+            return {
+                'success': True,
+                'message': f'Summary {filename} deleted successfully'
+            }
+
         except Exception as e:
             logger.error(f"Failed to delete summary {filename}: {e}")
             raise
-    
     def delete_multiple_summaries(self, filenames: List[str]) -> Dict:
         """Delete multiple summaries from database in bulk.
         
