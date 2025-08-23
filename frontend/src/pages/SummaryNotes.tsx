@@ -7,6 +7,7 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import SummaryGrid from '../components/SummaryGrid'
 import SearchFilters from '../components/SearchFilters'
+import SearchResultsPopup from '../components/SearchResultsPopup'
 import { apiFetch, triggerLivingNoteUpdate } from '../utils/api'
 import { 
   SummaryNote, 
@@ -88,7 +89,10 @@ export default function SummaryNotes() {
   const [generateSuccess, setGenerateSuccess] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
   
-  
+  // Search popup state (for single view)
+  const [searchPopupOpen, setSearchPopupOpen] = useState(false)
+  const [allSearchResults, setAllSearchResults] = useState<SummaryNote[]>([])
+  const [searchResultsLoading, setSearchResultsLoading] = useState(false)
   
   const eventSourceRef = useRef<EventSource | null>(null)
 
@@ -165,6 +169,63 @@ export default function SummaryNotes() {
       eventSourceRef.current.close()
       eventSourceRef.current = null
       setIsConnected(false)
+    }
+  }
+
+  const fetchAllSearchResults = async (filters: SummarySearchFilters) => {
+    if (!filters.searchTerm) {
+      setAllSearchResults([])
+      return
+    }
+    
+    try {
+      setSearchResultsLoading(true)
+      // Fetch a large number of results for the popup (not paginated)
+      const params = new URLSearchParams()
+      params.append('page', '1')
+      params.append('page_size', '50') // Get more results for the popup
+      params.append('search', filters.searchTerm)
+      
+      const response = await apiFetch(`/api/summary-notes/?${params.toString()}`)
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`)
+      }
+      
+      const data = await response.json()
+      let results = data.summaries || []
+      
+      // Apply client-side filtering for date range and sorting
+      if (filters.dateRange?.start || filters.dateRange?.end) {
+        results = results.filter((summary: SummaryNote) => {
+          const summaryDate = new Date(summary.timestamp)
+          const startDate = filters.dateRange?.start ? new Date(filters.dateRange.start) : null
+          const endDate = filters.dateRange?.end ? new Date(filters.dateRange.end) : null
+          
+          if (startDate && summaryDate < startDate) return false
+          if (endDate && summaryDate > endDate) return false
+          return true
+        })
+      }
+      
+      // Apply sorting
+      results.sort((a: SummaryNote, b: SummaryNote) => {
+        switch (filters.sortBy) {
+          case 'oldest':
+            return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          case 'word_count':
+            return b.word_count - a.word_count
+          case 'newest':
+          default:
+            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        }
+      })
+      
+      setAllSearchResults(results)
+    } catch (error) {
+      console.error('Error fetching search results:', error)
+      setAllSearchResults([])
+    } finally {
+      setSearchResultsLoading(false)
     }
   }
 
@@ -478,12 +539,25 @@ export default function SummaryNotes() {
     // Clear selection and exit select mode when changing view modes
     setSelectedItems(new Set())
     setIsSelectMode(false)
+    
+    // Close search popup when switching to grid view
+    if (newMode === 'grid') {
+      setSearchPopupOpen(false)
+    }
+    
     // Reset to first page when changing view modes
     await fetchSummaries(1, newMode, searchFilters)
   }
 
   const handleFiltersChange = async (newFilters: SummarySearchFilters) => {
     setSearchFilters(newFilters)
+    
+    // Close popup if search term is cleared
+    if (!newFilters.searchTerm) {
+      setSearchPopupOpen(false)
+      setAllSearchResults([])
+    }
+    
     // Reset to first page when filters change
     await fetchSummaries(1, viewMode, newFilters)
     
@@ -492,6 +566,49 @@ export default function SummaryNotes() {
     if (hasActiveFilters && !isSearchVisible) {
       setIsSearchVisible(true)
     }
+  }
+
+  const handleSearchExecute = async (searchTerm: string) => {
+    // Only show popup in single view mode when search is executed
+    if (viewMode === 'single' && searchTerm.trim()) {
+      const newSearchFilters = { ...searchFilters, searchTerm }
+      await fetchAllSearchResults(newSearchFilters)
+      setSearchPopupOpen(true)
+    }
+  }
+
+  const handleSearchResultSelect = async (filename: string) => {
+    // Find the selected summary in all search results or current summaries
+    let targetSummary = allSearchResults.find(s => s.filename === filename)
+    if (!targetSummary) {
+      targetSummary = summaries.find(s => s.filename === filename)
+    }
+    
+    if (targetSummary) {
+      // Load the specific summary content
+      await fetchSummaryContent(filename)
+      
+      // Find which page this summary would be on if we cleared the search
+      // For now, just load it directly
+      const params = new URLSearchParams()
+      params.append('page', '1')
+      params.append('page_size', '1')
+      
+      try {
+        const response = await apiFetch(`/api/summary-notes/?${params.toString()}`)
+        await response.json()
+        // Update pagination to show we're viewing a specific item
+        setPagination(prev => ({
+          ...prev,
+          current_page: 1
+        }))
+      } catch (error) {
+        console.error('Error updating pagination:', error)
+      }
+    }
+    
+    // Close the popup
+    setSearchPopupOpen(false)
   }
 
   const handleViewSummary = async (filename: string) => {
@@ -782,6 +899,7 @@ export default function SummaryNotes() {
         <SearchFilters
           filters={searchFilters}
           onFiltersChange={handleFiltersChange}
+          onSearchExecute={handleSearchExecute}
           isExpanded={isFiltersExpanded}
           onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
         />
@@ -901,6 +1019,16 @@ export default function SummaryNotes() {
         danger={true}
         loading={bulkDeleteLoading}
         extraWarning="All selected summary files will be permanently removed from your system."
+      />
+
+      {/* Search Results Popup (Single View Only) */}
+      <SearchResultsPopup
+        isOpen={searchPopupOpen && viewMode === 'single'}
+        onClose={() => setSearchPopupOpen(false)}
+        searchTerm={searchFilters.searchTerm}
+        searchResults={allSearchResults}
+        loading={searchResultsLoading}
+        onSelectResult={handleSearchResultSelect}
       />
     </div>
   )

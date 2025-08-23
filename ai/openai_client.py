@@ -62,6 +62,21 @@ class OpenAIClient:
         self._format_config_mtime = None
         self._format_file_path = Path('config/format.md')
 
+    def _get_temperature(self, requested_temperature: float) -> float:
+        """
+        Get appropriate temperature for the current model.
+        GPT-5 era models only support temperature=1.0, older models support custom temperatures.
+        """
+        # GPT-5 era models that require temperature=1.0
+        gpt5_models = ['gpt-5', 'gpt-5-mini']
+        
+        if self.model in gpt5_models:
+            if requested_temperature != 1.0:
+                logging.debug(f"Using temperature=1.0 for {self.model} (requested {requested_temperature})")
+            return 1.0
+        else:
+            return requested_temperature
+
     def warm_up(self) -> bool:
         """Perform lightweight local warm-up to avoid first-call delays/errors.
 
@@ -104,13 +119,13 @@ class OpenAIClient:
             # Build customized system prompt based on settings
             system_prompt = self._build_system_prompt(settings, "diff")
 
-            # Adjust max_tokens based on summary length setting
-            max_tokens_map = {
+            # Adjust max_completion_tokens based on summary length setting
+            max_completion_tokens_map = {
                 'brief': 300,
                 'moderate': 600,
                 'detailed': 1000
             }
-            max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 600)
+            max_completion_tokens = max_completion_tokens_map.get(settings.get('summaryLength', 'moderate'), 600)
 
             # Build user content with diff and optional tree change context
             user_content = f"Please summarize the following diff:\n\n{diff_content}"
@@ -142,8 +157,8 @@ class OpenAIClient:
                         "content": user_content
                     }
                 ],
-                max_tokens=max_tokens,
-                temperature=cfg.OPENAI_TEMPERATURES.get("diff_summary", 0.7)
+                max_completion_tokens=max_completion_tokens,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("diff_summary", 0.7))
             )
 
             return response.choices[0].message.content.strip()
@@ -178,8 +193,8 @@ class OpenAIClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=10000,
-                temperature=cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7),
+                max_completion_tokens=10000,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7)),
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
@@ -210,8 +225,8 @@ class OpenAIClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=10000,
-                temperature=cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7),
+                max_completion_tokens=10000,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7)),
             )
             text = response.choices[0].message.content.strip()
             # Heuristic: if the model replied with something other than bullets, ignore
@@ -246,8 +261,8 @@ class OpenAIClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=20,
-                temperature=cfg.OPENAI_TEMPERATURES.get("session_title", 0.7),
+                max_completion_tokens=20,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("session_title", 0.7)),
             )
             title = response.choices[0].message.content.strip()
             # Post-process: collapse lines, strip quotes/backticks, trim length
@@ -280,13 +295,13 @@ class OpenAIClient:
             # Build customized system prompt
             system_prompt = self._build_system_prompt(settings, "events")
 
-            # Adjust max_tokens based on summary length setting
-            max_tokens_map = {
+            # Adjust max_completion_tokens based on summary length setting
+            max_completion_tokens_map = {
                 'brief': 200,
                 'moderate': 400,
                 'detailed': 800
             }
-            max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 400)
+            max_completion_tokens = max_completion_tokens_map.get(settings.get('summaryLength', 'moderate'), 400)
 
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -300,8 +315,8 @@ class OpenAIClient:
                         "content": f"Please summarize the following recent events:\n\n{events_text}"
                     }
                 ],
-                max_tokens=max_tokens,
-                temperature=cfg.OPENAI_TEMPERATURES.get("events_summary", 0.3)
+                max_completion_tokens=max_completion_tokens,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("events_summary", 0.3))
             )
 
             return response.choices[0].message.content.strip()
@@ -588,8 +603,8 @@ IMPORTANT:
                         "content": f"Please summarize the following file tree change with semantic metadata:\n\n{tree_change_description}"
                     }
                 ],
-                max_tokens=400,
-                temperature=cfg.OPENAI_TEMPERATURES.get("tree_summary", 0.3)
+                max_completion_tokens=400,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("tree_summary", 0.3))
             )
 
             return response.choices[0].message.content.strip()
@@ -828,8 +843,8 @@ IMPORTANT:
                         "content": user_prompt
                     }
                 ],
-                max_tokens=300,
-                temperature=cfg.OPENAI_TEMPERATURES.get("insights", 0.4)
+                max_completion_tokens=300,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("insights", 0.4))
             )
 
             return response.choices[0].message.content.strip()
@@ -1169,13 +1184,13 @@ Batch Overview:
                 focus_areas_text = ", ".join(settings['focusAreas'])
                 user_content += f"\nPay special attention to these focus areas: {focus_areas_text}"
 
-            # Adjust max_tokens for batch processing
-            max_tokens_map = {
+            # Adjust max_completion_tokens for batch processing
+            max_completion_tokens_map = {
                 'brief': 400,
                 'moderate': 800,
                 'detailed': 1200
             }
-            max_tokens = max_tokens_map.get(settings.get('summaryLength', 'moderate'), 800)
+            max_completion_tokens = max_completion_tokens_map.get(settings.get('summaryLength', 'moderate'), 800)
 
             logging.info(f"Processing batch AI request for {files_changed} files, {total_changes} changes")
 
@@ -1191,8 +1206,8 @@ Batch Overview:
                         "content": user_content
                     }
                 ],
-                max_tokens=max_tokens,
-                temperature=cfg.OPENAI_TEMPERATURES.get("batch_summary", 0.3)
+                max_completion_tokens=max_completion_tokens,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("batch_summary", 0.3))
             )
 
             return response.choices[0].message.content.strip()

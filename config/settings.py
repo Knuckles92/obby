@@ -54,7 +54,7 @@ OPENAI_TEMPERATURES = {
 }
 
 # OpenAI token limits (centralized)
-# These are per-feature caps for `max_tokens` (or equivalent). Override at runtime if needed.
+# These are per-feature caps for `max_completion_tokens` (or equivalent). Override at runtime if needed.
 OPENAI_TOKEN_LIMITS = {
     "diff_summary": 800,
     "minimal_summary": 400,

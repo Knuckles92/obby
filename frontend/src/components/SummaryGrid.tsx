@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { ChevronLeft, ChevronRight, FileText, Trash2, CheckSquare, Square } from 'lucide-react'
 import { SummaryNote, SummaryPaginationInfo } from '../types'
 import SummaryCard from './SummaryCard'

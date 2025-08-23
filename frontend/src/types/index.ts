@@ -470,3 +470,13 @@ export interface BulkDeleteResponse {
 export interface BulkDeleteRequest {
   filenames: string[];
 }
+
+// Search Results Popup interfaces
+export interface SearchResultsPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  searchTerm: string;
+  searchResults: SummaryNote[];
+  loading: boolean;
+  onSelectResult: (filename: string) => void;
+}

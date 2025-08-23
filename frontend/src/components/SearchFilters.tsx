@@ -5,29 +5,43 @@ import { SummarySearchFilters } from '../types'
 interface SearchFiltersProps {
   filters: SummarySearchFilters
   onFiltersChange: (filters: SummarySearchFilters) => void
+  onSearchExecute?: (searchTerm: string) => void
   isExpanded?: boolean
   onToggleExpanded?: () => void
 }
 
 export default function SearchFilters({ 
   filters, 
-  onFiltersChange, 
+  onFiltersChange,
+  onSearchExecute, 
   isExpanded = false, 
   onToggleExpanded 
 }: SearchFiltersProps) {
   const [localSearchTerm, setLocalSearchTerm] = useState(filters.searchTerm)
   const [showDateRange, setShowDateRange] = useState(false)
 
-  // Debounce search input
+  // Update local search term when filters change (for external changes)
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (localSearchTerm !== filters.searchTerm) {
-        onFiltersChange({ ...filters, searchTerm: localSearchTerm })
-      }
-    }, 300)
+    if (filters.searchTerm !== localSearchTerm) {
+      setLocalSearchTerm(filters.searchTerm)
+    }
+  }, [filters.searchTerm])
 
-    return () => clearTimeout(timer)
-  }, [localSearchTerm, filters, onFiltersChange])
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      executeSearch()
+    }
+  }
+
+  const executeSearch = () => {
+    // Update the filters with the current search term
+    onFiltersChange({ ...filters, searchTerm: localSearchTerm })
+    // Trigger search execution for single view popup
+    if (onSearchExecute) {
+      onSearchExecute(localSearchTerm)
+    }
+  }
 
   const handleSortChange = (sortBy: 'newest' | 'oldest' | 'word_count') => {
     onFiltersChange({ ...filters, sortBy })
@@ -62,41 +76,75 @@ export default function SearchFilters({
     <div className="card">
       {/* Main search bar */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-3 mb-4">
-        <div className="flex-1 relative">
-          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Search className="h-4 w-4 text-gray-400" />
+        <div className="flex flex-1 space-x-2">
+          <div className="flex-1 relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Search summaries by full content, topics, and keywords..."
+              value={localSearchTerm}
+              onChange={(e) => setLocalSearchTerm(e.target.value)}
+              onKeyPress={handleKeyPress}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              style={{
+                borderColor: 'var(--color-border)',
+                borderRadius: 'var(--border-radius-md)',
+                fontSize: 'var(--font-size-sm)',
+                color: 'var(--color-text-primary)',
+                backgroundColor: 'var(--color-background)',
+                transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+              }}
+              onFocus={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary)'
+                e.currentTarget.style.boxShadow = '0 0 0 2px var(--color-primary)25'
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border)'
+                e.currentTarget.style.boxShadow = 'none'
+              }}
+            />
+            {localSearchTerm && (
+              <button
+                onClick={() => setLocalSearchTerm('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
+              </button>
+            )}
           </div>
-          <input
-            type="text"
-            placeholder="Search summaries by full content, topics, and keywords..."
-            value={localSearchTerm}
-            onChange={(e) => setLocalSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          
+          {/* Search Button */}
+          <button
+            onClick={executeSearch}
+            disabled={!localSearchTerm.trim()}
+            title={localSearchTerm.trim() ? "Search summaries" : "Enter search term to search"}
+            className="flex items-center justify-center px-4 py-2 text-sm font-medium rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              borderColor: 'var(--color-border)',
+              backgroundColor: localSearchTerm.trim() ? 'var(--color-primary)' : 'var(--color-surface)',
+              color: localSearchTerm.trim() ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
               borderRadius: 'var(--border-radius-md)',
               fontSize: 'var(--font-size-sm)',
-              color: 'var(--color-text-primary)',
-              backgroundColor: 'var(--color-background)',
-              transition: 'border-color 0.2s ease, box-shadow 0.2s ease'
+              fontWeight: 'var(--font-weight-medium)',
+              minWidth: '80px',
+              border: localSearchTerm.trim() ? 'none' : `1px solid var(--color-border)`,
+              transition: 'all 0.2s ease'
             }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-primary)'
-              e.currentTarget.style.boxShadow = '0 0 0 2px var(--color-primary)25'
+            onMouseEnter={(e) => {
+              if (localSearchTerm.trim()) {
+                e.currentTarget.style.backgroundColor = 'var(--color-primary)d0'
+              }
             }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = 'var(--color-border)'
-              e.currentTarget.style.boxShadow = 'none'
+            onMouseLeave={(e) => {
+              if (localSearchTerm.trim()) {
+                e.currentTarget.style.backgroundColor = 'var(--color-primary)'
+              }
             }}
-          />
-          {localSearchTerm && (
-            <button
-              onClick={() => setLocalSearchTerm('')}
-              className="absolute inset-y-0 right-0 pr-3 flex items-center"
-            >
-              <X className="h-4 w-4 text-gray-400 hover:text-gray-600" />
-            </button>
-          )}
+          >
+            <Search className="h-4 w-4 mr-1" />
+            Search
+          </button>
         </div>
 
         {/* Filter toggle button */}
