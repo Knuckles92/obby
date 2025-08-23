@@ -37,8 +37,21 @@ WATCHDOG_COORDINATION_ENABLED = True  # Skip periodic scans when watchdog is act
 VERBOSE_MONITORING_LOGS = False  # Enable verbose monitoring logs for debugging
 
 # OpenAI settings
-OPENAI_MODEL = "gpt-4.1-mini"  # Default model for AI summarization
+OPENAI_MODEL = "gpt-5-mini"  # Default model for AI summarization
 OPENAI_API_KEY = None  # Set via environment variable OPENAI_API_KEY
+
+# OpenAI generation temperatures (centralized)
+# You can override any of these at runtime if desired.
+OPENAI_TEMPERATURES = {
+    "diff_summary": 0.7,
+    "minimal_summary": 0.7,
+    "proposed_questions": 0.7,
+    "session_title": 0.6,
+    "events_summary": 0.7,
+    "tree_summary": 0.7,
+    "insights": 0.7,
+    "batch_summary": 0.7,
+}
 
 # AI Update settings (separate from file monitoring frequency)
 AI_UPDATE_INTERVAL = 12  # hours - how often AI processing runs (default: twice daily)

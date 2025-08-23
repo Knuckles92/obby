@@ -10,6 +10,7 @@ import time
 from datetime import datetime, timedelta
 from pathlib import Path
 from openai import OpenAI
+from config import settings as cfg
 
 class OpenAIClient:
     """Handles OpenAI API calls for diff summarization."""
@@ -142,7 +143,7 @@ class OpenAIClient:
                     }
                 ],
                 max_tokens=max_tokens,
-                temperature=0.3
+                temperature=cfg.OPENAI_TEMPERATURES.get("diff_summary", 0.7)
             )
 
             return response.choices[0].message.content.strip()
@@ -177,8 +178,8 @@ class OpenAIClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=180,
-                temperature=0.2,
+                max_tokens=10000,
+                temperature=cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7),
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
@@ -209,8 +210,8 @@ class OpenAIClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_tokens=180,
-                temperature=0.4,
+                max_tokens=10000,
+                temperature=cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7),
             )
             text = response.choices[0].message.content.strip()
             # Heuristic: if the model replied with something other than bullets, ignore
@@ -246,7 +247,7 @@ class OpenAIClient:
                     {"role": "user", "content": user_content},
                 ],
                 max_tokens=20,
-                temperature=0.4,
+                temperature=cfg.OPENAI_TEMPERATURES.get("session_title", 0.7),
             )
             title = response.choices[0].message.content.strip()
             # Post-process: collapse lines, strip quotes/backticks, trim length
@@ -300,7 +301,7 @@ class OpenAIClient:
                     }
                 ],
                 max_tokens=max_tokens,
-                temperature=0.3
+                temperature=cfg.OPENAI_TEMPERATURES.get("events_summary", 0.3)
             )
 
             return response.choices[0].message.content.strip()
@@ -588,7 +589,7 @@ IMPORTANT:
                     }
                 ],
                 max_tokens=400,
-                temperature=0.3
+                temperature=cfg.OPENAI_TEMPERATURES.get("tree_summary", 0.3)
             )
 
             return response.choices[0].message.content.strip()
@@ -627,7 +628,6 @@ IMPORTANT:
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
         time_str = now.strftime("%I:%M %p")
-        timestamp = now.strftime("%Y-%m-%d %H:%M:%S")
 
         # Read existing content
         existing_content = ""
@@ -644,7 +644,7 @@ IMPORTANT:
             file_path_for_index = getattr(self, '_current_file_path', str(living_note_path.parent))
             searchable_entry = self.create_searchable_entry(
                 metadata,
-                timestamp,
+                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 change_type,
                 file_path=file_path_for_index
             )
@@ -829,7 +829,7 @@ IMPORTANT:
                     }
                 ],
                 max_tokens=300,
-                temperature=0.4
+                temperature=cfg.OPENAI_TEMPERATURES.get("insights", 0.4)
             )
 
             return response.choices[0].message.content.strip()
@@ -1192,7 +1192,7 @@ Batch Overview:
                     }
                 ],
                 max_tokens=max_tokens,
-                temperature=0.3
+                temperature=cfg.OPENAI_TEMPERATURES.get("batch_summary", 0.3)
             )
 
             return response.choices[0].message.content.strip()
