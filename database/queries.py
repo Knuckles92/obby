@@ -735,6 +735,145 @@ class SemanticQueries:
         """Get all keywords with frequency counts."""
         return SemanticModel.get_all_keywords()
 
+    @staticmethod
+    def search_semantic(query: str, limit: int = 20, change_type: str = None) -> Dict[str, Any]:
+        """Search semantic entries with full-text capabilities.
+        
+        Args:
+            query: Search query string
+            limit: Maximum number of results
+            change_type: Optional filter by entry type ('content', 'tree', etc.)
+            
+        Returns:
+            Dict containing search results and metadata
+        """
+        try:
+            # Build search query for semantic entries
+            base_query = """
+                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.source_type,
+                       GROUP_CONCAT(st.topic) as topics,
+                       GROUP_CONCAT(sk.keyword) as keywords
+                FROM semantic_entries se
+                LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                WHERE 1=1
+            """
+            
+            params = []
+            
+            # Add search condition - search in summary, topics, and keywords
+            base_query += """
+                AND (se.summary LIKE ? OR se.summary LIKE ? OR
+                     EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
+                     EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
+            """
+            search_pattern = f"%{query}%"
+            params.extend([search_pattern, search_pattern, search_pattern, search_pattern])
+            
+            # Add type filter if specified
+            if change_type:
+                base_query += " AND se.source_type = ?"
+                params.append(change_type)
+            
+            # Group and order results
+            base_query += """
+                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.source_type
+                ORDER BY se.timestamp DESC
+                LIMIT ?
+            """
+            params.append(limit)
+            
+            rows = db.execute_query(base_query, params)
+            
+            # Format results
+            results = []
+            for row in rows:
+                result = {
+                    'id': str(row['id']),
+                    'summary': row['summary'],
+                    'type': row['source_type'],
+                    'impact': row['impact'],
+                    'filePath': row['file_path'],
+                    'timestamp': row['timestamp'],
+                    'topics': row['topics'].split(',') if row['topics'] else [],
+                    'keywords': row['keywords'].split(',') if row['keywords'] else []
+                }
+                results.append(result)
+            
+            logger.info(f"Semantic search for '{query}' returned {len(results)} results")
+            
+            return {
+                'query': query,
+                'results': results,
+                'total_results': len(results),
+                'limit': limit,
+                'change_type': change_type
+            }
+            
+        except Exception as e:
+            logger.error(f"Error in semantic search: {e}")
+            return {
+                'query': query,
+                'results': [],
+                'total_results': 0,
+                'limit': limit,
+                'error': str(e)
+            }
+
+    @staticmethod
+    def search_semantic_index(query: str, limit: int = 10) -> List[Dict[str, Any]]:
+        """Search semantic index for living note summaries.
+        
+        Args:
+            query: Search query string
+            limit: Maximum number of results
+            
+        Returns:
+            List of matching semantic entries
+        """
+        try:
+            # Search specifically in living note entries
+            search_query = """
+                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
+                       GROUP_CONCAT(st.topic) as topics,
+                       GROUP_CONCAT(sk.keyword) as keywords
+                FROM semantic_entries se
+                LEFT JOIN semantic_topics st ON se.id = st.entry_id  
+                LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                WHERE se.source_type = 'living_note'
+                  AND (se.summary LIKE ? OR 
+                       EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
+                       EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
+                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
+                ORDER BY se.timestamp DESC
+                LIMIT ?
+            """
+            
+            search_pattern = f"%{query}%"
+            rows = db.execute_query(search_query, (search_pattern, search_pattern, search_pattern, limit))
+            
+            # Format results  
+            results = []
+            for row in rows:
+                result = {
+                    'id': str(row['id']),
+                    'summary': row['summary'],
+                    'impact': row['impact'],
+                    'file_path': row['file_path'],
+                    'markdown_file_path': row['markdown_file_path'],
+                    'timestamp': row['timestamp'],
+                    'topics': row['topics'].split(',') if row['topics'] else [],
+                    'keywords': row['keywords'].split(',') if row['keywords'] else []
+                }
+                results.append(result)
+            
+            logger.info(f"Semantic index search for '{query}' returned {len(results)} results")
+            return results
+            
+        except Exception as e:
+            logger.error(f"Error in semantic index search: {e}")
+            return []
+
 class ConfigQueries:
     """Configuration management queries."""
     

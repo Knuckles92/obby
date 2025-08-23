@@ -23,9 +23,10 @@ summary_note_service = SummaryNoteService()
 def get_summary_notes():
     """Get paginated list of summary notes"""
     try:
-        # Get pagination parameters from query string
+        # Get pagination and search parameters from query string
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 10, type=int)
+        search_query = request.args.get('search', '').strip()
         
         # Validate parameters
         if page < 1:
@@ -33,7 +34,11 @@ def get_summary_notes():
         if page_size < 1 or page_size > 100:  # Limit page size to reasonable range
             page_size = 10
         
-        data = summary_note_service.get_summary_list(page=page, page_size=page_size)
+        # Convert empty string to None for consistency
+        if not search_query:
+            search_query = None
+        
+        data = summary_note_service.get_summary_list(page=page, page_size=page_size, search_query=search_query)
         return jsonify(data)
         
     except Exception as e:

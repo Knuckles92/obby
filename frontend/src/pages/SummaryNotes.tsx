@@ -173,12 +173,17 @@ export default function SummaryNotes() {
       setLoading(true)
       const pageSize = mode === 'single' ? 1 : 12 // Show 12 summaries in grid view
       
-      // For filtering, we need to fetch more data to ensure we have enough results
-      // We'll fetch a larger page size and handle pagination client-side for filtered results
-      const fetchSize = (filters.searchTerm || filters.dateRange) ? 100 : pageSize
-      const fetchPage = (filters.searchTerm || filters.dateRange) ? 1 : page
+      // Build API URL with search and pagination parameters
+      const params = new URLSearchParams()
+      params.append('page', page.toString())
+      params.append('page_size', pageSize.toString())
       
-      const response = await apiFetch(`/api/summary-notes/?page=${fetchPage}&page_size=${fetchSize}`)
+      // Add search parameter if present
+      if (filters.searchTerm) {
+        params.append('search', filters.searchTerm)
+      }
+      
+      const response = await apiFetch(`/api/summary-notes/?${params.toString()}`)
       if (!response.ok) {
         // Try to extract error message but don't fail if body isn't JSON
         let errText = `HTTP ${response.status}`
@@ -192,24 +197,50 @@ export default function SummaryNotes() {
       const data: SummaryListResponse = {
         summaries: Array.isArray(raw?.summaries) ? raw.summaries : [],
         pagination: raw?.pagination || {
-          current_page: fetchPage,
-          page_size: fetchSize,
+          current_page: page,
+          page_size: pageSize,
           total_count: Array.isArray(raw?.summaries) ? raw.summaries.length : 0,
-          total_pages: Array.isArray(raw?.summaries) ? Math.ceil(raw.summaries.length / fetchSize) : 0,
+          total_pages: Array.isArray(raw?.summaries) ? Math.ceil(raw.summaries.length / pageSize) : 0,
           has_next: false,
           has_previous: false
         }
       }
       
-      // Apply client-side filtering
-      const filteredSummaries = applyFilters(data.summaries || [], filters)
+      // Apply only date range filtering client-side (search is handled by backend now)
+      let filteredSummaries = data.summaries || []
       
-      // Handle pagination of filtered results
+      // Apply date range filter client-side if needed
+      if (filters.dateRange?.start || filters.dateRange?.end) {
+        filteredSummaries = filteredSummaries.filter(summary => {
+          const summaryDate = new Date(summary.timestamp)
+          const startDate = filters.dateRange?.start ? new Date(filters.dateRange.start) : null
+          const endDate = filters.dateRange?.end ? new Date(filters.dateRange.end) : null
+          
+          if (startDate && summaryDate < startDate) return false
+          if (endDate && summaryDate > endDate) return false
+          return true
+        })
+      }
+
+      // Apply sorting client-side
+      filteredSummaries.sort((a, b) => {
+        switch (filters.sortBy) {
+          case 'oldest':
+            return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+          case 'word_count':
+            return b.word_count - a.word_count
+          case 'newest':
+          default:
+            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        }
+      })
+      
+      // For date filtering, we need client-side pagination
       let displaySummaries: SummaryNote[]
       let paginationInfo: SummaryPaginationInfo
       
-      if (filters.searchTerm || filters.dateRange) {
-        // Client-side pagination for filtered results
+      if (filters.dateRange?.start || filters.dateRange?.end) {
+        // Client-side pagination for date-filtered results
         const startIndex = (page - 1) * pageSize
         const endIndex = startIndex + pageSize
         displaySummaries = filteredSummaries.slice(startIndex, endIndex)
@@ -223,7 +254,7 @@ export default function SummaryNotes() {
           has_previous: page > 1
         }
       } else {
-        // Server-side pagination for non-filtered results
+        // Server-side pagination for search and normal results
         displaySummaries = filteredSummaries
         paginationInfo = data.pagination
       }
@@ -245,46 +276,8 @@ export default function SummaryNotes() {
     }
   }
 
-  const applyFilters = (summariesList: SummaryNote[], filters: SummarySearchFilters): SummaryNote[] => {
-    let filtered = [...summariesList]
-
-    // Apply search filter
-    if (filters.searchTerm) {
-      const searchTerm = filters.searchTerm.toLowerCase()
-      filtered = filtered.filter(summary => 
-        summary.title.toLowerCase().includes(searchTerm) ||
-        summary.preview.toLowerCase().includes(searchTerm)
-      )
-    }
-
-    // Apply date range filter
-    if (filters.dateRange?.start || filters.dateRange?.end) {
-      filtered = filtered.filter(summary => {
-        const summaryDate = new Date(summary.timestamp)
-        const startDate = filters.dateRange?.start ? new Date(filters.dateRange.start) : null
-        const endDate = filters.dateRange?.end ? new Date(filters.dateRange.end) : null
-        
-        if (startDate && summaryDate < startDate) return false
-        if (endDate && summaryDate > endDate) return false
-        return true
-      })
-    }
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      switch (filters.sortBy) {
-        case 'oldest':
-          return new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-        case 'word_count':
-          return b.word_count - a.word_count
-        case 'newest':
-        default:
-          return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      }
-    })
-
-    return filtered
-  }
+  // Note: Search filtering is now handled by the backend API
+  // This function is kept for legacy date range filtering only
 
   const fetchSummaryContent = async (filename: string) => {
     try {

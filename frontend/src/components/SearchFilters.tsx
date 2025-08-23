@@ -68,7 +68,7 @@ export default function SearchFilters({
           </div>
           <input
             type="text"
-            placeholder="Search summaries by title or content..."
+            placeholder="Search summaries by full content, topics, and keywords..."
             value={localSearchTerm}
             onChange={(e) => setLocalSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"

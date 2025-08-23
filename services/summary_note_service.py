@@ -82,12 +82,13 @@ class SummaryNoteService:
         
         return metadata
     
-    def get_summary_list(self, page: int = 1, page_size: int = 10) -> Dict:
+    def get_summary_list(self, page: int = 1, page_size: int = 10, search_query: str = None) -> Dict:
         """Get paginated list of summary notes from database.
         
         Args:
             page: Page number (1-based)
             page_size: Number of items per page
+            search_query: Optional search query to filter summaries by content
             
         Returns:
             Dict containing summaries, pagination info, and metadata
@@ -96,27 +97,65 @@ class SummaryNoteService:
             # Get semantic entries from database instead of files
             offset = (page - 1) * page_size
             
-            # Query for living note semantic entries with pagination
-            query = """
-                SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
-                       GROUP_CONCAT(st.topic) as topics,
-                       GROUP_CONCAT(sk.keyword) as keywords
-                FROM semantic_entries se
-                LEFT JOIN semantic_topics st ON se.id = st.entry_id
-                LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                WHERE se.source_type = 'living_note'
-                GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
-                ORDER BY se.timestamp DESC
-                LIMIT ? OFFSET ?
-            """
+            # Build query based on whether search is provided
+            if search_query:
+                # Use search-enabled query
+                query = """
+                    SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
+                           GROUP_CONCAT(st.topic) as topics,
+                           GROUP_CONCAT(sk.keyword) as keywords
+                    FROM semantic_entries se
+                    LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                    LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                    WHERE se.source_type = 'living_note'
+                      AND (se.summary LIKE ? OR 
+                           EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
+                           EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
+                    GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
+                    ORDER BY se.timestamp DESC
+                    LIMIT ? OFFSET ?
+                """
+                search_pattern = f"%{search_query}%"
+                query_params = (search_pattern, search_pattern, search_pattern, page_size, offset)
+                
+                # Count query for search results
+                count_query = """
+                    SELECT COUNT(DISTINCT se.id) as count 
+                    FROM semantic_entries se
+                    LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                    LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                    WHERE se.source_type = 'living_note'
+                      AND (se.summary LIKE ? OR 
+                           EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
+                           EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
+                """
+                count_params = (search_pattern, search_pattern, search_pattern)
+            else:
+                # Standard query without search
+                query = """
+                    SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
+                           GROUP_CONCAT(st.topic) as topics,
+                           GROUP_CONCAT(sk.keyword) as keywords
+                    FROM semantic_entries se
+                    LEFT JOIN semantic_topics st ON se.id = st.entry_id
+                    LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
+                    WHERE se.source_type = 'living_note'
+                    GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
+                    ORDER BY se.timestamp DESC
+                    LIMIT ? OFFSET ?
+                """
+                query_params = (page_size, offset)
+                
+                # Standard count query
+                count_query = "SELECT COUNT(*) as count FROM semantic_entries WHERE source_type = 'living_note'"
+                count_params = ()
             
-            # Get total count for pagination (living notes only)
-            count_query = "SELECT COUNT(*) as count FROM semantic_entries WHERE source_type = 'living_note'"
-            count_result = db.execute_query(count_query)
+            # Execute count query
+            count_result = db.execute_query(count_query, count_params)
             total_count = count_result[0]['count'] if count_result else 0
             
             # Get paginated results
-            rows = db.execute_query(query, (page_size, offset))
+            rows = db.execute_query(query, query_params)
             
             # Convert database entries to summary format expected by frontend
             summaries = []
