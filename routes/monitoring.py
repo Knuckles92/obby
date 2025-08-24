@@ -228,8 +228,9 @@ def trigger_manual_ai_processing():
         
         logger.info(f"Manual AI processing triggered (force={force})")
         
-        # Initialize AI client
-        ai_client = OpenAIClient()
+        # Get or create singleton AI client and ensure it's warmed up
+        ai_client = OpenAIClient.get_instance()
+        # Warm-up is handled automatically in the summarize_diff method if needed
         
         # Get ALL file changes that don't have AI summaries yet (no limit for comprehensive processing)
         recent_changes = FileQueries.get_recent_changes_without_ai_summary(limit=None)
@@ -259,7 +260,7 @@ def trigger_manual_ai_processing():
                     logger.warning(f"No diff content for change: {file_path}")
                     continue
                 
-                # Generate AI summary
+                # Generate AI summary (warm-up and retry logic are handled internally)
                 ai_summary = ai_client.summarize_diff(diff_content)
                 
                 if ai_summary:
@@ -384,8 +385,16 @@ def generate_comprehensive_summary():
                 changes_by_file[file_path] = []
             changes_by_file[file_path].append(change_dict)
         
-        # Initialize AI client
-        ai_client = OpenAIClient()
+        # Get or create singleton AI client and ensure it's warmed up
+        logger.info("Initializing OpenAI client with warm-up...")
+        ai_client = OpenAIClient.get_instance()
+        
+        # Perform warm-up to avoid cold start issues
+        warm_up_success = ai_client.warm_up()
+        if warm_up_success:
+            logger.info("OpenAI client warmed up successfully")
+        else:
+            logger.warning("OpenAI client warm-up failed, but continuing anyway")
         
         # Prepare batch data for comprehensive processing
         batch_data = {

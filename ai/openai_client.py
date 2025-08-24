@@ -11,9 +11,16 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from openai import OpenAI
 from config import settings as cfg
+from typing import Optional
+import threading
 
 class OpenAIClient:
-    """Handles OpenAI API calls for diff summarization."""
+    """Handles OpenAI API calls for diff summarization with singleton pattern."""
+    
+    _instance = None
+    _lock = threading.Lock()
+    _initialized = False
+    _warmed_up = False
 
     # Latest OpenAI models as of July 2025
     MODELS = {        # Latest GPT-4 model with improved capabilities
@@ -22,45 +29,84 @@ class OpenAIClient:
         'gpt-4.1': 'gpt-4.1',         # GPT-4.1 model
         'gpt-4.1-mini': 'gpt-4.1-mini'  # GPT-4.1 mini model
     }
+    
+    def __new__(cls, *args, **kwargs):
+        """Implement singleton pattern to reuse client instances."""
+        if not cls._instance:
+            with cls._lock:
+                if not cls._instance:
+                    cls._instance = super().__new__(cls)
+        return cls._instance
 
     def __init__(self, api_key=None, model="gpt-5-mini"):
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        # Allow override via env while keeping default arg behavior
-        self.model = os.getenv("OBBY_OPENAI_MODEL", model)
-        # Client-wide network safeguards
-        try:
-            self._timeout = float(os.getenv("OBBY_OPENAI_TIMEOUT", "15"))
-        except Exception:
-            self._timeout = 15.0
-        try:
-            self._max_retries = int(os.getenv("OBBY_OPENAI_MAX_RETRIES", "1"))
-        except Exception:
-            self._max_retries = 1
-        # Configure OpenAI SDK with explicit timeout/retry to avoid hangs
-        try:
-            self.client = OpenAI(api_key=self.api_key, timeout=self._timeout, max_retries=self._max_retries)
-        except TypeError:
-            # Fallback for SDKs without these kwargs
-            logging.warning("OpenAI client does not support timeout/max_retries at construction; using basic client")
-            self.client = OpenAI(api_key=self.api_key)
-        except Exception as e:
-            logging.error(f"Failed to initialize OpenAI client with advanced options: {e}")
+        """Initialize the OpenAI client with improved timeout and retry settings."""
+        # Skip re-initialization if already done
+        if OpenAIClient._initialized:
+            return
+            
+        with self._lock:
+            if OpenAIClient._initialized:
+                return
+                
+            self.api_key = api_key or os.getenv("OPENAI_API_KEY")
+            # Allow override via env while keeping default arg behavior
+            self.model = os.getenv("OBBY_OPENAI_MODEL", model)
+            
+            # Enhanced timeout settings for cold starts
             try:
+                # Longer timeout for initial/cold start calls
+                self._timeout = float(os.getenv("OBBY_OPENAI_TIMEOUT", "60"))
+                self._warm_timeout = float(os.getenv("OBBY_OPENAI_WARM_TIMEOUT", "30"))
+            except Exception:
+                self._timeout = 60.0
+                self._warm_timeout = 30.0
+                
+            try:
+                # More retries for better resilience
+                self._max_retries = int(os.getenv("OBBY_OPENAI_MAX_RETRIES", "3"))
+            except Exception:
+                self._max_retries = 3
+                
+            # Configure OpenAI SDK with explicit timeout/retry to avoid hangs
+            try:
+                self.client = OpenAI(
+                    api_key=self.api_key, 
+                    timeout=self._timeout, 
+                    max_retries=self._max_retries
+                )
+                logging.info(f"OpenAI client initialized with timeout={self._timeout}s, max_retries={self._max_retries}")
+            except TypeError:
+                # Fallback for SDKs without these kwargs
+                logging.warning("OpenAI client does not support timeout/max_retries at construction; using basic client")
                 self.client = OpenAI(api_key=self.api_key)
-            except Exception as e2:
-                # As a last resort, set to None; callers handle errors gracefully
-                logging.error(f"Failed to initialize basic OpenAI client: {e2}")
-                self.client = None
+            except Exception as e:
+                logging.error(f"Failed to initialize OpenAI client with advanced options: {e}")
+                try:
+                    self.client = OpenAI(api_key=self.api_key)
+                except Exception as e2:
+                    # As a last resort, set to None; callers handle errors gracefully
+                    logging.error(f"Failed to initialize basic OpenAI client: {e2}")
+                    self.client = None
 
-        # Validate model selection
-        if self.model not in self.MODELS.values():
-            logging.warning(f"Model '{self.model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
-        logging.info(f"OpenAI client configured: model={self.model}, timeout={self._timeout}s, max_retries={self._max_retries}")
+            # Validate model selection
+            if self.model not in self.MODELS.values():
+                logging.warning(f"Model '{self.model}' not in latest models list. Available models: {list(self.MODELS.keys())}")
+            logging.info(f"OpenAI client configured: model={self.model}, timeout={self._timeout}s, max_retries={self._max_retries}")
 
-        # Format configuration caching
-        self._format_config = None
-        self._format_config_mtime = None
-        self._format_file_path = Path('config/format.md')
+            # Format configuration caching
+            self._format_config = None
+            self._format_config_mtime = None
+            self._format_file_path = Path('config/format.md')
+            
+            # Mark as initialized
+            OpenAIClient._initialized = True
+
+    @classmethod
+    def get_instance(cls, api_key=None, model="gpt-5-mini") -> 'OpenAIClient':
+        """Get or create the singleton instance."""
+        if not cls._instance:
+            cls._instance = cls(api_key, model)
+        return cls._instance
 
     def _get_temperature(self, requested_temperature: float) -> float:
         """
@@ -78,30 +124,104 @@ class OpenAIClient:
             return requested_temperature
 
     def warm_up(self) -> bool:
-        """Perform lightweight local warm-up to avoid first-call delays/errors.
-
-        Loads living note settings and format configuration. Does not make network calls.
-        Returns True if completed without critical errors.
+        """Perform complete warm-up including an actual API call to establish connection.
+        
+        This method now makes a minimal API call to warm up the connection,
+        preventing cold start issues on the first real request.
+        
+        Returns True if warm-up completed successfully.
         """
+        if OpenAIClient._warmed_up:
+            logging.debug("OpenAI client already warmed up, skipping")
+            return True
+            
         try:
+            start_time = time.time()
+            logging.info("Starting OpenAI client warm-up...")
+            
+            # Step 1: Load local configurations
             _ = self._load_living_note_settings()
             _ = self._load_format_config()
-            # Touch client attribute to ensure construction happened; do not call the API
+            
+            # Step 2: Ensure client is initialized
             if self.client is None:
-                # Try a best-effort basic initialization if not yet created
                 try:
-                    self.client = OpenAI(api_key=self.api_key)
-                except Exception:
-                    # Not fatal for warm-up; actual calls still handle errors
-                    pass
-            return True
+                    self.client = OpenAI(api_key=self.api_key, timeout=self._timeout, max_retries=self._max_retries)
+                except Exception as e:
+                    logging.error(f"Failed to initialize OpenAI client during warm-up: {e}")
+                    return False
+            
+            # Step 3: Make a minimal API call to warm up the connection
+            try:
+                logging.info("Making warm-up API call to establish connection...")
+                warm_up_response = self.client.chat.completions.create(
+                    model=self.model,
+                    messages=[
+                        {"role": "system", "content": "You are a helpful assistant."},
+                        {"role": "user", "content": "Say 'ready' in one word."}
+                    ],
+                    max_completion_tokens=10,
+                    temperature=1.0
+                )
+                
+                warm_up_time = time.time() - start_time
+                logging.info(f"OpenAI warm-up completed successfully in {warm_up_time:.2f}s")
+                
+                # Mark as warmed up
+                OpenAIClient._warmed_up = True
+                return True
+                
+            except Exception as api_error:
+                logging.error(f"Warm-up API call failed: {api_error}")
+                # Even if warm-up fails, we can still try actual requests
+                return False
+                
         except Exception as e:
-            logging.debug(f"OpenAI warm-up encountered a non-fatal issue: {e}")
+            logging.error(f"OpenAI warm-up encountered an error: {e}")
             return False
+
+    def _retry_with_backoff(self, func, *args, max_retries=3, initial_delay=1.0, **kwargs):
+        """Execute a function with exponential backoff retry logic.
+        
+        Args:
+            func: The function to execute
+            max_retries: Maximum number of retry attempts
+            initial_delay: Initial delay in seconds between retries
+            
+        Returns:
+            The result of the function call
+            
+        Raises:
+            The last exception if all retries fail
+        """
+        delay = initial_delay
+        last_exception = None
+        
+        for attempt in range(max_retries):
+            try:
+                # Use warm timeout after first attempt
+                if attempt > 0 and 'timeout' not in kwargs:
+                    # Update timeout for warmed connection
+                    if hasattr(self.client, '_client'):
+                        self.client._client.timeout = self._warm_timeout
+                        
+                return func(*args, **kwargs)
+                
+            except Exception as e:
+                last_exception = e
+                if attempt < max_retries - 1:
+                    logging.warning(f"Attempt {attempt + 1} failed: {e}. Retrying in {delay}s...")
+                    time.sleep(delay)
+                    delay *= 2  # Exponential backoff
+                else:
+                    logging.error(f"All {max_retries} attempts failed. Last error: {e}")
+                    
+        raise last_exception
 
     def summarize_diff(self, diff_content, settings=None, recent_tree_changes=None):
         """
         Summarize a diff for the living note with semantic indexing optimization.
+        Now includes retry logic and warm-up check.
 
         Args:
             diff_content: The diff content to summarize
@@ -112,6 +232,10 @@ class OpenAIClient:
             str: AI-generated summary with semantic metadata
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             # Load settings if not provided
             if settings is None:
                 settings = self._load_living_note_settings()
@@ -145,7 +269,9 @@ class OpenAIClient:
                 focus_areas_text = ", ".join(settings['focusAreas'])
                 user_content += f"\n\nPay special attention to these focus areas: {focus_areas_text}"
 
-            response = self.client.chat.completions.create(
+            # Use retry logic for the API call
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {
@@ -164,6 +290,7 @@ class OpenAIClient:
             return response.choices[0].message.content.strip()
 
         except Exception as e:
+            logging.error(f"Error in summarize_diff after retries: {e}")
             return f"Error generating AI summary: {str(e)}"
 
     def summarize_minimal(self, context_text: str):
@@ -173,6 +300,10 @@ class OpenAIClient:
         - If context appears trivial/noisy, return exactly: '- no meaningful changes'
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             system_prompt = (
                 "You are a precise changelog summarizer. "
                 "Write at most 3 concise bullets capturing the single most important outcomes. "
@@ -187,7 +318,9 @@ class OpenAIClient:
                 "Summarize these recent changes very briefly. If trivial/noise, output '- no meaningful changes'.\n\n"
                 f"Changes:\n{context_text}"
             )
-            response = self.client.chat.completions.create(
+            
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -209,6 +342,10 @@ class OpenAIClient:
         - If context appears trivial/noisy, return empty string
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             system_prompt = (
                 "You propose thoughtful follow-up questions to help a user reflect on changes. "
                 "Write 2-4 concise questions, each starting with '- '. "
@@ -219,7 +356,9 @@ class OpenAIClient:
                 "Given these changes, propose a few questions the user could ask their assistant to explore next.\n\n"
                 f"Changes:\n{context_text}"
             )
-            response = self.client.chat.completions.create(
+            
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -246,6 +385,10 @@ class OpenAIClient:
         - If trivial/noisy context, return 'Minor Updates'
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             system_prompt = (
                 "You create concise, punchy titles for development session summaries. "
                 "Return ONLY the title. 3–7 words, Title Case, no trailing punctuation. "
@@ -255,7 +398,9 @@ class OpenAIClient:
                 "Create a concise title that captures the main theme of these changes.\n\n"
                 f"Changes:\n{context_text}"
             )
-            response = self.client.chat.completions.create(
+            
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -288,6 +433,10 @@ class OpenAIClient:
             str: AI-generated summary of events
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             # Load settings if not provided
             if settings is None:
                 settings = self._load_living_note_settings()
@@ -303,7 +452,8 @@ class OpenAIClient:
             }
             max_completion_tokens = max_completion_tokens_map.get(settings.get('summaryLength', 'moderate'), 400)
 
-            response = self.client.chat.completions.create(
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {
@@ -584,6 +734,10 @@ IMPORTANT:
             str: AI-generated summary with semantic metadata
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             # Load settings if not provided
             if settings is None:
                 settings = self._load_living_note_settings()
@@ -591,7 +745,8 @@ IMPORTANT:
             # Build system prompt using format configuration
             system_prompt = self._build_system_prompt(settings, "tree")
 
-            response = self.client.chat.completions.create(
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {
@@ -812,6 +967,10 @@ IMPORTANT:
     def _generate_session_insights(self, summaries, change_types, is_new_session=True, settings=None, update_type=None):
         """Generate intelligent insights based on session patterns and changes."""
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             # Load settings if not provided
             if settings is None:
                 settings = self._load_living_note_settings()
@@ -835,7 +994,8 @@ IMPORTANT:
                 changes_text=changes_text
             )
 
-            response = self.client.chat.completions.create(
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {
@@ -1138,6 +1298,10 @@ IMPORTANT:
             str: AI-generated batch summary with semantic metadata
         """
         try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+                
             # Load settings if not provided
             if settings is None:
                 settings = self._load_living_note_settings()
@@ -1194,7 +1358,8 @@ Batch Overview:
 
             logging.info(f"Processing batch AI request for {files_changed} files, {total_changes} changes")
 
-            response = self.client.chat.completions.create(
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
                 model=self.model,
                 messages=[
                     {

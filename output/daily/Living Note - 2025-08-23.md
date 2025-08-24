@@ -1,5 +1,60 @@
 ## Minor Updates
 
+> Saturday, August 23, 2025 at 10:09 PM • 8 files
+
+### Metrics
+
+- Total changes: 9
+- Files affected: 8
+- Lines: +450/-0
+- New notes: 8
+- Introduced multiple revenue experiments: bulk pre-chilled gallons, honey-collab, cookie and family bundles to increase average order value
+- Launched loyalty and pricing tests: punch-card, dynamic weather-based pricing, kids-cup and refill discounts to boost retention
+- Validated tactics that improve foot traffic: influencer reel +7 visits, food-truck sync +4 cups, signage and no-ice option
+
+### Proposed Questions for AI Agent
+
+- Propose 3 family-bundle price options (e.g., 2 adult + 2 kids cups ± cookie) with estimated per-bundle cost, gross margin, and recommended uptake assumptions to test which maximizes revenue without alienating budget-conscious parents.  
+- Calculate an inventory/order list for a target of 95 cups (breakdown: lemons, sugar, water/ice, cups, cookies), include a 15% safety buffer and reorder trigger points.  
+- Draft a short email to the building manager requesting permission for a Fri 11:00–1:00 pop-up (mention permit/handwash needs, proposed set-up, and offer a comp sample), plus a suggested subject line.  
+- Design a 2-week A/B test plan comparing “Honey Lemon” weekend special vs Classic (sample size per arm, signage copy, success metrics like conversion and upsell rate, schedule, and criteria for declaring a winner).
+- Active development session in progress
+- Monitoring file changes and updates
+
+---
+
+
+## Minor Updates
+
+> Saturday, August 23, 2025 at 5:00 PM • 9 files
+
+### Metrics
+
+- Total changes: 10
+- Files affected: 9
+- Lines: +495/-0
+- New notes: 9
+- Weekend market expansion targets family-oriented locations with dynamic pricing and family bundles to increase average order value.
+- Loyalty and promotional tests (punch cards, add-ons, kids cup, refill and bulk offers) to boost repeat visits.
+- Customer interaction insights led to improved signage, vendor partnerships, permit compliance, and influencer opportunities increasing visibility and sales.
+
+### Proposed Questions for AI Agent
+
+- Analyze the new notes and customer logs to estimate family-buying behavior and recommend optimal family-bundle and kids-cup price points — model revenue outcomes for kids-cup prices $0.75–$1.75 and bundle discounts of 10–30% across conversion rates 10%–50%.
+
+- Draft two sign layouts (copy + visual priorities): one promo board for the family bundle and one smaller kids-cup callout for the stand — include headline, 2-line subtext, clear price badge, suggested font weight/size, and 3 color palette options for outdoor readability.
+
+- Propose a concrete dynamic-pricing rule set mapping temperature, weather (clear/drizzle), and foot-traffic bands to price adjustments or bundle offers (e.g., +X% or add BOGO), list required data sources/sensors, and suggest an A/B test plan to validate the rules.
+
+- Produce an inventory forecast and prep schedule for three weekend locations (assume target sales 200 / 150 / 100 cups) under warm (≥85°F) and cool (≤75°F) scenarios — include lemons, sugar, ice, cups, reorder points, and suggested batch prep timing.
+- Active development session in progress
+- Monitoring file changes and updates
+
+---
+
+
+## Minor Updates
+
 > Saturday, August 23, 2025 at 4:28 PM • 8 files
 
 ### Metrics

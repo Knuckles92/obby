@@ -178,11 +178,21 @@ def trigger_living_note_update():
             }), 202
 
     except Exception as e:
-        logger.error(f"Failed to trigger living note update: {e}")
+        logger.error(f"Failed to trigger living note update: {e}", exc_info=True)
+        # Provide more detailed error message
+        error_message = str(e)
+        if "API" in error_message or "OpenAI" in error_message:
+            error_message = f"AI service error: {error_message}. The service may need a moment to warm up. Please try again."
+        elif "timeout" in error_message.lower():
+            error_message = "Request timed out. The AI service may be experiencing delays. Please try again."
+        else:
+            error_message = f"Unexpected error: {error_message}"
+        
         return jsonify({
             'success': False,
-            'message': f'Failed to update living note: {str(e)}',
-            'updated': False
+            'message': error_message,
+            'updated': False,
+            'error_type': type(e).__name__
         }), 500
 
 

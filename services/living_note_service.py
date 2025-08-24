@@ -22,13 +22,10 @@ class LivingNoteService:
         self.living_note_path = Path(living_note_path)
         self.settings_path = Path('config/living_note_settings.json')
         self.format_path = Path('config/format.md')
-        self.openai_client = OpenAIClient()
-        # Proactively warm up OpenAI client to avoid first-request cold starts
-        try:
-            warmed = self.openai_client.warm_up()
-            logger.info(f"OpenAI client warm-up complete: {warmed}")
-        except Exception as e:
-            logger.debug(f"OpenAI client warm-up skipped due to non-fatal error: {e}")
+        # Use singleton pattern to get the OpenAI client
+        self.openai_client = OpenAIClient.get_instance()
+        # Warm-up will be performed automatically on first use if needed
+        logger.info("Living note service initialized with singleton OpenAI client")
         # Ensure format.md is in config if legacy file exists
         try:
             from utils.migrations import migrate_format_md
@@ -180,6 +177,16 @@ class LivingNoteService:
         """
         try:
             t_total_start = time.perf_counter()
+            
+            # Warm up the OpenAI client before starting
+            try:
+                logger.info("Living note update: warming up OpenAI client...")
+                self.openai_client.warm_up()
+                logger.info("Living note update: OpenAI client warmed up successfully")
+            except Exception as warm_up_error:
+                logger.warning(f"OpenAI client warm-up failed (non-fatal): {warm_up_error}")
+                # Continue anyway as the client might still work
+            
             # Resolve target path (daily or single)
             target_path = self._resolve_living_note_path()
 
@@ -279,12 +286,39 @@ class LivingNoteService:
             lines_removed = sum(int(d.get('linesRemoved') or 0) for d in meaningful_diffs)
             notes_added_count = len({d.get('filePath') for d in diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
 
-            # AI-generated summary bullets and proposed questions
+            # AI-generated summary bullets and proposed questions with error handling
             t_ai_start = time.perf_counter()
-            summary_bullets = self.openai_client.summarize_minimal(context_text) if context_text else "- no meaningful changes"
+            
+            # Try to generate summary with fallback
+            summary_bullets = "- no meaningful changes"
+            if context_text:
+                try:
+                    logger.info("Living note: generating AI summary...")
+                    summary_bullets = self.openai_client.summarize_minimal(context_text)
+                    logger.info("Living note: AI summary generated successfully")
+                except Exception as e:
+                    logger.error(f"Failed to generate AI summary (using fallback): {e}")
+                    # Fallback to basic summary from metrics
+                    if diffs:
+                        summary_bullets = f"- {files_affected} files changed with {lines_added} lines added and {lines_removed} lines removed"
+                    else:
+                        summary_bullets = "- no meaningful changes detected"
+            
             t_ai_summary = time.perf_counter() - t_ai_start
+            
+            # Try to generate questions with graceful fallback
             t_ai_q_start = time.perf_counter()
-            questions_text = self.openai_client.generate_proposed_questions(context_text) if context_text else ""
+            questions_text = ""
+            if context_text:
+                try:
+                    logger.info("Living note: generating proposed questions...")
+                    questions_text = self.openai_client.generate_proposed_questions(context_text)
+                    logger.info("Living note: proposed questions generated successfully")
+                except Exception as e:
+                    logger.error(f"Failed to generate proposed questions (skipping): {e}")
+                    # Questions are optional, so we can continue without them
+                    questions_text = ""
+            
             t_ai_questions = time.perf_counter() - t_ai_q_start
             logger.info(f"Living note timing: AI summarize_minimal={t_ai_summary:.3f}s, generate_proposed_questions={t_ai_questions:.3f}s")
             
@@ -307,19 +341,48 @@ class LivingNoteService:
                 parts.append(questions_text.strip())
             summary_block = "\n".join(parts)
 
-            # Update the living note file with structured append
+            # Update the living note file with structured append (with error handling)
             t_write_start = time.perf_counter()
-            success = self.openai_client.update_living_note(
-                str(target_path),
-                summary_block,
-                change_type="content",
-                settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
-                update_type=None,
-            )
+            success = False
+            try:
+                logger.info("Living note: updating living note file...")
+                success = self.openai_client.update_living_note(
+                    str(target_path),
+                    summary_block,
+                    change_type="content",
+                    settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
+                    update_type=None,
+                )
+                logger.info(f"Living note: file update success={success}")
+            except Exception as e:
+                logger.error(f"Failed to update living note file: {e}")
+                # Try a simple fallback write without AI processing
+                try:
+                    logger.info("Living note: attempting fallback file write...")
+                    target_path.parent.mkdir(parents=True, exist_ok=True)
+                    existing_content = ""
+                    if target_path.exists():
+                        existing_content = target_path.read_text(encoding='utf-8')
+                    
+                    # Simple append with timestamp
+                    timestamp_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    new_content = f"{existing_content}\n\n---\n\n## Update: {timestamp_str}\n\n{summary_block}\n"
+                    target_path.write_text(new_content, encoding='utf-8')
+                    success = True
+                    logger.info("Living note: fallback file write successful")
+                except Exception as fallback_error:
+                    logger.error(f"Fallback file write also failed: {fallback_error}")
+                    success = False
+            
             t_write = time.perf_counter() - t_write_start
             logger.info(f"Living note timing: update_living_note (file write + semantic index) took {t_write:.3f}s")
+            
             if not success:
-                return {'success': False, 'message': 'Failed to update living note'}
+                return {
+                    'success': False,
+                    'message': 'Failed to update living note file',
+                    'updated': False
+                }
 
             # Also create individual summary file for pagination
             t_individual_start = time.perf_counter()
@@ -383,8 +446,21 @@ class LivingNoteService:
                 logger.error("Failed to create markdown summary file")
                 return False
             
-            # Extract semantic metadata from summary content using AI client
-            metadata = self.openai_client.extract_semantic_metadata(summary_block)
+            # Extract semantic metadata from summary content using AI client (with fallback)
+            metadata = {}
+            try:
+                logger.info("Living note: extracting semantic metadata...")
+                metadata = self.openai_client.extract_semantic_metadata(summary_block)
+                logger.info(f"Living note: semantic metadata extracted: topics={len(metadata.get('topics', []))}, keywords={len(metadata.get('keywords', []))}")
+            except Exception as e:
+                logger.error(f"Failed to extract semantic metadata (using defaults): {e}")
+                # Fallback to basic metadata
+                metadata = {
+                    'summary': summary_block[:200] if len(summary_block) > 200 else summary_block,
+                    'impact': 'moderate',
+                    'topics': ['code-changes'],
+                    'keywords': ['update', 'changes']
+                }
             
             # Get the markdown file path
             markdown_filename = file_result.get('filename', '')
