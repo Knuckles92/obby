@@ -150,6 +150,226 @@ class FileQueries:
             return []
     
     @staticmethod
+    def get_comprehensive_time_analysis(start_time: datetime, end_time: datetime, 
+                                      focus_areas: List[str] = None, watch_handler = None) -> Dict[str, Any]:
+        """Get comprehensive analysis for a specific time range including diffs, files, and metrics."""
+        try:
+            logger.info(f"Starting comprehensive analysis for range: {start_time} to {end_time}")
+            
+            # 1. Get all diffs in time range
+            diffs_query = """
+                SELECT cd.*, fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                       fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+                FROM content_diffs cd
+                LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+                LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+                WHERE cd.timestamp BETWEEN ? AND ?
+                ORDER BY cd.timestamp ASC
+            """
+            diff_rows = db.execute_query(diffs_query, (start_time, end_time))
+            
+            # 2. Get file activity metrics
+            file_metrics_query = """
+                SELECT 
+                    file_path,
+                    COUNT(*) as change_count,
+                    SUM(lines_added) as total_lines_added,
+                    SUM(lines_removed) as total_lines_removed,
+                    MAX(timestamp) as last_modified,
+                    MIN(timestamp) as first_modified
+                FROM content_diffs
+                WHERE timestamp BETWEEN ? AND ?
+                GROUP BY file_path
+                ORDER BY change_count DESC
+            """
+            file_metrics = db.execute_query(file_metrics_query, (start_time, end_time))
+            
+            # 3. Get semantic analysis for the period (if available)
+            semantic_rows = []
+            try:
+                semantic_query = """
+                    SELECT 
+                        topics, keywords, summary, impact_level,
+                        file_path, timestamp
+                    FROM semantic_analysis
+                    WHERE timestamp BETWEEN ? AND ?
+                    ORDER BY timestamp DESC
+                """
+                semantic_rows = db.execute_query(semantic_query, (start_time, end_time))
+            except Exception as e:
+                logger.warning(f"Semantic analysis table not available: {e}")
+                semantic_rows = []
+            
+            # Process and format the data
+            processed_diffs = []
+            file_paths = set()
+            total_lines_added = 0
+            total_lines_removed = 0
+            change_types = {}
+            
+            for diff in diff_rows:
+                file_path = diff['file_path']
+                
+                # Apply watch filtering if provided
+                if watch_handler is not None:
+                    from pathlib import Path
+                    if not watch_handler.should_watch(Path(file_path)):
+                        continue
+                
+                # Apply focus area filtering if specified
+                if focus_areas:
+                    # Simple substring matching for focus areas (could be enhanced)
+                    if not any(focus_area.lower() in file_path.lower() for focus_area in focus_areas):
+                        continue
+                
+                file_paths.add(file_path)
+                total_lines_added += diff['lines_added'] or 0
+                total_lines_removed += diff['lines_removed'] or 0
+                
+                change_type = diff['change_type']
+                change_types[change_type] = change_types.get(change_type, 0) + 1
+                
+                processed_diffs.append({
+                    'id': str(diff['id']),
+                    'filePath': file_path,
+                    'changeType': change_type,
+                    'diffContent': diff['diff_content'],
+                    'linesAdded': diff['lines_added'],
+                    'linesRemoved': diff['lines_removed'],
+                    'timestamp': diff['timestamp']
+                })
+            
+            # Process file metrics with filtering
+            processed_file_metrics = []
+            for metric in file_metrics:
+                file_path = metric['file_path']
+                
+                # Apply same filtering as diffs
+                if watch_handler is not None:
+                    from pathlib import Path
+                    if not watch_handler.should_watch(Path(file_path)):
+                        continue
+                
+                if focus_areas:
+                    if not any(focus_area.lower() in file_path.lower() for focus_area in focus_areas):
+                        continue
+                
+                processed_file_metrics.append(dict(metric))
+            
+            # Process semantic analysis
+            topics_summary = {}
+            keywords_summary = {}
+            impact_levels = {}
+            
+            for semantic in semantic_rows:
+                # Parse JSON topics and keywords
+                try:
+                    topics = json.loads(semantic['topics']) if semantic['topics'] else []
+                    keywords = json.loads(semantic['keywords']) if semantic['keywords'] else []
+                    
+                    for topic in topics:
+                        topics_summary[topic] = topics_summary.get(topic, 0) + 1
+                    
+                    for keyword in keywords:
+                        keywords_summary[keyword] = keywords_summary.get(keyword, 0) + 1
+                    
+                    impact = semantic['impact_level'] or 'moderate'
+                    impact_levels[impact] = impact_levels.get(impact, 0) + 1
+                    
+                except (json.JSONDecodeError, TypeError):
+                    continue
+            
+            # Calculate time span
+            time_span = end_time - start_time
+            
+            analysis_result = {
+                'timeRange': {
+                    'start': start_time.isoformat(),
+                    'end': end_time.isoformat(),
+                    'duration': str(time_span),
+                    'durationHours': time_span.total_seconds() / 3600
+                },
+                'summary': {
+                    'totalChanges': len(processed_diffs),
+                    'filesAffected': len(file_paths),
+                    'linesAdded': total_lines_added,
+                    'linesRemoved': total_lines_removed,
+                    'netLinesChanged': total_lines_added - total_lines_removed,
+                    'changeTypes': change_types
+                },
+                'diffs': processed_diffs,
+                'fileMetrics': processed_file_metrics[:20],  # Top 20 most active files
+                'semanticAnalysis': {
+                    'topTopics': dict(sorted(topics_summary.items(), key=lambda x: x[1], reverse=True)[:10]),
+                    'topKeywords': dict(sorted(keywords_summary.items(), key=lambda x: x[1], reverse=True)[:10]),
+                    'impactDistribution': impact_levels
+                },
+                'metadata': {
+                    'focusAreas': focus_areas,
+                    'watchFiltered': watch_handler is not None,
+                    'analysisTimestamp': datetime.now().isoformat()
+                }
+            }
+            
+            logger.info(f"Comprehensive analysis completed: {len(processed_diffs)} diffs, {len(file_paths)} files")
+            return analysis_result
+            
+        except Exception as e:
+            logger.error(f"Error in comprehensive time analysis: {e}")
+            return {
+                'timeRange': {'start': start_time.isoformat(), 'end': end_time.isoformat()},
+                'summary': {'totalChanges': 0, 'filesAffected': 0},
+                'error': str(e)
+            }
+    
+    @staticmethod
+    def get_activity_timeline(start_time: datetime, end_time: datetime, 
+                            granularity: str = 'hour') -> List[Dict[str, Any]]:
+        """Get activity timeline data for visualization."""
+        try:
+            # Determine SQL date formatting based on granularity
+            if granularity == 'hour':
+                date_format = "%Y-%m-%d %H:00:00"
+                group_format = "strftime('%Y-%m-%d %H:00:00', timestamp)"
+            elif granularity == 'day':
+                date_format = "%Y-%m-%d"
+                group_format = "strftime('%Y-%m-%d', timestamp)"
+            else:  # Default to hour
+                date_format = "%Y-%m-%d %H:00:00"
+                group_format = "strftime('%Y-%m-%d %H:00:00', timestamp)"
+            
+            query = f"""
+                SELECT 
+                    {group_format} as time_bucket,
+                    COUNT(*) as change_count,
+                    SUM(lines_added) as lines_added,
+                    SUM(lines_removed) as lines_removed,
+                    COUNT(DISTINCT file_path) as files_affected
+                FROM content_diffs
+                WHERE timestamp BETWEEN ? AND ?
+                GROUP BY time_bucket
+                ORDER BY time_bucket ASC
+            """
+            
+            rows = db.execute_query(query, (start_time, end_time))
+            
+            timeline = []
+            for row in rows:
+                timeline.append({
+                    'timestamp': row['time_bucket'],
+                    'changeCount': row['change_count'],
+                    'linesAdded': row['lines_added'] or 0,
+                    'linesRemoved': row['lines_removed'] or 0,
+                    'filesAffected': row['files_affected']
+                })
+            
+            return timeline
+            
+        except Exception as e:
+            logger.error(f"Error generating activity timeline: {e}")
+            return []
+    
+    @staticmethod
     def get_diff_content(diff_id: str) -> Optional[Dict[str, Any]]:
         """Get content diff by ID."""
         try:

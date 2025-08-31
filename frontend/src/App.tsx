@@ -9,6 +9,7 @@ import LivingNote from './pages/LivingNote'
 import SummaryNotes from './pages/SummaryNotes'
 import Administration from './pages/Administration'
 import Settings from './pages/Settings'
+import TimeQuery from './pages/TimeQuery'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -35,6 +36,7 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diffs" element={<DiffViewer />} />
+                <Route path="/time-query" element={<TimeQuery />} />
                 <Route path="/living-note" element={<LivingNote />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
                 <Route path="/admin" element={<Administration />} />

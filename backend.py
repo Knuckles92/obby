@@ -15,6 +15,7 @@ from routes.config import config_bp
 from routes.data import data_bp
 from routes.admin import admin_bp
 from routes.watch_config import watch_config_bp
+from routes.time_query import time_query_bp
 
 # Import API-aware monitoring classes
 from routes.api_monitor import APIObbyMonitor
@@ -53,6 +54,7 @@ app.register_blueprint(config_bp)
 app.register_blueprint(data_bp)
 app.register_blueprint(admin_bp)
 app.register_blueprint(watch_config_bp)
+app.register_blueprint(time_query_bp)
 
 # Note: monitoring routes will be initialized after the monitoring system starts
 
