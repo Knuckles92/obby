@@ -20,6 +20,7 @@ interface OutputStylePickerProps {
   value: string
   onChange: (format: string) => void
   className?: string
+  compact?: boolean
 }
 
 const OUTPUT_FORMATS: OutputFormat[] = [
@@ -57,7 +58,49 @@ const OUTPUT_FORMATS: OutputFormat[] = [
   }
 ]
 
-export default function OutputStylePicker({ value, onChange, className = '' }: OutputStylePickerProps) {
+export default function OutputStylePicker({ value, onChange, className = '', compact = false }: OutputStylePickerProps) {
+  if (compact) {
+    return (
+      <div className={`space-y-2 ${className}`}>
+        <label
+          className="block text-sm font-medium"
+          style={{ color: 'var(--color-text-primary)' }}
+        >
+          Output Style
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          {OUTPUT_FORMATS.map((format) => {
+            const Icon = format.icon
+            const isSelected = value === format.id
+            return (
+              <button
+                key={format.id}
+                onClick={() => onChange(format.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm border transition-all ${isSelected ? 'font-semibold' : ''}`}
+                style={{
+                  backgroundColor: 'var(--color-surface)',
+                  borderColor: isSelected ? `var(--color-${format.color}, var(--color-primary))` : 'var(--color-border)',
+                  color: isSelected ? `var(--color-${format.color}, var(--color-primary))` : 'var(--color-text-secondary)'
+                }}
+              >
+                <span
+                  className="inline-flex items-center justify-center w-6 h-6 rounded"
+                  style={{
+                    backgroundColor: isSelected ? `var(--color-${format.color}, var(--color-primary))` : 'var(--color-background)',
+                    color: isSelected ? 'var(--color-text-inverse)' : `var(--color-${format.color}, var(--color-text-secondary))`
+                  }}
+                >
+                  <Icon size={14} />
+                </span>
+                <span>{format.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className={`space-y-3 ${className}`}>
       <label 
@@ -90,7 +133,6 @@ export default function OutputStylePicker({ value, onChange, className = '' }: O
                 transform: isSelected ? 'scale(1.02)' : 'scale(1)',
               }}
             >
-              {/* Selection indicator */}
               {isSelected && (
                 <div 
                   className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center"
@@ -102,8 +144,6 @@ export default function OutputStylePicker({ value, onChange, className = '' }: O
                   <Check size={14} />
                 </div>
               )}
-              
-              {/* Icon and title */}
               <div className="flex items-start space-x-3 mb-3">
                 <div 
                   className="p-2 rounded-lg"
@@ -137,8 +177,6 @@ export default function OutputStylePicker({ value, onChange, className = '' }: O
                   </p>
                 </div>
               </div>
-              
-              {/* Preview */}
               <div 
                 className="text-xs font-mono p-3 rounded-lg border"
                 style={{

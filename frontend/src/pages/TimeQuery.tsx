@@ -100,6 +100,8 @@ export default function TimeQuery() {
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveQueryName, setSaveQueryName] = useState('')
   const [outputFormat, setOutputFormat] = useState<string>('summary')
+  const [optionsTab, setOptionsTab] = useState<'output' | 'time'>('output')
+  const [showAdvanced, setShowAdvanced] = useState<boolean>(false)
 
   useEffect(() => {
     fetchTemplates()
@@ -412,9 +414,9 @@ export default function TimeQuery() {
       {/* Main Content */}
       <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mt-6">
         {/* Composer */}
-        <div className="xl:col-span-4 space-y-6">
+        <div className="xl:col-span-4 space-y-4 xl:sticky xl:top-0 self-start">
           {/* Query Input */}
-          <div className="p-6 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
             <label className="block text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
               What do you want to analyze?
               <p className="text-sm font-normal mt-1" style={{ color: 'var(--color-text-secondary)' }}>e.g., "Summarize the last 5 days" or "What did I accomplish this week?"</p>
@@ -427,14 +429,14 @@ export default function TimeQuery() {
               style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
             />
             {suggestions.length > 0 && (
-              <div className="mt-4">
+              <div className="mt-3">
                 <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Suggestions</span>
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {suggestions.slice(0, 6).map((s, i) => (
+                <div className="mt-2 overflow-x-auto whitespace-nowrap hide-scrollbar">
+                  {suggestions.slice(0, 8).map((s, i) => (
                     <button
                       key={i}
                       onClick={() => handleSuggestionClick(s)}
-                      className="px-3 py-2 text-sm rounded-lg border-2 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50"
+                      className="inline-block mr-2 mb-2 px-3 py-1.5 text-xs rounded-lg border transition-all duration-200 hover:border-blue-300 hover:bg-blue-50"
                       style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                     >
                       {s}
@@ -445,52 +447,81 @@ export default function TimeQuery() {
             )}
           </div>
 
-          {/* Output Style */}
+          {/* Options (Output / Time) */}
           <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-            <OutputStylePicker value={outputFormat} onChange={setOutputFormat} />
-          </div>
-
-          {/* Time Range */}
-          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-            <TimeRangePicker value={timeRange} onChange={setTimeRange} />
-          </div>
-
-          {/* Focus Areas */}
-          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
-            <label className="block text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
-              Focus Areas
-              <p className="text-sm font-normal mt-1" style={{ color: 'var(--color-text-secondary)' }}>Filter by file types, directories, or keywords</p>
-            </label>
-            <div className="flex space-x-2 mb-3">
-              <input
-                type="text"
-                value={newFocusArea}
-                onChange={(e) => setNewFocusArea(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
-                placeholder="e.g., 'frontend', '.py', 'components'"
-                className="flex-1 px-3 py-2 rounded-lg border-2 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
-                style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
-              />
-              <button
-                onClick={addFocusArea}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
-              >
-                Add
-              </button>
+            <div className="flex items-center gap-2 mb-3">
+              {[
+                { id: 'output', label: 'Output' },
+                { id: 'time', label: 'Time Range' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setOptionsTab(tab.id as 'output' | 'time')}
+                  className="px-3 py-1.5 rounded-md text-sm border transition-colors"
+                  style={{
+                    backgroundColor: optionsTab === tab.id ? 'var(--color-primary)' : 'var(--color-surface)',
+                    color: optionsTab === tab.id ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
+                    borderColor: optionsTab === tab.id ? 'var(--color-primary)' : 'var(--color-border)'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
             </div>
-            {focusAreas.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {focusAreas.map((area, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border"
-                    style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}
+            {optionsTab === 'output' ? (
+              <OutputStylePicker value={outputFormat} onChange={setOutputFormat} compact />
+            ) : (
+              <TimeRangePicker value={timeRange} onChange={setTimeRange} />
+            )}
+          </div>
+
+          {/* Advanced Filters (Collapsible) */}
+          <div className="rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full flex items-center justify-between px-4 py-3"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              <span className="text-sm font-medium">Advanced Filters</span>
+              <span className={`transition-transform ${showAdvanced ? 'rotate-90' : ''}`} style={{ color: 'var(--color-text-secondary)' }}>›</span>
+            </button>
+            {showAdvanced && (
+              <div className="px-4 pb-4">
+                <label className="block text-xs font-medium mb-2" style={{ color: 'var(--color-text-secondary)' }}>
+                  Focus Areas
+                </label>
+                <div className="flex space-x-2 mb-3">
+                  <input
+                    type="text"
+                    value={newFocusArea}
+                    onChange={(e) => setNewFocusArea(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
+                    placeholder="e.g., 'frontend', '.py', 'components'"
+                    className="flex-1 px-3 py-2 rounded-lg border-2 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
+                    style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
+                  />
+                  <button
+                    onClick={addFocusArea}
+                    className="px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:scale-105"
+                    style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
                   >
-                    {area}
-                    <button onClick={() => removeFocusArea(area)} className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors" style={{ color: 'var(--color-text-secondary)' }}>×</button>
-                  </span>
-                ))}
+                    Add
+                  </button>
+                </div>
+                {focusAreas.length > 0 && (
+                  <div className="flex flex-wrap gap-1 max-h-24 overflow-auto pr-1">
+                    {focusAreas.map((area, index) => (
+                      <span
+                        key={index}
+                        className="inline-flex items-center px-2.5 py-1.5 rounded-full text-xs font-medium border"
+                        style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}
+                      >
+                        {area}
+                        <button onClick={() => removeFocusArea(area)} className="ml-2 hover:bg-white/20 rounded-full p-0.5 transition-colors" style={{ color: 'var(--color-text-secondary)' }}>×</button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
