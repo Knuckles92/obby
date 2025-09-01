@@ -423,7 +423,6 @@ POST   /api/living-note/settings   # Save living note settings
 GET    /api/config                 # Get current configuration
 PUT    /api/config                 # Update configuration
 GET    /api/config/models          # Get available AI models
-# Backwards compat: GET /api/models -> redirects to /api/config/models
 ```
 
 ### **Admin/System Endpoints**

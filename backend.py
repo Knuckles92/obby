@@ -71,57 +71,7 @@ def run_monitor():
         monitoring_active = False
 
 
-# Backwards compatibility routes that redirect to blueprint routes
-@app.route('/api/diffs/<diff_id>', methods=['GET'])
-def get_full_diff_content_compat(diff_id):
-    """Backwards compatibility: redirect to files blueprint"""
-    from flask import redirect, url_for
-    return redirect(url_for('files.get_full_diff_content', diff_id=diff_id))
-
-
-@app.route('/api/events/clear', methods=['POST'])
-def clear_recent_events_compat():
-    """Backwards compatibility: redirect to data blueprint"""
-    from flask import redirect, url_for
-    return redirect(url_for('data.clear_recent_events'), code=307)
-
-
-@app.route('/api/diffs/clear', methods=['POST'])
-def clear_recent_diffs_compat():
-    """Backwards compatibility: redirect to data blueprint"""
-    from flask import redirect, url_for
-    return redirect(url_for('data.clear_recent_diffs'), code=307)
-
-
-@app.route('/api/config', methods=['GET'])
-def get_config_compat():
-    """Backwards compatibility: redirect to config blueprint"""
-    from flask import redirect, url_for
-    return redirect(url_for('config.get_config_root'))
-
-
-@app.route('/api/config', methods=['PUT'])
-def update_config_compat():
-    """Backwards compatibility: redirect to config blueprint"""
-    from flask import redirect, url_for
-    return redirect(url_for('config.update_config_root'), code=307)
-
-@app.route('/api/models', methods=['GET'])
-def get_models_compat():
-    """Backwards compatibility: redirect to config blueprint"""
-    from flask import redirect, url_for
-    return redirect(url_for('config.get_models'))
-
-
-@app.route('/api/search', methods=['GET'])
-def search_compat():
-    """Backwards compatibility: redirect to search blueprint"""
-    from flask import redirect, url_for
-    args = '&'.join([f'{k}={v}' for k, v in request.args.items()])
-    redirect_url = url_for('search.search_semantic_index_get')
-    if args:
-        redirect_url += f'?{args}'
-    return redirect(redirect_url)
+# Legacy compatibility routes removed during development cleanup
 
 
 # Diagnostic endpoint moved to different path to avoid conflicts with blueprint

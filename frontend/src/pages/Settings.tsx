@@ -38,7 +38,7 @@ export default function Settings() {
 
   const fetchConfig = async () => {
     try {
-      const response = await apiFetch('/api/config')
+      const response = await apiFetch('/api/config/')
       const data = await response.json()
       setConfig({
         checkInterval: data.checkInterval || 5,
@@ -60,7 +60,8 @@ export default function Settings() {
 
   const fetchModels = async () => {
     try {
-      const response = await apiFetch('/api/models')
+      // Fetch dynamic models from backend (redirect-safe path)
+      const response = await apiFetch('/api/config/models')
       const data: ModelsResponse = await response.json()
       
       if (data.error) {
@@ -75,6 +76,14 @@ export default function Settings() {
         })
       } else {
         setModels(data.models)
+        // If current config model is missing, prefer backend's current/default
+        const availableModelIds = new Set(Object.values(data.models))
+        if (!availableModelIds.has(config.aiModel)) {
+          const preferred = data.currentModel || data.defaultModel
+          if (preferred) {
+            setConfig((prev) => ({ ...prev, aiModel: preferred }))
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching models:', error)
@@ -94,7 +103,7 @@ export default function Settings() {
   const saveConfig = async () => {
     setSaving(true)
     try {
-      const response = await apiFetch('/api/config', {
+      const response = await apiFetch('/api/config/', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)

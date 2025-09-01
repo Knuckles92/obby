@@ -131,7 +131,7 @@ export default function LivingNote() {
   const fetchLivingNote = async () => {
     try {
       setLoading(true)
-      const response = await apiFetch('/api/living-note')
+      const response = await apiFetch('/api/living-note/')
       const data = await response.json()
       setNote(data)
     } catch (error) {
