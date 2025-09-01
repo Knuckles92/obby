@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Calendar, ChevronLeft, ChevronRight, Clock } from 'lucide-react'
 
 interface TimeRange {
@@ -9,7 +9,6 @@ interface TimeRange {
 interface TimeRangePickerProps {
   value: TimeRange
   onChange: (range: TimeRange) => void
-  onNaturalLanguageChange?: (text: string) => void
   className?: string
 }
 
@@ -23,20 +22,8 @@ const QUICK_PRESETS = [
   { id: 'last30days', label: 'Last 30 days', description: 'Past month of activity' },
 ]
 
-const NATURAL_LANGUAGE_EXAMPLES = [
-  "Summarize today's changes",
-  "Show me what I worked on this week", 
-  "Analyze the last 5 days",
-  "What did I accomplish yesterday",
-  "Review last week's progress",
-  "Give me a monthly overview",
-]
-
-export default function TimeRangePicker({ value, onChange, onNaturalLanguageChange, className = '' }: TimeRangePickerProps) {
-  const [mode, setMode] = useState<'preset' | 'calendar' | 'natural'>('preset')
-  const [naturalLanguageQuery, setNaturalLanguageQuery] = useState('')
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [currentMonth, setCurrentMonth] = useState(new Date())
+export default function TimeRangePicker({ value, onChange, className = '' }: TimeRangePickerProps) {
+  const [mode, setMode] = useState<'preset' | 'calendar'>('preset')
 
   const handlePresetSelect = (presetId: string) => {
     const now = new Date()
@@ -79,19 +66,6 @@ export default function TimeRangePicker({ value, onChange, onNaturalLanguageChan
     onChange({ start, end })
   }
 
-  const handleNaturalLanguageSubmit = () => {
-    if (naturalLanguageQuery.trim() && onNaturalLanguageChange) {
-      onNaturalLanguageChange(naturalLanguageQuery.trim())
-    }
-  }
-
-  const handleExampleClick = (example: string) => {
-    setNaturalLanguageQuery(example)
-    if (onNaturalLanguageChange) {
-      onNaturalLanguageChange(example)
-    }
-  }
-
   const formatDate = (date: Date) => {
     return date.toLocaleDateString('en-US', {
       month: 'short',
@@ -120,6 +94,7 @@ export default function TimeRangePicker({ value, onChange, onNaturalLanguageChan
   }
 
   const renderCalendar = () => {
+    const [currentMonth, setCurrentMonth] = useState(new Date())
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
     
@@ -291,7 +266,6 @@ export default function TimeRangePicker({ value, onChange, onNaturalLanguageChan
         {[
           { id: 'preset', label: 'Quick Select', icon: Clock },
           { id: 'calendar', label: 'Calendar', icon: Calendar },
-          { id: 'natural', label: 'Natural Language', icon: null }
         ].map(({ id, label, icon: Icon }) => (
           <button
             key={id}
@@ -356,72 +330,6 @@ export default function TimeRangePicker({ value, onChange, onNaturalLanguageChan
       )}
 
       {mode === 'calendar' && renderCalendar()}
-
-      {mode === 'natural' && (
-        <div className="space-y-4">
-          {/* Natural Language Input */}
-          <div className="space-y-2">
-            <label 
-              className="block text-sm font-medium"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              Describe your time range:
-            </label>
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={naturalLanguageQuery}
-                onChange={(e) => setNaturalLanguageQuery(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleNaturalLanguageSubmit()}
-                placeholder="e.g., 'summarize the last 3 days' or 'show this week'"
-                className="flex-1 px-3 py-2 rounded-lg border text-sm"
-                style={{
-                  backgroundColor: 'var(--color-surface)',
-                  borderColor: 'var(--color-border)',
-                  color: 'var(--color-text-primary)'
-                }}
-              />
-              <button
-                onClick={handleNaturalLanguageSubmit}
-                disabled={!naturalLanguageQuery.trim()}
-                className="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'var(--color-text-inverse)'
-                }}
-              >
-                Parse
-              </button>
-            </div>
-          </div>
-
-          {/* Examples */}
-          <div className="space-y-2">
-            <label 
-              className="block text-sm font-medium"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              Examples:
-            </label>
-            <div className="flex flex-wrap gap-2">
-              {NATURAL_LANGUAGE_EXAMPLES.map((example, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleExampleClick(example)}
-                  className="px-3 py-1 rounded-full text-xs border hover:scale-105 transition-all duration-200"
-                  style={{
-                    backgroundColor: 'var(--color-surface)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text-secondary)'
-                  }}
-                >
-                  "{example}"
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

@@ -1,18 +1,18 @@
 import { useState, useEffect } from 'react'
+
 import { 
-  Search, 
   Play, 
   Save, 
   History, 
   BookOpen, 
   Download,
-  Clock,
   TrendingUp,
   FileText,
   Activity,
-  AlertCircle,
   CheckCircle,
-  Loader
+  Loader,
+  ChevronDown,
+  X
 } from 'lucide-react'
 import TimeRangePicker from '../components/TimeRangePicker'
 import { apiFetch } from '../utils/api'
@@ -128,7 +128,7 @@ export default function TimeQuery() {
   const fetchTemplates = async () => {
     try {
       const response = await apiFetch('/api/time-query/templates')
-      setTemplates(response.templates || [])
+      setTemplates((response as any).templates || [])
     } catch (error) {
       console.error('Failed to fetch templates:', error)
     }
@@ -137,7 +137,7 @@ export default function TimeQuery() {
   const fetchSuggestions = async () => {
     try {
       const response = await apiFetch('/api/time-query/suggestions')
-      setSuggestions(response.suggestions || [])
+      setSuggestions((response as any).suggestions || [])
     } catch (error) {
       console.error('Failed to fetch suggestions:', error)
     }
@@ -146,7 +146,7 @@ export default function TimeQuery() {
   const fetchQueryHistory = async () => {
     try {
       const response = await apiFetch('/api/time-query/history?limit=10')
-      setQueryHistory(response.queries || [])
+      setQueryHistory((response as any).queries || [])
     } catch (error) {
       console.error('Failed to fetch query history:', error)
     }
@@ -222,7 +222,7 @@ export default function TimeQuery() {
       }
 
       // Use EventSource for streaming response
-      const eventSource = new EventSource(`/api/time-query/execute`)
+      const _eventSource = new EventSource(`/api/time-query/execute`)
       
       // For this demo, we'll use a regular fetch call instead
       const response = await apiFetch('/api/time-query/execute', {
@@ -231,7 +231,7 @@ export default function TimeQuery() {
         body: JSON.stringify({ ...requestData, stream: false })
       })
 
-      setCurrentResult(response)
+      setCurrentResult(response as unknown as QueryResult)
       await fetchQueryHistory() // Refresh history
 
     } catch (error) {
@@ -344,8 +344,7 @@ export default function TimeQuery() {
               key={label}
               className="p-4 rounded-lg border"
               style={{
-                backgroundColor: 'var(--color-surface)',
-                borderColor: 'var(--color-border)'
+                backgroundColor: 'var(--color-surface)'
               }}
             >
               <div className="flex items-center space-x-2 mb-2">
@@ -388,7 +387,7 @@ export default function TimeQuery() {
             </h4>
             
             {result.aiInsights.summary && (
-              <div className="mb-4">
+              <div className="p-6">
                 <p style={{ color: 'var(--color-text-primary)' }}>
                   {result.aiInsights.summary}
                 </p>
@@ -396,7 +395,7 @@ export default function TimeQuery() {
             )}
             
             {result.aiInsights.highlights && (
-              <div className="space-y-2">
+              <div className="flex items-center justify-between mb-1">
                 <h5 
                   className="font-medium text-sm"
                   style={{ color: 'var(--color-text-secondary)' }}
@@ -456,6 +455,7 @@ export default function TimeQuery() {
                         >
                           {item.priority}
                         </span>
+                        <History size={16} style={{ color: 'var(--color-text-secondary)' }} />
                         <span style={{ color: 'var(--color-text-secondary)' }}>
                           {item.effort}
                         </span>
@@ -587,22 +587,23 @@ export default function TimeQuery() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
-      {/* Header */}
+    <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
+      {/* Modern Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 
-            className="text-2xl font-bold"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
-            Time-Based Queries
-          </h1>
-          <p 
-            className="text-sm mt-1"
-            style={{ color: 'var(--color-text-secondary)' }}
-          >
-            Analyze your development activity over time with natural language queries
-          </p>
+            <Activity size={32} className="text-white" />
+            <h1 
+              className="text-2xl font-bold"
+              style={{ color: 'var(--color-text-primary)' }}
+            >
+              Time-Based Queries
+            </h1>
+            <p 
+              className="text-sm"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Analyze your development activity over time with natural language queries
+            </p>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -615,8 +616,8 @@ export default function TimeQuery() {
               color: 'var(--color-text-secondary)'
             }}
           >
-            <BookOpen size={16} />
-            <span>Templates</span>
+            <BookOpen size={18} />
+            <span className="font-medium">Templates</span>
           </button>
           
           <button
@@ -628,13 +629,13 @@ export default function TimeQuery() {
               color: 'var(--color-text-secondary)'
             }}
           >
-            <History size={16} />
-            <span>History</span>
+            <History size={18} />
+            <span className="font-medium">History</span>
           </button>
         </div>
       </div>
 
-      {/* Templates Panel */}
+      {/* Collapsible Templates Panel */}
       {showTemplates && (
         <div 
           className="p-4 rounded-lg border"
@@ -654,10 +655,10 @@ export default function TimeQuery() {
               <button
                 key={template.id}
                 onClick={() => handleTemplateSelect(template)}
-                className="p-3 rounded border text-left hover:scale-[1.02] transition-all"
+                className="group p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left"
                 style={{
                   backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-border)'
+                  backgroundColor: 'var(--color-surface)',
                 }}
               >
                 <div 
@@ -684,7 +685,7 @@ export default function TimeQuery() {
         </div>
       )}
 
-      {/* History Panel */}
+      {/* Collapsible History Panel */}
       {showHistory && (
         <div 
           className="p-4 rounded-lg border"
@@ -704,13 +705,13 @@ export default function TimeQuery() {
               <button
                 key={historyItem.id}
                 onClick={() => setQuery(historyItem.query_text)}
-                className="w-full p-3 rounded border text-left hover:scale-[1.01] transition-all"
+                className="w-full p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left group"
                 style={{
                   backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-border)'
+                  backgroundColor: 'var(--color-surface)',
                 }}
               >
-                <div className="flex items-center justify-between mb-1">
+                <div className="flex items-start space-x-3">
                   <span 
                     className="font-medium truncate"
                     style={{ color: 'var(--color-text-primary)' }}
@@ -718,8 +719,8 @@ export default function TimeQuery() {
                     {historyItem.query_name || historyItem.query_text}
                   </span>
                   <span 
-                    className="text-xs ml-2"
-                    style={{ color: 'var(--color-text-secondary)' }}
+                    className="text-xs font-mono px-2 py-1 rounded-md inline-block"
+                    style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
                   >
                     {new Date(historyItem.created_timestamp).toLocaleDateString()}
                   </span>
@@ -736,10 +737,10 @@ export default function TimeQuery() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Query Input Panel */}
-        <div className="lg:col-span-1 space-y-4">
-          {/* Natural Language Query */}
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+        {/* Query Configuration Panel */}
+        <div className="xl:col-span-1 space-y-6">
+          {/* Main Query Input */}
           <div 
             className="p-4 rounded-lg border"
             style={{
@@ -751,36 +752,35 @@ export default function TimeQuery() {
               className="block text-sm font-medium mb-2"
               style={{ color: 'var(--color-text-primary)' }}
             >
-              What would you like to know?
+              <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>Describe what you'd like to analyze from your development activity</p>
             </label>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g., 'Summarize the last 5 days' or 'What did I accomplish this week?'"
-              rows={3}
-              className="w-full px-3 py-2 rounded border resize-none"
+              rows={4}
+              className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all resize-none"
               style={{
                 backgroundColor: 'var(--color-background)',
                 borderColor: 'var(--color-border)',
                 color: 'var(--color-text-primary)'
               }}
             />
-            
             {/* Suggestions */}
             {suggestions.length > 0 && (
-              <div className="mt-3">
+              <div className="mt-4">
                 <span 
                   className="text-xs font-medium"
                   style={{ color: 'var(--color-text-secondary)' }}
                 >
                   Suggestions:
                 </span>
-                <div className="flex flex-wrap gap-1 mt-1">
-                  {suggestions.slice(0, 3).map((suggestion, index) => (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {suggestions.slice(0, 4).map((suggestion, index) => (
                     <button
                       key={index}
                       onClick={() => handleSuggestionClick(suggestion)}
-                      className="text-xs px-2 py-1 rounded border hover:scale-105 transition-all"
+                      className="px-3 py-2 text-sm rounded-lg border-2 border-transparent hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
                       style={{
                         backgroundColor: 'var(--color-background)',
                         borderColor: 'var(--color-border)',
@@ -796,11 +796,17 @@ export default function TimeQuery() {
           </div>
 
           {/* Time Range Picker */}
-          <TimeRangePicker
-            value={timeRange}
-            onChange={setTimeRange}
-            onNaturalLanguageChange={(text) => setQuery(text)}
-          />
+          <div className="bg-white rounded-xl shadow-lg border p-6"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              borderColor: 'var(--color-border)'
+            }}
+          >
+            <TimeRangePicker
+              value={timeRange}
+              onChange={setTimeRange}
+            />
+          </div>
 
           {/* Output Format */}
           <div 
@@ -822,7 +828,7 @@ export default function TimeQuery() {
                 { id: 'detailed', label: 'Detailed', description: 'Comprehensive analysis with charts' },
                 { id: 'actionItems', label: 'Action Items', description: 'AI-generated next steps' }
               ].map(({ id, label, description }) => (
-                <label key={id} className="flex items-start space-x-2 cursor-pointer">
+                <label key={id} className={`flex items-start space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${outputFormat === id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
                   <input
                     type="radio"
                     name="outputFormat"
@@ -862,16 +868,16 @@ export default function TimeQuery() {
               className="block text-sm font-medium mb-2"
               style={{ color: 'var(--color-text-primary)' }}
             >
-              Focus Areas (Optional)
+              <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>Filter by file types, directories, or specific keywords</p>
             </label>
-            <div className="flex space-x-2 mb-2">
+            <div className="flex space-x-2 mb-3">
               <input
                 type="text"
                 value={newFocusArea}
                 onChange={(e) => setNewFocusArea(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
                 placeholder="e.g., 'frontend', '.py', 'components'"
-                className="flex-1 px-2 py-1 text-sm rounded border"
+                className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
                 style={{
                   backgroundColor: 'var(--color-background)',
                   borderColor: 'var(--color-border)',
@@ -880,7 +886,7 @@ export default function TimeQuery() {
               />
               <button
                 onClick={addFocusArea}
-                className="px-3 py-1 text-sm rounded"
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105"
                 style={{
                   backgroundColor: 'var(--color-primary)',
                   color: 'var(--color-text-inverse)'
@@ -889,23 +895,22 @@ export default function TimeQuery() {
                 Add
               </button>
             </div>
-            
             {focusAreas.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {focusAreas.map((area, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-2 py-1 rounded text-xs"
+                    className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border-2 border-blue-200 bg-blue-50"
                     style={{
                       backgroundColor: 'var(--color-background)',
                       color: 'var(--color-text-primary)',
-                      border: `1px solid var(--color-border)`
+                      borderColor: 'var(--color-primary)'
                     }}
                   >
                     {area}
                     <button
                       onClick={() => removeFocusArea(area)}
-                      className="ml-1 hover:opacity-70"
+                      className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors"
                       style={{ color: 'var(--color-text-secondary)' }}
                     >
                       ×
@@ -920,9 +925,7 @@ export default function TimeQuery() {
           <button
             onClick={executeQuery}
             disabled={!query.trim() || isExecuting}
-            className={`w-full flex items-center justify-center space-x-2 px-4 py-3 rounded-lg font-medium transition-all ${
-              !query.trim() || isExecuting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-105'
-            }`}
+            className={`w-full flex items-center justify-center space-x-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl ${!query.trim() || isExecuting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
             style={{
               backgroundColor: 'var(--color-primary)',
               color: 'var(--color-text-inverse)'
@@ -930,12 +933,12 @@ export default function TimeQuery() {
           >
             {isExecuting ? (
               <>
-                <Loader size={16} className="animate-spin" />
-                <span>Analyzing...</span>
+                <Loader size={20} className="animate-spin" />
+                <span>Analyzing your data...</span>
               </>
             ) : (
               <>
-                <Play size={16} />
+                <Play size={20} />
                 <span>Execute Query</span>
               </>
             )}
@@ -946,12 +949,11 @@ export default function TimeQuery() {
             <div 
               className="p-3 rounded border"
               style={{
-                backgroundColor: 'var(--color-background)',
-                borderColor: 'var(--color-border)'
+                backgroundColor: 'var(--color-background)'
               }}
             >
               <div className="flex items-center space-x-2 mb-2">
-                <Loader size={14} className="animate-spin" />
+                <Loader size={20} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
                 <span 
                   className="text-sm"
                   style={{ color: 'var(--color-text-primary)' }}
@@ -964,7 +966,7 @@ export default function TimeQuery() {
                 style={{ backgroundColor: 'var(--color-border)' }}
               >
                 <div
-                  className="h-2 rounded-full transition-all duration-300"
+                  className="h-full rounded-full transition-all duration-500 ease-out"
                   style={{
                     backgroundColor: 'var(--color-primary)',
                     width: `${executionProgress.progress}%`
@@ -976,7 +978,7 @@ export default function TimeQuery() {
         </div>
 
         {/* Results Panel */}
-        <div className="lg:col-span-2">
+        <div className="xl:col-span-2">
           {currentResult ? renderResults() : (
             <div 
               className="h-96 flex flex-col items-center justify-center rounded-lg border-2 border-dashed"
@@ -985,11 +987,12 @@ export default function TimeQuery() {
                 color: 'var(--color-text-secondary)'
               }}
             >
-              <Search size={48} className="mb-4 opacity-50" />
-              <p className="text-lg font-medium mb-2">Ready for your query</p>
-              <p className="text-sm text-center max-w-md">
-                Enter a natural language query about your development activity and select a time range to get started.
-              </p>
+              <div className="max-w-md mx-auto">
+                <div className="flex items-center justify-center space-x-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                  <span>Try asking about your recent development activity</span>
+                </div>
+                <p className="text-lg font-medium mb-2">Ready for your query</p>
+              </div>
             </div>
           )}
         </div>
@@ -1013,8 +1016,7 @@ export default function TimeQuery() {
               placeholder="Enter a name for this query"
               className="w-full px-3 py-2 rounded border mb-4"
               style={{
-                backgroundColor: 'var(--color-background)',
-                borderColor: 'var(--color-border)'
+                backgroundColor: 'var(--color-background)'
               }}
             />
             <div className="flex justify-end space-x-2">
