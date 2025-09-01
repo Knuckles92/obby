@@ -20,7 +20,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
   { name: 'Time Queries', href: '/time-query', icon: Clock },
-  { name: 'Obby Summary', href: '/summary-notes', icon: FileText },
+  { name: 'Summary', href: '/summary-notes', icon: FileText },
   { name: 'Administration', href: '/admin', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]

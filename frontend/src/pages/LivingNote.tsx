@@ -200,11 +200,11 @@ export default function LivingNote() {
       } else {
         const error = await response.json()
         console.error('Error clearing living note:', error.error)
-        alert('Failed to clear Obby summary: ' + error.error)
+        alert('Failed to clear Summary: ' + error.error)
       }
     } catch (error) {
       console.error('Error clearing living note:', error)
-      alert('Failed to clear Obby summary. Please try again.')
+      alert('Failed to clear Summary. Please try again.')
     } finally {
       setClearLoading(false)
     }
@@ -223,14 +223,14 @@ export default function LivingNote() {
           <div className="flex items-center">
             <FileText className="h-6 w-6 text-gray-600 mr-3" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Obby Summary</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Summary</h1>
               <p className="text-gray-600">Error loading component</p>
             </div>
           </div>
         </div>
         <div className="card">
           <div className="text-center py-12">
-            <p className="text-red-600">Something went wrong loading the Obby Summary page.</p>
+            <p className="text-red-600">Something went wrong loading the Summary page.</p>
             <button 
               onClick={() => {
                 setHasError(false)
@@ -252,7 +252,7 @@ export default function LivingNote() {
         <div className="flex items-center">
           <FileText className="h-6 w-6 text-gray-600 mr-3" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Obby Summary</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Summary</h1>
             <p className="text-gray-600">AI-generated summary of your note changes</p>
           </div>
         </div>
@@ -409,8 +409,8 @@ export default function LivingNote() {
         isOpen={clearDialogOpen}
         onClose={() => setClearDialogOpen(false)}
         onConfirm={handleClearNote}
-        title="Clear Obby Summary"
-        message="Are you sure you want to clear the Obby summary? This will permanently delete all AI-generated content."
+        title="Clear Summary"
+        message="Are you sure you want to clear the Summary? This will permanently delete all AI-generated content."
         confirmText="Clear Note"
         cancelText="Cancel"
         danger={true}

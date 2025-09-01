@@ -669,14 +669,14 @@ export default function SummaryNotes() {
           <div className="flex items-center">
             <FileText className="h-6 w-6 text-gray-600 mr-3" />
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Obby Summary</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Summary</h1>
               <p className="text-gray-600">Error loading component</p>
             </div>
           </div>
         </div>
         <div className="card">
           <div className="text-center py-12">
-            <p className="text-red-600">Something went wrong loading the Obby Summary page.</p>
+            <p className="text-red-600">Something went wrong loading the Summary page.</p>
             <button 
               onClick={() => {
                 setHasError(false)
@@ -698,7 +698,7 @@ export default function SummaryNotes() {
         <div className="flex items-center">
           <FileText className="h-6 w-6 text-gray-600 mr-3" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Obby Summary</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Summary</h1>
             <p className="text-gray-600">AI-generated summaries of your file changes</p>
           </div>
         </div>

@@ -657,7 +657,6 @@ export default function TimeQuery() {
                 onClick={() => handleTemplateSelect(template)}
                 className="group p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left"
                 style={{
-                  backgroundColor: 'var(--color-background)',
                   backgroundColor: 'var(--color-surface)',
                 }}
               >
@@ -707,7 +706,6 @@ export default function TimeQuery() {
                 onClick={() => setQuery(historyItem.query_text)}
                 className="w-full p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left group"
                 style={{
-                  backgroundColor: 'var(--color-background)',
                   backgroundColor: 'var(--color-surface)',
                 }}
               >
@@ -737,19 +735,19 @@ export default function TimeQuery() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-        {/* Query Configuration Panel */}
-        <div className="xl:col-span-1 space-y-6">
+      <div className="space-y-8">
+        {/* Query Input Section */}
+        <div className="space-y-6">
           {/* Main Query Input */}
           <div 
-            className="p-4 rounded-lg border"
+            className="p-6 rounded-lg border"
             style={{
               backgroundColor: 'var(--color-surface)',
               borderColor: 'var(--color-border)'
             }}
           >
             <label 
-              className="block text-sm font-medium mb-2"
+              className="block text-sm font-medium mb-3"
               style={{ color: 'var(--color-text-primary)' }}
             >
               <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>Describe what you'd like to analyze from your development activity</p>
@@ -758,7 +756,7 @@ export default function TimeQuery() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="e.g., 'Summarize the last 5 days' or 'What did I accomplish this week?'"
-              rows={4}
+              rows={3}
               className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all resize-none"
               style={{
                 backgroundColor: 'var(--color-background)',
@@ -795,190 +793,202 @@ export default function TimeQuery() {
             )}
           </div>
 
-          {/* Time Range Picker */}
-          <div className="bg-white rounded-xl shadow-lg border p-6"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <TimeRangePicker
-              value={timeRange}
-              onChange={setTimeRange}
-            />
-          </div>
+        </div>
 
-          {/* Output Format */}
-          <div 
-            className="p-4 rounded-lg border"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <label 
-              className="block text-sm font-medium mb-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              Output Format
-            </label>
-            <div className="space-y-2">
-              {[
-                { id: 'summary', label: 'Summary', description: 'Concise overview with key insights' },
-                { id: 'detailed', label: 'Detailed', description: 'Comprehensive analysis with charts' },
-                { id: 'actionItems', label: 'Action Items', description: 'AI-generated next steps' }
-              ].map(({ id, label, description }) => (
-                <label key={id} className={`flex items-start space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${outputFormat === id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                  <input
-                    type="radio"
-                    name="outputFormat"
-                    value={id}
-                    checked={outputFormat === id}
-                    onChange={(e) => setOutputFormat(e.target.value as any)}
-                    className="mt-1"
-                  />
-                  <div>
-                    <div 
-                      className="font-medium text-sm"
-                      style={{ color: 'var(--color-text-primary)' }}
-                    >
-                      {label}
-                    </div>
-                    <div 
-                      className="text-xs"
-                      style={{ color: 'var(--color-text-secondary)' }}
-                    >
-                      {description}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-
-          {/* Focus Areas */}
-          <div 
-            className="p-4 rounded-lg border"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <label 
-              className="block text-sm font-medium mb-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>Filter by file types, directories, or specific keywords</p>
-            </label>
-            <div className="flex space-x-2 mb-3">
-              <input
-                type="text"
-                value={newFocusArea}
-                onChange={(e) => setNewFocusArea(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
-                placeholder="e.g., 'frontend', '.py', 'components'"
-                className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
-                style={{
-                  backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-border)',
-                  color: 'var(--color-text-primary)'
-                }}
-              />
-              <button
-                onClick={addFocusArea}
-                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                style={{
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'var(--color-text-inverse)'
-                }}
-              >
-                Add
-              </button>
-            </div>
-            {focusAreas.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {focusAreas.map((area, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border-2 border-blue-200 bg-blue-50"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      color: 'var(--color-text-primary)',
-                      borderColor: 'var(--color-primary)'
-                    }}
-                  >
-                    {area}
-                    <button
-                      onClick={() => removeFocusArea(area)}
-                      className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors"
-                      style={{ color: 'var(--color-text-secondary)' }}
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Execute Button */}
-          <button
-            onClick={executeQuery}
-            disabled={!query.trim() || isExecuting}
-            className={`w-full flex items-center justify-center space-x-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl ${!query.trim() || isExecuting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
-            style={{
-              backgroundColor: 'var(--color-primary)',
-              color: 'var(--color-text-inverse)'
-            }}
-          >
-            {isExecuting ? (
-              <>
-                <Loader size={20} className="animate-spin" />
-                <span>Analyzing your data...</span>
-              </>
-            ) : (
-              <>
-                <Play size={20} />
-                <span>Execute Query</span>
-              </>
-            )}
-          </button>
-
-          {/* Execution Progress */}
-          {isExecuting && (
-            <div 
-              className="p-3 rounded border"
+        {/* Configuration Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          {/* Time Range Picker - Takes 2 columns */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg border p-6"
               style={{
-                backgroundColor: 'var(--color-background)'
+                backgroundColor: 'var(--color-surface)',
+                borderColor: 'var(--color-border)'
               }}
             >
-              <div className="flex items-center space-x-2 mb-2">
-                <Loader size={20} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
-                <span 
-                  className="text-sm"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
-                  {executionProgress.message}
-                </span>
-              </div>
-              <div 
-                className="w-full bg-gray-200 rounded-full h-2"
-                style={{ backgroundColor: 'var(--color-border)' }}
+              <TimeRangePicker
+                value={timeRange}
+                onChange={setTimeRange}
+              />
+            </div>
+          </div>
+
+          {/* Output Format and Focus Areas - Takes 2 columns */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Output Format */}
+            <div 
+              className="p-4 rounded-lg border"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                borderColor: 'var(--color-border)'
+              }}
+            >
+              <label 
+                className="block text-sm font-medium mb-3"
+                style={{ color: 'var(--color-text-primary)' }}
               >
-                <div
-                  className="h-full rounded-full transition-all duration-500 ease-out"
-                  style={{
-                    backgroundColor: 'var(--color-primary)',
-                    width: `${executionProgress.progress}%`
-                  }}
-                />
+                Output Format
+              </label>
+              <div className="space-y-2">
+                {[
+                  { id: 'summary', label: 'Summary', description: 'Concise overview with key insights' },
+                  { id: 'detailed', label: 'Detailed', description: 'Comprehensive analysis with charts' },
+                  { id: 'actionItems', label: 'Action Items', description: 'AI-generated next steps' }
+                ].map(({ id, label, description }) => (
+                  <label key={id} className={`flex items-start space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${outputFormat === id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
+                    <input
+                      type="radio"
+                      name="outputFormat"
+                      value={id}
+                      checked={outputFormat === id}
+                      onChange={(e) => setOutputFormat(e.target.value as any)}
+                      className="mt-1"
+                    />
+                    <div>
+                      <div 
+                        className="font-medium text-sm"
+                        style={{ color: 'var(--color-text-primary)' }}
+                      >
+                        {label}
+                      </div>
+                      <div 
+                        className="text-xs"
+                        style={{ color: 'var(--color-text-secondary)' }}
+                      >
+                        {description}
+                      </div>
+                    </div>
+                  </label>
+                ))}
               </div>
             </div>
-          )}
+
+            {/* Focus Areas */}
+            <div 
+              className="p-4 rounded-lg border"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                borderColor: 'var(--color-border)'
+              }}
+            >
+              <label 
+                className="block text-sm font-medium mb-3"
+                style={{ color: 'var(--color-text-primary)' }}
+              >
+                Focus Areas
+                <p className="text-sm font-normal mt-1" style={{ color: 'var(--color-text-secondary)' }}>Filter by file types, directories, or keywords</p>
+              </label>
+              <div className="flex space-x-2 mb-3">
+                <input
+                  type="text"
+                  value={newFocusArea}
+                  onChange={(e) => setNewFocusArea(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
+                  placeholder="e.g., 'frontend', '.py', 'components'"
+                  className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
+                  style={{
+                    backgroundColor: 'var(--color-background)',
+                    borderColor: 'var(--color-border)',
+                    color: 'var(--color-text-primary)'
+                  }}
+                />
+                <button
+                  onClick={addFocusArea}
+                  className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                  style={{
+                    backgroundColor: 'var(--color-primary)',
+                    color: 'var(--color-text-inverse)'
+                  }}
+                >
+                  Add
+                </button>
+              </div>
+              {focusAreas.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {focusAreas.map((area, index) => (
+                    <span
+                      key={index}
+                      className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border-2 border-blue-200 bg-blue-50"
+                      style={{
+                        backgroundColor: 'var(--color-background)',
+                        color: 'var(--color-text-primary)',
+                        borderColor: 'var(--color-primary)'
+                      }}
+                    >
+                      {area}
+                      <button
+                        onClick={() => removeFocusArea(area)}
+                        className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors"
+                        style={{ color: 'var(--color-text-secondary)' }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Execute Button and Progress - Takes 1 column */}
+          <div className="lg:col-span-1 space-y-4">
+            <button
+              onClick={executeQuery}
+              disabled={!query.trim() || isExecuting}
+              className={`w-full flex items-center justify-center space-x-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl ${!query.trim() || isExecuting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
+              style={{
+                backgroundColor: 'var(--color-primary)',
+                color: 'var(--color-text-inverse)'
+              }}
+            >
+              {isExecuting ? (
+                <>
+                  <Loader size={20} className="animate-spin" />
+                  <span>Analyzing...</span>
+                </>
+              ) : (
+                <>
+                  <Play size={20} />
+                  <span>Execute Query</span>
+                </>
+              )}
+            </button>
+
+            {/* Execution Progress */}
+            {isExecuting && (
+              <div 
+                className="p-3 rounded border"
+                style={{
+                  backgroundColor: 'var(--color-background)'
+                }}
+              >
+                <div className="flex items-center space-x-2 mb-2">
+                  <Loader size={20} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
+                  <span 
+                    className="text-sm"
+                    style={{ color: 'var(--color-text-primary)' }}
+                  >
+                    {executionProgress.message}
+                  </span>
+                </div>
+                <div 
+                  className="w-full bg-gray-200 rounded-full h-2"
+                  style={{ backgroundColor: 'var(--color-border)' }}
+                >
+                  <div
+                    className="h-full rounded-full transition-all duration-500 ease-out"
+                    style={{
+                      backgroundColor: 'var(--color-primary)',
+                      width: `${executionProgress.progress}%`
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Results Panel */}
-        <div className="xl:col-span-2">
+        <div>
           {currentResult ? renderResults() : (
             <div 
               className="h-96 flex flex-col items-center justify-center rounded-lg border-2 border-dashed"
