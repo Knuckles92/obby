@@ -15,6 +15,7 @@ import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import TimeRangePicker from '../components/TimeRangePicker'
+import OutputStylePicker from '../components/OutputStylePicker'
 import { apiRequest } from '../utils/api'
 
 interface TimeRange {
@@ -98,6 +99,7 @@ export default function TimeQuery() {
   const [showHistory, setShowHistory] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveQueryName, setSaveQueryName] = useState('')
+  const [outputFormat, setOutputFormat] = useState<string>('summary')
 
   useEffect(() => {
     fetchTemplates()
@@ -135,6 +137,9 @@ export default function TimeQuery() {
   const handleTemplateSelect = (template: QueryTemplate) => {
     setQuery(template.query)
     setShowTemplates(false)
+    if (template.outputFormat) {
+      setOutputFormat(template.outputFormat)
+    }
     
     // Set time range based on template
     const now = new Date()
@@ -196,7 +201,7 @@ export default function TimeQuery() {
         startTime: timeRange.start.toISOString(),
         endTime: timeRange.end.toISOString(),
         focusAreas,
-        outputFormat: 'summary', // Always use summary format since we output markdown
+        outputFormat, // Use selected output style
         stream: true
       }
 
@@ -349,12 +354,7 @@ export default function TimeQuery() {
           <div 
             className="prose prose-sm max-w-none"
             style={{ 
-              color: 'var(--color-text-primary)',
-              '--tw-prose-headings': 'var(--color-text-primary)',
-              '--tw-prose-strong': 'var(--color-text-primary)',
-              '--tw-prose-links': 'var(--color-primary)',
-              '--tw-prose-bullets': 'var(--color-text-secondary)',
-              '--tw-prose-quotes': 'var(--color-text-secondary)'
+              color: 'var(--color-text-primary)'
             }}
           >
             <ReactMarkdown
@@ -371,204 +371,73 @@ export default function TimeQuery() {
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: 'var(--color-background)' }}>
-      {/* Modern Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-            <Activity size={32} className="text-white" />
-            <h1 
-              className="text-2xl font-bold"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              Time-Based Queries
-            </h1>
-            <p 
-              className="text-sm"
-              style={{ color: 'var(--color-text-secondary)' }}
-            >
-              Analyze your development activity over time with natural language queries
-            </p>
+        <div className="flex items-center space-x-3">
+          <Activity size={28} style={{ color: 'var(--color-primary)' }} />
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Time-Based Queries</h1>
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Analyze your development activity with natural language</p>
+          </div>
         </div>
-        
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowTemplates(!showTemplates)}
+            onClick={() => setShowTemplates(true)}
             className="flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)',
-              color: 'var(--color-text-secondary)'
-            }}
+            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
           >
             <BookOpen size={18} />
             <span className="font-medium">Templates</span>
           </button>
-          
           <button
-            onClick={() => setShowHistory(!showHistory)}
+            onClick={() => setShowHistory(true)}
             className="flex items-center space-x-2 px-3 py-2 rounded-lg border transition-colors"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)',
-              color: 'var(--color-text-secondary)'
-            }}
+            style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
           >
             <History size={18} />
             <span className="font-medium">History</span>
           </button>
+          <button
+            onClick={executeQuery}
+            disabled={!query.trim() || isExecuting}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-semibold transition-all ${!query.trim() || isExecuting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
+            style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
+          >
+            {isExecuting ? <Loader size={18} className="animate-spin" /> : <Play size={18} />}
+            <span>{isExecuting ? 'Analyzing…' : 'Run'}</span>
+          </button>
         </div>
       </div>
 
-      {/* Collapsible Templates Panel */}
-      {showTemplates && (
-        <div 
-          className="p-4 rounded-lg border"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            borderColor: 'var(--color-border)'
-          }}
-        >
-          <h3 
-            className="font-semibold mb-3"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
-            Query Templates
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {templates.map((template) => (
-              <button
-                key={template.id}
-                onClick={() => handleTemplateSelect(template)}
-                className="group p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left"
-                style={{
-                  backgroundColor: 'var(--color-surface)',
-                }}
-              >
-                <div 
-                  className="font-medium mb-1"
-                  style={{ color: 'var(--color-text-primary)' }}
-                >
-                  {template.name}
-                </div>
-                <div 
-                  className="text-sm mb-2"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  {template.description}
-                </div>
-                <div 
-                  className="text-xs font-mono"
-                  style={{ color: 'var(--color-primary)' }}
-                >
-                  "{template.query}"
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Collapsible History Panel */}
-      {showHistory && (
-        <div 
-          className="p-4 rounded-lg border"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            borderColor: 'var(--color-border)'
-          }}
-        >
-          <h3 
-            className="font-semibold mb-3"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
-            Recent Queries
-          </h3>
-          <div className="space-y-2">
-            {queryHistory.map((historyItem) => (
-              <button
-                key={historyItem.id}
-                onClick={() => setQuery(historyItem.query_text)}
-                className="w-full p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left group"
-                style={{
-                  backgroundColor: 'var(--color-surface)',
-                }}
-              >
-                <div className="flex items-start space-x-3">
-                  <span 
-                    className="font-medium truncate"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    {historyItem.query_name || historyItem.query_text}
-                  </span>
-                  <span 
-                    className="text-xs font-mono px-2 py-1 rounded-md inline-block"
-                    style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
-                  >
-                    {new Date(historyItem.created_timestamp).toLocaleDateString()}
-                  </span>
-                </div>
-                <div 
-                  className="text-sm"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  {new Date(historyItem.time_range_start).toLocaleDateString()} - {new Date(historyItem.time_range_end).toLocaleDateString()}
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div className="space-y-8">
-        {/* Query Input Section */}
-        <div className="space-y-6">
-          {/* Main Query Input */}
-          <div 
-            className="p-6 rounded-lg border"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <label 
-              className="block text-sm font-medium mb-3"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              <p className="text-sm mb-4" style={{ color: 'var(--color-text-secondary)' }}>Describe what you'd like to analyze from your development activity</p>
+      {/* Main Content */}
+      <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 mt-6">
+        {/* Composer */}
+        <div className="xl:col-span-4 space-y-6">
+          {/* Query Input */}
+          <div className="p-6 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <label className="block text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
+              What do you want to analyze?
+              <p className="text-sm font-normal mt-1" style={{ color: 'var(--color-text-secondary)' }}>e.g., "Summarize the last 5 days" or "What did I accomplish this week?"</p>
             </label>
             <textarea
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="e.g., 'Summarize the last 5 days' or 'What did I accomplish this week?'"
-              rows={3}
-              className="w-full px-4 py-3 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all resize-none"
-              style={{
-                backgroundColor: 'var(--color-background)',
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-text-primary)'
-              }}
+              rows={4}
+              className="w-full px-4 py-3 rounded-lg border-2 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all resize-none"
+              style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
             />
-            {/* Suggestions */}
             {suggestions.length > 0 && (
               <div className="mt-4">
-                <span 
-                  className="text-xs font-medium"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  Suggestions:
-                </span>
+                <span className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>Suggestions</span>
                 <div className="flex flex-wrap gap-2 mt-2">
-                  {suggestions.slice(0, 4).map((suggestion, index) => (
+                  {suggestions.slice(0, 6).map((s, i) => (
                     <button
-                      key={index}
-                      onClick={() => handleSuggestionClick(suggestion)}
-                      className="px-3 py-2 text-sm rounded-lg border-2 border-transparent hover:border-blue-300 hover:bg-blue-50 transition-all duration-200"
-                      style={{
-                        backgroundColor: 'var(--color-background)',
-                        borderColor: 'var(--color-border)',
-                        color: 'var(--color-text-secondary)'
-                      }}
+                      key={i}
+                      onClick={() => handleSuggestionClick(s)}
+                      className="px-3 py-2 text-sm rounded-lg border-2 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50"
+                      style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}
                     >
-                      {suggestion}
+                      {s}
                     </button>
                   ))}
                 </div>
@@ -576,169 +445,83 @@ export default function TimeQuery() {
             )}
           </div>
 
-        </div>
+          {/* Output Style */}
+          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <OutputStylePicker value={outputFormat} onChange={setOutputFormat} />
+          </div>
 
-        {/* Configuration Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Time Range Picker - Takes 2 columns */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-xl shadow-lg border p-6"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                borderColor: 'var(--color-border)'
-              }}
-            >
-              <TimeRangePicker
-                value={timeRange}
-                onChange={setTimeRange}
+          {/* Time Range */}
+          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <TimeRangePicker value={timeRange} onChange={setTimeRange} />
+          </div>
+
+          {/* Focus Areas */}
+          <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <label className="block text-sm font-medium mb-3" style={{ color: 'var(--color-text-primary)' }}>
+              Focus Areas
+              <p className="text-sm font-normal mt-1" style={{ color: 'var(--color-text-secondary)' }}>Filter by file types, directories, or keywords</p>
+            </label>
+            <div className="flex space-x-2 mb-3">
+              <input
+                type="text"
+                value={newFocusArea}
+                onChange={(e) => setNewFocusArea(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
+                placeholder="e.g., 'frontend', '.py', 'components'"
+                className="flex-1 px-3 py-2 rounded-lg border-2 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
+                style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-border)', color: 'var(--color-text-primary)' }}
               />
-            </div>
-          </div>
-
-          {/* Focus Areas - Takes 1 column */}
-          <div className="lg:col-span-1">
-            <div 
-              className="p-4 rounded-lg border h-full"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                borderColor: 'var(--color-border)'
-              }}
-            >
-              <label 
-                className="block text-sm font-medium mb-3"
-                style={{ color: 'var(--color-text-primary)' }}
+              <button
+                onClick={addFocusArea}
+                className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105"
+                style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
               >
-                Focus Areas
-                <p className="text-sm font-normal mt-1" style={{ color: 'var(--color-text-secondary)' }}>Filter by file types, directories, or keywords</p>
-              </label>
-              <div className="flex space-x-2 mb-3">
-                <input
-                  type="text"
-                  value={newFocusArea}
-                  onChange={(e) => setNewFocusArea(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && addFocusArea()}
-                  placeholder="e.g., 'frontend', '.py', 'components'"
-                  className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 transition-all"
-                  style={{
-                    backgroundColor: 'var(--color-background)',
-                    borderColor: 'var(--color-border)',
-                    color: 'var(--color-text-primary)'
-                  }}
-                />
-                <button
-                  onClick={addFocusArea}
-                  className="px-4 py-2 rounded-lg font-medium transition-all duration-200 hover:scale-105"
-                  style={{
-                    backgroundColor: 'var(--color-primary)',
-                    color: 'var(--color-text-inverse)'
-                  }}
-                >
-                  Add
-                </button>
-              </div>
-              {focusAreas.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {focusAreas.map((area, index) => (
-                    <span
-                      key={index}
-                      className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border-2 border-blue-200 bg-blue-50"
-                      style={{
-                        backgroundColor: 'var(--color-background)',
-                        color: 'var(--color-text-primary)',
-                        borderColor: 'var(--color-primary)'
-                      }}
-                    >
-                      {area}
-                      <button
-                        onClick={() => removeFocusArea(area)}
-                        className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors"
-                        style={{ color: 'var(--color-text-secondary)' }}
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
+                Add
+              </button>
             </div>
-          </div>
-
-          {/* Execute Button and Progress - Takes 1 column */}
-          <div className="lg:col-span-1 space-y-4">
-            <button
-              onClick={executeQuery}
-              disabled={!query.trim() || isExecuting}
-              className={`w-full flex items-center justify-center space-x-3 px-6 py-4 rounded-xl font-semibold text-lg transition-all duration-200 shadow-lg hover:shadow-xl ${!query.trim() || isExecuting ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}`}
-              style={{
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-text-inverse)'
-              }}
-            >
-              {isExecuting ? (
-                <>
-                  <Loader size={20} className="animate-spin" />
-                  <span>Analyzing...</span>
-                </>
-              ) : (
-                <>
-                  <Play size={20} />
-                  <span>Execute Query</span>
-                </>
-              )}
-            </button>
-
-            {/* Execution Progress */}
-            {isExecuting && (
-              <div 
-                className="p-3 rounded border"
-                style={{
-                  backgroundColor: 'var(--color-background)'
-                }}
-              >
-                <div className="flex items-center space-x-2 mb-2">
-                  <Loader size={20} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
-                  <span 
-                    className="text-sm"
-                    style={{ color: 'var(--color-text-primary)' }}
+            {focusAreas.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {focusAreas.map((area, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center px-3 py-2 rounded-full text-sm font-medium border"
+                    style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}
                   >
-                    {executionProgress.message}
+                    {area}
+                    <button onClick={() => removeFocusArea(area)} className="ml-2 hover:bg-white/20 rounded-full p-1 transition-colors" style={{ color: 'var(--color-text-secondary)' }}>×</button>
                   </span>
-                </div>
-                <div 
-                  className="w-full bg-gray-200 rounded-full h-2"
-                  style={{ backgroundColor: 'var(--color-border)' }}
-                >
-                  <div
-                    className="h-full rounded-full transition-all duration-500 ease-out"
-                    style={{
-                      backgroundColor: 'var(--color-primary)',
-                      width: `${executionProgress.progress}%`
-                    }}
-                  />
-                </div>
+                ))}
               </div>
             )}
           </div>
         </div>
 
-        {/* Results Panel */}
-        <div>
-          {currentResult ? renderResults() : (
-            <div 
-              className="h-96 flex flex-col items-center justify-center rounded-lg border-2 border-dashed"
-              style={{
-                borderColor: 'var(--color-border)',
-                color: 'var(--color-text-secondary)'
-              }}
-            >
-              <div className="max-w-md mx-auto">
-                <div className="flex items-center justify-center space-x-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  <span>Try asking about your recent development activity</span>
-                </div>
-                <p className="text-lg font-medium mb-2">Ready for your query</p>
+        {/* Results */}
+        <div className="xl:col-span-8 space-y-4">
+          {isExecuting && (
+            <div className="p-3 rounded border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+              <div className="flex items-center space-x-2 mb-2">
+                <Loader size={20} className="animate-spin" style={{ color: 'var(--color-primary)' }} />
+                <span className="text-sm" style={{ color: 'var(--color-text-primary)' }}>{executionProgress.message || 'Analyzing…'}</span>
+              </div>
+              <div className="w-full rounded-full h-2" style={{ backgroundColor: 'var(--color-border)' }}>
+                <div className="h-full rounded-full transition-all duration-500 ease-out" style={{ backgroundColor: 'var(--color-primary)', width: `${executionProgress.progress}%` }} />
               </div>
             </div>
           )}
+
+          <div>
+            {currentResult ? (
+              renderResults()
+            ) : (
+              <div className="h-96 flex flex-col items-center justify-center rounded-lg border-2 border-dashed" style={{ borderColor: 'var(--color-border)', color: 'var(--color-text-secondary)' }}>
+                <div className="max-w-md mx-auto text-center">
+                  <p className="text-lg font-medium mb-2">Compose a query to get started</p>
+                  <p className="text-sm">Use the suggestions or templates to quickly generate insightful summaries.</p>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -759,18 +542,13 @@ export default function TimeQuery() {
               onChange={(e) => setSaveQueryName(e.target.value)}
               placeholder="Enter a name for this query"
               className="w-full px-3 py-2 rounded border mb-4"
-              style={{
-                backgroundColor: 'var(--color-background)'
-              }}
+              style={{ backgroundColor: 'var(--color-background)' }}
             />
             <div className="flex justify-end space-x-2">
               <button
                 onClick={() => setShowSaveDialog(false)}
                 className="px-4 py-2 rounded"
-                style={{
-                  backgroundColor: 'var(--color-background)',
-                  color: 'var(--color-text-secondary)'
-                }}
+                style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-secondary)' }}
               >
                 Cancel
               </button>
@@ -778,13 +556,71 @@ export default function TimeQuery() {
                 onClick={handleSaveQuery}
                 disabled={!saveQueryName.trim()}
                 className="px-4 py-2 rounded disabled:opacity-50"
-                style={{
-                  backgroundColor: 'var(--color-primary)',
-                  color: 'var(--color-text-inverse)'
-                }}
+                style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}
               >
                 Save
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Templates Modal */}
+      {showTemplates && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="rounded-lg p-6 max-w-3xl w-full mx-4" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Query Templates</h3>
+              <button onClick={() => setShowTemplates(false)} className="px-3 py-1 rounded" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-secondary)' }}>Close</button>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {templates.map((template) => (
+                <button
+                  key={template.id}
+                  onClick={() => { handleTemplateSelect(template); setShowTemplates(false) }}
+                  className="group p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left"
+                  style={{ backgroundColor: 'var(--color-surface)' }}
+                >
+                  <div className="font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>{template.name}</div>
+                  <div className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>{template.description}</div>
+                  <div className="text-xs font-mono" style={{ color: 'var(--color-primary)' }}>
+                    "{template.query}"
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* History Modal */}
+      {showHistory && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="rounded-lg p-6 max-w-2xl w-full mx-4" style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Recent Queries</h3>
+              <button onClick={() => setShowHistory(false)} className="px-3 py-1 rounded" style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-secondary)' }}>Close</button>
+            </div>
+            <div className="space-y-2 max-h-[60vh] overflow-auto pr-1">
+              {queryHistory.map((historyItem) => (
+                <button
+                  key={historyItem.id}
+                  onClick={() => { setQuery(historyItem.query_text); setShowHistory(false) }}
+                  className="w-full p-4 rounded-xl border-2 border-transparent hover:border-blue-200 hover:shadow-md transition-all duration-200 text-left group"
+                  style={{ backgroundColor: 'var(--color-surface)' }}
+                >
+                  <div className="flex items-start space-x-3">
+                    <span className="font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>
+                      {historyItem.query_name || historyItem.query_text}
+                    </span>
+                    <span className="text-xs font-mono px-2 py-1 rounded-md inline-block" style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-text-inverse)' }}>
+                      {new Date(historyItem.created_timestamp).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+                    {new Date(historyItem.time_range_start).toLocaleDateString()} - {new Date(historyItem.time_range_end).toLocaleDateString()}
+                  </div>
+                </button>
+              ))}
             </div>
           </div>
         </div>
