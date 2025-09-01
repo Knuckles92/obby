@@ -35,7 +35,7 @@ QUERY_TEMPLATES = [
         'query': "Analyze this week's productivity",
         'description': 'Comprehensive analysis of this week\'s activity',
         'timeRange': 'thisWeek',
-        'outputFormat': 'detailed'
+        'outputFormat': 'summary'
     },
     {
         'id': 'monthly_overview',
@@ -59,7 +59,7 @@ QUERY_TEMPLATES = [
         'query': "Which files changed most this week",
         'description': 'Most active files and their change patterns',
         'timeRange': 'thisWeek',
-        'outputFormat': 'detailed'
+        'outputFormat': 'summary'
     },
     {
         'id': 'topic_analysis',
@@ -387,23 +387,6 @@ Please provide:
 
 Format as JSON with structure: {{"actionItems": [{{"title": "", "priority": "", "effort": "", "description": ""}}]}}
 """
-        elif output_format == 'detailed':
-            prompt = f"""
-Provide a detailed analysis of the following code changes:
-
-Query: "{query_text}"
-Time Range: {analysis['timeRange']['start']} to {analysis['timeRange']['end']}
-Summary: {analysis['summary']}
-
-Key insights needed:
-1. Development patterns and trends
-2. Code quality observations
-3. Productivity analysis
-4. Potential improvements
-5. Risk assessment
-
-Format as structured JSON with sections for each insight area.
-"""
         else:  # summary
             prompt = f"""
 Provide a concise summary of the following development activity:
@@ -450,17 +433,7 @@ def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[Dict[
     }
     
     # Include relevant data based on output format
-    if output_format == 'detailed':
-        result.update({
-            'fileMetrics': analysis['fileMetrics'],
-            'semanticAnalysis': analysis['semanticAnalysis'],
-            'diffs': analysis['diffs'][:10],  # Limit for frontend display
-            'timeline': FileQueries.get_activity_timeline(
-                datetime.fromisoformat(analysis['timeRange']['start']),
-                datetime.fromisoformat(analysis['timeRange']['end'])
-            )
-        })
-    elif output_format == 'summary':
+    if output_format == 'summary':
         result.update({
             'topFiles': analysis['fileMetrics'][:5],
             'keyTopics': list(analysis['semanticAnalysis']['topTopics'].keys())[:5],

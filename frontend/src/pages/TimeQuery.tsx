@@ -99,7 +99,7 @@ export default function TimeQuery() {
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
     end: new Date()
   })
-  const [outputFormat, setOutputFormat] = useState<'summary' | 'detailed' | 'actionItems'>('summary')
+  const [outputFormat, setOutputFormat] = useState<'summary' | 'actionItems'>('summary')
   const [focusAreas, setFocusAreas] = useState<string[]>([])
   const [newFocusArea, setNewFocusArea] = useState('')
   
@@ -831,7 +831,6 @@ export default function TimeQuery() {
               <div className="space-y-2">
                 {[
                   { id: 'summary', label: 'Summary', description: 'Concise overview with key insights' },
-                  { id: 'detailed', label: 'Detailed', description: 'Comprehensive analysis with charts' },
                   { id: 'actionItems', label: 'Action Items', description: 'AI-generated next steps' }
                 ].map(({ id, label, description }) => (
                   <label key={id} className={`flex items-start space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${outputFormat === id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
