@@ -25,6 +25,22 @@ const QUICK_PRESETS = [
 export default function TimeRangePicker({ value, onChange, className = '' }: TimeRangePickerProps) {
   const [mode, setMode] = useState<'preset' | 'calendar'>('preset')
 
+  const normalizeStartOfDay = (d: Date) => {
+    const x = new Date(d)
+    x.setHours(0, 0, 0, 0)
+    return x
+  }
+
+  const normalizeEndOfDay = (d: Date) => {
+    const x = new Date(d)
+    x.setHours(23, 59, 59, 999)
+    return x
+  }
+
+  const isSameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+
+  const isSameRange = (a: TimeRange, b: TimeRange) => isSameDay(a.start, b.start) && isSameDay(a.end, b.end)
+
   const handlePresetSelect = (presetId: string) => {
     const now = new Date()
     let start: Date
@@ -32,35 +48,41 @@ export default function TimeRangePicker({ value, onChange, className = '' }: Tim
 
     switch (presetId) {
       case 'today':
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        start = normalizeStartOfDay(now)
+        end = normalizeEndOfDay(now)
         break
       case 'yesterday':
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
-        end = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59)
+        start = normalizeStartOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
+        end = normalizeEndOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
         break
       case 'last7days':
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        start = normalizeStartOfDay(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))
+        end = normalizeEndOfDay(now)
         break
       case 'thisWeek':
         const dayOfWeek = now.getDay()
         const mondayOffset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-        start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset)
+        start = normalizeStartOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset))
+        end = normalizeEndOfDay(now)
         break
       case 'lastWeek':
         const lastWeekEnd = new Date(now.getTime() - now.getDay() * 24 * 60 * 60 * 1000)
         if (now.getDay() === 0) lastWeekEnd.setTime(lastWeekEnd.getTime() - 7 * 24 * 60 * 60 * 1000)
         const lastWeekStart = new Date(lastWeekEnd.getTime() - 6 * 24 * 60 * 60 * 1000)
-        start = lastWeekStart
-        end = lastWeekEnd
+        start = normalizeStartOfDay(lastWeekStart)
+        end = normalizeEndOfDay(lastWeekEnd)
         break
       case 'thisMonth':
-        start = new Date(now.getFullYear(), now.getMonth(), 1)
+        start = normalizeStartOfDay(new Date(now.getFullYear(), now.getMonth(), 1))
+        end = normalizeEndOfDay(now)
         break
       case 'last30days':
-        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
+        start = normalizeStartOfDay(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000))
+        end = normalizeEndOfDay(now)
         break
       default:
-        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+        start = normalizeStartOfDay(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000))
+        end = normalizeEndOfDay(now)
     }
 
     onChange({ start, end })
@@ -287,30 +309,67 @@ export default function TimeRangePicker({ value, onChange, className = '' }: Tim
       {mode === 'preset' && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            {QUICK_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                onClick={() => handlePresetSelect(preset.id)}
-                className="p-3 rounded-lg border text-left hover:scale-[1.02] transition-all duration-200"
-                style={{
-                  backgroundColor: 'var(--color-surface)',
-                  borderColor: 'var(--color-border)'
-                }}
-              >
-                <div 
-                  className="font-medium text-sm"
-                  style={{ color: 'var(--color-text-primary)' }}
+            {QUICK_PRESETS.map((preset) => {
+              const now = new Date()
+              let presetRange: TimeRange = { start: value.start, end: value.end }
+              switch (preset.id) {
+                case 'today':
+                  presetRange = { start: normalizeStartOfDay(now), end: normalizeEndOfDay(now) }
+                  break
+                case 'yesterday':
+                  presetRange = {
+                    start: normalizeStartOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)),
+                    end: normalizeEndOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1))
+                  }
+                  break
+                case 'last7days':
+                  presetRange = { start: normalizeStartOfDay(new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)), end: normalizeEndOfDay(now) }
+                  break
+                case 'thisWeek':
+                  const dow = now.getDay()
+                  const mondayOffset = dow === 0 ? 6 : dow - 1
+                  presetRange = { start: normalizeStartOfDay(new Date(now.getFullYear(), now.getMonth(), now.getDate() - mondayOffset)), end: normalizeEndOfDay(now) }
+                  break
+                case 'lastWeek':
+                  const lastWeekEndX = new Date(now.getTime() - now.getDay() * 24 * 60 * 60 * 1000)
+                  if (now.getDay() === 0) lastWeekEndX.setTime(lastWeekEndX.getTime() - 7 * 24 * 60 * 60 * 1000)
+                  const lastWeekStartX = new Date(lastWeekEndX.getTime() - 6 * 24 * 60 * 60 * 1000)
+                  presetRange = { start: normalizeStartOfDay(lastWeekStartX), end: normalizeEndOfDay(lastWeekEndX) }
+                  break
+                case 'thisMonth':
+                  presetRange = { start: normalizeStartOfDay(new Date(now.getFullYear(), now.getMonth(), 1)), end: normalizeEndOfDay(now) }
+                  break
+                case 'last30days':
+                  presetRange = { start: normalizeStartOfDay(new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)), end: normalizeEndOfDay(now) }
+                  break
+              }
+              const active = isSameRange({ start: normalizeStartOfDay(value.start), end: normalizeEndOfDay(value.end) }, presetRange)
+              return (
+                <button
+                  key={preset.id}
+                  onClick={() => handlePresetSelect(preset.id)}
+                  className="p-3 rounded-lg border text-left hover:scale-[1.02] transition-all duration-200"
+                  style={{
+                    backgroundColor: active ? 'var(--color-primary)' : 'var(--color-surface)',
+                    borderColor: active ? 'var(--color-primary)' : 'var(--color-border)',
+                    color: active ? 'var(--color-text-inverse)' : 'var(--color-text-primary)'
+                  }}
                 >
-                  {preset.label}
-                </div>
-                <div 
-                  className="text-xs mt-1"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  {preset.description}
-                </div>
-              </button>
-            ))}
+                  <div 
+                    className="font-medium text-sm"
+                    style={{ color: 'inherit' }}
+                  >
+                    {preset.label}
+                  </div>
+                  <div 
+                    className="text-xs mt-1"
+                    style={{ color: 'inherit', opacity: 0.9 }}
+                  >
+                    {preset.description}
+                  </div>
+                </button>
+              )
+            })}
           </div>
           
           {/* Current Selection Display */}

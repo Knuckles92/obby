@@ -6,16 +6,16 @@ import {
   History, 
   BookOpen, 
   Download,
-  TrendingUp,
-  FileText,
-  Activity,
   CheckCircle,
   Loader,
-  ChevronDown,
-  X
+  Activity
 } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import TimeRangePicker from '../components/TimeRangePicker'
-import { apiFetch } from '../utils/api'
+import { apiRequest } from '../utils/api'
 
 interface TimeRange {
   start: Date
@@ -50,35 +50,7 @@ interface QueryResult {
     }
     outputFormat: string
     generatedAt: string
-    aiInsights?: {
-      summary?: string
-      highlights?: string[]
-      actionItems?: Array<{
-        title: string
-        priority: string
-        effort: string
-        description: string
-      }>
-    }
-    fileMetrics?: Array<{
-      file_path: string
-      change_count: number
-      total_lines_added: number
-      total_lines_removed: number
-    }>
-    topFiles?: Array<{
-      file_path: string
-      change_count: number
-    }>
-    keyTopics?: string[]
-    keyKeywords?: string[]
-    timeline?: Array<{
-      timestamp: string
-      changeCount: number
-      linesAdded: number
-      linesRemoved: number
-      filesAffected: number
-    }>
+    markdownContent?: string
   }
   executionTime?: number
 }
@@ -93,13 +65,21 @@ interface QueryHistory {
   query_name?: string
 }
 
+// TypeScript interface for ReactMarkdown code component props
+interface CodeComponentProps {
+  node?: any
+  inline?: boolean
+  className?: string
+  children?: React.ReactNode
+  [key: string]: any
+}
+
 export default function TimeQuery() {
   const [query, setQuery] = useState('')
   const [timeRange, setTimeRange] = useState<TimeRange>({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
     end: new Date()
   })
-  const [outputFormat, setOutputFormat] = useState<'summary' | 'actionItems'>('summary')
   const [focusAreas, setFocusAreas] = useState<string[]>([])
   const [newFocusArea, setNewFocusArea] = useState('')
   
@@ -127,8 +107,8 @@ export default function TimeQuery() {
 
   const fetchTemplates = async () => {
     try {
-      const response = await apiFetch('/api/time-query/templates')
-      setTemplates((response as any).templates || [])
+      const response = await apiRequest<any>('/api/time-query/templates')
+      setTemplates(response.templates || [])
     } catch (error) {
       console.error('Failed to fetch templates:', error)
     }
@@ -136,8 +116,8 @@ export default function TimeQuery() {
 
   const fetchSuggestions = async () => {
     try {
-      const response = await apiFetch('/api/time-query/suggestions')
-      setSuggestions((response as any).suggestions || [])
+      const response = await apiRequest<any>('/api/time-query/suggestions')
+      setSuggestions(response.suggestions || [])
     } catch (error) {
       console.error('Failed to fetch suggestions:', error)
     }
@@ -145,8 +125,8 @@ export default function TimeQuery() {
 
   const fetchQueryHistory = async () => {
     try {
-      const response = await apiFetch('/api/time-query/history?limit=10')
-      setQueryHistory((response as any).queries || [])
+      const response = await apiRequest<any>('/api/time-query/history?limit=10')
+      setQueryHistory(response.queries || [])
     } catch (error) {
       console.error('Failed to fetch query history:', error)
     }
@@ -154,7 +134,6 @@ export default function TimeQuery() {
 
   const handleTemplateSelect = (template: QueryTemplate) => {
     setQuery(template.query)
-    setOutputFormat(template.outputFormat as any)
     setShowTemplates(false)
     
     // Set time range based on template
@@ -217,21 +196,18 @@ export default function TimeQuery() {
         startTime: timeRange.start.toISOString(),
         endTime: timeRange.end.toISOString(),
         focusAreas,
-        outputFormat,
+        outputFormat: 'summary', // Always use summary format since we output markdown
         stream: true
       }
 
-      // Use EventSource for streaming response
-      const _eventSource = new EventSource(`/api/time-query/execute`)
-      
-      // For this demo, we'll use a regular fetch call instead
-      const response = await apiFetch('/api/time-query/execute', {
+      // Execute synchronously for now
+      const response = await apiRequest<QueryResult>('/api/time-query/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...requestData, stream: false })
       })
 
-      setCurrentResult(response as unknown as QueryResult)
+      setCurrentResult(response)
       await fetchQueryHistory() // Refresh history
 
     } catch (error) {
@@ -246,7 +222,7 @@ export default function TimeQuery() {
     if (!currentResult?.queryId || !saveQueryName.trim()) return
 
     try {
-      await apiFetch('/api/time-query/save', {
+      await apiRequest('/api/time-query/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -277,6 +253,36 @@ export default function TimeQuery() {
     if (!currentResult) return null
 
     const { result } = currentResult
+
+    // Custom components for markdown rendering
+    const components = {
+      code({ node, inline, className, children, ...props }: CodeComponentProps) {
+        const match = /language-(\w+)/.exec(className || '')
+        return !inline && match ? (
+          <SyntaxHighlighter
+            style={oneDark}
+            language={match[1]}
+            PreTag="div"
+            {...props}
+          >
+            {String(children).replace(/\n$/, '')}
+          </SyntaxHighlighter>
+        ) : (
+          <code 
+            className={className} 
+            style={{ 
+              backgroundColor: 'var(--color-surface)', 
+              padding: '2px 4px', 
+              borderRadius: '3px',
+              fontSize: '0.875em'
+            }} 
+            {...props}
+          >
+            {children}
+          </code>
+        )
+      }
+    }
 
     return (
       <div className="space-y-6">
@@ -332,256 +338,33 @@ export default function TimeQuery() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Changes', value: result.summary.totalChanges, icon: Activity },
-            { label: 'Files', value: result.summary.filesAffected, icon: FileText },
-            { label: 'Lines Added', value: result.summary.linesAdded, icon: TrendingUp },
-            { label: 'Lines Removed', value: result.summary.linesRemoved, icon: TrendingUp }
-          ].map(({ label, value, icon: Icon }) => (
-            <div
-              key={label}
-              className="p-4 rounded-lg border"
-              style={{
-                backgroundColor: 'var(--color-surface)'
-              }}
+        {/* Markdown Content */}
+        <div 
+          className="p-6 rounded-lg border"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            borderColor: 'var(--color-border)'
+          }}
+        >
+          <div 
+            className="prose prose-sm max-w-none"
+            style={{ 
+              color: 'var(--color-text-primary)',
+              '--tw-prose-headings': 'var(--color-text-primary)',
+              '--tw-prose-strong': 'var(--color-text-primary)',
+              '--tw-prose-links': 'var(--color-primary)',
+              '--tw-prose-bullets': 'var(--color-text-secondary)',
+              '--tw-prose-quotes': 'var(--color-text-secondary)'
+            }}
+          >
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={components}
             >
-              <div className="flex items-center space-x-2 mb-2">
-                <Icon 
-                  size={16} 
-                  style={{ color: 'var(--color-primary)' }} 
-                />
-                <span 
-                  className="text-sm"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  {label}
-                </span>
-              </div>
-              <div 
-                className="text-2xl font-bold"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
-                {value?.toLocaleString() || 0}
-              </div>
-            </div>
-          ))}
+              {result.markdownContent || 'No content available.'}
+            </ReactMarkdown>
+          </div>
         </div>
-
-        {/* AI Insights */}
-        {result.aiInsights && (
-          <div 
-            className="p-4 rounded-lg border"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <h4 
-              className="font-semibold mb-3 flex items-center space-x-2"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              <Activity size={16} />
-              <span>AI Insights</span>
-            </h4>
-            
-            {result.aiInsights.summary && (
-              <div className="p-6">
-                <p style={{ color: 'var(--color-text-primary)' }}>
-                  {result.aiInsights.summary}
-                </p>
-              </div>
-            )}
-            
-            {result.aiInsights.highlights && (
-              <div className="flex items-center justify-between mb-1">
-                <h5 
-                  className="font-medium text-sm"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  Key Highlights:
-                </h5>
-                <ul className="space-y-1">
-                  {result.aiInsights.highlights.map((highlight, index) => (
-                    <li 
-                      key={index}
-                      className="text-sm flex items-start space-x-2"
-                      style={{ color: 'var(--color-text-primary)' }}
-                    >
-                      <span style={{ color: 'var(--color-primary)' }}>•</span>
-                      <span>{highlight}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {result.aiInsights.actionItems && (
-              <div className="mt-4 space-y-2">
-                <h5 
-                  className="font-medium text-sm"
-                  style={{ color: 'var(--color-text-secondary)' }}
-                >
-                  Suggested Actions:
-                </h5>
-                {result.aiInsights.actionItems.map((item, index) => (
-                  <div 
-                    key={index}
-                    className="p-3 rounded border-l-4 space-y-1"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      borderLeftColor: item.priority === 'High' ? 'var(--color-error, #ef4444)' : 
-                                      item.priority === 'Medium' ? 'var(--color-warning, #f59e0b)' : 
-                                      'var(--color-success, #10b981)'
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span 
-                        className="font-medium"
-                        style={{ color: 'var(--color-text-primary)' }}
-                      >
-                        {item.title}
-                      </span>
-                      <div className="flex items-center space-x-2 text-xs">
-                        <span 
-                          className="px-2 py-1 rounded"
-                          style={{
-                            backgroundColor: item.priority === 'High' ? 'var(--color-error, #ef4444)' : 
-                                            item.priority === 'Medium' ? 'var(--color-warning, #f59e0b)' : 
-                                            'var(--color-success, #10b981)',
-                            color: 'white'
-                          }}
-                        >
-                          {item.priority}
-                        </span>
-                        <History size={16} style={{ color: 'var(--color-text-secondary)' }} />
-                        <span style={{ color: 'var(--color-text-secondary)' }}>
-                          {item.effort}
-                        </span>
-                      </div>
-                    </div>
-                    <p 
-                      className="text-sm"
-                      style={{ color: 'var(--color-text-secondary)' }}
-                    >
-                      {item.description}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Top Files (if available) */}
-        {(result.fileMetrics || result.topFiles) && (
-          <div 
-            className="p-4 rounded-lg border"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <h4 
-              className="font-semibold mb-3"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              Most Active Files
-            </h4>
-            <div className="space-y-2">
-              {(result.fileMetrics || result.topFiles || []).slice(0, 5).map((file, index) => (
-                <div 
-                  key={index}
-                  className="flex items-center justify-between p-2 rounded"
-                  style={{ backgroundColor: 'var(--color-background)' }}
-                >
-                  <span 
-                    className="text-sm font-mono truncate flex-1"
-                    style={{ color: 'var(--color-text-primary)' }}
-                  >
-                    {file.file_path}
-                  </span>
-                  <span 
-                    className="text-sm ml-2"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                  >
-                    {file.change_count} changes
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Topics and Keywords */}
-        {(result.keyTopics || result.keyKeywords) && (
-          <div 
-            className="p-4 rounded-lg border"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              borderColor: 'var(--color-border)'
-            }}
-          >
-            <h4 
-              className="font-semibold mb-3"
-              style={{ color: 'var(--color-text-primary)' }}
-            >
-              Key Topics & Keywords
-            </h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {result.keyTopics && (
-                <div>
-                  <h5 
-                    className="text-sm font-medium mb-2"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                  >
-                    Topics
-                  </h5>
-                  <div className="flex flex-wrap gap-2">
-                    {result.keyTopics.map((topic, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 rounded-full text-xs"
-                        style={{
-                          backgroundColor: 'var(--color-primary)',
-                          color: 'var(--color-text-inverse)'
-                        }}
-                      >
-                        {topic}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              {result.keyKeywords && (
-                <div>
-                  <h5 
-                    className="text-sm font-medium mb-2"
-                    style={{ color: 'var(--color-text-secondary)' }}
-                  >
-                    Keywords
-                  </h5>
-                  <div className="flex flex-wrap gap-2">
-                    {result.keyKeywords.map((keyword, index) => (
-                      <span
-                        key={index}
-                        className="px-2 py-1 rounded-full text-xs"
-                        style={{
-                          backgroundColor: 'var(--color-accent)',
-                          color: 'var(--color-text-inverse)'
-                        }}
-                      >
-                        {keyword}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     )
   }
@@ -796,7 +579,7 @@ export default function TimeQuery() {
         </div>
 
         {/* Configuration Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Time Range Picker - Takes 2 columns */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-xl shadow-lg border p-6"
@@ -812,58 +595,10 @@ export default function TimeQuery() {
             </div>
           </div>
 
-          {/* Output Format and Focus Areas - Takes 2 columns */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Output Format */}
+          {/* Focus Areas - Takes 1 column */}
+          <div className="lg:col-span-1">
             <div 
-              className="p-4 rounded-lg border"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                borderColor: 'var(--color-border)'
-              }}
-            >
-              <label 
-                className="block text-sm font-medium mb-3"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
-                Output Format
-              </label>
-              <div className="space-y-2">
-                {[
-                  { id: 'summary', label: 'Summary', description: 'Concise overview with key insights' },
-                  { id: 'actionItems', label: 'Action Items', description: 'AI-generated next steps' }
-                ].map(({ id, label, description }) => (
-                  <label key={id} className={`flex items-start space-x-3 p-3 rounded-lg border-2 cursor-pointer transition-all duration-200 ${outputFormat === id ? 'border-blue-400 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}>
-                    <input
-                      type="radio"
-                      name="outputFormat"
-                      value={id}
-                      checked={outputFormat === id}
-                      onChange={(e) => setOutputFormat(e.target.value as any)}
-                      className="mt-1"
-                    />
-                    <div>
-                      <div 
-                        className="font-medium text-sm"
-                        style={{ color: 'var(--color-text-primary)' }}
-                      >
-                        {label}
-                      </div>
-                      <div 
-                        className="text-xs"
-                        style={{ color: 'var(--color-text-secondary)' }}
-                      >
-                        {description}
-                      </div>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Focus Areas */}
-            <div 
-              className="p-4 rounded-lg border"
+              className="p-4 rounded-lg border h-full"
               style={{
                 backgroundColor: 'var(--color-surface)',
                 borderColor: 'var(--color-border)'

@@ -361,59 +361,44 @@ def execute_query_analysis(query_id: int, query_text: str, start_time: datetime,
         return {'error': str(e), 'queryId': query_id}
 
 
-def process_with_ai(analysis: Dict[str, Any], query_text: str, output_format: str) -> Optional[Dict[str, Any]]:
-    """Process analysis results with AI for enhanced insights."""
+def process_with_ai(analysis: Dict[str, Any], query_text: str, output_format: str) -> Optional[str]:
+    """Process analysis results with AI for enhanced insights, returning markdown."""
     try:
         openai_client = OpenAIClient()
         
-        # Build AI prompt based on output format
-        if output_format == 'actionItems':
-            prompt = f"""
-Based on the following code changes and analysis, suggest specific action items and next steps:
+        # Create a comprehensive markdown report prompt
+        prompt = f"""
+Create a comprehensive markdown report for the following development activity analysis:
 
-Query: "{query_text}"
-Time Range: {analysis['timeRange']['start']} to {analysis['timeRange']['end']}
-Total Changes: {analysis['summary']['totalChanges']}
-Files Affected: {analysis['summary']['filesAffected']}
+**Query:** "{query_text}"
+**Time Range:** {analysis['timeRange']['start']} to {analysis['timeRange']['end']}
+**Changes:** {analysis['summary']['totalChanges']} across {analysis['summary']['filesAffected']} files
+**Lines Added:** {analysis['summary']['linesAdded']}
+**Lines Removed:** {analysis['summary']['linesRemoved']}
 
-Top Topics: {list(analysis['semanticAnalysis']['topTopics'].keys())[:5]}
-Top Keywords: {list(analysis['semanticAnalysis']['topKeywords'].keys())[:5]}
+**Top Topics:** {list(analysis['semanticAnalysis']['topTopics'].keys())[:5] if analysis['semanticAnalysis']['topTopics'] else 'None'}
+**Top Keywords:** {list(analysis['semanticAnalysis']['topKeywords'].keys())[:5] if analysis['semanticAnalysis']['topKeywords'] else 'None'}
 
-Please provide:
-1. 3-5 specific action items based on the changes
-2. Priority level for each item (High/Medium/Low)
-3. Estimated effort for each item
-4. Any potential risks or dependencies
+**Most Active Files:** {[f['file_path'] + ' (' + str(f['change_count']) + ' changes)' for f in analysis['fileMetrics'][:5]] if analysis.get('fileMetrics') else 'None'}
 
-Format as JSON with structure: {{"actionItems": [{{"title": "", "priority": "", "effort": "", "description": ""}}]}}
-"""
-        else:  # summary
-            prompt = f"""
-Provide a concise summary of the following development activity:
+Please create a well-structured markdown report that includes:
 
-Query: "{query_text}"
-Time Range: {analysis['timeRange']['start']} to {analysis['timeRange']['end']}
-Changes: {analysis['summary']['totalChanges']} across {analysis['summary']['filesAffected']} files
+1. **## Executive Summary** - 2-3 sentences about the main accomplishments and focus areas
+2. **## Key Highlights** - Bullet points of notable changes and achievements  
+3. **## File Activity** - Brief overview of the most active files and what changed
+4. **## Topics & Focus Areas** - Analysis of the main topics and keywords from the work
+5. **## Next Steps** - 3-5 actionable recommendations based on the changes
 
-Topics: {list(analysis['semanticAnalysis']['topTopics'].keys())[:3]}
+Use proper markdown formatting with headers, bullet points, code blocks if relevant, and make it readable and informative. Focus on insights and patterns rather than just listing raw data.
 
-Create a 2-3 paragraph summary highlighting:
-1. Main accomplishments
-2. Key areas of focus
-3. Notable patterns or insights
-
-Format as JSON: {{"summary": "...", "highlights": ["...", "...", "..."]}}
+Return ONLY the markdown content, no JSON or other formatting.
 """
         
         # Get AI response
         ai_response = openai_client.get_completion(prompt)
         
-        if ai_response:
-            # Try to parse as JSON, fallback to text
-            try:
-                return json.loads(ai_response)
-            except json.JSONDecodeError:
-                return {"aiSummary": ai_response}
+        if ai_response and ai_response.strip():
+            return ai_response.strip()
         
         return None
         
@@ -422,9 +407,9 @@ Format as JSON: {{"summary": "...", "highlights": ["...", "...", "..."]}}
         return None
 
 
-def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[Dict[str, Any]], 
+def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[str], 
                            output_format: str) -> Dict[str, Any]:
-    """Combine database analysis with AI insights."""
+    """Combine database analysis with AI-generated markdown report."""
     result = {
         'timeRange': analysis['timeRange'],
         'summary': analysis['summary'],
@@ -432,17 +417,28 @@ def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[Dict[
         'generatedAt': datetime.now().isoformat()
     }
     
-    # Include relevant data based on output format
-    if output_format == 'summary':
-        result.update({
-            'topFiles': analysis['fileMetrics'][:5],
-            'keyTopics': list(analysis['semanticAnalysis']['topTopics'].keys())[:5],
-            'keyKeywords': list(analysis['semanticAnalysis']['topKeywords'].keys())[:5]
-        })
-    
-    # Add AI insights if available
+    # Add the markdown content from AI
     if ai_result:
-        result['aiInsights'] = ai_result
+        result['markdownContent'] = ai_result
+    else:
+        # Fallback markdown if AI is not available
+        result['markdownContent'] = f"""# Query Results
+
+## Summary
+- **Time Range:** {analysis['timeRange']['start']} to {analysis['timeRange']['end']}
+- **Total Changes:** {analysis['summary']['totalChanges']}
+- **Files Affected:** {analysis['summary']['filesAffected']}
+- **Lines Added:** {analysis['summary']['linesAdded']}
+- **Lines Removed:** {analysis['summary']['linesRemoved']}
+
+## Most Active Files
+{chr(10).join([f"- **{f['file_path']}** - {f['change_count']} changes" for f in analysis.get('fileMetrics', [])[:5]])}
+
+## Topics & Keywords
+**Topics:** {', '.join(list(analysis['semanticAnalysis']['topTopics'].keys())[:5]) if analysis['semanticAnalysis']['topTopics'] else 'None'}
+
+**Keywords:** {', '.join(list(analysis['semanticAnalysis']['topKeywords'].keys())[:5]) if analysis['semanticAnalysis']['topKeywords'] else 'None'}
+"""
     
     return result
 
