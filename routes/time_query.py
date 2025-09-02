@@ -334,14 +334,22 @@ def execute_query_analysis(query_id: int, query_text: str, start_time: datetime,
         ai_model_used: Optional[str] = None
         ai_error: Optional[str] = None
         try:
+            logger.info(f"Starting AI processing for query: {query_text[:100]}...")
             ai_markdown, ai_error = process_with_ai(analysis, query_text, output_format)
             try:
                 ai_model_used = OpenAIClient().model
             except Exception:
                 ai_model_used = None
+            
+            # Log the outcome
+            if ai_markdown:
+                logger.info(f"AI processing succeeded, got {len(ai_markdown)} characters of markdown")
+            else:
+                logger.warning(f"AI processing failed, error: {ai_error}")
+                
         except Exception as e:
             ai_error = str(e)
-            logger.warning(f"AI processing failed: {e}")
+            logger.error(f"AI processing exception: {e}")
         
         # Combine results
         if ai_markdown is None:
@@ -441,13 +449,23 @@ Instructions: Produce exactly what the user requested above, using this context.
         except Exception:
             pass
 
+        # Check if client is available before attempting call
+        if not openai_client.is_available():
+            error_msg = f"OpenAI client not available: api_key={'set' if openai_client.api_key else 'missing'}, client={'initialized' if openai_client.client else 'failed'}"
+            logger.error(error_msg)
+            return None, error_msg
+
+        logger.info(f"Making AI completion call with model: {openai_client.model}")
         ai_response = openai_client.get_completion(
             prompt,
             system_prompt=system_prompt,
+            max_tokens=3000,  # Use more tokens for user queries which often need detailed responses
         )
 
         if ai_response and ai_response.strip() and not ai_response.strip().lower().startswith('error generating completion:'):
+            logger.info(f"AI processing successful, returning {len(ai_response.strip())} characters")
             return ai_response.strip(), None
+        
         # Log failure cases for debugging and return last error
         try:
             if not ai_response or not ai_response.strip():
@@ -456,11 +474,14 @@ Instructions: Produce exactly what the user requested above, using this context.
                 logger.error(f"AI responded with error: {ai_response[:200]}")
         except Exception:
             pass
-        return None, getattr(openai_client, '_last_error', ai_response)
+        
+        last_error = getattr(openai_client, '_last_error', ai_response or 'Unknown AI processing error')
+        logger.error(f"AI processing failed, last_error: {last_error}")
+        return None, last_error
 
     except Exception as e:
         logger.error(f"AI processing error: {e}")
-        return None
+        return None, str(e)
 
 
 def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[str], 

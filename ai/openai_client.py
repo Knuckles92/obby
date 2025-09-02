@@ -360,7 +360,7 @@ class OpenAIClient:
 
             # Sensible defaults using existing centralized settings
             if max_tokens is None:
-                max_tokens = cfg.OPENAI_TOKEN_LIMITS.get("insights", 800)
+                max_tokens = cfg.OPENAI_TOKEN_LIMITS.get("insights", 2000)  # Increased from 800 to 2000 for detailed responses
             if temperature is None:
                 temperature = self._get_temperature(cfg.OPENAI_TEMPERATURES.get("insights", 0.7))
 
@@ -375,7 +375,13 @@ class OpenAIClient:
                 temperature=temperature,
             )
             self._last_error = None
-            return response.choices[0].message.content.strip()
+            
+            content = response.choices[0].message.content
+            if content is None:
+                logging.warning("OpenAI returned None content, returning empty string")
+                return ""
+            
+            return content.strip()
         except Exception as e:
             logging.error(f"get_completion failed: {e}")
             self._last_error = f"Error generating completion: {str(e)}"
