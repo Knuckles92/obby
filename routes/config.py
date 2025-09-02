@@ -208,6 +208,45 @@ async def get_models():
         }, status_code=500)
 
 
+@config_bp.get('/openai/ping')
+async def openai_ping():
+    """Quick connectivity + config check for OpenAI. Performs a tiny chat call.
+
+    Returns:
+      - available: bool
+      - model: configured model id (if available)
+      - reply: short reply from model (if successful)
+      - error: error details (if failed)
+    """
+    try:
+        client = OpenAIClient()
+        model = getattr(client, 'model', None)
+        if not client.is_available():
+            return JSONResponse({
+                'available': False,
+                'model': model,
+                'error': 'Client not available; check OPENAI_API_KEY'
+            }, status_code=200)
+
+        # Minimal, low-cost call
+        reply = client.get_completion(
+            "Reply with the single word: ready",
+            system_prompt="You are a health check. Reply exactly 'ready' only.",
+            max_tokens=10
+        )
+        return {
+            'available': True,
+            'model': model,
+            'reply': (reply or '').strip()
+        }
+    except Exception as e:
+        return JSONResponse({
+            'available': False,
+            'model': getattr(OpenAIClient(), 'model', None),
+            'error': str(e)
+        }, status_code=200)
+
+
 @config_bp.api_route('/settings', methods=['GET', 'POST'])
 async def handle_config(request: Request):
     """Get or update configuration in database"""

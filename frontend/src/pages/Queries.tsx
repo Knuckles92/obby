@@ -34,7 +34,7 @@ interface QueryTemplate {
 
 interface QueryResult {
   queryId: number
-  result: {
+  result?: {
     timeRange: {
       start: string
       end: string
@@ -52,9 +52,10 @@ interface QueryResult {
     outputFormat: string
     generatedAt: string
     markdownContent?: string
-    ai?: { model: string; provider?: string }
+    ai?: { model?: string; provider?: string; error?: string }
   }
   executionTime?: number
+  error?: string
 }
 
 interface QueryHistory {
@@ -260,7 +261,17 @@ export default function Queries() {
   const renderResults = () => {
     if (!currentResult) return null
 
-    const { result } = currentResult
+    const { result } = currentResult as any
+
+    if (!result) {
+      return (
+        <div className="p-4 rounded-lg border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+          <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+            {currentResult?.error ? `Query failed: ${currentResult.error}` : 'No results available.'}
+          </div>
+        </div>
+      )
+    }
 
     // Custom components for markdown rendering
     const components = {
@@ -345,6 +356,15 @@ export default function Queries() {
             </button>
           </div>
         </div>
+
+        {/* AI Error (if any) */}
+        {result.ai?.error && (
+          <div className="p-3 rounded border" style={{ backgroundColor: 'var(--color-surface)', borderColor: 'var(--color-border)' }}>
+            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+              AI error: {result.ai.error}
+            </p>
+          </div>
+        )}
 
         {/* Markdown Content */}
         <div 

@@ -281,19 +281,20 @@ def stream_time_query_execution(query_id: int, query_text: str, start_time: date
         ai_model_used = None
         try:
             # Attempt AI processing unconditionally; internal client will handle availability
-            ai_result = process_with_ai(analysis, query_text, output_format)
+            ai_result, ai_error = process_with_ai(analysis, query_text, output_format)
             try:
                 # Best effort to capture model used
                 ai_model_used = OpenAIClient().model
             except Exception:
                 ai_model_used = None
         except Exception as e:
+            ai_error = str(e)
             logger.warning(f"AI processing failed: {e}")
         
         yield f"data: {json.dumps({'type': 'progress', 'message': 'Finalizing results...', 'progress': 90})}\n\n"
         
         # Step 3: Combine results
-        final_result = combine_analysis_results(analysis, ai_result, output_format, ai_model_used)
+        final_result = combine_analysis_results(analysis, ai_result, output_format, ai_model_used, ai_error)
         
         # Update database
         execution_time = int((datetime.now() - datetime.fromisoformat(analysis['metadata']['analysisTimestamp'])).total_seconds() * 1000)
@@ -329,19 +330,23 @@ def execute_query_analysis(query_id: int, query_text: str, start_time: datetime,
         analysis = FileQueries.get_comprehensive_time_analysis(start_time, end_time, focus_areas, watch_handler)
         
         # AI processing
-        ai_result = None
-        ai_model_used = None
+        ai_markdown: Optional[str] = None
+        ai_model_used: Optional[str] = None
+        ai_error: Optional[str] = None
         try:
-            ai_result = process_with_ai(analysis, query_text, output_format)
+            ai_markdown, ai_error = process_with_ai(analysis, query_text, output_format)
             try:
                 ai_model_used = OpenAIClient().model
             except Exception:
                 ai_model_used = None
         except Exception as e:
+            ai_error = str(e)
             logger.warning(f"AI processing failed: {e}")
         
         # Combine results
-        final_result = combine_analysis_results(analysis, ai_result, output_format, ai_model_used)
+        if ai_markdown is None:
+            logger.warning("AI result is None; returning fallback markdown content")
+        final_result = combine_analysis_results(analysis, ai_markdown, output_format, ai_model_used, ai_error)
         
         # Update database
         execution_time_ms = int((time.time() - start_exec_time) * 1000)
@@ -364,8 +369,11 @@ def execute_query_analysis(query_id: int, query_text: str, start_time: datetime,
         return {'error': str(e), 'queryId': query_id}
 
 
-def process_with_ai(analysis: Dict[str, Any], query_text: str, output_format: str) -> Optional[str]:
-    """Process analysis with AI, passing user query, recent diffs, and stats; return markdown."""
+def process_with_ai(analysis: Dict[str, Any], query_text: str, output_format: str) -> tuple[Optional[str], Optional[str]]:
+    """Process analysis with AI, passing user query, recent diffs, and stats.
+
+    Returns a tuple of (markdown, error_text). If AI succeeds, error_text is None.
+    """
     try:
         openai_client = OpenAIClient()
 
@@ -439,8 +447,16 @@ Instructions: Produce exactly what the user requested above, using this context.
         )
 
         if ai_response and ai_response.strip() and not ai_response.strip().lower().startswith('error generating completion:'):
-            return ai_response.strip()
-        return None
+            return ai_response.strip(), None
+        # Log failure cases for debugging and return last error
+        try:
+            if not ai_response or not ai_response.strip():
+                logger.warning("AI returned empty response; falling back to non-AI summary")
+            else:
+                logger.error(f"AI responded with error: {ai_response[:200]}")
+        except Exception:
+            pass
+        return None, getattr(openai_client, '_last_error', ai_response)
 
     except Exception as e:
         logger.error(f"AI processing error: {e}")
@@ -448,7 +464,8 @@ Instructions: Produce exactly what the user requested above, using this context.
 
 
 def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[str], 
-                           output_format: str, model_used: Optional[str] = None) -> Dict[str, Any]:
+                           output_format: str, model_used: Optional[str] = None,
+                           ai_error: Optional[str] = None) -> Dict[str, Any]:
     """Combine database analysis with AI-generated markdown report."""
     result = {
         'timeRange': analysis['timeRange'],
@@ -481,10 +498,11 @@ def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[str],
 """
     
     # Include AI metadata (model used) if available
-    if model_used:
+    if model_used or ai_error:
         result['ai'] = {
             'model': model_used,
-            'provider': 'openai'
+            'provider': 'openai',
+            **({'error': ai_error} if ai_error else {})
         }
 
     return result
@@ -539,7 +557,7 @@ async def save_query(request: Request):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.get('/{query_id}')
+@time_query_bp.get('/result/{query_id}')
 async def get_query_result(query_id: int):
     """Get results of a specific query."""
     try:
@@ -554,7 +572,7 @@ async def get_query_result(query_id: int):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.delete('/{query_id}')
+@time_query_bp.delete('/result/{query_id}')
 async def delete_query(query_id: int):
     """Delete a query from history."""
     try:

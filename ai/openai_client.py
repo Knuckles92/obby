@@ -97,6 +97,8 @@ class OpenAIClient:
             self._format_config = None
             self._format_config_mtime = None
             self._format_file_path = Path('config/format.md')
+            # Last error storage for diagnostics
+            self._last_error = None
             
             # Mark as initialized
             OpenAIClient._initialized = True
@@ -372,10 +374,12 @@ class OpenAIClient:
                 max_completion_tokens=max_tokens,
                 temperature=temperature,
             )
+            self._last_error = None
             return response.choices[0].message.content.strip()
         except Exception as e:
             logging.error(f"get_completion failed: {e}")
-            return f"Error generating completion: {str(e)}"
+            self._last_error = f"Error generating completion: {str(e)}"
+            return self._last_error
 
     def is_available(self) -> bool:
         """Return True if the client is configured and ready to use."""
