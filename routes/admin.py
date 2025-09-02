@@ -3,7 +3,8 @@ Admin & System API routes
 Handles system statistics, database optimization, and health monitoring
 """
 
-from flask import Blueprint, jsonify, request
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 import logging
 import os
 import psutil
@@ -12,11 +13,11 @@ from database.queries import AnalyticsQueries
 
 logger = logging.getLogger(__name__)
 
-admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
+admin_bp = APIRouter(prefix='/api/admin', tags=['admin'])
 
 
-@admin_bp.route('/system/stats', methods=['GET'])
-def get_system_stats():
+@admin_bp.get('/system/stats')
+async def get_system_stats():
     """Get system statistics for admin panel"""
     try:
         # System memory info
@@ -53,50 +54,40 @@ def get_system_stats():
             }
         }
         
-        return jsonify({
-            'stats': stats,
-            'timestamp': psutil.boot_time()
-        })
+        return {'stats': stats, 'timestamp': psutil.boot_time()}
     except Exception as e:
         logger.error(f"Failed to get system stats: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@admin_bp.route('/database/stats', methods=['GET'])
-def get_database_stats():
+@admin_bp.get('/database/stats')
+async def get_database_stats():
     """Get database-specific statistics"""
     try:
         stats = AnalyticsQueries.get_database_stats()
         
-        return jsonify({
-            'database_stats': stats,
-            'success': True
-        })
+        return {'database_stats': stats, 'success': True}
     except Exception as e:
         logger.error(f"Failed to get database stats: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@admin_bp.route('/database/optimize', methods=['POST'])
-def optimize_database():
+@admin_bp.post('/database/optimize')
+async def optimize_database():
     """Optimize the database"""
     try:
         optimization_results = AnalyticsQueries.optimize_database()
         
         logger.info("Database optimization completed")
         
-        return jsonify({
-            'success': True,
-            'message': 'Database optimization completed',
-            'results': optimization_results
-        })
+        return {'success': True, 'message': 'Database optimization completed', 'results': optimization_results}
     except Exception as e:
         logger.error(f"Failed to optimize database: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@admin_bp.route('/system/clear-logs', methods=['POST'])
-def clear_system_logs():
+@admin_bp.post('/system/clear-logs')
+async def clear_system_logs():
     """Clear system logs"""
     try:
         logs_cleared = 0
@@ -117,18 +108,14 @@ def clear_system_logs():
         
         logger.info(f"Cleared {logs_cleared} log files")
         
-        return jsonify({
-            'success': True,
-            'message': f'Cleared {logs_cleared} log files',
-            'logs_cleared': logs_cleared
-        })
+        return {'success': True, 'message': f'Cleared {logs_cleared} log files', 'logs_cleared': logs_cleared}
     except Exception as e:
         logger.error(f"Failed to clear system logs: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@admin_bp.route('/system/health', methods=['GET'])
-def get_system_health():
+@admin_bp.get('/system/health')
+async def get_system_health():
     """Get overall system health status"""
     try:
         health_status = {
@@ -176,21 +163,18 @@ def get_system_health():
             health_status['issues'].append('Database not accessible')
             health_status['overall_status'] = 'critical'
         
-        return jsonify({
-            'health': health_status,
-            'timestamp': psutil.boot_time()
-        })
+        return {'health': health_status, 'timestamp': psutil.boot_time()}
     except Exception as e:
         logger.error(f"Failed to get system health: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@admin_bp.route('/database/reset', methods=['POST'])
-def reset_database():
+@admin_bp.post('/database/reset')
+async def reset_database(request: Request):
     """Reset the entire database with safety confirmations"""
     try:
         # Parse request data
-        data = request.get_json() or {}
+        data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
         
         # Extract safety confirmation parameters
         confirmation_phrase = data.get('confirmationPhrase', '')
@@ -199,27 +183,12 @@ def reset_database():
         
         # Validate that both safety measures are confirmed
         if not slider_confirmed:
-            return jsonify({
-                'success': False,
-                'error': 'Slider confirmation required. Reset aborted.',
-                'required_confirmations': {
-                    'slider': False,
-                    'phrase': len(confirmation_phrase.strip()) > 0
-                }
-            }), 400
+            return JSONResponse({'success': False, 'error': 'Slider confirmation required. Reset aborted.', 'required_confirmations': {'slider': False, 'phrase': len(confirmation_phrase.strip()) > 0}}, status_code=400)
         
         # Validate confirmation phrase (case-insensitive)
         expected_phrase = "if i ruin my database it is my fault"
         if confirmation_phrase.strip().lower() != expected_phrase.lower():
-            return jsonify({
-                'success': False,
-                'error': 'Invalid confirmation phrase. Reset aborted.',
-                'expected_phrase': expected_phrase,
-                'required_confirmations': {
-                    'slider': True,
-                    'phrase': False
-                }
-            }), 400
+            return JSONResponse({'success': False, 'error': 'Invalid confirmation phrase. Reset aborted.', 'expected_phrase': expected_phrase, 'required_confirmations': {'slider': True, 'phrase': False}}, status_code=400)
         
         # Both safety measures confirmed, proceed with reset
         logger.warning(f"Database reset initiated with confirmations")
@@ -234,7 +203,7 @@ def reset_database():
             logger.info(f"Database reset completed successfully: {reset_results.get('total_records_deleted', 0)} records deleted")
             
             # Return success response with detailed results
-            return jsonify({
+            return {
                 'success': True,
                 'message': reset_results.get('message', 'Database reset completed'),
                 'results': {
@@ -250,19 +219,12 @@ def reset_database():
                     'backup_location': reset_results.get('backup_path'),
                     'recovery_instructions': 'To restore, stop the application and replace obby.db with the backup file.'
                 } if reset_results.get('backup_created') else None
-            })
+            }
         else:
             # Reset failed
             logger.error(f"Database reset failed: {reset_results.get('error')}")
-            return jsonify({
-                'success': False,
-                'error': reset_results.get('error', 'Unknown error during reset'),
-                'backup_path': reset_results.get('backup_path')
-            }), 500
+            return JSONResponse({'success': False, 'error': reset_results.get('error', 'Unknown error during reset'), 'backup_path': reset_results.get('backup_path')}, status_code=500)
             
     except Exception as e:
         logger.error(f"Failed to reset database: {e}")
-        return jsonify({
-            'success': False,
-            'error': f'Server error during database reset: {str(e)}'
-        }), 500
+        return JSONResponse({'success': False, 'error': f'Server error during database reset: {str(e)}'}, status_code=500)

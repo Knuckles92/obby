@@ -283,6 +283,12 @@ class FileContentTracker:
         for file_path in directory_path.glob(pattern):
             if file_path.is_file():
                 try:
+                    # Skip internal semantic index artifact to avoid polluting tracked diffs
+                    try:
+                        if file_path.name.lower() == 'semantic_index.json':
+                            continue
+                    except Exception:
+                        pass
                     # Check if file has changed since last scan
                     current_content = self._read_file_safely(str(file_path))
                     if current_content is not None:

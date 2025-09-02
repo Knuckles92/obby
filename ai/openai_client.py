@@ -333,6 +333,57 @@ class OpenAIClient:
         except Exception as e:
             return f"- no meaningful changes (error: {str(e)})"
 
+    def get_completion(self, prompt: str, system_prompt: Optional[str] = None,
+                       max_tokens: Optional[int] = None, temperature: Optional[float] = None) -> str:
+        """Generic helper to get a completion for an arbitrary prompt.
+
+        Args:
+            prompt: The user prompt/content sent to the model (string-only convenience).
+            system_prompt: Optional system instruction to steer the model.
+            max_tokens: Optional completion tokens cap. Falls back to insights limits.
+            temperature: Optional temperature override. Falls back to insights temp.
+
+        Returns:
+            str: The model's message content, or an error string on failure.
+        """
+        try:
+            # Ensure client is warmed up
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+
+            sys_content = system_prompt or (
+                "You are a precise, reliable assistant. "
+                "Follow the user's instructions exactly. Return only the requested output."
+            )
+
+            # Sensible defaults using existing centralized settings
+            if max_tokens is None:
+                max_tokens = cfg.OPENAI_TOKEN_LIMITS.get("insights", 800)
+            if temperature is None:
+                temperature = self._get_temperature(cfg.OPENAI_TEMPERATURES.get("insights", 0.7))
+
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": sys_content},
+                    {"role": "user", "content": prompt},
+                ],
+                max_completion_tokens=max_tokens,
+                temperature=temperature,
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            logging.error(f"get_completion failed: {e}")
+            return f"Error generating completion: {str(e)}"
+
+    def is_available(self) -> bool:
+        """Return True if the client is configured and ready to use."""
+        try:
+            return bool(self.api_key) and self.client is not None
+        except Exception:
+            return False
+
     def generate_proposed_questions(self, context_text: str) -> str:
         """Generate 2-4 concise, actionable questions based on the change context.
 
@@ -444,7 +495,7 @@ class OpenAIClient:
             # Build customized system prompt
             system_prompt = self._build_system_prompt(settings, "events")
 
-            # Adjust max_completion_tokens based on summary length setting
+            # Adjust max tokens based on summary length setting
             max_completion_tokens_map = {
                 'brief': 200,
                 'moderate': 400,
@@ -1348,7 +1399,7 @@ Batch Overview:
                 focus_areas_text = ", ".join(settings['focusAreas'])
                 user_content += f"\nPay special attention to these focus areas: {focus_areas_text}"
 
-            # Adjust max_completion_tokens for batch processing
+            # Adjust max tokens for batch processing
             max_completion_tokens_map = {
                 'brief': 400,
                 'moderate': 800,

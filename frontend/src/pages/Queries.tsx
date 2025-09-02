@@ -52,6 +52,7 @@ interface QueryResult {
     outputFormat: string
     generatedAt: string
     markdownContent?: string
+    ai?: { model: string; provider?: string }
   }
   executionTime?: number
 }
@@ -75,7 +76,7 @@ interface CodeComponentProps {
   [key: string]: any
 }
 
-export default function TimeQuery() {
+export default function Queries() {
   const [query, setQuery] = useState('')
   const [timeRange, setTimeRange] = useState<TimeRange>({
     start: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Last 7 days
@@ -317,7 +318,7 @@ export default function TimeQuery() {
                 className="text-sm"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
-                {formatDuration(result.timeRange.durationHours)} • {result.summary.totalChanges} changes • {result.summary.filesAffected} files
+                {formatDuration(result.timeRange.durationHours)} • {result.summary.totalChanges} changes • {result.summary.filesAffected} files{result.ai?.model ? ` • Model: ${result.ai.model}` : ''}
               </p>
             </div>
           </div>
@@ -378,7 +379,7 @@ export default function TimeQuery() {
         <div className="flex items-center space-x-3">
           <Activity size={28} style={{ color: 'var(--color-primary)' }} />
           <div>
-            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Time-Based Queries</h1>
+            <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>Queries</h1>
             <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Analyze your development activity with natural language</p>
           </div>
         </div>

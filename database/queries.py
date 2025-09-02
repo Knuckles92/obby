@@ -50,6 +50,13 @@ class FileQueries:
                     file_path_obj = Path(diff['file_path'])
                     if not watch_handler.should_watch(file_path_obj):
                         continue  # Skip files that don't match watch patterns
+                # Exclude internal semantic index artifact to prevent stale content pollution
+                try:
+                    fp = str(diff['file_path']).lower()
+                    if fp.endswith('semantic_index.json'):
+                        continue
+                except Exception:
+                    pass
                 
                 formatted_diff = {
                     'id': str(diff['id']),
@@ -113,6 +120,13 @@ class FileQueries:
             for diff in diffs:
                 total_diffs_processed += 1
                 file_path = diff['file_path']
+                # Exclude internal semantic index artifact
+                try:
+                    if str(file_path).lower().endswith('semantic_index.json'):
+                        filtered_out_count += 1
+                        continue
+                except Exception:
+                    pass
                 
                 # Optional watch filtering
                 if watch_handler is not None:
@@ -209,6 +223,12 @@ class FileQueries:
             
             for diff in diff_rows:
                 file_path = diff['file_path']
+                # Exclude internal semantic index artifact
+                try:
+                    if str(file_path).lower().endswith('semantic_index.json'):
+                        continue
+                except Exception:
+                    pass
                 
                 # Apply watch filtering if provided
                 if watch_handler is not None:
@@ -243,6 +263,12 @@ class FileQueries:
             processed_file_metrics = []
             for metric in file_metrics:
                 file_path = metric['file_path']
+                # Exclude internal semantic index artifact
+                try:
+                    if str(file_path).lower().endswith('semantic_index.json'):
+                        continue
+                except Exception:
+                    pass
                 
                 # Apply same filtering as diffs
                 if watch_handler is not None:
@@ -660,6 +686,7 @@ class FileQueries:
                 WHERE se.id IS NULL
                     AND cd.diff_content IS NOT NULL 
                     AND cd.diff_content != ''
+                    AND LOWER(cd.file_path) NOT LIKE '%semantic_index.json'
                 ORDER BY cd.timestamp DESC
             """
             
@@ -1420,6 +1447,18 @@ class AnalyticsQueries:
                 except Exception as opt_error:
                     logger.warning(f"Post-reset optimization failed: {opt_error}")
                 
+                # Best-effort cleanup of legacy/auxiliary on-disk artifacts outside SQLite
+                try:
+                    from pathlib import Path
+                    index_path = Path('notes/semantic_index.json')
+                    if index_path.exists():
+                        index_path.unlink()
+                        logger.info("Removed notes/semantic_index.json during database reset")
+                        results['files_removed'] = results.get('files_removed', []) + [str(index_path)]
+                except Exception as fs_err:
+                    logger.warning(f"Failed to remove notes/semantic_index.json: {fs_err}")
+                    results['files_removed_error'] = str(fs_err)
+
                 return results
                 
             except Exception as reset_error:

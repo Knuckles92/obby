@@ -41,7 +41,7 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 ### Key Components
 
 #### Backend (`backend.py`)
-- Flask REST API server with CORS support and modular blueprint architecture
+- FastAPI server with CORS middleware and modular APIRouter architecture
 - SSE (Server-Sent Events) for real-time frontend updates
 - Database-backed storage replacing in-memory event tracking
 - Integrated file monitoring via `APIObbyMonitor` class
@@ -167,8 +167,10 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 ### Frontend Integration
 - Production mode serves built frontend from `frontend/dist/`
 - Development uses separate Vite server at :5173
-- SSE endpoint `/api/events/stream` provides real-time updates
-- All API endpoints prefixed with `/api/`
+- SSE endpoints provide real-time updates:
+  - `/api/living-note/events`
+  - `/api/summary-notes/events`
+- All API endpoints are prefixed with `/api/`
 
 ### AI Processing
 - AI analysis is optional (requires `OPENAI_API_KEY`)

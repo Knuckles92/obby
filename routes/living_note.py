@@ -1,10 +1,11 @@
 
 """
-Living Notes API routes
+Living Notes API routes (FastAPI)
 Handles living note content, settings, updates, and SSE events
 """
 
-from flask import Blueprint, jsonify, request, Response
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import os
 import json
@@ -22,7 +23,7 @@ import time
 
 logger = logging.getLogger(__name__)
 
-living_note_bp = Blueprint('living_note', __name__, url_prefix='/api/living-note')
+living_note_bp = APIRouter(prefix='/api/living-note', tags=['living-note'])
 
 # SSE client management
 sse_clients = []
@@ -31,72 +32,72 @@ living_note_service = LivingNoteService(str(LIVING_NOTE_PATH))
 living_note_update_lock = threading.Lock()
 
 
-@living_note_bp.route('/', methods=['GET'])
-def get_living_note_root():
+@living_note_bp.get('/')
+async def get_living_note_root():
     """Get the current living note content (root endpoint)"""
     try:
         data = living_note_service.get_content()
-        return jsonify(data)
+        return data
     except Exception as e:
         logger.error(f"Failed to read living note: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@living_note_bp.route('/content', methods=['GET'])
-def get_living_note():
+@living_note_bp.get('/content')
+async def get_living_note():
     """Get the current living note content"""
     try:
         data = living_note_service.get_content()
-        return jsonify(data)
+        return data
     except Exception as e:
         logger.error(f"Failed to read living note: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@living_note_bp.route('/clear', methods=['POST'])
-def clear_living_note():
+@living_note_bp.post('/clear')
+async def clear_living_note():
     """Clear the living note content"""
     try:
         result = living_note_service.clear()
         logger.info("Living note cleared")
         notify_living_note_change()
-        return jsonify(result)
+        return result
     except Exception as e:
         logger.error(f"Failed to clear living note: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@living_note_bp.route('/settings', methods=['GET', 'POST'])
-def handle_living_note_settings():
+@living_note_bp.api_route('/settings', methods=['GET', 'POST'])
+async def handle_living_note_settings(request: Request):
     """Get or save living note customization settings"""
     if request.method == 'GET':
-        return get_living_note_settings()
+        return await get_living_note_settings()
     else:
-        return save_living_note_settings()
+        return await save_living_note_settings(request)
 
 
-def get_living_note_settings():
+async def get_living_note_settings():
     """Get living note customization settings"""
     try:
         data = living_note_service.get_settings()
-        return jsonify(data)
+        return data
     except Exception as e:
         logger.error(f"Failed to get living note settings: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-def save_living_note_settings():
+async def save_living_note_settings(request: Request):
     """Save living note customization settings"""
     try:
-        data = request.get_json()
+        data = await request.json()
         if not data:
-            return jsonify({'error': 'No settings provided'}), 400
+            return JSONResponse({'error': 'No settings provided'}, status_code=400)
         result = living_note_service.save_settings(data)
         logger.info("Living note settings saved successfully")
-        return jsonify(result)
+        return result
     except Exception as e:
         logger.error(f"Failed to save living note settings: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
@@ -135,8 +136,8 @@ def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
             pass
 
 
-@living_note_bp.route('/update', methods=['POST'])
-def trigger_living_note_update():
+@living_note_bp.post('/update')
+async def trigger_living_note_update(request: Request):
     """Update the living note with optional async execution and overall timeout ceiling.
 
     Request body supports:
@@ -146,7 +147,7 @@ def trigger_living_note_update():
       - max_duration_secs (float): ceiling for synchronous wait before returning 202 (default 15.0)
     """
     try:
-        data = request.get_json() or {}
+        data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
         force_update = bool(data.get('force', False))
         run_async = bool(data.get('async', False))
         lock_timeout = float(data.get('lock_timeout', 1.0))
@@ -159,23 +160,23 @@ def trigger_living_note_update():
 
         if run_async:
             logger.info("Living note update: triggered asynchronously; returning 202")
-            return jsonify({
+            return JSONResponse({
                 'accepted': True,
                 'success': True,
                 'message': 'Living note update started in background',
-            }), 202
+            }, status_code=202)
 
         # Synchronous path with protective ceiling
         worker.join(timeout=max(0.0, max_duration))
         if result_box['result'] is not None:
-            return jsonify(result_box['result']), 200
+            return result_box['result']
         else:
             logger.info(f"Living note update: still running after {max_duration:.1f}s; returning 202 to avoid blocking")
-            return jsonify({
+            return JSONResponse({
                 'accepted': True,
                 'success': True,
                 'message': 'Living note update continuing in background',
-            }), 202
+            }, status_code=202)
 
     except Exception as e:
         logger.error(f"Failed to trigger living note update: {e}", exc_info=True)
@@ -188,16 +189,16 @@ def trigger_living_note_update():
         else:
             error_message = f"Unexpected error: {error_message}"
         
-        return jsonify({
+        return JSONResponse({
             'success': False,
             'message': error_message,
             'updated': False,
             'error_type': type(e).__name__
-        }), 500
+        }, status_code=500)
 
 
-@living_note_bp.route('/events')
-def living_note_events():
+@living_note_bp.get('/events')
+async def living_note_events():
     """SSE endpoint for living note updates"""
     def event_stream():
         client_queue = queue.Queue()
@@ -223,10 +224,11 @@ def living_note_events():
             if client_queue in sse_clients:
                 sse_clients.remove(client_queue)
     
-    return Response(event_stream(), mimetype='text/event-stream', 
-                   headers={'Cache-Control': 'no-cache',
-                           'Connection': 'keep-alive',
-                           'Access-Control-Allow-Origin': '*'})
+    return StreamingResponse(event_stream(), media_type='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+    })
 
 
 def notify_living_note_change():

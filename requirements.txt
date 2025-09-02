@@ -2,6 +2,8 @@
 
 # OpenAI API client (for AI-assisted summarization)
 openai>=1.0.0
+fastapi>=0.111.0
+uvicorn>=0.30.0
 
 # File system monitoring for instant change detection
 watchdog>=3.0.0
@@ -9,9 +11,7 @@ watchdog>=3.0.0
 # Native file monitoring and version tracking (no git dependency)
 # Uses built-in difflib for diff generation
 
-# Web API server for frontend integration
-flask>=2.3.0
-flask-cors>=4.0.0
+# Web API server for frontend integration (FastAPI)
 
 # System monitoring for admin panel
 psutil>=5.9.0

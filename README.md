@@ -61,7 +61,7 @@
 - **Performance**: Optimized rendering with React hooks and efficient state management
 
 ### ✅ **Production-Ready Architecture**
-- **Flask API Server**: RESTful API with comprehensive endpoint coverage
+- **FastAPI Server**: RESTful API with automatic docs (OpenAPI/Swagger)
 - **Error Handling**: Graceful error recovery with detailed logging
 - **Security**: Input validation, SQL injection prevention, XSS protection
 - **Monitoring**: Application health checks and performance metrics
@@ -147,7 +147,7 @@ Obby automatically sets up your environment:
 ```
 obby/
 ├── 🔧 Backend (Python)
-│   ├── backend.py                 # Flask API server + SPA host (port 8001)
+│   ├── backend.py                 # FastAPI server + SPA host (port 8001)
 │   ├── main.py                    # CLI helper / legacy entry
 │   ├── config/
 │   │   ├── settings.py            # Core configuration
@@ -611,7 +611,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 **Built with modern technologies:**
-- **Backend**: Python, Flask, SQLite with FTS5, OpenAI
+- **Backend**: Python, FastAPI, SQLite with FTS5, OpenAI
 - **Frontend**: React 18, TypeScript 5, Tailwind CSS, Vite
 - **Architecture**: RESTful API, real-time updates, responsive design
 - **AI**: OpenAI GPT models for intelligent content analysis

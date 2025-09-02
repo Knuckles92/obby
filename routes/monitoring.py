@@ -3,7 +3,8 @@ Monitoring and Control API routes
 Handles file monitoring start/stop, status, and scanning operations
 """
 
-from flask import Blueprint, jsonify, request
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 import logging
 import os
 from datetime import datetime
@@ -12,7 +13,7 @@ from database.queries import EventQueries
 
 logger = logging.getLogger(__name__)
 
-monitoring_bp = Blueprint('monitoring', __name__, url_prefix='/api/monitor')
+monitoring_bp = APIRouter(prefix='/api/monitor', tags=['monitor'])
 
 # Global variables for monitoring state (will be injected by main app)
 monitor_instance = None
@@ -28,8 +29,8 @@ def init_monitoring_routes(app_monitor_instance, app_monitor_thread, app_monitor
     monitoring_active = app_monitoring_active
 
 
-@monitoring_bp.route('/status', methods=['GET'])
-def get_status():
+@monitoring_bp.get('/status')
+async def get_status():
     """Get current monitoring status"""
     global monitoring_active, monitor_instance
     
@@ -57,25 +58,21 @@ def get_status():
                         if not any(part.startswith('.') for part in rel_path.parts):
                             total_files += 1
     
-    return jsonify({
+    return {
         'isActive': monitoring_active,
         'watchedPaths': watched_paths,
         'totalFiles': total_files,
         'eventsToday': events_today
-    })
+    }
 
 
-@monitoring_bp.route('/start', methods=['POST'])
-def start_monitoring():
+@monitoring_bp.post('/start')
+async def start_monitoring():
     """Start file monitoring"""
     global monitor_instance, monitor_thread, monitoring_active
     
     if monitoring_active:
-        return jsonify({
-            'success': True,
-            'message': 'Monitoring is already active',
-            'status': 'already_running'
-        })
+        return {'success': True, 'message': 'Monitoring is already active', 'status': 'already_running'}
     
     try:
         from core.monitor import ObbyMonitor
@@ -94,16 +91,10 @@ def start_monitoring():
         monitoring_active = True
         
         logger.info("Monitoring started successfully")
-        return jsonify({
-            'success': True,
-            'message': 'Monitoring started successfully'
-        })
+        return {'success': True, 'message': 'Monitoring started successfully'}
     except Exception as e:
         logger.error(f"Failed to start monitoring: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to start monitoring: {str(e)}'
-        }), 500
+        return JSONResponse({'success': False, 'message': f'Failed to start monitoring: {str(e)}'}, status_code=500)
 
 
 def get_monitoring_status():
@@ -137,19 +128,16 @@ def get_monitoring_status():
         status['total_watched_files'] = total_files
         status['last_scan_time'] = getattr(monitor_instance, 'last_scan_time', None)
     
-    return jsonify(status)
+    return status
 
 
-@monitoring_bp.route('/stop', methods=['POST'])
-def stop_monitoring():
+@monitoring_bp.post('/stop')
+async def stop_monitoring():
     """Stop file monitoring"""
     global monitor_instance, monitor_thread, monitoring_active
     
     if not monitoring_active:
-        return jsonify({
-            'success': True,
-            'message': 'Monitoring was not active'
-        })
+        return {'success': True, 'message': 'Monitoring was not active'}
     
     try:
         logger.info("Stopping monitoring system...")
@@ -162,28 +150,19 @@ def stop_monitoring():
         monitor_thread = None
         
         logger.info("Monitoring stopped successfully")
-        return jsonify({
-            'success': True,
-            'message': 'Monitoring stopped successfully'
-        })
+        return {'success': True, 'message': 'Monitoring stopped successfully'}
     except Exception as e:
         logger.error(f"Failed to stop monitoring: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Failed to stop monitoring: {str(e)}'
-        }), 500
+        return JSONResponse({'success': False, 'message': f'Failed to stop monitoring: {str(e)}'}, status_code=500)
 
 
-@monitoring_bp.route('/scan', methods=['POST'])
-def scan_files():
+@monitoring_bp.post('/scan')
+async def scan_files():
     """Manually scan files for changes"""
     global monitor_instance
     
     if not monitor_instance:
-        return jsonify({
-            'success': False,
-            'message': 'Monitoring is not active'
-        }), 400
+        return JSONResponse({'success': False, 'message': 'Monitoring is not active'}, status_code=400)
     
     try:
         # Trigger a manual scan
@@ -193,16 +172,10 @@ def scan_files():
         if hasattr(monitor_instance, 'force_check'):
             monitor_instance.force_check()
         
-        return jsonify({
-            'success': True,
-            'message': 'Manual scan completed'
-        })
+        return {'success': True, 'message': 'Manual scan completed'}
     except Exception as e:
         logger.error(f"Manual scan failed: {e}")
-        return jsonify({
-            'success': False,
-            'message': f'Manual scan failed: {str(e)}'
-        }), 500
+        return JSONResponse({'success': False, 'message': f'Manual scan failed: {str(e)}'}, status_code=500)
 
 
 
@@ -211,8 +184,8 @@ def scan_files():
 
 
 
-@monitoring_bp.route('/batch-ai/trigger', methods=['POST'])
-def trigger_manual_ai_processing():
+@monitoring_bp.post('/batch-ai/trigger')
+async def trigger_manual_ai_processing(request: Request):
     """Manually trigger AI processing for recent file changes"""
     try:
         from database.queries import FileQueries
@@ -223,7 +196,7 @@ def trigger_manual_ai_processing():
         start_time = time.time()
         
         # Get request data
-        data = request.get_json() or {}
+        data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
         force = data.get('force', True)
         
         logger.info(f"Manual AI processing triggered (force={force})")
@@ -236,7 +209,7 @@ def trigger_manual_ai_processing():
         recent_changes = FileQueries.get_recent_changes_without_ai_summary(limit=None)
         
         if not recent_changes:
-            return jsonify({
+            return {
                 'success': True,
                 'message': 'No new changes found to process',
                 'result': {
@@ -245,7 +218,7 @@ def trigger_manual_ai_processing():
                     'processing_time': time.time() - start_time,
                     'reason': 'All recent changes already have AI summaries'
                 }
-            })
+            }
         
         changes_processed = 0
         
@@ -299,7 +272,7 @@ def trigger_manual_ai_processing():
         
         processing_time = time.time() - start_time
         
-        return jsonify({
+        return {
             'success': True,
             'message': f'Successfully processed {changes_processed} changes',
             'result': {
@@ -308,11 +281,11 @@ def trigger_manual_ai_processing():
                 'processing_time': processing_time,
                 'last_update': datetime.now().isoformat()
             }
-        })
+        }
         
     except Exception as e:
         logger.error(f"Manual AI processing failed: {e}")
-        return jsonify({
+        return JSONResponse({
             'success': False,
             'message': f'Manual AI processing failed: {str(e)}',
             'result': {
@@ -321,11 +294,11 @@ def trigger_manual_ai_processing():
                 'processing_time': 0,
                 'error': str(e)
             }
-        }), 500
+        }, status_code=500)
 
 
-@monitoring_bp.route('/comprehensive-summary/generate', methods=['POST'])
-def generate_comprehensive_summary():
+@monitoring_bp.post('/comprehensive-summary/generate')
+async def generate_comprehensive_summary(request: Request):
     """Generate a comprehensive summary of all changes since the last comprehensive summary"""
     try:
         from database.models import ComprehensiveSummaryModel
@@ -337,7 +310,7 @@ def generate_comprehensive_summary():
         start_time = time.time()
         
         # Get request data
-        data = request.get_json() or {}
+        data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
         force = data.get('force', False)
         
         logger.info("Comprehensive summary generation triggered")
@@ -364,7 +337,7 @@ def generate_comprehensive_summary():
         changes = db.execute_query(changes_query, (last_summary_timestamp,))
         
         if not changes and not force:
-            return jsonify({
+            return {
                 'success': True,
                 'message': 'No changes found since last comprehensive summary',
                 'result': {
@@ -374,13 +347,19 @@ def generate_comprehensive_summary():
                     'time_range_end': datetime.now().isoformat(),
                     'reason': 'No changes to summarize'
                 }
-            })
+            }
         
         # Group changes by file for better processing
         changes_by_file = {}
         for change in changes:
             change_dict = dict(change)
             file_path = change_dict['file_path']
+            # Exclude internal semantic index artifact to prevent polluting summaries
+            try:
+                if str(file_path).lower().endswith('semantic_index.json'):
+                    continue
+            except Exception:
+                pass
             if file_path not in changes_by_file:
                 changes_by_file[file_path] = []
             changes_by_file[file_path].append(change_dict)
@@ -409,7 +388,7 @@ def generate_comprehensive_summary():
         ai_summary = ai_client.summarize_batch_changes(batch_data)
         
         if not ai_summary or "Error" in ai_summary:
-            return jsonify({
+            return JSONResponse({
                 'success': False,
                 'message': 'Failed to generate comprehensive summary',
                 'result': {
@@ -417,7 +396,7 @@ def generate_comprehensive_summary():
                     'changes_count': len(changes),
                     'error': ai_summary or 'Unknown AI error'
                 }
-            }), 500
+            }, status_code=500)
         
         # Parse the AI summary to extract structured data
         summary_data = _parse_ai_summary(ai_summary)
@@ -440,7 +419,7 @@ def generate_comprehensive_summary():
         
         if summary_id:
             logger.info(f"Comprehensive summary created with ID {summary_id}")
-            return jsonify({
+            return {
                 'success': True,
                 'message': f'Comprehensive summary generated successfully for {len(changes)} changes across {len(changes_by_file)} files',
                 'result': {
@@ -454,9 +433,9 @@ def generate_comprehensive_summary():
                     'time_span': batch_data['time_span'],
                     'summary_preview': summary_data.get('summary', ai_summary)[:200] + '...'
                 }
-            })
+            }
         else:
-            return jsonify({
+            return JSONResponse({
                 'success': False,
                 'message': 'Failed to save comprehensive summary',
                 'result': {
@@ -464,11 +443,11 @@ def generate_comprehensive_summary():
                     'changes_count': len(changes),
                     'error': 'Database save failed'
                 }
-            }), 500
+            }, status_code=500)
         
     except Exception as e:
         logger.error(f"Comprehensive summary generation failed: {e}")
-        return jsonify({
+        return JSONResponse({
             'success': False,
             'message': f'Comprehensive summary generation failed: {str(e)}',
             'result': {
@@ -477,7 +456,7 @@ def generate_comprehensive_summary():
                 'processing_time': 0,
                 'error': str(e)
             }
-        }), 500
+        }, status_code=500)
 
 
 def _calculate_time_span(start_time: datetime, end_time: datetime) -> str:
@@ -584,15 +563,15 @@ def _parse_ai_summary(ai_summary: str) -> dict:
     return parsed
 
 
-@monitoring_bp.route('/comprehensive-summary/list', methods=['GET'])
-def get_comprehensive_summaries():
+@monitoring_bp.get('/comprehensive-summary/list')
+async def get_comprehensive_summaries(request: Request):
     """Get paginated list of comprehensive summaries"""
     try:
         from database.models import ComprehensiveSummaryModel
         
         # Get pagination parameters from query string
-        page = request.args.get('page', 1, type=int)
-        page_size = request.args.get('page_size', 10, type=int)
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 10))
         
         # Validate parameters
         if page < 1:
@@ -601,15 +580,15 @@ def get_comprehensive_summaries():
             page_size = 10
         
         data = ComprehensiveSummaryModel.get_summaries_paginated(page=page, page_size=page_size)
-        return jsonify(data)
+        return data
         
     except Exception as e:
         logger.error(f"Failed to get comprehensive summaries: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@monitoring_bp.route('/comprehensive-summary/<int:summary_id>', methods=['GET'])
-def get_comprehensive_summary(summary_id):
+@monitoring_bp.get('/comprehensive-summary/{summary_id}')
+async def get_comprehensive_summary(summary_id: int):
     """Get details of a specific comprehensive summary"""
     try:
         from database.models import ComprehensiveSummaryModel, db
@@ -620,7 +599,7 @@ def get_comprehensive_summary(summary_id):
         rows = db.execute_query(query, (summary_id,))
         
         if not rows:
-            return jsonify({'error': 'Comprehensive summary not found'}), 404
+            return JSONResponse({'error': 'Comprehensive summary not found'}, status_code=404)
         
         summary = dict(rows[0])
         # Parse JSON fields
@@ -628,15 +607,15 @@ def get_comprehensive_summary(summary_id):
         summary['key_topics'] = json.loads(summary['key_topics']) if summary['key_topics'] else []
         summary['key_keywords'] = json.loads(summary['key_keywords']) if summary['key_keywords'] else []
         
-        return jsonify(summary)
+        return summary
         
     except Exception as e:
         logger.error(f"Failed to get comprehensive summary {summary_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@monitoring_bp.route('/comprehensive-summary/<int:summary_id>', methods=['DELETE'])
-def delete_comprehensive_summary(summary_id):
+@monitoring_bp.delete('/comprehensive-summary/{summary_id}')
+async def delete_comprehensive_summary(summary_id: int):
     """Delete a specific comprehensive summary"""
     try:
         from database.models import ComprehensiveSummaryModel
@@ -644,16 +623,13 @@ def delete_comprehensive_summary(summary_id):
         success = ComprehensiveSummaryModel.delete_summary(summary_id)
         
         if success:
-            return jsonify({
-                'success': True,
-                'message': f'Comprehensive summary {summary_id} deleted successfully'
-            })
+            return {'success': True, 'message': f'Comprehensive summary {summary_id} deleted successfully'}
         else:
-            return jsonify({'error': 'Comprehensive summary not found'}), 404
+            return JSONResponse({'error': 'Comprehensive summary not found'}, status_code=404)
         
     except Exception as e:
         logger.error(f"Failed to delete comprehensive summary {summary_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 def run_monitor():

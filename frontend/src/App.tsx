@@ -9,7 +9,8 @@ import LivingNote from './pages/LivingNote'
 import SummaryNotes from './pages/SummaryNotes'
 import Administration from './pages/Administration'
 import Settings from './pages/Settings'
-import TimeQuery from './pages/TimeQuery'
+import NotFound from './pages/NotFound'
+import Queries from './pages/Queries'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -36,11 +37,13 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diffs" element={<DiffViewer />} />
-                <Route path="/time-query" element={<TimeQuery />} />
+                <Route path="/queries" element={<Queries />} />
+                <Route path="/time-query" element={<Queries />} />
                 <Route path="/living-note" element={<LivingNote />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
                 <Route path="/admin" element={<Administration />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </div>
           </main>

@@ -224,6 +224,16 @@ class LivingNoteService:
                     excluded_count += 1
                     logger.debug(f"Excluding living note file from its own update: {diff_path}")
                     continue
+                # Exclude internal semantic index file and non-markdown files to avoid stale context pollution
+                file_path_str = str(diff_path)
+                if file_path_str.lower().endswith('semantic_index.json'):
+                    excluded_count += 1
+                    logger.debug(f"Excluding internal semantic index file from diffs: {diff_path}")
+                    continue
+                if not file_path_str.lower().endswith('.md'):
+                    # Only summarize note markdown changes for the living note
+                    excluded_count += 1
+                    continue
                 diffs.append(diff)
             
             logger.info(f"Living note: excluded {excluded_count} self-references, processing {len(diffs)} actual content diffs")
@@ -238,8 +248,14 @@ class LivingNoteService:
                 recent_diffs = []
                 for diff in all_recent_diffs:
                     diff_path = Path(diff.get('filePath', '')).resolve()
-                    if diff_path != target_path:
-                        recent_diffs.append(diff)
+                    file_path_str = str(diff_path)
+                    if diff_path == target_path:
+                        continue
+                    if file_path_str.lower().endswith('semantic_index.json'):
+                        continue
+                    if not file_path_str.lower().endswith('.md'):
+                        continue
+                    recent_diffs.append(diff)
                 if recent_diffs:
                     diffs = recent_diffs
                     logger.info(f"Living note: using {len(recent_diffs)} recent diffs (excluded living note file)")

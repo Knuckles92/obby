@@ -3,7 +3,8 @@ Time-Based Query API routes
 Handles manual time-based queries with natural language processing
 """
 
-from flask import Blueprint, jsonify, request, Response, stream_with_context
+from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import time
 import json
@@ -17,7 +18,7 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-time_query_bp = Blueprint('time_query', __name__, url_prefix='/api/time-query')
+time_query_bp = APIRouter(prefix='/api/time-query', tags=['time-query'])
 
 # Query templates for common time-based queries
 QUERY_TEMPLATES = [
@@ -155,13 +156,10 @@ def parse_natural_time_range(query_text: str, explicit_start: str = None, explic
 def get_query_templates():
     """Get pre-built query templates."""
     try:
-        return jsonify({
-            'templates': QUERY_TEMPLATES,
-            'total_templates': len(QUERY_TEMPLATES)
-        })
+        return {'templates': QUERY_TEMPLATES, 'total_templates': len(QUERY_TEMPLATES)}
     except Exception as e:
         logger.error(f"Failed to get query templates: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 @time_query_bp.route('/suggestions', methods=['GET'])
@@ -205,23 +203,20 @@ def get_query_suggestions():
                 "What files have I been working on recently?"
             ]
         
-        return jsonify({
-            'suggestions': suggestions,
-            'generated_at': datetime.now().isoformat()
-        })
+        return {'suggestions': suggestions, 'generated_at': datetime.now().isoformat()}
         
     except Exception as e:
         logger.error(f"Failed to get query suggestions: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.route('/execute', methods=['POST'])
-def execute_time_query():
+@time_query_bp.post('/execute')
+async def execute_time_query(request: Request):
     """Execute a time-based query with optional streaming response."""
     try:
-        data = request.get_json()
+        data = await request.json()
         if not data or 'query' not in data:
-            return jsonify({'error': 'Query text is required'}), 400
+            return JSONResponse({'error': 'Query text is required'}, status_code=400)
         
         query_text = data['query']
         start_time_str = data.get('startTime')
@@ -240,26 +235,26 @@ def execute_time_query():
         )
         
         if not query_id:
-            return jsonify({'error': 'Failed to create query record'}), 500
+            return JSONResponse({'error': 'Failed to create query record'}, status_code=500)
         
         # Update status to processing
         TimeQueryModel.update_query_status(query_id, 'processing')
         
         if stream_response:
             # Stream response for real-time updates
-            return Response(
-                stream_with_context(stream_time_query_execution(query_id, query_text, start_time, end_time, focus_areas, output_format)),
-                mimetype='text/event-stream',
+            return StreamingResponse(
+                stream_time_query_execution(query_id, query_text, start_time, end_time, focus_areas, output_format),
+                media_type='text/event-stream',
                 headers={'Cache-Control': 'no-cache', 'Connection': 'keep-alive'}
             )
         else:
             # Synchronous response
             result = execute_query_analysis(query_id, query_text, start_time, end_time, focus_areas, output_format)
-            return jsonify(result)
+            return result
     
     except Exception as e:
         logger.error(f"Failed to execute time query: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 def stream_time_query_execution(query_id: int, query_text: str, start_time: datetime, end_time: datetime, 
@@ -283,17 +278,22 @@ def stream_time_query_execution(query_id: int, query_text: str, start_time: date
         
         # Step 2: AI processing
         ai_result = None
+        ai_model_used = None
         try:
-            openai_client = OpenAIClient()
-            if openai_client and openai_client.is_available():
-                ai_result = process_with_ai(analysis, query_text, output_format)
+            # Attempt AI processing unconditionally; internal client will handle availability
+            ai_result = process_with_ai(analysis, query_text, output_format)
+            try:
+                # Best effort to capture model used
+                ai_model_used = OpenAIClient().model
+            except Exception:
+                ai_model_used = None
         except Exception as e:
             logger.warning(f"AI processing failed: {e}")
         
         yield f"data: {json.dumps({'type': 'progress', 'message': 'Finalizing results...', 'progress': 90})}\n\n"
         
         # Step 3: Combine results
-        final_result = combine_analysis_results(analysis, ai_result, output_format)
+        final_result = combine_analysis_results(analysis, ai_result, output_format, ai_model_used)
         
         # Update database
         execution_time = int((datetime.now() - datetime.fromisoformat(analysis['metadata']['analysisTimestamp'])).total_seconds() * 1000)
@@ -330,15 +330,18 @@ def execute_query_analysis(query_id: int, query_text: str, start_time: datetime,
         
         # AI processing
         ai_result = None
+        ai_model_used = None
         try:
-            openai_client = OpenAIClient()
-            if openai_client and openai_client.is_available():
-                ai_result = process_with_ai(analysis, query_text, output_format)
+            ai_result = process_with_ai(analysis, query_text, output_format)
+            try:
+                ai_model_used = OpenAIClient().model
+            except Exception:
+                ai_model_used = None
         except Exception as e:
             logger.warning(f"AI processing failed: {e}")
         
         # Combine results
-        final_result = combine_analysis_results(analysis, ai_result, output_format)
+        final_result = combine_analysis_results(analysis, ai_result, output_format, ai_model_used)
         
         # Update database
         execution_time_ms = int((time.time() - start_exec_time) * 1000)
@@ -362,53 +365,90 @@ def execute_query_analysis(query_id: int, query_text: str, start_time: datetime,
 
 
 def process_with_ai(analysis: Dict[str, Any], query_text: str, output_format: str) -> Optional[str]:
-    """Process analysis results with AI for enhanced insights, returning markdown."""
+    """Process analysis with AI, passing user query, recent diffs, and stats; return markdown."""
     try:
         openai_client = OpenAIClient()
-        
-        # Create a comprehensive markdown report prompt
+
+        # Build compact stats
+        summary = analysis.get('summary', {})
+        semantic = analysis.get('semanticAnalysis', {})
+        file_metrics = analysis.get('fileMetrics', []) or []
+
+        top_topics = list((semantic.get('topTopics') or {}).keys())[:5]
+        top_keywords = list((semantic.get('topKeywords') or {}).keys())[:5]
+
+        # Prepare recent diffs (take last N, truncate total content)
+        diffs = analysis.get('diffs', []) or []
+        max_diffs = 8
+        max_total_chars = 6000
+        max_per_diff = 800
+        recent_diffs = diffs[-max_diffs:]
+
+        diffs_text_parts = []
+        total_chars = 0
+        for d in recent_diffs:
+            header = f"### {d.get('filePath', 'unknown')} — {d.get('changeType', '')} @ {d.get('timestamp', '')}\n"
+            content = d.get('diffContent') or ''
+            snippet = content[:max_per_diff]
+            part = header + "\n" + snippet + ("\n...\n" if len(content) > len(snippet) else "\n")
+            if total_chars + len(part) > max_total_chars:
+                remaining = max_total_chars - total_chars
+                if remaining > 0:
+                    diffs_text_parts.append(part[:remaining])
+                    total_chars += remaining
+                break
+            diffs_text_parts.append(part)
+            total_chars += len(part)
+        diffs_text = "\n".join(diffs_text_parts) if diffs_text_parts else "(No recent diff content available)"
+
+        # System instruction prioritizes user's request
+        system_prompt = (
+            "You are an expert developer assistant. "
+            "Follow the user's instruction exactly for the output. "
+            "Use the provided diffs and stats as context. "
+            "Return markdown only (no JSON/preamble)."
+        )
+
+        # User prompt includes query + compact stats + recent diffs
         prompt = f"""
-Create a comprehensive markdown report for the following development activity analysis:
+User request:
+"{query_text}"
 
-**Query:** "{query_text}"
-**Time Range:** {analysis['timeRange']['start']} to {analysis['timeRange']['end']}
-**Changes:** {analysis['summary']['totalChanges']} across {analysis['summary']['filesAffected']} files
-**Lines Added:** {analysis['summary']['linesAdded']}
-**Lines Removed:** {analysis['summary']['linesRemoved']}
+Time range: {analysis['timeRange']['start']} → {analysis['timeRange']['end']}
+Stats: changes={summary.get('totalChanges', 0)}, files={summary.get('filesAffected', 0)}, lines+={summary.get('linesAdded', 0)}, lines-={summary.get('linesRemoved', 0)}
+Change types: {summary.get('changeTypes', {})}
+Top topics: {top_topics if top_topics else 'None'}
+Top keywords: {top_keywords if top_keywords else 'None'}
+Most active files: {[f.get('file_path') for f in file_metrics[:5]] if file_metrics else 'None'}
 
-**Top Topics:** {list(analysis['semanticAnalysis']['topTopics'].keys())[:5] if analysis['semanticAnalysis']['topTopics'] else 'None'}
-**Top Keywords:** {list(analysis['semanticAnalysis']['topKeywords'].keys())[:5] if analysis['semanticAnalysis']['topKeywords'] else 'None'}
+Recent diff changes (newest last):
+{diffs_text}
 
-**Most Active Files:** {[f['file_path'] + ' (' + str(f['change_count']) + ' changes)' for f in analysis['fileMetrics'][:5]] if analysis.get('fileMetrics') else 'None'}
-
-Please create a well-structured markdown report that includes:
-
-1. **## Executive Summary** - 2-3 sentences about the main accomplishments and focus areas
-2. **## Key Highlights** - Bullet points of notable changes and achievements  
-3. **## File Activity** - Brief overview of the most active files and what changed
-4. **## Topics & Focus Areas** - Analysis of the main topics and keywords from the work
-5. **## Next Steps** - 3-5 actionable recommendations based on the changes
-
-Use proper markdown formatting with headers, bullet points, code blocks if relevant, and make it readable and informative. Focus on insights and patterns rather than just listing raw data.
-
-Return ONLY the markdown content, no JSON or other formatting.
+Instructions: Produce exactly what the user requested above, using this context. If the request asks for a summary or analysis, keep it concise and useful.
 """
-        
-        # Get AI response
-        ai_response = openai_client.get_completion(prompt)
-        
-        if ai_response and ai_response.strip():
+
+        # Log a compact trace to help diagnose empty responses
+        try:
+            logger.info(f"AI prompt: query='{query_text[:80]}...' diffs_chars={len(diffs_text)} stats_changes={summary.get('totalChanges', 0)}")
+        except Exception:
+            pass
+
+        ai_response = openai_client.get_completion(
+            prompt,
+            system_prompt=system_prompt,
+        )
+
+        if ai_response and ai_response.strip() and not ai_response.strip().lower().startswith('error generating completion:'):
             return ai_response.strip()
-        
         return None
-        
+
     except Exception as e:
         logger.error(f"AI processing error: {e}")
         return None
 
 
 def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[str], 
-                           output_format: str) -> Dict[str, Any]:
+                           output_format: str, model_used: Optional[str] = None) -> Dict[str, Any]:
     """Combine database analysis with AI-generated markdown report."""
     result = {
         'timeRange': analysis['timeRange'],
@@ -440,49 +480,49 @@ def combine_analysis_results(analysis: Dict[str, Any], ai_result: Optional[str],
 **Keywords:** {', '.join(list(analysis['semanticAnalysis']['topKeywords'].keys())[:5]) if analysis['semanticAnalysis']['topKeywords'] else 'None'}
 """
     
+    # Include AI metadata (model used) if available
+    if model_used:
+        result['ai'] = {
+            'model': model_used,
+            'provider': 'openai'
+        }
+
     return result
 
 
-@time_query_bp.route('/history', methods=['GET'])
-def get_query_history():
+@time_query_bp.get('/history')
+async def get_query_history(request: Request):
     """Get recent query history."""
     try:
-        limit = request.args.get('limit', 20, type=int)
+        limit = int(request.query_params.get('limit', 20))
         queries = TimeQueryModel.get_recent_queries(limit)
         
-        return jsonify({
-            'queries': queries,
-            'total': len(queries)
-        })
+        return {'queries': queries, 'total': len(queries)}
         
     except Exception as e:
         logger.error(f"Failed to get query history: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.route('/saved', methods=['GET'])
-def get_saved_queries():
+@time_query_bp.get('/saved')
+async def get_saved_queries():
     """Get user-saved queries."""
     try:
         queries = TimeQueryModel.get_saved_queries()
-        
-        return jsonify({
-            'savedQueries': queries,
-            'total': len(queries)
-        })
+        return {'savedQueries': queries, 'total': len(queries)}
         
     except Exception as e:
         logger.error(f"Failed to get saved queries: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.route('/save', methods=['POST'])
-def save_query():
+@time_query_bp.post('/save')
+async def save_query(request: Request):
     """Save a query for reuse."""
     try:
-        data = request.get_json()
+        data = await request.json()
         if not data or 'queryId' not in data or 'name' not in data:
-            return jsonify({'error': 'Query ID and name are required'}), 400
+            return JSONResponse({'error': 'Query ID and name are required'}, status_code=400)
         
         query_id = data['queryId']
         name = data['name']
@@ -490,42 +530,41 @@ def save_query():
         success = TimeQueryModel.save_query(query_id, name)
         
         if success:
-            return jsonify({'message': 'Query saved successfully'})
+            return {'message': 'Query saved successfully'}
         else:
-            return jsonify({'error': 'Failed to save query'}), 500
+            return JSONResponse({'error': 'Failed to save query'}, status_code=500)
             
     except Exception as e:
         logger.error(f"Failed to save query: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.route('/<int:query_id>', methods=['GET'])
-def get_query_result(query_id: int):
+@time_query_bp.get('/{query_id}')
+async def get_query_result(query_id: int):
     """Get results of a specific query."""
     try:
         query = TimeQueryModel.get_query(query_id)
         
         if not query:
-            return jsonify({'error': 'Query not found'}), 404
-        
-        return jsonify(query)
+            return JSONResponse({'error': 'Query not found'}, status_code=404)
+        return query
         
     except Exception as e:
         logger.error(f"Failed to get query {query_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@time_query_bp.route('/<int:query_id>', methods=['DELETE'])
-def delete_query(query_id: int):
+@time_query_bp.delete('/{query_id}')
+async def delete_query(query_id: int):
     """Delete a query from history."""
     try:
         success = TimeQueryModel.delete_query(query_id)
         
         if success:
-            return jsonify({'message': 'Query deleted successfully'})
+            return {'message': 'Query deleted successfully'}
         else:
-            return jsonify({'error': 'Query not found'}), 404
+            return JSONResponse({'error': 'Query not found'}, status_code=404)
             
     except Exception as e:
         logger.error(f"Failed to delete query {query_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return JSONResponse({'error': str(e)}, status_code=500)
