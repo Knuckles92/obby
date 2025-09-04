@@ -65,7 +65,6 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - Enhanced models: `FileVersionModel`, `ContentDiffModel`, `FileStateModel`, `PerformanceModel`, `SemanticModel`, `ConfigModel`, `EventModel`, `FileChangeModel`
 - Schema migration system:
   - `migration.py`: Core migration utilities
-  - `migration_git_to_file.py`: Git-to-file system migration
   - `migration_comprehensive_summaries.py`: Summary system enhancements
   - `archive/`: Legacy migration files and schemas
 - Connection pooling for thread-safe access with `DatabaseConnection` class
@@ -83,6 +82,41 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
 - Graceful degradation when API unavailable
 - Multiple processing modes: immediate processing and scheduled batch processing
 
+## Agent Prompting: Time Query “Sources” Pattern
+- Goal: Every query output includes a "Sources" section (model-rendered) listing files used and why.
+- Backend responsibilities:
+  - Build prompt with: time range, stats, change types, top topics/keywords.
+  - Include a de‑duplicated list of candidate files from DB analysis and truncated recent diffs.
+  - Do not append backend-rendered provenance to markdown; rely on model.
+- Model instruction:
+  - System prompt requires "Sources" section at the end with one‑sentence rationale per file.
+- Filtering controls:
+  - `includeDeleted` flag controls whether analysis includes deleted files; `.obbywatch` patterns constrain inputs.
+  - Internal artifacts like `notes/semantic_index.json` are excluded.
+- Cleanup endpoints developers may need:
+  - `POST /api/files/clear-missing`, `POST /api/files/clear-semantic`, `POST /api/files/clear`, `POST /api/files/scan`.
+- Code references:
+  - Prompt assembly: `routes/time_query.py::process_with_ai`
+  - Analysis: `database/queries.py::FileQueries.get_comprehensive_time_analysis`
+  - Watch filtering: `utils/watch_handler.py`
+- Example prompt outline: `example.markdownn`
+
+## Applying This Pattern Across Features
+- When adding AI-backed features:
+  - Provide structured, minimal context + clear instruction to include "Sources".
+  - Pass a single, deduplicated file list rather than multiple scattered mentions.
+  - Let the model render the provenance section to keep output consistent.
+  - Respect `.obbywatch`/`.obbyignore` and exclude internal artifacts from context.
+
+### Living Note
+- One AI call that returns both minimal bullets and a '### Sources' section.
+- Code: `OpenAIClient.summarize_minimal(...)` now accepts `files_used` and instructs the model to include Sources.
+- Called by `services/living_note_service.py` using recent diffs as context.
+
+### Comprehensive/Batch Summaries
+- Batch prompt format now includes a required 'Sources' section.
+- User content includes a deduplicated list of files considered for robustness.
+
 #### File Monitoring (`utils/`)
 - `file_watcher.py`: Real-time `watchdog` integration
 - `ignore_handler.py`: `.obbyignore` pattern matching
@@ -97,7 +131,9 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
   - `react-markdown` + `remark-gfm`: Markdown rendering with GitHub flavor
   - `react-syntax-highlighter`: Code syntax highlighting
   - `lucide-react`: Modern icon library
-- **Real-time updates** via SSE connection to backend at `/api/events/stream`
+- **Real-time updates** via SSE connections:
+  - `/api/living-note/events`
+  - `/api/summary-notes/events`
 - **Main pages**: Dashboard, DiffViewer, LivingNote, Settings, Administration, SummaryNotes
 - **Component architecture** with reusable UI elements and contexts
 - **Advanced theming system** with multiple built-in themes and dynamic switching
@@ -154,9 +190,7 @@ Obby is a dual-mode note monitoring application with both web and CLI interfaces
   - Performance monitoring and semantic analysis
   - Configuration management and event logging
 - **Thread-safe operations** with connection pooling via `DatabaseConnection` class
-- **Automatic migrations** run on startup including:
-  - Git-to-file system migration for legacy installations
-  - Comprehensive summaries migration for enhanced AI features
+- **Automatic migrations** run on startup including comprehensive summaries migration for enhanced AI features
 - **FTS5 full-text search** virtual tables for fast content indexing and search
 
 ### File Monitoring Modes

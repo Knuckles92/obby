@@ -165,8 +165,18 @@ class FileQueries:
     
     @staticmethod
     def get_comprehensive_time_analysis(start_time: datetime, end_time: datetime, 
-                                      focus_areas: List[str] = None, watch_handler = None) -> Dict[str, Any]:
-        """Get comprehensive analysis for a specific time range including diffs, files, and metrics."""
+                                      focus_areas: List[str] = None, watch_handler = None,
+                                      exclude_nonexistent: bool = True) -> Dict[str, Any]:
+        """Get comprehensive analysis for a specific time range including diffs, files, and metrics.
+
+        Args:
+            start_time: Range start
+            end_time: Range end
+            focus_areas: Optional string filters to include file paths containing any of these
+            watch_handler: Optional watch filter; if provided, only include paths it watches
+            exclude_nonexistent: If True, exclude files that no longer exist on disk to avoid
+                stale context from deleted notes.
+        """
         try:
             logger.info(f"Starting comprehensive analysis for range: {start_time} to {end_time}")
             
@@ -221,6 +231,10 @@ class FileQueries:
             total_lines_removed = 0
             change_types = {}
             
+            from pathlib import Path
+            # Simple existence cache to avoid repeated filesystem checks
+            exists_cache: dict[str, bool] = {}
+
             for diff in diff_rows:
                 file_path = diff['file_path']
                 # Exclude internal semantic index artifact
@@ -232,7 +246,6 @@ class FileQueries:
                 
                 # Apply watch filtering if provided
                 if watch_handler is not None:
-                    from pathlib import Path
                     if not watch_handler.should_watch(Path(file_path)):
                         continue
                 
@@ -241,6 +254,19 @@ class FileQueries:
                     # Simple substring matching for focus areas (could be enhanced)
                     if not any(focus_area.lower() in file_path.lower() for focus_area in focus_areas):
                         continue
+
+                # Exclude files that no longer exist on disk when requested
+                if exclude_nonexistent:
+                    try:
+                        p = Path(file_path)
+                        # Handle relative DB paths by resolving against CWD
+                        exists = p.exists() or (Path.cwd() / p).exists()
+                        exists_cache.setdefault(file_path, exists)
+                        if not exists_cache[file_path]:
+                            continue
+                    except Exception:
+                        # If existence check fails, keep safe path and include
+                        pass
                 
                 file_paths.add(file_path)
                 total_lines_added += diff['lines_added'] or 0
@@ -272,13 +298,26 @@ class FileQueries:
                 
                 # Apply same filtering as diffs
                 if watch_handler is not None:
-                    from pathlib import Path
                     if not watch_handler.should_watch(Path(file_path)):
                         continue
                 
                 if focus_areas:
                     if not any(focus_area.lower() in file_path.lower() for focus_area in focus_areas):
                         continue
+
+                if exclude_nonexistent:
+                    try:
+                        if file_path in exists_cache:
+                            if not exists_cache[file_path]:
+                                continue
+                        else:
+                            p = Path(file_path)
+                            exists = p.exists() or (Path.cwd() / p).exists()
+                            exists_cache[file_path] = exists
+                            if not exists:
+                                continue
+                    except Exception:
+                        pass
                 
                 processed_file_metrics.append(dict(metric))
             
@@ -670,6 +709,103 @@ class FileQueries:
             
         except Exception as e:
             logger.error(f"Error clearing unwatched file diffs: {e}")
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def clear_semantic_data() -> Dict[str, Any]:
+        """Clear AI semantic summaries (entries, topics, keywords, FTS)."""
+        try:
+            cleared = {
+                'semantic_entries_cleared': 0,
+                'semantic_topics_cleared': 0,
+                'semantic_keywords_cleared': 0,
+                'semantic_search_cleared': 0,
+            }
+            try:
+                cleared['semantic_topics_cleared'] = db.execute_update("DELETE FROM semantic_topics")
+            except Exception:
+                pass
+            try:
+                cleared['semantic_keywords_cleared'] = db.execute_update("DELETE FROM semantic_keywords")
+            except Exception:
+                pass
+            try:
+                cleared['semantic_entries_cleared'] = db.execute_update("DELETE FROM semantic_entries")
+            except Exception:
+                pass
+            try:
+                cleared['semantic_search_cleared'] = db.execute_update("DELETE FROM semantic_search")
+            except Exception:
+                pass
+
+            # Also remove on-disk semantic index file if present
+            try:
+                from pathlib import Path
+                index_path = Path('notes/semantic_index.json')
+                if index_path.exists():
+                    index_path.unlink()
+                    cleared['semantic_index_removed'] = True
+            except Exception:
+                cleared['semantic_index_removed'] = False
+
+            return {'success': True, **cleared}
+        except Exception as e:
+            logger.error(f"Error clearing semantic data: {e}")
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def clear_nonexistent_file_diffs() -> Dict[str, Any]:
+        """Clear content diffs for files that no longer exist on disk.
+
+        This helps prevent historical diffs for deleted files from influencing
+        current summaries when users prefer current-only context.
+        """
+        try:
+            # Get distinct file paths from content_diffs
+            rows = db.execute_query("SELECT DISTINCT file_path FROM content_diffs")
+            from pathlib import Path
+            missing_paths: list[str] = []
+
+            for row in rows:
+                file_path = row['file_path']
+                try:
+                    p = Path(file_path)
+                    exists = p.exists() or (Path.cwd() / p).exists()
+                    if not exists:
+                        missing_paths.append(file_path)
+                except Exception:
+                    # If check fails, do not treat as missing
+                    pass
+
+            if not missing_paths:
+                return {
+                    'success': True,
+                    'content_diffs_cleared': 0,
+                    'files_affected': 0,
+                    'message': 'No diffs for non-existent files found'
+                }
+
+            # Delete diffs for missing paths
+            placeholders = ','.join(['?' for _ in missing_paths])
+            delete_diffs_query = f"DELETE FROM content_diffs WHERE file_path IN ({placeholders})"
+            cleared_diffs = db.execute_update(delete_diffs_query, tuple(missing_paths))
+
+            # Optionally clean up recent file_changes for those paths as well
+            try:
+                delete_changes_query = f"DELETE FROM file_changes WHERE file_path IN ({placeholders})"
+                cleared_changes = db.execute_update(delete_changes_query, tuple(missing_paths))
+            except Exception:
+                cleared_changes = 0
+
+            logger.info(f"Cleared {cleared_diffs} diffs and {cleared_changes} changes for {len(missing_paths)} non-existent files")
+            return {
+                'success': True,
+                'content_diffs_cleared': cleared_diffs,
+                'file_changes_cleared': cleared_changes,
+                'files_affected': len(missing_paths)
+            }
+        except Exception as e:
+            logger.error(f"Error clearing diffs for non-existent files: {e}")
             return {'success': False, 'error': str(e)}
     
     @staticmethod
@@ -1353,11 +1489,7 @@ class AnalyticsQueries:
                 'living_note_sessions',
                 'living_note_entries',
                 
-                # Legacy git tables (if they exist)
-                'git_commits',
-                'git_file_changes', 
-                'git_working_changes',
-                'git_repository_state',
+                # (Removed legacy git_* tables)
                 
                 # Metadata tables
                 'migration_log',

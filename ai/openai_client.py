@@ -295,10 +295,10 @@ class OpenAIClient:
             logging.error(f"Error in summarize_diff after retries: {e}")
             return f"Error generating AI summary: {str(e)}"
 
-    def summarize_minimal(self, context_text: str):
-        """Minimal, robust summarization with strict output format.
-        - Output 1–3 ultra-concise bullets starting with '- '
-        - No headers, no preamble, no code blocks
+    def summarize_minimal(self, context_text: str, files_used: list[str] | None = None):
+        """Concise living-note summary with Sources section in one pass.
+        - First: 1–3 ultra-concise bullets, each starting with '- '
+        - Then: a '### Sources' section listing files used with one-sentence rationales
         - If context appears trivial/noisy, return exactly: '- no meaningful changes'
         """
         try:
@@ -308,17 +308,29 @@ class OpenAIClient:
                 
             system_prompt = (
                 "You are a precise changelog summarizer. "
-                "Write at most 3 concise bullets capturing the single most important outcomes. "
-                "Rules:\n"
-                "- Start each line with '- ' (dash + space)\n"
-                "- 12–20 words per bullet, no fluff\n"
-                "- Focus on WHAT changed and WHY it matters; avoid implementation detail\n"
-                "- If nothing substantive, respond exactly: '- no meaningful changes'\n"
-                "- Do not add headings, timestamps, or extra text"
+                "Output two parts in markdown: (1) 1–3 concise bullets (each starts with '- ') summarizing outcomes; "
+                "then (2) a '### Sources' section listing the files used with one-sentence rationales (one bullet per file). "
+                "Bullet rules for part (1): 12–20 words, no fluff, focus on WHAT changed and WHY it matters. "
+                "If nothing substantive, respond exactly: '- no meaningful changes'."
             )
+
+            files_block = ""
+            if files_used:
+                try:
+                    dedup = []
+                    seen = set()
+                    for p in files_used:
+                        if p and p not in seen:
+                            dedup.append(p)
+                            seen.add(p)
+                    if dedup:
+                        files_block = "\n\nFiles considered:\n" + "\n".join([f"- {p}" for p in dedup])
+                except Exception:
+                    files_block = ""
+
             user_content = (
-                "Summarize these recent changes very briefly. If trivial/noise, output '- no meaningful changes'.\n\n"
-                f"Changes:\n{context_text}"
+                "Summarize these recent changes briefly, then include a Sources section.\n\n"
+                f"Changes:\n{context_text}{files_block}"
             )
             
             response = self._retry_with_backoff(
@@ -328,8 +340,8 @@ class OpenAIClient:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_content},
                 ],
-                max_completion_tokens=10000,
-                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("proposed_questions", 0.7)),
+                max_completion_tokens=1200,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("minimal_summary", 0.3)),
             )
             return response.choices[0].message.content.strip()
         except Exception as e:
@@ -360,7 +372,7 @@ class OpenAIClient:
 
             # Sensible defaults using existing centralized settings
             if max_tokens is None:
-                max_tokens = cfg.OPENAI_TOKEN_LIMITS.get("insights", 2000)  # Increased from 800 to 2000 for detailed responses
+                max_tokens = cfg.OPENAI_TOKEN_LIMITS.get("insights", 30000)  # Increased from 800 to 2000 for detailed responses
             if temperature is None:
                 temperature = self._get_temperature(cfg.OPENAI_TEMPERATURES.get("insights", 0.7))
 
@@ -534,6 +546,65 @@ class OpenAIClient:
 
         except Exception as e:
             return f"Error summarizing events: {str(e)}"
+
+    def generate_sources_section(self, files: list, context_snippet: str = "") -> str:
+        """Generate a markdown Sources section listing files used with 1-line rationales.
+
+        Args:
+            files: List of file identifiers (usually string paths). May also accept dicts with 'path' or 'filePath'.
+            context_snippet: Optional short text (e.g., combined diffs) to help the model craft rationales.
+
+        Returns:
+            Markdown string beginning with '### Sources' followed by bullet list of file paths and rationales.
+        """
+        try:
+            if not OpenAIClient._warmed_up:
+                self.warm_up()
+
+            # Normalize files list to paths
+            normalized = []
+            for f in files or []:
+                if isinstance(f, str):
+                    normalized.append(f)
+                elif isinstance(f, dict):
+                    p = f.get('path') or f.get('filePath') or f.get('file_path')
+                    if p:
+                        normalized.append(p)
+            normalized = list(dict.fromkeys(normalized))  # de-dup preserve order
+
+            if not normalized:
+                return ""
+
+            system_prompt = (
+                "You produce a concise markdown Sources section. "
+                "For each file, output exactly one bullet: 'path — one sentence rationale'. "
+                "No extra commentary."
+            )
+            # Limit context to avoid long prompts
+            ctx = context_snippet[:2000] if isinstance(context_snippet, str) else ""
+            files_block = "\n".join([f"- {p}" for p in normalized])
+            user_content = (
+                "Create a Sources section listing these files with one-sentence rationales.\n\n"
+                f"Files:\n{files_block}\n\n"
+                f"Context (optional):\n{ctx}\n\n"
+                "Return markdown starting with '### Sources' followed by the bullets."
+            )
+
+            response = self._retry_with_backoff(
+                self.client.chat.completions.create,
+                model=self.model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_content},
+                ],
+                max_completion_tokens=400,
+                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("sources_section", 0.2)),
+            )
+            text = response.choices[0].message.content.strip()
+            return text
+        except Exception as e:
+            logging.warning(f"Sources section generation failed: {e}")
+            return ""
 
     def _load_living_note_settings(self):
         """Load living note settings from config file."""
@@ -823,7 +894,29 @@ IMPORTANT:
                 temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("tree_summary", 0.3))
             )
 
-            return response.choices[0].message.content.strip()
+            text = response.choices[0].message.content.strip()
+            # Optional safety-net: if model omitted Sources, and we have file_summaries, append via helper
+            try:
+                from config import settings as cfg
+                if cfg.AI_SOURCES_FALLBACK_ENABLED:
+                    low = text.lower()
+                    if '## sources' not in low and '### sources' not in low:
+                        # Build file list from file_summaries
+                        paths = []
+                        for fs in (batch_data.get('file_summaries') or []):
+                            p = fs.get('file_path') if isinstance(fs, dict) else None
+                            if p:
+                                paths.append(p)
+                        # dedup
+                        seen = set()
+                        paths = [p for p in paths if not (p in seen or seen.add(p))]
+                        if paths:
+                            sources_md = self.generate_sources_section(paths, batch_data.get('combined_diff') or '')
+                            if sources_md and sources_md.strip():
+                                text = text.rstrip() + "\n\n" + sources_md.strip()
+            except Exception:
+                pass
+            return text
 
         except Exception as e:
             return f"Error generating tree change summary: {str(e)}"
@@ -1393,6 +1486,14 @@ Batch Overview:
                     summary = file_summary.get('summary', 'No summary')
                     user_content += f"- {file_path}: {summary}\n"
                 user_content += "\n"
+                # Also include concise list of files considered for Sources generation
+                try:
+                    paths = [fs.get('file_path', 'unknown') for fs in batch_data['file_summaries'] if fs.get('file_path')]
+                    paths = list(dict.fromkeys(paths))
+                    if paths:
+                        user_content += "Files considered in this analysis:\n" + "\n".join([f"- {p}" for p in paths]) + "\n\n"
+                except Exception:
+                    pass
 
             # Add combined diff content if available (truncated for API limits)
             if batch_data.get('combined_diff'):
@@ -1474,6 +1575,7 @@ IMPORTANT: Format your response for batch processing EXACTLY as follows:
 **Key Keywords**: [5-10 important technical terms and concepts, comma-separated]
 **Overall Impact**: [brief/moderate/significant - assess cumulative impact]
 **Files Focus**: [Brief mention of most significantly changed files]
+**Sources**: [List files used with a one-sentence rationale per file]
 
 Focus on patterns across multiple files, cumulative impact, and development themes. Synthesize information rather than listing individual changes. Do not include additional text outside this format."""
 

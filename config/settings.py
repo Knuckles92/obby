@@ -56,15 +56,22 @@ OPENAI_TEMPERATURES = {
 # OpenAI token limits (centralized)
 # These are per-feature caps for `max_completion_tokens` (or equivalent). Override at runtime if needed.
 OPENAI_TOKEN_LIMITS = {
-    "diff_summary": 800,
-    "minimal_summary": 400,
-    "proposed_questions": 300,
+    "diff_summary": 25000,
+    "minimal_summary": 800,
+    "proposed_questions": 5000,
     "session_title": 50,
-    "events_summary": 700,
-    "tree_summary": 900,
-    "insights": 800,
-    "batch_summary": 1200,
+    "events_summary": 5000,
+    "tree_summary": 5000,
+    "insights": 30000,
+    "batch_summary": 25000,
 }
+
+# AI Sources fallback (safety net)
+# NOTE: This switch is a last‑resort safety mechanism. Keep it OFF by default.
+# When enabled, if a model response unexpectedly omits the required 'Sources' section,
+# the app will synthesize a minimal '### Sources' block using the already-known file list
+# and lightweight model assistance. Intended only as a contingency to preserve provenance.
+AI_SOURCES_FALLBACK_ENABLED = False
 
 # AI Update settings (separate from file monitoring frequency)
 AI_UPDATE_INTERVAL = 12  # hours - how often AI processing runs (default: twice daily)

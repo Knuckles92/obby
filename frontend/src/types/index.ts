@@ -83,48 +83,7 @@ export interface PaginatedChangesResponse extends PaginatedResponse<FileChange> 
   changes: FileChange[];
 }
 
-// Legacy git interfaces (deprecated - for backwards compatibility)
-export interface GitCommit {
-  id: string;
-  hash: string;
-  shortHash: string;
-  author: string;
-  email: string;
-  message: string;
-  branch: string;
-  timestamp: string;
-  filesChanged: number;
-  changes: GitFileChange[];
-}
-
-export interface GitFileChange {
-  path: string;
-  type: 'added' | 'modified' | 'deleted' | 'renamed' | 'copied';
-  diff?: string;
-  linesAdded: number;
-  linesRemoved: number;
-  oldPath?: string;
-}
-
-export interface GitWorkingChange {
-  id: string;
-  filePath: string;
-  changeType: 'added' | 'modified' | 'deleted' | 'renamed' | 'untracked';
-  status: 'staged' | 'unstaged' | 'untracked';
-  timestamp: string;
-  branch: string;
-  diff: string;
-}
-
-export interface GitRepositoryStatus {
-  branch: string;
-  headCommit: string;
-  isDirty: boolean;
-  stagedFiles: number;
-  unstagedFiles: number;
-  untrackedFiles: number;
-  lastUpdated: string;
-}
+// (Removed legacy Git interfaces)
 
 export interface MonitoringStatus {
   isActive: boolean;

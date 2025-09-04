@@ -305,12 +305,12 @@ class LivingNoteService:
             # AI-generated summary bullets and proposed questions with error handling
             t_ai_start = time.perf_counter()
             
-            # Try to generate summary with fallback
+            # Try to generate summary (with embedded Sources) with fallback
             summary_bullets = "- no meaningful changes"
             if context_text:
                 try:
-                    logger.info("Living note: generating AI summary...")
-                    summary_bullets = self.openai_client.summarize_minimal(context_text)
+                    logger.info("Living note: generating AI summary (with Sources)...")
+                    summary_bullets = self.openai_client.summarize_minimal(context_text, files_used=files_for_ai)
                     logger.info("Living note: AI summary generated successfully")
                 except Exception as e:
                     logger.error(f"Failed to generate AI summary (using fallback): {e}")
@@ -319,6 +319,18 @@ class LivingNoteService:
                         summary_bullets = f"- {files_affected} files changed with {lines_added} lines added and {lines_removed} lines removed"
                     else:
                         summary_bullets = "- no meaningful changes detected"
+
+            # Optional safety-net: if model omitted Sources, append via helper
+            try:
+                from config import settings as cfg
+                if context_text and files_for_ai and cfg.AI_SOURCES_FALLBACK_ENABLED:
+                    lower = summary_bullets.lower()
+                    if '## sources' not in lower and '### sources' not in lower:
+                        sources_md = self.openai_client.generate_sources_section(files_for_ai, context_snippet=context_text)
+                        if sources_md and sources_md.strip():
+                            summary_bullets = summary_bullets.rstrip() + "\n\n" + sources_md.strip()
+            except Exception:
+                pass
             
             t_ai_summary = time.perf_counter() - t_ai_start
             
@@ -355,6 +367,7 @@ class LivingNoteService:
                 parts.append("### Proposed Questions for AI Agent")
                 parts.append("")
                 parts.append(questions_text.strip())
+
             summary_block = "\n".join(parts)
 
             # Update the living note file with structured append (with error handling)

@@ -170,7 +170,6 @@ obby/
 │   │   ├── models.py              # SQLite models with FTS5
 │   │   ├── queries.py             # Optimized query layer
 │   │   ├── migration.py           # Data migration system
-│   │   ├── migration_git_to_file.py # Legacy migration helper
 │   │   ├── schema.sql             # File-based database schema (current)
 │   │   └── archive/               # Archived schema files
 │   └── utils/
@@ -447,8 +446,8 @@ cd frontend
 npm install
 npm run dev
 
-# Database development (legacy migration in archive/ if needed)
-# Note: Current system uses automatic migrations via migration_git_to_file.py and migration_comprehensive_summaries.py
+# Database development
+# Note: Current system uses automatic migrations; legacy git migrations removed
 ```
 
 ### **Testing**

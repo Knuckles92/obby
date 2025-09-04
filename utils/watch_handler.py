@@ -12,14 +12,16 @@ from typing import List, Set
 class WatchHandler:
     """Handles .obbywatch file parsing and directory specification."""
     
-    def __init__(self, utils_folder: Path):
+    def __init__(self, utils_folder: Path = None):
         """
         Initialize the watch handler.
         
         Args:
-            utils_folder: Path to the utils folder containing .obbywatch file
+            utils_folder: Base folder that contains the `.obbywatch` file. If not
+                provided, defaults to the project root (current working directory).
         """
-        self.utils_folder = Path(utils_folder)
+        # Default to project root if not provided
+        self.utils_folder = Path(utils_folder) if utils_folder is not None else Path.cwd()
         self.watch_file = self.utils_folder / ".obbywatch"
         self.watch_patterns: Set[str] = set()
         self.load_watch_patterns()

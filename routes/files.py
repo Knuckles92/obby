@@ -284,6 +284,47 @@ async def clear_unwatched_file_diffs():
         logger.error(f"Error clearing unwatched file diffs: {e}")
         return JSONResponse({'error': f'Failed to clear unwatched file diffs: {str(e)}'}, status_code=500)
 
+@files_bp.post('/clear-semantic')
+async def clear_semantic_data():
+    """Clear semantic AI data (entries/topics/keywords/FTS) and on-disk semantic index."""
+    try:
+        result = FileQueries.clear_semantic_data()
+        if result.get('success'):
+            return {
+                'message': 'Cleared semantic AI data',
+                'clearedRecords': {
+                    'semanticEntries': result.get('semantic_entries_cleared', 0),
+                    'semanticTopics': result.get('semantic_topics_cleared', 0),
+                    'semanticKeywords': result.get('semantic_keywords_cleared', 0),
+                    'semanticSearch': result.get('semantic_search_cleared', 0),
+                },
+                'semanticIndexRemoved': result.get('semantic_index_removed', False)
+            }
+        return JSONResponse({'error': 'Failed to clear semantic data', 'details': result.get('error')}, status_code=500)
+    except Exception as e:
+        logger.error(f"Error clearing semantic data: {e}")
+        return JSONResponse({'error': f'Failed to clear semantic data: {str(e)}'}, status_code=500)
+
+
+@files_bp.post('/clear-missing')
+async def clear_missing_file_diffs():
+    """Clear content diffs (and related change rows) for files that no longer exist on disk."""
+    try:
+        clear_result = FileQueries.clear_nonexistent_file_diffs()
+        if clear_result.get('success'):
+            return {
+                'message': 'Cleared diffs for non-existent files',
+                'clearedRecords': {
+                    'contentDiffs': clear_result.get('content_diffs_cleared', 0),
+                    'fileChanges': clear_result.get('file_changes_cleared', 0),
+                    'filesAffected': clear_result.get('files_affected', 0),
+                }
+            }
+        return JSONResponse({'error': 'Failed to clear diffs for non-existent files', 'details': clear_result.get('error')}, status_code=500)
+    except Exception as e:
+        logger.error(f"Error clearing diffs for non-existent files: {e}")
+        return JSONResponse({'error': f'Failed to clear diffs for non-existent files: {str(e)}'}, status_code=500)
+
 
 @files_bp.get('/{file_path:path}/history')
 async def get_file_history(file_path: str):
