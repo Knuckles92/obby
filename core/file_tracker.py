@@ -6,14 +6,16 @@ File content monitoring and version tracking without git dependencies.
 Uses file system monitoring, content hashing, and native diff generation.
 """
 
-import hashlib
 import os
-import difflib
+import json
+import hashlib
+import logging
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Any
-import logging
-
+from typing import Dict, List, Optional, Set, Any
+from utils.ignore_handler import IgnoreHandler
+from utils.watch_handler import WatchHandler
+import difflib
 from database.models import (
     FileVersionModel, ContentDiffModel, FileChangeModel, 
     FileStateModel, EventModel, SemanticModel
@@ -22,16 +24,43 @@ from database.models import (
 logger = logging.getLogger(__name__)
 
 class FileContentTracker:
-    """Tracks file content changes without git dependency."""
+    """Tracks file content changes without git dependencies"""
     
     def __init__(self, watch_paths: List[str] = None):
+        """Initialize the file content tracker with watch paths"""
         self.watch_paths = watch_paths or []
         self.file_cache: Dict[str, Dict[str, Any]] = {}
+        
+        # Initialize handlers for ignore and watch patterns
+        self.ignore_handler = IgnoreHandler()
+        self.watch_handler = WatchHandler()
         
     def track_file_change(self, file_path: str, change_type: str = 'modified') -> Optional[int]:
         """Process a file change and create version/diff records."""
         try:
             file_path = str(Path(file_path).resolve())
+            
+            # Check if file should be ignored
+            if self.ignore_handler.should_ignore(file_path):
+                logger.debug(f"Ignoring file change for {file_path} (matched ignore pattern)")
+                return None
+            
+            # Check if file should be watched (if using watch patterns)
+            if self.watch_handler.patterns and not self.watch_handler.should_watch(file_path):
+                logger.debug(f"Ignoring file change for {file_path} (not in watch patterns)")
+                return None
+            
+            # Check if file was deleted
+            if change_type == 'deleted' or not os.path.exists(file_path):
+                logger.info(f"File deleted: {file_path}")
+                # Update file state to deleted
+                FileStateModel.update_state(file_path, None)
+                # Record deletion event
+                return EventModel.record_event(
+                    file_path=file_path,
+                    event_type='deleted',
+                    description=f"File deleted: {os.path.basename(file_path)}"
+                )
             
             # Get current file content and state
             current_content = self._read_file_safely(file_path) if os.path.exists(file_path) else None
@@ -269,44 +298,106 @@ class FileContentTracker:
         file_path = str(Path(file_path).resolve())
         return FileStateModel.get_state(file_path)
     
-    def scan_directory(self, directory_path: str, recursive: bool = True) -> int:
-        """Scan a directory and track all files."""
-        directory_path = Path(directory_path)
-        files_processed = 0
+    def scan_directory(self, directory: str = None) -> Dict[str, List[Dict]]:
+        """
+        Scan directory for changes, respecting ignore and watch patterns.
         
-        if not directory_path.exists():
-            logger.warning(f"Directory does not exist: {directory_path}")
-            return 0
+        Args:
+            directory: Directory to scan (defaults to watch_paths)
+            
+        Returns:
+            Dictionary with lists of new, modified, and deleted files
+        """
+        changes = {
+            'new': [],
+            'modified': [],
+            'deleted': []
+        }
         
-        pattern = "**/*" if recursive else "*"
-        
-        for file_path in directory_path.glob(pattern):
-            if file_path.is_file():
-                try:
-                    # Skip internal semantic index artifact to avoid polluting tracked diffs
-                    try:
-                        if file_path.name.lower() == 'semantic_index.json':
-                            continue
-                    except Exception:
-                        pass
-                    # Check if file has changed since last scan
-                    current_content = self._read_file_safely(str(file_path))
-                    if current_content is not None:
-                        current_hash = self._calculate_content_hash(current_content)
+        try:
+            # Get directories to scan
+            if directory:
+                scan_dirs = [directory]
+            else:
+                # Use watch handler to get directories to monitor
+                scan_dirs = self.watch_handler.get_watch_directories()
+                if not scan_dirs:
+                    # Fallback to configured watch paths if no watch patterns
+                    scan_dirs = self.watch_paths
+            
+            current_files = set()
+            
+            for scan_dir in scan_dirs:
+                if not os.path.exists(scan_dir):
+                    logger.warning(f"Scan directory does not exist: {scan_dir}")
+                    continue
+                    
+                for root, dirs, files in os.walk(scan_dir):
+                    # Filter out ignored directories
+                    dirs[:] = [d for d in dirs if not self.ignore_handler.should_ignore(
+                        os.path.join(root, d), is_directory=True
+                    )]
+                    
+                    for file in files:
+                        file_path = os.path.join(root, file)
                         
-                        if FileStateModel.has_changed(str(file_path), current_hash):
-                            logger.debug(f"[FILE_TRACKER] Periodic scan found change in {file_path}")
-                            self.track_file_change(str(file_path), 'modified')
-                            files_processed += 1
-                            
-                except Exception as e:
-                    logger.error(f"Error scanning file {file_path}: {e}")
-        
-        if files_processed > 0:
-            logger.info(f"[FILE_TRACKER] Scanned directory {directory_path}: {files_processed} files processed")
-        else:
-            logger.debug(f"[FILE_TRACKER] Scanned directory {directory_path}: no changes detected")
-        return files_processed
+                        # Check if file should be ignored
+                        if self.ignore_handler.should_ignore(file_path):
+                            continue
+                        
+                        # Check if file should be watched (if using watch patterns)
+                        if self.watch_handler.patterns and not self.watch_handler.should_watch(file_path):
+                            continue
+                        
+                        current_files.add(file_path)
+                        
+                        # Check if file is new or modified
+                        if file_path not in self.file_cache:
+                            # New file
+                            file_info = self._get_file_info(file_path)
+                            if file_info:
+                                changes['new'].append(file_info)
+                                self.file_cache[file_path] = file_info
+                        else:
+                            # Check for modification
+                            file_info = self._get_file_info(file_path)
+                            if file_info and file_info['hash'] != self.file_cache[file_path]['hash']:
+                                changes['modified'].append(file_info)
+                                self.file_cache[file_path] = file_info
+            
+            # Check for deleted files
+            for cached_path in list(self.file_cache.keys()):
+                if cached_path not in current_files:
+                    changes['deleted'].append({
+                        'path': cached_path,
+                        'name': os.path.basename(cached_path)
+                    })
+                    del self.file_cache[cached_path]
+            
+        except Exception as e:
+            logger.error(f"Error scanning directory: {e}")
+            
+        return changes
+    
+    def _get_file_info(self, file_path: str) -> Optional[Dict[str, Any]]:
+        """Get file information including hash and metadata."""
+        try:
+            content = self._read_file_safely(file_path)
+            if content is None:
+                return None
+                
+            file_stat = os.stat(file_path)
+            return {
+                'path': file_path,
+                'name': os.path.basename(file_path),
+                'hash': self._calculate_content_hash(content),
+                'size': file_stat.st_size,
+                'modified': datetime.fromtimestamp(file_stat.st_mtime).isoformat(),
+                'content': content
+            }
+        except Exception as e:
+            logger.error(f"Error getting file info for {file_path}: {e}")
+            return None
     
     def _read_file_safely(self, file_path: str) -> Optional[str]:
         """Safely read file content with encoding detection."""

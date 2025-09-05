@@ -6,31 +6,58 @@ from config.settings import (
 )
 from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
-from core.file_tracker import file_tracker
+from core.file_tracker import FileContentTracker
 from ai.openai_client import OpenAIClient
 import threading
 import time
 import logging
 from pathlib import Path
 from datetime import datetime
+from typing import List
 
 logger = logging.getLogger(__name__)
 
 class ObbyMonitor:
     """Main Obby monitoring class with pure file system tracking"""
     
-    def __init__(self):
-        self.file_tracker = file_tracker
+    def __init__(self, watch_dirs: List[str] = None, check_interval: int = 60):
+        """
+        Initialize the Obby monitoring system
+        
+        Args:
+            watch_dirs: List of directories to monitor (defaults to notes folder)
+            check_interval: Seconds between periodic checks (default: 60)
+        """
+        # Get watch directories from config or defaults
+        self.watch_dirs = watch_dirs or [str(get_configured_notes_folder())]
+        self.watched_paths = self.watch_dirs  # Keep for compatibility
+        
+        # Initialize file tracker with watch paths
+        self.file_tracker = FileContentTracker(watch_paths=self.watch_dirs)
+        
+        # Initialize AI client (optional)
         self.ai_client = None
+        try:
+            self.ai_client = OpenAIClient()
+            logger.info("[MONITOR] AI client initialized successfully")
+        except Exception as e:
+            logger.warning(f"[MONITOR] AI client initialization failed: {e}")
+            logger.info("[MONITOR] Monitor will run without AI processing")
+        
+        # Initialize batch AI processor
+        self.batch_processor = BatchAIProcessor()
+        
+        # Monitoring state
         self.file_watcher = None
         self.is_running = False
-        self.watched_paths = [str(get_configured_notes_folder())]
         self.periodic_check_enabled = PERIODIC_SCAN_ENABLED  # Enable periodic checking based on configuration
         self.periodic_check_thread = None
-        self.check_interval = CHECK_INTERVAL
+        self.check_interval = check_interval
         self.last_check_times = {}  # Track last check time for each file
         self.watchdog_active = False  # Track if watchdog is running properly
         self.last_watchdog_event = 0  # Timestamp of last watchdog event
+        
+        logger.info(f"[MONITOR] ObbyMonitor initialized with check interval: {check_interval}s")
         
     def start(self):
         """Start the file-based monitoring system"""
@@ -42,10 +69,6 @@ class ObbyMonitor:
             notes_folder = get_configured_notes_folder()
             ensure_directories(notes_folder)
             setup_test_file(notes_folder / "test.md")
-            
-            # Initialize AI client for content analysis
-            self.ai_client = OpenAIClient()
-            
             
             # Initialize file watcher with file tracking integration
             notes_folder = get_configured_notes_folder()
@@ -121,39 +144,32 @@ class ObbyMonitor:
             
         if VERBOSE_MONITORING_LOGS:
             logger.debug("[PERIODIC] Performing periodic file check (watchdog inactive)...")
+
+        logger.debug("[MONITOR] Starting periodic file check")
         
-        try:
-            # Check for file system changes
-            self._check_filesystem_changes()
+        # Use the file tracker's scan_directory which now respects ignore/watch patterns
+        changes = self.file_tracker.scan_directory()
+        
+        # Process any detected changes
+        total_changes = len(changes.get('new', [])) + len(changes.get('modified', [])) + len(changes.get('deleted', []))
+        
+        if total_changes > 0:
+            logger.info(f"[MONITOR] Periodic check found {total_changes} changes")
             
-        except Exception as e:
-            logger.error(f"[PERIODIC] Error in periodic file check: {e}")
-    
-    def _check_filesystem_changes(self):
-        """Check for filesystem changes in watched directories"""
-        # Get all directories to check from watch handler
-        if self.file_watcher and self.file_watcher.handler:
-            watch_dirs = self.file_watcher.handler.watch_handler.get_watch_directories()
-        else:
-            watch_dirs = [get_configured_notes_folder()]
-        
-        checked_count = 0
-        for watch_dir in watch_dirs:
-            if not watch_dir.exists():
-                continue
+            # Process new files
+            for file_info in changes.get('new', []):
+                self.file_tracker.track_file_change(file_info['path'], 'created')
                 
-            # Scan directory for changes using file tracker
-            files_changed = self.file_tracker.scan_directory(str(watch_dir), recursive=True)
-            
-            if files_changed > 0:
-                logger.info(f"[PERIODIC] Scan detected {files_changed} changed files in {watch_dir}")
-                checked_count += files_changed
-        
-        if checked_count > 0:
-            logger.debug(f"[PERIODIC] Filesystem check processed {checked_count} changed files")
+            # Process modified files  
+            for file_info in changes.get('modified', []):
+                self.file_tracker.track_file_change(file_info['path'], 'modified')
+                
+            # Process deleted files
+            for file_info in changes.get('deleted', []):
+                self.file_tracker.track_file_change(file_info['path'], 'deleted')
         else:
-            logger.debug(f"[PERIODIC] Filesystem check complete - no changes detected")
-    
+            logger.debug("[MONITOR] Periodic check found no changes")
+            
     def process_file_change(self, file_path: str, change_type: str = 'modified'):
         """Process a file change through the tracking system"""
         try:
