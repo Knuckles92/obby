@@ -12,14 +12,19 @@ from typing import List, Set
 class IgnoreHandler:
     """Handles .obbyignore file parsing and pattern matching."""
     
-    def __init__(self, utils_folder: Path, notes_folder: Path = None):
+    def __init__(self, utils_folder: Path | None = None, notes_folder: Path | None = None):
         """
         Initialize the ignore handler.
         
         Args:
-            utils_folder: Path to the utils folder containing .obbyignore file
-            notes_folder: Path to the folder containing notes (for relative path calculation)
+            utils_folder: Base folder that contains `.obbyignore`. Defaults to the
+                current working directory (project root) when not provided.
+            notes_folder: Folder containing notes (for relative path calculation).
+                Defaults to the parent of `utils_folder` when not provided.
         """
+        # Default to project root if not provided
+        if utils_folder is None:
+            utils_folder = Path.cwd()
         self.utils_folder = Path(utils_folder)
         self.notes_folder = Path(notes_folder) if notes_folder else self.utils_folder.parent
         self.ignore_file = self.utils_folder / ".obbyignore"

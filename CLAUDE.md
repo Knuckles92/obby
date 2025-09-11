@@ -6,7 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Backend Development
 - **Start web application**: `python backend.py` (serves built frontend at :8001)
-- **Start CLI monitoring**: `python main.py` (displays usage instructions and redirects to web mode)
 - **Install dependencies**: `pip install -r requirements.txt`
 
 ### Frontend Development
@@ -29,10 +28,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### Core Application Structure
-Obby is a dual-mode note monitoring application with both web and CLI interfaces:
+Obby is a web-based note monitoring application:
 
 - **Primary mode**: Web application (`backend.py`) serving React frontend from `frontend/dist/`
-- **Legacy mode**: CLI monitoring via `main.py` (redirects to usage instructions)
 - **Real-time monitoring**: Dual approach using `watchdog` events + optional periodic scanning
 - **AI integration**: OpenAI client with batch processing for content summarization and semantic analysis
 - **Database**: SQLite with WAL mode, FTS5 search, connection pooling

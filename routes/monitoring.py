@@ -94,7 +94,7 @@ async def start_monitoring():
         return {'success': True, 'message': 'Monitoring started successfully'}
     except Exception as e:
         logger.error(f"Failed to start monitoring: {e}")
-        return JSONResponse({'success': False, 'message': f'Failed to start monitoring: {str(e)}'}, status_code=500)
+        return JSONResponse({'success': False, 'message': f'Failed to start monitoring: {str(e)}', 'error': str(e)}, status_code=500)
 
 
 def get_monitoring_status():
@@ -153,7 +153,7 @@ async def stop_monitoring():
         return {'success': True, 'message': 'Monitoring stopped successfully'}
     except Exception as e:
         logger.error(f"Failed to stop monitoring: {e}")
-        return JSONResponse({'success': False, 'message': f'Failed to stop monitoring: {str(e)}'}, status_code=500)
+        return JSONResponse({'success': False, 'message': f'Failed to stop monitoring: {str(e)}', 'error': str(e)}, status_code=500)
 
 
 @monitoring_bp.post('/scan')
@@ -175,7 +175,7 @@ async def scan_files():
         return {'success': True, 'message': 'Manual scan completed'}
     except Exception as e:
         logger.error(f"Manual scan failed: {e}")
-        return JSONResponse({'success': False, 'message': f'Manual scan failed: {str(e)}'}, status_code=500)
+        return JSONResponse({'success': False, 'message': f'Manual scan failed: {str(e)}', 'error': str(e)}, status_code=500)
 
 
 

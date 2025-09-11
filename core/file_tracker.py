@@ -31,9 +31,18 @@ class FileContentTracker:
         self.watch_paths = watch_paths or []
         self.file_cache: Dict[str, Dict[str, Any]] = {}
         
-        # Initialize handlers for ignore and watch patterns
-        self.ignore_handler = IgnoreHandler()
-        self.watch_handler = WatchHandler()
+        # Initialize handlers for ignore and watch patterns using configured paths
+        try:
+            from config.settings import get_configured_notes_folder
+            notes_folder = Path(get_configured_notes_folder()).resolve()
+            utils_folder = notes_folder.parent
+        except Exception:
+            # Fallback to current working directory
+            notes_folder = Path.cwd() / "notes"
+            utils_folder = Path.cwd()
+
+        self.ignore_handler = IgnoreHandler(utils_folder, notes_folder)
+        self.watch_handler = WatchHandler(utils_folder)
         
     def track_file_change(self, file_path: str, change_type: str = 'modified') -> Optional[int]:
         """Process a file change and create version/diff records."""
@@ -41,12 +50,12 @@ class FileContentTracker:
             file_path = str(Path(file_path).resolve())
             
             # Check if file should be ignored
-            if self.ignore_handler.should_ignore(file_path):
+            if self.ignore_handler.should_ignore(Path(file_path)):
                 logger.debug(f"Ignoring file change for {file_path} (matched ignore pattern)")
                 return None
             
             # Check if file should be watched (if using watch patterns)
-            if self.watch_handler.patterns and not self.watch_handler.should_watch(file_path):
+            if getattr(self.watch_handler, 'watch_patterns', None) and not self.watch_handler.should_watch(Path(file_path)):
                 logger.debug(f"Ignoring file change for {file_path} (not in watch patterns)")
                 return None
             
@@ -334,19 +343,17 @@ class FileContentTracker:
                     
                 for root, dirs, files in os.walk(scan_dir):
                     # Filter out ignored directories
-                    dirs[:] = [d for d in dirs if not self.ignore_handler.should_ignore(
-                        os.path.join(root, d), is_directory=True
-                    )]
+                    dirs[:] = [d for d in dirs if not self.ignore_handler.should_ignore(Path(os.path.join(root, d)))]
                     
                     for file in files:
                         file_path = os.path.join(root, file)
                         
                         # Check if file should be ignored
-                        if self.ignore_handler.should_ignore(file_path):
+                        if self.ignore_handler.should_ignore(Path(file_path)):
                             continue
                         
                         # Check if file should be watched (if using watch patterns)
-                        if self.watch_handler.patterns and not self.watch_handler.should_watch(file_path):
+                        if getattr(self.watch_handler, 'watch_patterns', None) and not self.watch_handler.should_watch(Path(file_path)):
                             continue
                         
                         current_files.add(file_path)

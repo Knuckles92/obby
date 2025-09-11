@@ -148,7 +148,6 @@ Obby automatically sets up your environment:
 obby/
 ├── 🔧 Backend (Python)
 │   ├── backend.py                 # FastAPI server + SPA host (port 8001)
-│   ├── main.py                    # CLI helper / legacy entry
 │   ├── config/
 │   │   ├── settings.py            # Core configuration
 │   │   └── living_note_settings.json # AI behavior configuration
