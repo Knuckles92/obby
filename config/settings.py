@@ -64,6 +64,7 @@ OPENAI_TOKEN_LIMITS = {
     "tree_summary": 5000,
     "insights": 30000,
     "batch_summary": 25000,
+    "chat": 2000,
 }
 
 # AI Sources fallback (safety net)

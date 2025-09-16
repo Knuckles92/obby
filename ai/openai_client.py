@@ -156,7 +156,7 @@ class OpenAIClient:
             # Step 3: Make a minimal API call to warm up the connection
             try:
                 logging.info("Making warm-up API call to establish connection...")
-                warm_up_response = self.client.chat.completions.create(
+                warm_up_response = self._invoke_model(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": "You are a helpful assistant."},
@@ -181,6 +181,51 @@ class OpenAIClient:
         except Exception as e:
             logging.error(f"OpenAI warm-up encountered an error: {e}")
             return False
+
+    def _invoke_model(self, model=None, messages=None, max_completion_tokens=None, temperature=None):
+        """Invoke model via Responses API with Chat Completions fallback.
+
+        Returns an object with .choices[0].message.content for compatibility.
+        """
+        model = model or self.model
+        try:
+            resp = self.client.responses.create(
+                model=model,
+                input=messages or [],
+                temperature=temperature if temperature is not None else 1.0,
+                max_output_tokens=max_completion_tokens,
+            )
+            text = getattr(resp, 'output_text', None)
+            if not text:
+                try:
+                    text = resp.output[0].content[0].text
+                    if hasattr(text, 'value'):
+                        text = text.value
+                except Exception:
+                    text = None
+            if text is None:
+                raise ValueError('No text in Responses output')
+
+            class _ShimMsg:
+                def __init__(self, content):
+                    self.content = content
+            class _ShimChoice:
+                def __init__(self, content):
+                    self.message = _ShimMsg(content)
+                    self.finish_reason = getattr(resp, 'finish_reason', None)
+            class _ShimResp:
+                def __init__(self, content):
+                    self.choices = [_ShimChoice(content)]
+
+            return _ShimResp(str(text).strip())
+        except Exception as e:
+            logging.debug(f"Responses API failed, falling back to chat.completions: {e}")
+            return self.client.chat.completions.create(
+                model=model,
+                messages=messages or [],
+                max_completion_tokens=max_completion_tokens,
+                temperature=temperature if temperature is not None else 1.0,
+            )
 
     def _retry_with_backoff(self, func, *args, max_retries=3, initial_delay=1.0, **kwargs):
         """Execute a function with exponential backoff retry logic.
@@ -273,7 +318,7 @@ class OpenAIClient:
 
             # Use retry logic for the API call
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {
@@ -334,7 +379,7 @@ class OpenAIClient:
             )
             
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -377,7 +422,7 @@ class OpenAIClient:
                 temperature = self._get_temperature(cfg.OPENAI_TEMPERATURES.get("insights", 0.7))
 
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": sys_content},
@@ -431,7 +476,7 @@ class OpenAIClient:
             )
             
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -473,7 +518,7 @@ class OpenAIClient:
             )
             
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -526,7 +571,7 @@ class OpenAIClient:
             max_completion_tokens = max_completion_tokens_map.get(settings.get('summaryLength', 'moderate'), 400)
 
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {
@@ -591,7 +636,7 @@ class OpenAIClient:
             )
 
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -878,7 +923,7 @@ IMPORTANT:
             system_prompt = self._build_system_prompt(settings, "tree")
 
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {
@@ -1149,7 +1194,7 @@ IMPORTANT:
             )
 
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {
@@ -1521,7 +1566,7 @@ Batch Overview:
             logging.info(f"Processing batch AI request for {files_changed} files, {total_changes} changes")
 
             response = self._retry_with_backoff(
-                self.client.chat.completions.create,
+                self._invoke_model,
                 model=self.model,
                 messages=[
                     {
