@@ -54,7 +54,8 @@ class ToolResult:
         lines = [f"Search results for '{self.query}':"]
         for match in self.matches:
             relative_path = match.file_path.as_posix()
-            lines.append(f"- {relative_path}:{match.line_number} → {match.snippet.strip()}")
+            snippet = (match.snippet or "").strip()
+            lines.append(f"- {relative_path}:{match.line_number} → {snippet}")
         return "\n".join(lines)
 
 
@@ -145,7 +146,13 @@ class NotesSearchTool:
                 logger.debug("Skipping line with non-integer number: %s", line)
                 continue
 
+            # Clean up the path string (remove leading .\ on Windows)
+            if path_str.startswith('.\\') or path_str.startswith('./'):
+                path_str = path_str[2:]
+            
             match_path = Path(path_str)
+            # Ensure snippet is never None
+            snippet = snippet if snippet is not None else ""
             matches.append(SearchMatch(match_path, line_number, snippet))
         return matches
 

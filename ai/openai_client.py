@@ -227,6 +227,38 @@ class OpenAIClient:
                 temperature=temperature if temperature is not None else 1.0,
             )
 
+    def _invoke_model_with_tools(self, model=None, messages=None, max_completion_tokens=None, temperature=None, tools=None, tool_choice=None):
+        """Invoke model with tool calling capability using Chat Completions API.
+        
+        Args:
+            model: Model to use
+            messages: Conversation messages
+            max_completion_tokens: Token limit
+            temperature: Sampling temperature
+            tools: List of tool definitions in OpenAI format
+            tool_choice: Tool choice strategy ("auto", "none", or specific tool)
+            
+        Returns:
+            Chat completion response with potential tool calls
+        """
+        model = model or self.model
+        
+        # For tool calling, we must use the Chat Completions API
+        kwargs = {
+            "model": model,
+            "messages": messages or [],
+            "max_completion_tokens": max_completion_tokens,
+            "temperature": temperature if temperature is not None else 1.0,
+        }
+        
+        # Add tools if provided
+        if tools:
+            kwargs["tools"] = tools
+            if tool_choice:
+                kwargs["tool_choice"] = tool_choice
+        
+        return self.client.chat.completions.create(**kwargs)
+
     def _retry_with_backoff(self, func, *args, max_retries=3, initial_delay=1.0, **kwargs):
         """Execute a function with exponential backoff retry logic.
         
