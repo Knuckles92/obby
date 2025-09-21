@@ -94,7 +94,6 @@ Obby is a web-based note monitoring application:
 - Cleanup endpoints developers may need:
   - `POST /api/files/clear-missing`, `POST /api/files/clear-semantic`, `POST /api/files/clear`, `POST /api/files/scan`.
 - Code references:
-  - Prompt assembly: `routes/time_query.py::process_with_ai`
   - Analysis: `database/queries.py::FileQueries.get_comprehensive_time_analysis`
   - Watch filtering: `utils/watch_handler.py`
 - Example prompt outline: `example.markdownn`

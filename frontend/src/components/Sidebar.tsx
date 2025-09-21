@@ -1,13 +1,12 @@
 import { Link, useLocation } from 'react-router-dom'
-import { 
-  Home, 
-  GitBranch, 
-  FileText, 
-  Settings, 
+import {
+  Home,
+  GitBranch,
+  FileText,
+  Settings,
   Menu,
   Activity,
   Shield,
-  Clock,
   MessageSquare
 } from 'lucide-react'
 import { useTheme, useThemeClasses, useThemeFeature } from '../contexts/ThemeContext'
@@ -20,7 +19,6 @@ interface SidebarProps {
 const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
-  { name: 'Queries', href: '/queries', icon: Clock },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Summary', href: '/summary-notes', icon: FileText },
   { name: 'Administration', href: '/admin', icon: Shield },

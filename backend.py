@@ -18,7 +18,6 @@ from routes.config import config_bp
 from routes.data import data_bp
 from routes.admin import admin_bp
 from routes.watch_config import watch_config_bp
-from routes.time_query import time_query_bp
 from routes.chat import chat_bp
 
 from routes.api_monitor import APIObbyMonitor
@@ -54,7 +53,6 @@ app.include_router(config_bp)
 app.include_router(data_bp)
 app.include_router(admin_bp)
 app.include_router(watch_config_bp)
-app.include_router(time_query_bp)
 app.include_router(chat_bp)
 
 

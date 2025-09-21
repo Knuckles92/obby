@@ -11,13 +11,26 @@ interface ChatMessage {
   name?: string;
 }
 
+interface ToolSchema {
+  type: string
+  function?: {
+    name: string
+    description?: string
+  }
+}
+
+interface ToolInfo {
+  name: string
+  description?: string
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [useTools, setUseTools] = useState(true)
-  const [availableTools, setAvailableTools] = useState<string[]>([])
+  const [availableTools, setAvailableTools] = useState<ToolInfo[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
 
@@ -31,8 +44,23 @@ export default function Chat() {
 
   const loadAvailableTools = async () => {
     try {
-      const toolsInfo = await apiRequest<{ tool_names: string[] }>('/api/chat/tools')
-      setAvailableTools(toolsInfo.tool_names || [])
+      const toolsInfo = await apiRequest<{ tool_names: string[]; tools?: ToolSchema[] }>('/api/chat/tools')
+      const toolSchemas = toolsInfo.tools || []
+      const parsedTools: ToolInfo[] = toolSchemas.map((schema) => {
+        const toolName = schema.function?.name || 'Unknown tool'
+        return {
+          name: toolName,
+          description: schema.function?.description?.trim() || undefined,
+        }
+      })
+
+      // Ensure we still display tools even if schema data is missing
+      const knownNames = new Set(parsedTools.map((tool) => tool.name))
+      toolsInfo.tool_names
+        .filter((name) => !knownNames.has(name))
+        .forEach((name) => parsedTools.push({ name }))
+
+      setAvailableTools(parsedTools)
     } catch (e) {
       console.warn('Failed to load available tools:', e)
     }
@@ -133,8 +161,11 @@ export default function Chat() {
                 <div className="font-medium">Available Tools:</div>
                 <ul className="mt-1 space-y-1">
                   {availableTools.map((tool) => (
-                    <li key={tool} className="text-xs bg-gray-100 px-2 py-1 rounded">
-                      {tool}
+                    <li key={tool.name} className="rounded border border-gray-200 bg-white px-2 py-1">
+                      <div className="text-xs font-semibold text-gray-800">{tool.name}</div>
+                      {tool.description && (
+                        <div className="text-xs text-gray-600">{tool.description}</div>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -228,4 +259,3 @@ export default function Chat() {
     </div>
   )
 }
-

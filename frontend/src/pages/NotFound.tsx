@@ -24,11 +24,11 @@ export default function NotFound() {
             Go to Dashboard
           </Link>
           <Link
-            to="/queries"
+            to="/chat"
             className="px-4 py-2 rounded-md border"
             style={{ backgroundColor: 'var(--color-background)', color: 'var(--color-text-primary)', borderColor: 'var(--color-border)' }}
           >
-            Open Queries
+            Open Chat
           </Link>
         </div>
       </div>

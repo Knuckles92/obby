@@ -10,7 +10,6 @@ import SummaryNotes from './pages/SummaryNotes'
 import Administration from './pages/Administration'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
-import Queries from './pages/Queries'
 import Chat from './pages/Chat'
 
 function App() {
@@ -38,8 +37,6 @@ function App() {
               <Routes>
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diffs" element={<DiffViewer />} />
-                <Route path="/queries" element={<Queries />} />
-                <Route path="/time-query" element={<Queries />} />
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/living-note" element={<LivingNote />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
