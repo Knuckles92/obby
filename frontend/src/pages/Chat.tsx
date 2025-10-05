@@ -29,7 +29,8 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [useTools, setUseTools] = useState(true)
+  const [provider, setProvider] = useState<'openai' | 'claude'>('claude')
+  const [enableFallback, setEnableFallback] = useState(false)
   const [availableTools, setAvailableTools] = useState<ToolInfo[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -84,20 +85,32 @@ export default function Chat() {
     setLoading(true)
 
     try {
-      const res = await apiRequest<{ 
-        reply: string; 
-        tools_used?: boolean; 
+      const res = await apiRequest<{
+        reply: string;
+        tools_used?: boolean;
         conversation?: ChatMessage[];
+        provider_used?: string;
+        fallback_occurred?: boolean;
+        fallback_reason?: string;
       }>(
         '/api/chat/complete',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: next, use_tools: useTools }),
+          body: JSON.stringify({
+            messages: next,
+            provider: provider,
+            enable_fallback: enableFallback
+          }),
         }
       )
       const reply = (res.reply || '').trim()
-      
+
+      // Show fallback notification if it occurred
+      if (res.fallback_occurred && res.fallback_reason) {
+        console.warn(`Fallback occurred: ${res.fallback_reason}. Used ${res.provider_used} instead.`)
+      }
+
       if (res.tools_used && res.conversation) {
         // If tools were used, update with the full conversation
         setMessages(res.conversation)
@@ -126,10 +139,13 @@ export default function Chat() {
         <div className="flex items-center gap-2">
           <MessageSquare className="h-6 w-6 text-blue-600" />
           <h1 className="text-2xl font-bold">Chat</h1>
-          {useTools && availableTools.length > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-md text-xs">
-              <Wrench className="h-3 w-3" />
-              Tools Enabled
+          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">
+            <Wrench className="h-3 w-3" />
+            {provider === 'openai' ? 'OpenAI' : 'Claude'}
+          </div>
+          {enableFallback && (
+            <div className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
+              Fallback: On
             </div>
           )}
         </div>
@@ -146,20 +162,60 @@ export default function Chat() {
       {showSettings && (
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
           <h3 className="font-semibold mb-3">Chat Settings</h3>
-          <div className="space-y-3">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={useTools}
-                onChange={(e) => setUseTools(e.target.checked)}
-                className="rounded"
-              />
-              <span className="text-sm">Enable tool calling</span>
-            </label>
+          <div className="space-y-4">
+            {/* AI Provider Selection */}
+            <div>
+              <div className="text-sm font-medium mb-2">AI Provider</div>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="provider"
+                    value="openai"
+                    checked={provider === 'openai'}
+                    onChange={(e) => setProvider(e.target.value as 'openai' | 'claude')}
+                    className="text-blue-600"
+                  />
+                  <span className="text-sm">OpenAI</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="provider"
+                    value="claude"
+                    checked={provider === 'claude'}
+                    onChange={(e) => setProvider(e.target.value as 'openai' | 'claude')}
+                    className="text-blue-600"
+                  />
+                  <span className="text-sm">Claude</span>
+                </label>
+              </div>
+            </div>
+
+            {/* Fallback Option */}
+            <div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={enableFallback}
+                  onChange={(e) => setEnableFallback(e.target.checked)}
+                  className="rounded text-blue-600"
+                />
+                <span className="text-sm">Enable fallback to other provider on failure</span>
+              </label>
+              <p className="text-xs text-gray-500 mt-1 ml-6">
+                If the selected provider fails, automatically try the other one
+              </p>
+            </div>
+
+            {/* Available Tools Info */}
             {availableTools.length > 0 && (
-              <div className="text-sm text-gray-600">
-                <div className="font-medium">Available Tools:</div>
-                <ul className="mt-1 space-y-1">
+              <div className="pt-2 border-t border-gray-200">
+                <div className="text-sm font-medium mb-2">Available Tools</div>
+                <div className="text-xs text-gray-600 mb-2">
+                  Both providers have access to these tools for enhanced functionality
+                </div>
+                <ul className="space-y-1">
                   {availableTools.map((tool) => (
                     <li key={tool.name} className="rounded border border-gray-200 bg-white px-2 py-1">
                       <div className="text-xs font-semibold text-gray-800">{tool.name}</div>

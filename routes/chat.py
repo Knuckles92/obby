@@ -110,35 +110,64 @@ async def chat_single_message(request: Request):
 @chat_bp.post('/complete')
 async def chat_with_history(request: Request):
     """
-    Chat with messages history and optional tool calling support.
-    
-    Hybrid approach:
-    - use_tools=false: OpenAI (fast, simple)
-    - use_tools=true: Claude Agent SDK if available, else OpenAI orchestrator
-    
-    Expects JSON: { messages: [{role, content}], temperature?, use_tools? }
+    Chat with messages history and AI provider selection.
+
+    Provider-based approach:
+    - provider='openai': Use OpenAI with tool orchestrator
+    - provider='claude': Use Claude Agent SDK with tools
+    - enable_fallback=true: Automatically fallback to other provider on failure
+
+    Expects JSON: { messages: [{role, content}], temperature?, provider?, enable_fallback? }
     """
     try:
         data = await request.json()
         messages = data.get('messages')
-        use_tools = data.get('use_tools', False)  # Default to false for backward compatibility
-        
+        provider = data.get('provider', 'claude').lower()  # Default to Claude
+        enable_fallback = data.get('enable_fallback', False)  # Default to disabled
+
         if not isinstance(messages, list) or not messages:
             return JSONResponse({'error': 'messages must be a non-empty list'}, status_code=400)
 
-        # Route based on tool usage
-        if use_tools:
-            # Try Claude first for tool-based chat, fallback to OpenAI orchestrator
+        if provider not in ('openai', 'claude'):
+            return JSONResponse({'error': f'Invalid provider: {provider}. Use "openai" or "claude"'}, status_code=400)
+
+        # Route based on provider selection
+        if provider == 'claude':
             if CLAUDE_AVAILABLE:
-                logger.info("Using Claude Agent SDK for tool-based chat")
-                return await _chat_with_claude_tools(messages, data)
+                logger.info("Using Claude Agent SDK (user selected)")
+                result = await _chat_with_claude_tools(messages, data)
+
+                # Check if Claude failed and fallback is enabled
+                if isinstance(result, JSONResponse) and enable_fallback:
+                    logger.info("Claude failed, falling back to OpenAI")
+                    result = await _chat_with_openai_tools(messages, data)
+                    if isinstance(result, dict):
+                        result['fallback_occurred'] = True
+                        result['fallback_reason'] = 'Claude provider failed'
+                return result
             else:
-                logger.info("Using OpenAI orchestrator for tool-based chat (Claude not available)")
-                return await _chat_with_openai_tools(messages, data)
+                if enable_fallback:
+                    logger.info("Claude not available, falling back to OpenAI")
+                    result = await _chat_with_openai_tools(messages, data)
+                    if isinstance(result, dict):
+                        result['fallback_occurred'] = True
+                        result['fallback_reason'] = 'Claude SDK not available'
+                    return result
+                else:
+                    return JSONResponse({'error': 'Claude Agent SDK not available. Install: pip install claude-agent-sdk'}, status_code=400)
         else:
-            # Simple chat with OpenAI
-            logger.debug("Using OpenAI for simple chat")
-            return await _chat_with_openai_simple(messages, data)
+            # OpenAI provider
+            logger.info("Using OpenAI orchestrator (user selected)")
+            result = await _chat_with_openai_tools(messages, data)
+
+            # Check if OpenAI failed and fallback is enabled
+            if isinstance(result, JSONResponse) and enable_fallback and CLAUDE_AVAILABLE:
+                logger.info("OpenAI failed, falling back to Claude")
+                result = await _chat_with_claude_tools(messages, data)
+                if isinstance(result, dict):
+                    result['fallback_occurred'] = True
+                    result['fallback_reason'] = 'OpenAI provider failed'
+            return result
 
     except Exception as e:
         logger.error(f"/api/chat/complete failed: {e}")
@@ -188,6 +217,7 @@ async def _chat_with_openai_simple(messages: List[Dict], data: Dict) -> Dict:
             'model': client.model,
             'finish_reason': finish_reason,
             'tools_used': False,
+            'provider_used': 'openai',
             'backend': 'openai'
         }
     except Exception as api_err:
@@ -247,6 +277,7 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict) -> Dict:
             'finish_reason': 'stop',
             'conversation': full_conversation,
             'tools_used': True,
+            'provider_used': 'openai',
             'backend': 'openai-orchestrator'
         }
     except Exception as api_err:
@@ -256,17 +287,45 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict) -> Dict:
 
 async def _chat_with_claude_tools(messages: List[Dict], data: Dict) -> Dict:
     """Tool-based chat with Claude Agent SDK (automatic orchestration)."""
+    import time
+    import traceback
+    import sys
+    import asyncio
+    import anyio
+
+    start_time = time.time()
+
     try:
+        # Debug: Check current event loop policy
+        current_policy = asyncio.get_event_loop_policy()
+        policy_name = type(current_policy).__name__
+        logger.info(f"🔍 Current event loop policy: {policy_name}")
+
+        # Check current running loop
+        try:
+            loop = asyncio.get_running_loop()
+            loop_type = type(loop).__name__
+            logger.info(f"🔍 Current running loop: {loop_type}")
+        except RuntimeError:
+            logger.info("🔍 No running loop yet")
+
         # Check if ANTHROPIC_API_KEY is set
-        if not os.getenv('ANTHROPIC_API_KEY'):
-            logger.warning("ANTHROPIC_API_KEY not set. Falling back to OpenAI orchestrator.")
-            return await _chat_with_openai_tools(messages, data)
+        api_key = os.getenv('ANTHROPIC_API_KEY')
+        if not api_key:
+            logger.error("❌ Claude SDK Error: ANTHROPIC_API_KEY not set in environment")
+            return JSONResponse({'error': 'ANTHROPIC_API_KEY not configured'}, status_code=400)
+
+        logger.info(f"✓ Claude API Key found: {api_key[:8]}...{api_key[-4:]}")
+        logger.info(f"✓ Claude SDK available: {CLAUDE_AVAILABLE}")
         
         # Get last user message
         user_message = next((m['content'] for m in reversed(messages) if m['role'] == 'user'), None)
         if not user_message:
+            logger.error("❌ No user message found in conversation")
             return JSONResponse({'error': 'No user message found'}, status_code=400)
-        
+
+        logger.info(f"📝 User message: {user_message[:100]}..." if len(user_message) > 100 else f"📝 User message: {user_message}")
+
         # Build context from previous messages (last 3 for brevity)
         context_messages = [m for m in messages[:-1] if m['role'] in ('user', 'assistant')]
         if context_messages:
@@ -274,74 +333,133 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict) -> Dict:
             for msg in context_messages[-3:]:
                 context += f"{msg['role']}: {msg['content'][:200]}\n"  # Truncate long messages
             user_message = context + f"\nCurrent question: {user_message}"
-        
+            logger.info(f"📚 Added {len(context_messages[-3:])} context messages")
+
         # Create Obby MCP server with tools
+        logger.info("🔧 Creating Obby MCP server with tools...")
         obby_server = create_obby_mcp_server()
-        
+
         options = ClaudeAgentOptions(
             cwd=str(Path.cwd()),
             mcp_servers={"obby": obby_server},
             allowed_tools=[
                 "Read",
-                "mcp__obby__get_file_history",
+                "mcp__obby__get_file_history",    # MCP tools must have mcp__<server>__ prefix
                 "mcp__obby__get_recent_changes"
             ],
             max_turns=10,
-            system_prompt="You are a helpful assistant for the Obby file monitoring system. Use tools when needed to answer questions about files, changes, and history."
+            system_prompt="You are a helpful assistant for the Obby file monitoring system. Use the get_file_history and get_recent_changes tools when needed to answer questions about files and their change history."
         )
-        
+
+        logger.info(f"⚙️  Claude options: max_turns=10, tools={options.allowed_tools}, cwd={options.cwd}")
+
         # Execute with Claude
+        logger.info("🚀 Starting Claude SDK client...")
         response_parts = []
+        message_count = 0
+
         async with ClaudeSDKClient(options=options) as client:
+            logger.info("✓ Claude SDK client initialized")
             await client.query(user_message)
-            
+            logger.info("✓ Query sent to Claude")
+
             async for message in client.receive_response():
-                if isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, TextBlock):
-                            response_parts.append(block.text)
-        
+                message_count += 1
+                message_type = message.__class__.__name__
+                logger.info(f"📨 Received message #{message_count}: {message_type}")
+
+                if message_type == "AssistantMessage":
+                    # Extract text from message content
+                    if hasattr(message, 'content'):
+                        for idx, block in enumerate(message.content):
+                            block_type = block.__class__.__name__
+                            logger.info(f"   Block {idx}: {block_type}")
+                            if hasattr(block, 'text'):
+                                text_preview = block.text[:100] + "..." if len(block.text) > 100 else block.text
+                                logger.info(f"   Text: {text_preview}")
+                                response_parts.append(block.text)
+                    else:
+                        logger.warning(f"   ⚠️  AssistantMessage has no content attribute")
+                else:
+                    logger.info(f"   ℹ️  Skipping non-assistant message: {message_type}")
+
         reply = "\n".join(response_parts) if response_parts else "No response generated"
-        
+        elapsed = time.time() - start_time
+
+        logger.info(f"✅ Claude completed successfully in {elapsed:.2f}s")
+        logger.info(f"📊 Response stats: {message_count} messages, {len(response_parts)} text blocks, {len(reply)} chars")
+
         return {
             'reply': reply,
             'model': 'claude-3-5-sonnet',
             'finish_reason': 'stop',
             'tools_used': True,
+            'provider_used': 'claude',
             'backend': 'claude-agent-sdk'
         }
     
     except CLINotFoundError as e:
-        logger.error(f"Claude CLI not found: {e}. Install: npm install -g @anthropic-ai/claude-code")
-        logger.info("Falling back to OpenAI orchestrator")
-        return await _chat_with_openai_tools(messages, data)
-    
+        elapsed = time.time() - start_time
+        logger.error(f"❌ CLINotFoundError after {elapsed:.2f}s")
+        logger.error(f"   Error: {str(e)}")
+        logger.error(f"   Install Claude CLI: npm install -g @anthropic-ai/claude-code")
+        logger.error(f"   Traceback:\n{traceback.format_exc()}")
+        return JSONResponse({'error': f'Claude CLI not found: {str(e)}'}, status_code=500)
+
     except CLIConnectionError as e:
+        elapsed = time.time() - start_time
         error_msg = str(e)
-        logger.error(f"Claude CLI connection error: {error_msg}")
-        
-        # Check if it's an encoding error
-        if 'UnicodeDecodeError' in error_msg or 'charmap' in error_msg:
-            logger.warning("Claude CLI encountered encoding issues on Windows. Consider upgrading claude-agent-sdk.")
-        
-        logger.info("Falling back to OpenAI orchestrator")
-        return await _chat_with_openai_tools(messages, data)
-    
+        tb_str = traceback.format_exc()
+        logger.error(f"❌ CLIConnectionError after {elapsed:.2f}s")
+        logger.error(f"   Error: {error_msg}")
+
+        # Check for specific error types
+        if 'NotImplementedError' in tb_str and sys.platform == 'win32':
+            logger.error("   ⚠️  Windows asyncio subprocess issue detected")
+            logger.error("   Root cause: uvicorn started without WindowsProactorEventLoopPolicy")
+            logger.error("   Solution: The backend.py should set this BEFORE any imports:")
+            logger.error("      if sys.platform == 'win32':")
+            logger.error("          asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())")
+            logger.error("   Then RESTART the backend server completely")
+            return JSONResponse({
+                'error': 'Windows subprocess not supported. Restart backend to apply WindowsProactorEventLoopPolicy fix.'
+            }, status_code=500)
+
+        elif 'UnicodeDecodeError' in error_msg or 'charmap' in error_msg:
+            logger.error("   ⚠️  Encoding issue detected (Windows charmap problem)")
+            logger.error("   Solution: Upgrade claude-agent-sdk or set PYTHONIOENCODING=utf-8")
+
+        logger.error(f"   Traceback:\n{tb_str}")
+        return JSONResponse({'error': f'Claude CLI connection failed: {error_msg}'}, status_code=500)
+
     except ProcessError as e:
-        logger.error(f"Claude process error: {e}")
-        logger.info("Falling back to OpenAI orchestrator")
-        return await _chat_with_openai_tools(messages, data)
-    
+        elapsed = time.time() - start_time
+        logger.error(f"❌ ProcessError after {elapsed:.2f}s")
+        logger.error(f"   Error: {str(e)}")
+        logger.error(f"   This usually indicates the Claude process crashed or was killed")
+        logger.error(f"   Traceback:\n{traceback.format_exc()}")
+        return JSONResponse({'error': f'Claude process error: {str(e)}'}, status_code=500)
+
     except ClaudeSDKError as e:
-        logger.error(f"Claude SDK error: {e}")
-        logger.info("Falling back to OpenAI orchestrator")
-        return await _chat_with_openai_tools(messages, data)
-    
+        elapsed = time.time() - start_time
+        logger.error(f"❌ ClaudeSDKError after {elapsed:.2f}s")
+        logger.error(f"   Error: {str(e)}")
+        logger.error(f"   Error type: {type(e).__name__}")
+        logger.error(f"   Traceback:\n{traceback.format_exc()}")
+        return JSONResponse({'error': f'Claude SDK error: {str(e)}'}, status_code=500)
+
     except Exception as e:
-        logger.error(f"Claude tool chat unexpected error: {type(e).__name__}: {e}", exc_info=True)
-        # Fallback to OpenAI orchestrator
-        logger.info("Falling back to OpenAI orchestrator")
-        return await _chat_with_openai_tools(messages, data)
+        elapsed = time.time() - start_time
+        logger.error(f"❌ Unexpected error after {elapsed:.2f}s")
+        logger.error(f"   Error type: {type(e).__name__}")
+        logger.error(f"   Error message: {str(e)}")
+        logger.error(f"   Full traceback:\n{traceback.format_exc()}")
+
+        # Try to extract useful debugging info
+        if hasattr(e, '__dict__'):
+            logger.error(f"   Error attributes: {e.__dict__}")
+
+        return JSONResponse({'error': f'Unexpected Claude error: {type(e).__name__}: {str(e)}'}, status_code=500)
 
 
 @chat_bp.get('/tools')

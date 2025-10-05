@@ -100,10 +100,14 @@ class ClaudeAgentClient:
             
             result = []
             async for message in query(prompt=prompt, options=options):
-                if isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, TextBlock):
-                            result.append(block.text)
+                message_type = message.__class__.__name__
+                
+                if message_type == "AssistantMessage":
+                    # Extract text from message content
+                    if hasattr(message, 'content'):
+                        for block in message.content:
+                            if hasattr(block, 'text'):
+                                result.append(block.text)
             
             return "\n".join(result) if result else "No analysis generated."
         
@@ -111,7 +115,7 @@ class ClaudeAgentClient:
             logger.error("Claude Code CLI not found. Install: npm install -g @anthropic-ai/claude-code")
             return "Error: Claude Code CLI not installed"
         except Exception as e:
-            logger.error(f"Error analyzing diff: {e}")
+            logger.error(f"Error analyzing diff: {e}", exc_info=True)
             return f"Error analyzing diff: {str(e)}"
     
     async def summarize_changes(
@@ -160,15 +164,19 @@ class ClaudeAgentClient:
             
             result = []
             async for message in query(prompt=prompt, options=options):
-                if isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, TextBlock):
-                            result.append(block.text)
+                message_type = message.__class__.__name__
+                
+                if message_type == "AssistantMessage":
+                    # Extract text from message content
+                    if hasattr(message, 'content'):
+                        for block in message.content:
+                            if hasattr(block, 'text'):
+                                result.append(block.text)
             
             return "\n".join(result) if result else "No summary generated."
         
         except Exception as e:
-            logger.error(f"Error summarizing changes: {e}")
+            logger.error(f"Error summarizing changes: {e}", exc_info=True)
             return f"Error: {str(e)}"
     
     async def interactive_analysis(
@@ -202,13 +210,17 @@ class ClaudeAgentClient:
                 await client.query(initial_prompt)
                 
                 async for message in client.receive_response():
-                    if isinstance(message, AssistantMessage):
-                        for block in message.content:
-                            if isinstance(block, TextBlock):
-                                yield block.text
+                    message_type = message.__class__.__name__
+                    
+                    if message_type == "AssistantMessage":
+                        # Extract text from message content
+                        if hasattr(message, 'content'):
+                            for block in message.content:
+                                if hasattr(block, 'text'):
+                                    yield block.text
         
         except Exception as e:
-            logger.error(f"Error in interactive analysis: {e}")
+            logger.error(f"Error in interactive analysis: {e}", exc_info=True)
             yield f"Error: {str(e)}"
     
     async def ask_question(self, question: str, context: Optional[str] = None) -> str:
@@ -235,15 +247,19 @@ class ClaudeAgentClient:
             
             result = []
             async for message in query(prompt=prompt, options=options):
-                if isinstance(message, AssistantMessage):
-                    for block in message.content:
-                        if isinstance(block, TextBlock):
-                            result.append(block.text)
+                message_type = message.__class__.__name__
+                
+                if message_type == "AssistantMessage":
+                    # Extract text from message content
+                    if hasattr(message, 'content'):
+                        for block in message.content:
+                            if hasattr(block, 'text'):
+                                result.append(block.text)
             
             return "\n".join(result) if result else "No response generated."
         
         except Exception as e:
-            logger.error(f"Error asking question: {e}")
+            logger.error(f"Error asking question: {e}", exc_info=True)
             return f"Error: {str(e)}"
     
     def is_available(self) -> bool:
@@ -251,77 +267,103 @@ class ClaudeAgentClient:
         return CLAUDE_SDK_AVAILABLE and bool(self.api_key)
 
 
-# Custom tools for Obby-specific operations
+# Custom tools for Obby-specific operations using the @tool decorator
+# These must return {"content": [{"type": "text", "text": "..."}]} format
 @tool("get_file_history", "Get the change history for a specific file", {"file_path": str})
 async def get_file_history(args):
     """Tool to retrieve file change history from Obby database."""
+    import json
+
     try:
-        from database.models import FileChangeModel
-        
+        from database.connection import DatabaseConnection
+
         file_path = args.get('file_path')
         if not file_path:
-            return {"content": [{"type": "text", "text": "Error: file_path required"}]}
-        
-        # Query last 10 changes for this file
-        changes = FileChangeModel.query.filter_by(file_path=file_path)\
-            .order_by(FileChangeModel.timestamp.desc())\
-            .limit(10)\
-            .all()
-        
+            return {"content": [{"type": "text", "text": "Error: file_path is required"}]}
+
+        # Query last 10 changes for this file using direct SQL
+        db = DatabaseConnection()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT timestamp, event_type, file_path
+                FROM file_changes
+                WHERE file_path = ?
+                ORDER BY timestamp DESC
+                LIMIT 10
+            """, (file_path,))
+
+            changes = cursor.fetchall()
+
         if not changes:
-            return {
-                "content": [{
-                    "type": "text",
-                    "text": f"No change history found for {file_path}"
-                }]
-            }
-        
-        history_text = f"Change history for {file_path}:\n\n"
-        for change in changes:
-            history_text += f"- {change.timestamp}: {change.event_type}\n"
-        
-        return {"content": [{"type": "text", "text": history_text}]}
-    
+            text = f"No change history found for {file_path}"
+            return {"content": [{"type": "text", "text": text}]}
+
+        # Format as readable text
+        lines = [f"Change history for {file_path}:\n"]
+        for timestamp, event_type, path in changes:
+            lines.append(f"- {timestamp}: {event_type}")
+
+        text = "\n".join(lines)
+        return {"content": [{"type": "text", "text": text}]}
+
     except Exception as e:
+        logger.error(f"Error in get_file_history tool: {e}", exc_info=True)
         return {"content": [{"type": "text", "text": f"Error: {str(e)}"}]}
 
 
 @tool("get_recent_changes", "Get recent file changes across the project", {"limit": int})
 async def get_recent_changes(args):
     """Tool to retrieve recent changes from Obby database."""
+    import json
+
     try:
-        from database.models import FileChangeModel
-        
+        from database.connection import DatabaseConnection
+
         limit = args.get('limit', 10)
-        
-        changes = FileChangeModel.query\
-            .order_by(FileChangeModel.timestamp.desc())\
-            .limit(limit)\
-            .all()
-        
+        # Ensure limit is reasonable
+        limit = max(1, min(int(limit), 50))  # Between 1 and 50
+
+        # Query recent changes using direct SQL
+        db = DatabaseConnection()
+        with db.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                SELECT timestamp, event_type, file_path
+                FROM file_changes
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """, (limit,))
+
+            changes = cursor.fetchall()
+
         if not changes:
             return {"content": [{"type": "text", "text": "No recent changes found"}]}
-        
-        changes_text = f"Recent {len(changes)} changes:\n\n"
-        for change in changes:
-            changes_text += f"- {change.file_path}: {change.event_type} at {change.timestamp}\n"
-        
-        return {"content": [{"type": "text", "text": changes_text}]}
-    
+
+        # Format as readable text
+        lines = [f"Recent {len(changes)} changes:\n"]
+        for timestamp, event_type, path in changes:
+            lines.append(f"- {path}: {event_type} at {timestamp}")
+
+        text = "\n".join(lines)
+        return {"content": [{"type": "text", "text": text}]}
+
     except Exception as e:
+        logger.error(f"Error in get_recent_changes tool: {e}", exc_info=True)
         return {"content": [{"type": "text", "text": f"Error: {str(e)}"}]}
 
 
 def create_obby_mcp_server():
     """
     Create an MCP server with Obby-specific tools.
-    
+
     Returns:
-        SDK MCP server instance with Obby tools
+        MCP server configuration for Claude SDK
     """
     if not CLAUDE_SDK_AVAILABLE:
         raise ImportError("claude-agent-sdk required")
-    
+
+    # Create SDK MCP server with the decorated tools
     return create_sdk_mcp_server(
         name="obby-tools",
         version="1.0.0",

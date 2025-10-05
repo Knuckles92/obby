@@ -1,3 +1,12 @@
+import sys
+import asyncio
+
+# CRITICAL: Set Windows event loop policy FIRST, before any other imports
+# This must be at the very top to work with uvicorn reload mode
+if sys.platform == 'win32':
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+    print(f"🪟 [STARTUP] Windows: Set WindowsProactorEventLoopPolicy for Claude SDK subprocess support")
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
@@ -5,7 +14,6 @@ from fastapi.staticfiles import StaticFiles
 import threading
 import logging
 import os
-import sys
 from pathlib import Path
 import uvicorn
 
@@ -44,6 +52,14 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(), logging.FileHandler('obby.log')]
 )
 logger = logging.getLogger(__name__)
+
+# Ensure Windows event loop supports subprocesses required by Claude CLI
+if sys.platform == 'win32':
+    try:
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+        logger.info('Configured Windows Proactor event loop policy for Claude CLI compatibility')
+    except Exception as loop_err:
+        logger.warning(f'Could not set Windows Proactor event loop policy: {loop_err}')
 
 # Log encoding configuration for debugging Windows issues
 if sys.platform == 'win32':
