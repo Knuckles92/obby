@@ -20,7 +20,9 @@
       "Bash(npm run lint)",
       "Bash(dir:*)",
       "mcp__ide__getDiagnostics",
-      "Bash(mv:*)"
+      "Bash(mv:*)",
+      "Read(//home/fiori/.claude/**)",
+      "WebSearch"
     ],
     "deny": []
   },

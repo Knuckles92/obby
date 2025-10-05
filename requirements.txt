@@ -5,6 +5,9 @@ openai>=1.0.0
 fastapi>=0.111.0
 uvicorn>=0.30.0
 
+# Environment variable management
+python-dotenv>=1.0.0
+
 # File system monitoring for instant change detection
 watchdog>=3.0.0
 

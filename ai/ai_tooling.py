@@ -48,6 +48,9 @@ class ToolResult:
 
     def format_for_agent(self) -> str:
         """Return a compact string representation for agent consumption."""
+        if self.error:
+            return f"[ERROR] Search Error: {self.error}\nQuery: '{self.query}'"
+        
         if not self.matches:
             return f"No matches for '{self.query}'."
 
@@ -55,7 +58,7 @@ class ToolResult:
         for match in self.matches:
             relative_path = match.file_path.as_posix()
             snippet = (match.snippet or "").strip()
-            lines.append(f"- {relative_path}:{match.line_number} → {snippet}")
+            lines.append(f"- {relative_path}:{match.line_number} - {snippet}")
         return "\n".join(lines)
 
 
@@ -100,15 +103,22 @@ class NotesSearchTool:
 
         logger.debug("Running notes search: %s", " ".join(command))
 
-        completed = subprocess.run(
-            command,
-            cwd=str(self.notes_dir),
-            capture_output=True,
-            text=True,
-        )
+        try:
+            completed = subprocess.run(
+                command,
+                cwd=str(self.notes_dir),
+                capture_output=True,
+                text=True,
+                encoding='utf-8',  # Explicitly specify UTF-8 encoding
+                errors='replace',  # Replace invalid chars instead of crashing
+            )
+        except Exception as e:
+            logger.error(f"Subprocess execution failed: {e}")
+            raise ToolExecutionError(f"Failed to execute search command: {str(e)}")
 
-        stdout = completed.stdout.strip()
-        stderr = completed.stderr.strip()
+        # Handle None output gracefully
+        stdout = (completed.stdout or "").strip()
+        stderr = (completed.stderr or "").strip()
 
         if completed.returncode not in (0, 1):
             error_message = stderr or f"Search command failed with code {completed.returncode}"

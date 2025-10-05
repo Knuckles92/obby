@@ -151,9 +151,13 @@ class AgentOrchestrator:
         
         try:
             result = tool.run(query, max_matches=max_matches)
-            return result.format_for_agent()
+            if result and hasattr(result, 'format_for_agent'):
+                return result.format_for_agent()
+            else:
+                logger.error("Notes search returned invalid result")
+                return "Error: Notes search returned an invalid result"
         except Exception as e:
-            logger.error(f"Notes search failed: {e}")
+            logger.error(f"Notes search failed: {e}", exc_info=True)
             return f"Notes search failed: {str(e)}"
 
     def parse_tool_calls(self, message) -> List[ToolCall]:

@@ -5,8 +5,24 @@ from fastapi.staticfiles import StaticFiles
 import threading
 import logging
 import os
+import sys
 from pathlib import Path
 import uvicorn
+
+# Fix Windows subprocess encoding issues for Claude CLI
+if sys.platform == 'win32':
+    # Force UTF-8 encoding for subprocess communication
+    os.environ['PYTHONIOENCODING'] = 'utf-8'
+    # Set console code page to UTF-8 if possible
+    try:
+        import subprocess as _sp
+        _sp.run(['chcp', '65001'], shell=True, capture_output=True, check=False)
+    except Exception:
+        pass  # Silently fail if chcp doesn't work
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()  # Load .env file if it exists
 
 # Import FastAPI routers
 from routes.monitoring import monitoring_bp
@@ -28,6 +44,11 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(), logging.FileHandler('obby.log')]
 )
 logger = logging.getLogger(__name__)
+
+# Log encoding configuration for debugging Windows issues
+if sys.platform == 'win32':
+    logger.info(f"Windows platform detected - PYTHONIOENCODING: {os.environ.get('PYTHONIOENCODING', 'not set')}")
+    logger.info(f"Default encoding: {sys.getdefaultencoding()}, stdout encoding: {sys.stdout.encoding}")
 
 app = FastAPI(title='Obby API', version='1.0.0')
 app.add_middleware(

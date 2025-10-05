@@ -8,6 +8,7 @@ Provides chat completion endpoints with hybrid AI support:
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 import logging
+import os
 from pathlib import Path
 from typing import Dict, List, Any
 from ai.openai_client import OpenAIClient
@@ -19,10 +20,24 @@ logger = logging.getLogger(__name__)
 # Try to import Claude Agent SDK (optional dependency)
 try:
     from ai.claude_agent_client import create_obby_mcp_server, CLAUDE_SDK_AVAILABLE
-    from claude_agent_sdk import ClaudeSDKClient, ClaudeAgentOptions, AssistantMessage, TextBlock
+    from claude_agent_sdk import (
+        ClaudeSDKClient, 
+        ClaudeAgentOptions, 
+        AssistantMessage, 
+        TextBlock,
+        CLINotFoundError,
+        CLIConnectionError,
+        ProcessError,
+        ClaudeSDKError
+    )
     CLAUDE_AVAILABLE = CLAUDE_SDK_AVAILABLE
 except ImportError:
     CLAUDE_AVAILABLE = False
+    # Define placeholder exception classes if SDK not available
+    class CLINotFoundError(Exception): pass
+    class CLIConnectionError(Exception): pass
+    class ProcessError(Exception): pass
+    class ClaudeSDKError(Exception): pass
     logger.warning("Claude Agent SDK not available. Tool-based chat will use OpenAI orchestrator.")
 
 chat_bp = APIRouter(prefix='/api/chat', tags=['chat'])
@@ -242,6 +257,11 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict) -> Dict:
 async def _chat_with_claude_tools(messages: List[Dict], data: Dict) -> Dict:
     """Tool-based chat with Claude Agent SDK (automatic orchestration)."""
     try:
+        # Check if ANTHROPIC_API_KEY is set
+        if not os.getenv('ANTHROPIC_API_KEY'):
+            logger.warning("ANTHROPIC_API_KEY not set. Falling back to OpenAI orchestrator.")
+            return await _chat_with_openai_tools(messages, data)
+        
         # Get last user message
         user_message = next((m['content'] for m in reversed(messages) if m['role'] == 'user'), None)
         if not user_message:
@@ -291,8 +311,34 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict) -> Dict:
             'backend': 'claude-agent-sdk'
         }
     
+    except CLINotFoundError as e:
+        logger.error(f"Claude CLI not found: {e}. Install: npm install -g @anthropic-ai/claude-code")
+        logger.info("Falling back to OpenAI orchestrator")
+        return await _chat_with_openai_tools(messages, data)
+    
+    except CLIConnectionError as e:
+        error_msg = str(e)
+        logger.error(f"Claude CLI connection error: {error_msg}")
+        
+        # Check if it's an encoding error
+        if 'UnicodeDecodeError' in error_msg or 'charmap' in error_msg:
+            logger.warning("Claude CLI encountered encoding issues on Windows. Consider upgrading claude-agent-sdk.")
+        
+        logger.info("Falling back to OpenAI orchestrator")
+        return await _chat_with_openai_tools(messages, data)
+    
+    except ProcessError as e:
+        logger.error(f"Claude process error: {e}")
+        logger.info("Falling back to OpenAI orchestrator")
+        return await _chat_with_openai_tools(messages, data)
+    
+    except ClaudeSDKError as e:
+        logger.error(f"Claude SDK error: {e}")
+        logger.info("Falling back to OpenAI orchestrator")
+        return await _chat_with_openai_tools(messages, data)
+    
     except Exception as e:
-        logger.error(f"Claude tool chat failed: {e}")
+        logger.error(f"Claude tool chat unexpected error: {type(e).__name__}: {e}", exc_info=True)
         # Fallback to OpenAI orchestrator
         logger.info("Falling back to OpenAI orchestrator")
         return await _chat_with_openai_tools(messages, data)

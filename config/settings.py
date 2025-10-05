@@ -10,7 +10,7 @@ def get_configured_notes_folder():
         configured_dir = ConfigModel.get('monitoringDirectory', str(NOTES_FOLDER))
         return Path(configured_dir)
     except Exception:
-        # Fallback if database is not available yet
+        # Fallback if database is no t available yet
         return NOTES_FOLDER
 DIFF_PATH = Path("diffs")
 
