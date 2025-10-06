@@ -24,8 +24,9 @@ watchdog>=3.0.0
 # System monitoring for admin panel
 psutil>=5.9.0
 
-# Development and testing dependencies (optional)
-# pytest>=7.0.0
+# Development and testing dependencies
+pytest>=7.0.0
+pytest-asyncio>=0.21.0
 # black>=22.0.0
 # flake8>=4.0.0
 

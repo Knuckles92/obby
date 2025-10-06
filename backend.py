@@ -4,8 +4,18 @@ import asyncio
 # CRITICAL: Set Windows event loop policy FIRST, before any other imports
 # This must be at the very top to work with uvicorn reload mode
 if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-    print(f"🪟 [STARTUP] Windows: Set WindowsProactorEventLoopPolicy for Claude SDK subprocess support")
+    # Force Windows Proactor event loop policy for subprocess support
+    try:
+        current_policy = asyncio.get_event_loop_policy()
+        if not isinstance(current_policy, asyncio.WindowsProactorEventLoopPolicy):
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            print("[STARTUP] Windows: Set WindowsProactorEventLoopPolicy for Claude SDK subprocess support")
+        else:
+            print("[STARTUP] Windows: WindowsProactorEventLoopPolicy already active")
+    except Exception as e:
+        print(f"[STARTUP] Windows: Failed to set event loop policy: {e}")
+        # Try to set it anyway
+        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -54,10 +64,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Ensure Windows event loop supports subprocesses required by Claude CLI
+# This is a backup check in case the initial policy setting was bypassed
 if sys.platform == 'win32':
     try:
-        asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-        logger.info('Configured Windows Proactor event loop policy for Claude CLI compatibility')
+        current_policy = asyncio.get_event_loop_policy()
+        if not isinstance(current_policy, asyncio.WindowsProactorEventLoopPolicy):
+            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+            logger.info('Backup: Set Windows Proactor event loop policy for Claude CLI compatibility')
+        else:
+            logger.info('Windows Proactor event loop policy already configured')
     except Exception as loop_err:
         logger.warning(f'Could not set Windows Proactor event loop policy: {loop_err}')
 
@@ -74,6 +89,21 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+# FastAPI startup event to ensure Windows event loop policy is set
+@app.on_event("startup")
+async def startup_event():
+    """Ensure Windows event loop policy is set on startup (handles uvicorn reloader)."""
+    if sys.platform == 'win32':
+        try:
+            current_policy = asyncio.get_event_loop_policy()
+            if not isinstance(current_policy, asyncio.WindowsProactorEventLoopPolicy):
+                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+                logger.info('Startup: Set Windows Proactor event loop policy for Claude SDK')
+            else:
+                logger.info('Startup: Windows Proactor event loop policy already active')
+        except Exception as e:
+            logger.warning(f'Startup: Could not set Windows event loop policy: {e}')
 
 # Global monitoring state
 monitor_instance = None
@@ -224,7 +254,24 @@ if __name__ == '__main__':
         logger.info('Living note watcher disabled (LIVING_NOTE_WATCHER_ENABLED=false)')
 
     try:
-        uvicorn.run('backend:app', host='0.0.0.0', port=8001, reload=True)
+        # On Windows, disable reload to avoid event loop policy issues with Claude SDK
+        # The reload feature can interfere with the event loop policy on Windows
+        uvicorn_config = {
+            'app': 'backend:app',
+            'host': '0.0.0.0',
+            'port': 8001,
+            'reload': sys.platform != 'win32',  # Disable reload on Windows
+        }
+        
+        # On Windows, explicitly specify loop implementation for subprocess support
+        if sys.platform == 'win32':
+            uvicorn_config['loop'] = 'asyncio'  # Use asyncio (with our ProactorEventLoopPolicy)
+            logger.info('Windows: Using asyncio loop with WindowsProactorEventLoopPolicy for Claude SDK support')
+            logger.info('Windows: Reload disabled to prevent event loop policy conflicts')
+        else:
+            logger.info('Non-Windows: Using default uvicorn configuration with reload enabled')
+        
+        uvicorn.run(**uvicorn_config)
     finally:
         if stop_living_note_watcher:
             stop_living_note_watcher()

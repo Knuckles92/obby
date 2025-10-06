@@ -17,8 +17,6 @@ try:
         query,
         ClaudeSDKClient,
         ClaudeAgentOptions,
-        tool,
-        create_sdk_mcp_server,
         AssistantMessage,
         TextBlock,
         CLINotFoundError,
@@ -267,108 +265,17 @@ class ClaudeAgentClient:
         return CLAUDE_SDK_AVAILABLE and bool(self.api_key)
 
 
-# Custom tools for Obby-specific operations using the @tool decorator
-# These must return {"content": [{"type": "text", "text": "..."}]} format
-@tool("get_file_history", "Get the change history for a specific file", {"file_path": str})
-async def get_file_history(args):
-    """Tool to retrieve file change history from Obby database."""
-    import json
-
-    try:
-        from database.connection import DatabaseConnection
-
-        file_path = args.get('file_path')
-        if not file_path:
-            return {"content": [{"type": "text", "text": "Error: file_path is required"}]}
-
-        # Query last 10 changes for this file using direct SQL
-        db = DatabaseConnection()
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT timestamp, event_type, file_path
-                FROM file_changes
-                WHERE file_path = ?
-                ORDER BY timestamp DESC
-                LIMIT 10
-            """, (file_path,))
-
-            changes = cursor.fetchall()
-
-        if not changes:
-            text = f"No change history found for {file_path}"
-            return {"content": [{"type": "text", "text": text}]}
-
-        # Format as readable text
-        lines = [f"Change history for {file_path}:\n"]
-        for timestamp, event_type, path in changes:
-            lines.append(f"- {timestamp}: {event_type}")
-
-        text = "\n".join(lines)
-        return {"content": [{"type": "text", "text": text}]}
-
-    except Exception as e:
-        logger.error(f"Error in get_file_history tool: {e}", exc_info=True)
-        return {"content": [{"type": "text", "text": f"Error: {str(e)}"}]}
-
-
-@tool("get_recent_changes", "Get recent file changes across the project", {"limit": int})
-async def get_recent_changes(args):
-    """Tool to retrieve recent changes from Obby database."""
-    import json
-
-    try:
-        from database.connection import DatabaseConnection
-
-        limit = args.get('limit', 10)
-        # Ensure limit is reasonable
-        limit = max(1, min(int(limit), 50))  # Between 1 and 50
-
-        # Query recent changes using direct SQL
-        db = DatabaseConnection()
-        with db.get_connection() as conn:
-            cursor = conn.cursor()
-            cursor.execute("""
-                SELECT timestamp, event_type, file_path
-                FROM file_changes
-                ORDER BY timestamp DESC
-                LIMIT ?
-            """, (limit,))
-
-            changes = cursor.fetchall()
-
-        if not changes:
-            return {"content": [{"type": "text", "text": "No recent changes found"}]}
-
-        # Format as readable text
-        lines = [f"Recent {len(changes)} changes:\n"]
-        for timestamp, event_type, path in changes:
-            lines.append(f"- {path}: {event_type} at {timestamp}")
-
-        text = "\n".join(lines)
-        return {"content": [{"type": "text", "text": text}]}
-
-    except Exception as e:
-        logger.error(f"Error in get_recent_changes tool: {e}", exc_info=True)
-        return {"content": [{"type": "text", "text": f"Error: {str(e)}"}]}
-
-
-def create_obby_mcp_server():
-    """
-    Create an MCP server with Obby-specific tools.
-
-    Returns:
-        MCP server configuration for Claude SDK
-    """
-    if not CLAUDE_SDK_AVAILABLE:
-        raise ImportError("claude-agent-sdk required")
-
-    # Create SDK MCP server with the decorated tools
-    return create_sdk_mcp_server(
-        name="obby-tools",
-        version="1.0.0",
-        tools=[get_file_history, get_recent_changes]
-    )
+# Note: Custom MCP tools have been removed in favor of using Claude's built-in tools.
+# Claude SDK comes with powerful built-in tools that can handle most operations:
+#   - Read: Read file contents
+#   - Write: Write to files
+#   - Bash: Execute shell commands (can query SQLite databases directly)
+#   - Grep: Search files
+#   - Glob: File pattern matching
+#   - Edit: Edit files
+#
+# For database queries, Claude can use the Bash tool to run sqlite3 commands directly.
+# Example: Bash("sqlite3 obby.db 'SELECT * FROM file_changes LIMIT 10'")
 
 
 # Example usage function

@@ -10,7 +10,7 @@ This module provides the core logic for:
 
 import json
 import logging
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple
 from dataclasses import dataclass
 
 from ai.ai_tooling import NotesSearchTool, ToolResult, get_default_tools
@@ -188,7 +188,12 @@ class AgentOrchestrator:
                     
         return tool_calls
 
-    def execute_chat_with_tools(self, messages: List[Dict[str, str]], max_iterations: int = 5) -> Tuple[str, List[Dict[str, Any]]]:
+    def execute_chat_with_tools(
+        self,
+        messages: List[Dict[str, str]],
+        max_iterations: int = 5,
+        on_agent_event: Optional[Callable[[str, Dict[str, Any]], None]] = None,
+    ) -> Tuple[str, List[Dict[str, Any]]]:
         """
         Execute a complete agentic loop with tool calling.
         
@@ -240,6 +245,13 @@ class AgentOrchestrator:
                 tool_calls = self.parse_tool_calls(message)
                 
                 if tool_calls:
+                    # Record intermediate assistant reasoning if present
+                    if on_agent_event and (message.content or "").strip():
+                        on_agent_event("assistant_thinking", {
+                            "content": message.content,
+                            "tool_count": len(tool_calls)
+                        })
+                    
                     # Add tool calls to the assistant message
                     assistant_message["tool_calls"] = []
                     for tc in tool_calls:
@@ -251,6 +263,12 @@ class AgentOrchestrator:
                                 "arguments": json.dumps(tc.arguments)
                             }
                         })
+                        if on_agent_event:
+                            on_agent_event("tool_call", {
+                                "tool_call_id": tc.id,
+                                "name": tc.name,
+                                "arguments": tc.arguments
+                            })
                     
                     conversation.append(assistant_message)
                     
@@ -266,23 +284,47 @@ class AgentOrchestrator:
                             "content": result.content
                         }
                         conversation.append(tool_message)
+
+                        if on_agent_event:
+                            on_agent_event("tool_result", {
+                                "tool_call_id": result.tool_call_id,
+                                "name": result.name,
+                                "content": result.content,
+                                "success": result.success,
+                                "error": result.error,
+                            })
                     
                     # Continue the loop to get AI's response to tool results
                     continue
                 else:
                     # No tool calls, we have the final response
                     conversation.append(assistant_message)
+                    if on_agent_event and (message.content or "").strip():
+                        on_agent_event("assistant_response", {
+                            "content": message.content,
+                            "tool_calls": assistant_message.get("tool_calls", [])
+                        })
                     return message.content or "No response generated.", conversation
                     
             except Exception as e:
                 logger.error(f"Chat with tools iteration {iterations} failed: {e}")
                 error_msg = f"Error in tool execution loop: {str(e)}"
                 conversation.append({"role": "assistant", "content": error_msg})
+                if on_agent_event:
+                    on_agent_event("error", {
+                        "error": error_msg,
+                        "exception_type": type(e).__name__
+                    })
                 return error_msg, conversation
         
         # Max iterations reached
         final_msg = "Maximum tool iterations reached. Please try rephrasing your request."
         conversation.append({"role": "assistant", "content": final_msg})
+        if on_agent_event:
+            on_agent_event("warning", {
+                "message": final_msg,
+                "iterations": iterations
+            })
         return final_msg, conversation
 
 
