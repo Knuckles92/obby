@@ -1,6 +1,6 @@
 """
 Ignore pattern handler for .obbyignore files.
-Supports glob patterns and basic ignore syntax similar to .gitignore.
+Supports glob patterns and basic ignore syntax for file exclusion.
 """
 
 import fnmatch

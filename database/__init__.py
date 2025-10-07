@@ -2,14 +2,9 @@
 SQLite Database Layer for Obby
 ==============================
 
-This module provides database infrastructure for migrating from file-based storage
-to SQLite, eliminating data loss, ID collisions, and performance issues.
-
-Parallel Subagent Architecture:
-- Subagent A: Schema Design & Database Infrastructure  
-- Subagent B: Data Migration & Legacy Import
-- Subagent C: API Integration & Query Optimization
+Provides database infrastructure with models, queries, and migrations
+for efficient file tracking and content analysis.
 """
 
 __version__ = "1.0.0"
-__all__ = ["models", "migration", "queries"]
+__all__ = ["models", "queries"]

@@ -22,7 +22,9 @@
       "mcp__ide__getDiagnostics",
       "Bash(mv:*)",
       "Read(//home/fiori/.claude/**)",
-      "WebSearch"
+      "WebSearch",
+      "Read(//d/Python/**)",
+      "Bash(rm:*)"
     ],
     "deny": []
   },

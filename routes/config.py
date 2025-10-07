@@ -34,7 +34,7 @@ async def get_config_root():
             'aiModel': OPENAI_MODEL,
             'watchPaths': [str(notes_folder)],
             'monitoringDirectory': str(notes_folder),
-            'ignorePatterns': ['.git/', '__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
+            'ignorePatterns': ['__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
             'periodicCheckEnabled': True,
             'aiUpdateInterval': AI_UPDATE_INTERVAL,
             'aiAutoUpdateEnabled': AI_AUTO_UPDATE_ENABLED,

@@ -24,7 +24,7 @@ from database.models import (
 logger = logging.getLogger(__name__)
 
 class FileContentTracker:
-    """Tracks file content changes without git dependencies"""
+    """Tracks file content changes using native file system monitoring"""
     
     def __init__(self, watch_paths: List[str] = None):
         """Initialize the file content tracker with watch paths"""

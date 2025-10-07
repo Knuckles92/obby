@@ -1606,6 +1606,4 @@ class AnalyticsQueries:
                 'backup_path': results.get('backup_path') if 'results' in locals() else None
             }
 
-# Duplicate EventQueries class removed - methods merged into the first EventQueries class above
-
 logger.info("File-based query engine initialized successfully")

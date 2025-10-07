@@ -101,7 +101,7 @@ class DatabaseConnection:
 db = DatabaseConnection()
 
 class FileVersionModel:
-    """File version tracking and storage without git dependency."""
+    """File version tracking and storage using native file system operations."""
     
     @classmethod
     def insert(cls, file_path: str, content_hash: str, content: str = None, 
@@ -181,7 +181,7 @@ class FileVersionModel:
         return dict(rows[0]) if rows else None
 
 class ContentDiffModel:
-    """File content difference tracking without git dependency."""
+    """File content difference tracking using native diff generation."""
     
     @classmethod
     def should_create_diff(cls, old_version_id: int = None, new_version_id: int = None,
@@ -295,7 +295,7 @@ class ContentDiffModel:
         return diff_content, lines_added, lines_removed
 
 class FileChangeModel:
-    """Simple file change tracking without git dependency."""
+    """Simple file change tracking using native file system monitoring."""
     
     @classmethod
     def insert(cls, file_path: str, change_type: str, old_content_hash: str = None,
