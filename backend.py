@@ -55,6 +55,8 @@ from routes.watch_config import watch_config_bp
 from routes.chat import chat_bp
 
 from routes.api_monitor import APIObbyMonitor
+from ai.openai_client import OpenAIClient
+from ai.batch_processor import BatchAIProcessor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -104,6 +106,19 @@ async def startup_event():
                 logger.info('Startup: Windows Proactor event loop policy already active')
         except Exception as e:
             logger.warning(f'Startup: Could not set Windows event loop policy: {e}')
+    
+    # Warm up OpenAI client in background to avoid cold start latency
+    try:
+        def _warmup():
+            try:
+                client = OpenAIClient.get_instance()
+                client.warm_up()
+                logger.info('OpenAI client warm-up finished')
+            except Exception as e:
+                logger.warning(f'OpenAI warm-up failed: {e}')
+        threading.Thread(target=_warmup, daemon=True).start()
+    except Exception as e:
+        logger.debug(f'Failed to spawn warm-up thread: {e}')
 
 # Global monitoring state
 monitor_instance = None
@@ -211,6 +226,16 @@ def initialize_monitoring():
             init_monitoring_routes(monitor_instance, monitor_thread, monitoring_active)
         except Exception as e:
             logger.debug(f"Could not init monitoring routes: {e}")
+        
+        # Start Batch AI processor scheduler (optional, controlled via config)
+        try:
+            global _batch_processor
+            _batch_processor = BatchAIProcessor(OpenAIClient.get_instance())
+            _batch_processor.start_scheduler()
+            logger.info('Batch AI scheduler started')
+        except Exception as e:
+            logger.warning(f'Failed to start Batch AI scheduler: {e}')
+        
         logger.info('File monitoring system initialized successfully')
         return True
     except Exception as e:

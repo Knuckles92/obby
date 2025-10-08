@@ -443,6 +443,10 @@ class SemanticModel:
                     file_path: str = "", version_id: int = None,
                     timestamp: datetime = None) -> int:
         """Insert semantic entry for file content analysis."""
+        # Apply migration if table constraint needs updating
+        from .migration_semantic_impact import apply_migration
+        apply_migration()
+        
         if timestamp is None:
             timestamp = datetime.now()
         

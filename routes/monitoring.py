@@ -299,151 +299,41 @@ async def trigger_manual_ai_processing(request: Request):
 
 @monitoring_bp.post('/comprehensive-summary/generate')
 async def generate_comprehensive_summary(request: Request):
-    """Generate a comprehensive summary of all changes since the last comprehensive summary"""
+    """Generate a comprehensive summary with async worker pattern"""
     try:
-        from database.models import ComprehensiveSummaryModel
-        from database.queries import FileQueries
-        from ai.openai_client import OpenAIClient
-        import time
-        from datetime import datetime
-        
-        start_time = time.time()
+        import threading
+        from routes.monitoring_comp_helper import run_comprehensive_worker
         
         # Get request data
         data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
-        force = data.get('force', False)
+        force = bool(data.get('force', False))
+        run_async = bool(data.get('async', True))
+        max_duration = float(data.get('max_duration_secs', 2.0))
         
-        logger.info("Comprehensive summary generation triggered")
+        logger.info("Comprehensive summary generation triggered (async mode)")
         
-        # Get last comprehensive summary timestamp
-        last_summary_timestamp = ComprehensiveSummaryModel.get_last_summary_timestamp()
+        # Always launch worker
+        result_box = {'result': None}
+        worker = threading.Thread(target=run_comprehensive_worker, args=(force, result_box), daemon=True)
+        worker.start()
         
-        if not last_summary_timestamp:
-            # If no previous comprehensive summary, use a week ago as fallback
-            from datetime import timedelta
-            last_summary_timestamp = datetime.now() - timedelta(days=7)
-            logger.info("No previous comprehensive summary found, using 7 days ago as start time")
-        
-        # Get ALL changes since last comprehensive summary (no limit!)
-        changes_query = """
-            SELECT cd.*, fv_new.content, fv_new.file_path, fv_new.content_hash
-            FROM content_diffs cd
-            LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
-            WHERE cd.timestamp > ?
-            ORDER BY cd.timestamp ASC
-        """
-        
-        from database.models import db
-        changes = db.execute_query(changes_query, (last_summary_timestamp,))
-        
-        if not changes and not force:
-            return {
-                'success': True,
-                'message': 'No changes found since last comprehensive summary',
-                'result': {
-                    'processed': False,
-                    'changes_count': 0,
-                    'time_range_start': last_summary_timestamp.isoformat(),
-                    'time_range_end': datetime.now().isoformat(),
-                    'reason': 'No changes to summarize'
-                }
-            }
-        
-        # Group changes by file for better processing
-        changes_by_file = {}
-        for change in changes:
-            change_dict = dict(change)
-            file_path = change_dict['file_path']
-            # Exclude internal semantic index artifact to prevent polluting summaries
-            try:
-                if str(file_path).lower().endswith('semantic_index.json'):
-                    continue
-            except Exception:
-                pass
-            if file_path not in changes_by_file:
-                changes_by_file[file_path] = []
-            changes_by_file[file_path].append(change_dict)
-        
-        # Get or create singleton AI client and ensure it's warmed up
-        logger.info("Initializing OpenAI client with warm-up...")
-        ai_client = OpenAIClient.get_instance()
-        
-        # Perform warm-up to avoid cold start issues
-        warm_up_success = ai_client.warm_up()
-        if warm_up_success:
-            logger.info("OpenAI client warmed up successfully")
-        else:
-            logger.warning("OpenAI client warm-up failed, but continuing anyway")
-        
-        # Prepare batch data for comprehensive processing
-        batch_data = {
-            'files_count': len(changes_by_file),
-            'total_changes': len(changes),
-            'time_span': _calculate_time_span(last_summary_timestamp, datetime.now()),
-            'combined_diff': _prepare_combined_diff(changes_by_file),
-            'file_summaries': _prepare_file_summaries(changes_by_file)
-        }
-        
-        # Generate comprehensive summary using the batch method
-        ai_summary = ai_client.summarize_batch_changes(batch_data)
-        
-        if not ai_summary or "Error" in ai_summary:
+        if run_async:
             return JSONResponse({
-                'success': False,
-                'message': 'Failed to generate comprehensive summary',
-                'result': {
-                    'processed': False,
-                    'changes_count': len(changes),
-                    'error': ai_summary or 'Unknown AI error'
-                }
-            }, status_code=500)
-        
-        # Parse the AI summary to extract structured data
-        summary_data = _parse_ai_summary(ai_summary)
-        
-        # Create comprehensive summary record
-        current_time = datetime.now()
-        summary_id = ComprehensiveSummaryModel.create_summary(
-            time_range_start=last_summary_timestamp,
-            time_range_end=current_time,
-            summary_content=summary_data.get('summary', ai_summary),
-            key_topics=summary_data.get('topics', []),
-            key_keywords=summary_data.get('keywords', []),
-            overall_impact=summary_data.get('impact', 'moderate'),
-            files_affected_count=len(changes_by_file),
-            changes_count=len(changes),
-            time_span=batch_data['time_span']
-        )
-        
-        processing_time = time.time() - start_time
-        
-        if summary_id:
-            logger.info(f"Comprehensive summary created with ID {summary_id}")
-            return {
+                'accepted': True,
                 'success': True,
-                'message': f'Comprehensive summary generated successfully for {len(changes)} changes across {len(changes_by_file)} files',
-                'result': {
-                    'processed': True,
-                    'summary_id': summary_id,
-                    'changes_count': len(changes),
-                    'files_count': len(changes_by_file),
-                    'time_range_start': last_summary_timestamp.isoformat(),
-                    'time_range_end': current_time.isoformat(),
-                    'processing_time': processing_time,
-                    'time_span': batch_data['time_span'],
-                    'summary_preview': summary_data.get('summary', ai_summary)[:200] + '...'
-                }
-            }
-        else:
-            return JSONResponse({
-                'success': False,
-                'message': 'Failed to save comprehensive summary',
-                'result': {
-                    'processed': False,
-                    'changes_count': len(changes),
-                    'error': 'Database save failed'
-                }
-            }, status_code=500)
+                'message': 'Comprehensive summary generation started in background'
+            }, status_code=202)
+        
+        # Synchronous path with protective ceiling
+        worker.join(timeout=max(0.0, max_duration))
+        if result_box['result'] is not None:
+            return result_box['result']
+        
+        return JSONResponse({
+            'accepted': True,
+            'success': True,
+            'message': 'Comprehensive summary generation continuing in background'
+        }, status_code=202)
         
     except Exception as e:
         logger.error(f"Comprehensive summary generation failed: {e}")
@@ -459,108 +349,6 @@ async def generate_comprehensive_summary(request: Request):
         }, status_code=500)
 
 
-def _calculate_time_span(start_time: datetime, end_time: datetime) -> str:
-    """Calculate human-readable time span between two timestamps."""
-    span = end_time - start_time
-    
-    if span.days > 0:
-        return f"{span.days} day{'s' if span.days != 1 else ''}"
-    elif span.seconds >= 3600:
-        hours = span.seconds // 3600
-        return f"{hours} hour{'s' if hours != 1 else ''}"
-    elif span.seconds >= 60:
-        minutes = span.seconds // 60
-        return f"{minutes} minute{'s' if minutes != 1 else ''}"
-    else:
-        return f"{span.seconds} second{'s' if span.seconds != 1 else ''}"
-
-
-def _prepare_combined_diff(changes_by_file: dict) -> str:
-    """Prepare a combined diff string for all file changes."""
-    diff_parts = []
-    
-    for file_path, file_changes in changes_by_file.items():
-        diff_parts.append(f"\n=== Changes in {file_path} ===")
-        
-        for change in file_changes:
-            if change.get('diff_content'):
-                timestamp = change.get('timestamp', 'unknown')
-                diff_parts.append(f"--- Change at {timestamp} ---")
-                diff_parts.append(change['diff_content'])
-        
-        diff_parts.append("")  # Add spacing between files
-    
-    combined = "\n".join(diff_parts)
-    
-    # Truncate if too long to avoid API limits
-    if len(combined) > 8000:
-        return combined[:8000] + "\n... (truncated for API limits)"
-    
-    return combined
-
-
-def _prepare_file_summaries(changes_by_file: dict) -> list:
-    """Prepare individual file summary data."""
-    file_summaries = []
-    
-    for file_path, file_changes in changes_by_file.items():
-        changes_count = len(file_changes)
-        lines_added = sum(c.get('lines_added', 0) for c in file_changes)
-        lines_removed = sum(c.get('lines_removed', 0) for c in file_changes)
-        
-        summary = f"{changes_count} change{'s' if changes_count != 1 else ''}"
-        if lines_added > 0 or lines_removed > 0:
-            summary += f" (+{lines_added}/-{lines_removed} lines)"
-        
-        file_summaries.append({
-            'file_path': file_path,
-            'summary': summary,
-            'changes_count': changes_count,
-            'lines_added': lines_added,
-            'lines_removed': lines_removed
-        })
-    
-    return file_summaries
-
-
-def _parse_ai_summary(ai_summary: str) -> dict:
-    """Parse structured AI summary response into components."""
-    import re
-    
-    parsed = {
-        'summary': ai_summary,
-        'topics': [],
-        'keywords': [],
-        'impact': 'moderate'
-    }
-    
-    # Try to extract structured sections
-    lines = ai_summary.split('\n')
-    
-    for line in lines:
-        line = line.strip()
-        
-        # Extract topics
-        if line.startswith('**Key Topics**:'):
-            topics_text = line.replace('**Key Topics**:', '').strip()
-            parsed['topics'] = [t.strip() for t in topics_text.split(',') if t.strip()]
-        
-        # Extract keywords  
-        elif line.startswith('**Key Keywords**:'):
-            keywords_text = line.replace('**Key Keywords**:', '').strip()
-            parsed['keywords'] = [k.strip() for k in keywords_text.split(',') if k.strip()]
-        
-        # Extract impact
-        elif line.startswith('**Overall Impact**:'):
-            impact_text = line.replace('**Overall Impact**:', '').strip().lower()
-            if impact_text in ['brief', 'moderate', 'significant']:
-                parsed['impact'] = impact_text
-        
-        # Extract main summary
-        elif line.startswith('**Batch Summary**:'):
-            parsed['summary'] = line.replace('**Batch Summary**:', '').strip()
-    
-    return parsed
 
 
 @monitoring_bp.get('/comprehensive-summary/list')
@@ -629,6 +417,17 @@ async def delete_comprehensive_summary(summary_id: int):
         
     except Exception as e:
         logger.error(f"Failed to delete comprehensive summary {summary_id}: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@monitoring_bp.get('/comprehensive-summary/status')
+async def get_comprehensive_status():
+    """Get comprehensive summary generation status (for polling)"""
+    try:
+        from routes.monitoring_comp_helper import get_comprehensive_status
+        return get_comprehensive_status()
+    except Exception as e:
+        logger.error(f"Failed to get comprehensive status: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 

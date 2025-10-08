@@ -100,13 +100,13 @@ export interface LivingNoteUpdateResponse {
 /**
  * Trigger Living Note update (for hybrid summary system)
  */
-export const triggerLivingNoteUpdate = async (force: boolean = true): Promise<LivingNoteUpdateResponse> => {
-  return apiRequest<LivingNoteUpdateResponse>('/api/living-note/update', {
+export const triggerLivingNoteUpdate = async (force: boolean = true): Promise<any> => {
+  return apiRequest<any>('/api/living-note/update', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ force })
+    body: JSON.stringify({ force, async: true, lock_timeout: 0.2, max_duration_secs: 2 })
   })
 }
 
@@ -167,14 +167,21 @@ export interface ComprehensiveSummariesResponse {
 /**
  * Generate comprehensive summary covering everything since last summary
  */
-export const triggerComprehensiveSummaryGeneration = async (force: boolean = true): Promise<ComprehensiveSummaryGenerationResponse> => {
-  return apiRequest<ComprehensiveSummaryGenerationResponse>('/api/monitor/comprehensive-summary/generate', {
+export const triggerComprehensiveSummaryGeneration = async (force: boolean = true): Promise<any> => {
+  return apiRequest<any>('/api/monitor/comprehensive-summary/generate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ force })
+    body: JSON.stringify({ force, async: true, max_duration_secs: 2 })
   })
+}
+
+/**
+ * Get comprehensive summary generation status
+ */
+export const getComprehensiveSummaryStatus = async (): Promise<{running: boolean, last: any}> => {
+  return apiRequest<{running: boolean, last: any}>('/api/monitor/comprehensive-summary/status')
 }
 
 /**
