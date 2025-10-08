@@ -45,7 +45,9 @@ class ObbyMonitor:
             logger.warning(f"[MONITOR] AI client initialization failed: {e}")
             logger.info("[MONITOR] Monitor will run without AI processing")
         
-        # Initialize batch AI processor
+        # Initialize batch AI processor (NOT STARTED - future feature)
+        # The batch processor provides scheduled batch processing of accumulated file changes
+        # To enable: call self.batch_processor.start_scheduler() after monitor.start()
         try:
             self.batch_processor = BatchAIProcessor()
         except Exception as e:

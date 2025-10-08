@@ -571,59 +571,6 @@ class OpenAIClient:
         except Exception:
             return "Minor Updates"
 
-    def summarize_events(self, events_text, settings=None):
-        """
-        Summarize recent events for the living note.
-
-        Args:
-            events_text: Formatted text describing recent events
-            settings: Optional living note settings for customization
-
-        Returns:
-            str: AI-generated summary of events
-        """
-        try:
-            # Ensure client is warmed up
-            if not OpenAIClient._warmed_up:
-                self.warm_up()
-                
-            # Load settings if not provided
-            if settings is None:
-                settings = self._load_living_note_settings()
-
-            # Build customized system prompt
-            system_prompt = self._build_system_prompt(settings, "events")
-
-            # Adjust max tokens based on summary length setting
-            max_completion_tokens_map = {
-                'brief': 200,
-                'moderate': 400,
-                'detailed': 800
-            }
-            max_completion_tokens = max_completion_tokens_map.get(settings.get('summaryLength', 'moderate'), 400)
-
-            response = self._retry_with_backoff(
-                self._invoke_model,
-                model=self.model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": system_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": f"Please summarize the following recent events:\n\n{events_text}"
-                    }
-                ],
-                max_completion_tokens=max_completion_tokens,
-                temperature=self._get_temperature(cfg.OPENAI_TEMPERATURES.get("events_summary", 0.3))
-            )
-
-            return response.choices[0].message.content.strip()
-
-        except Exception as e:
-            return f"Error summarizing events: {str(e)}"
-
     def generate_sources_section(self, files: list, context_snippet: str = "") -> str:
         """Generate a markdown Sources section listing files used with 1-line rationales.
 
@@ -732,7 +679,13 @@ class OpenAIClient:
             return self._get_fallback_format_config()
 
     def _parse_format_config(self, content):
-        """Parse format.md content into structured configuration."""
+        """Parse format.md content into structured configuration.
+        
+        NOTE: The current config/format.md file doesn't contain the specific sections
+        this parser looks for (e.g., "## Living Note Session Template", style variations).
+        As a result, it always falls back to hardcoded templates. The regex parsing here
+        is legacy code that could be simplified in the future.
+        """
         # Start with fallback config as base to ensure we always have working templates
         fallback = self._get_fallback_format_config()
         config = {
@@ -875,7 +828,7 @@ IMPORTANT:
             }
         }
 
-    def _build_system_prompt(self, settings, content_type="diff", update_type=None):
+    def _build_system_prompt(self, settings, content_type="diff"):
         """Build a customized system prompt based on user settings and format configuration."""
         writing_style = settings.get('writingStyle', 'technical')
         summary_length = settings.get('summaryLength', 'moderate')
@@ -916,11 +869,6 @@ IMPORTANT:
         metrics_instruction = ''
         if include_metrics:
             metrics_instruction = 'Include relevant metrics and quantitative information where applicable.'
-
-        # Apply manual update modifications if specified
-        if update_type and update_type in format_config.get('manual_prompts', {}):
-            manual_instruction = format_config['manual_prompts'][update_type]
-            base_prompt = f"{base_prompt}\n\nManual Update Context: {manual_instruction}"
 
         # Substitute placeholders in the base prompt
         prompt = base_prompt.format(
@@ -998,7 +946,7 @@ IMPORTANT:
         except Exception as e:
             return f"Error generating tree change summary: {str(e)}"
 
-    def update_living_note(self, living_note_path, summary, change_type="content", settings=None, update_type=None):
+    def update_living_note(self, living_note_path, summary, change_type="content", settings=None):
         """
         Update the living note with the AI summary using structured format.
 
@@ -1007,17 +955,12 @@ IMPORTANT:
             summary: AI-generated summary to add
             change_type: Type of change ("content" or "tree")
             settings: Optional living note settings for customization
-            update_type: Optional update type for manual updates ("quick", "full", "smart")
         """
         living_note_path = Path(living_note_path)
 
         # Load settings if not provided
         if settings is None:
             settings = self._load_living_note_settings()
-
-        # Handle different update types with enhanced processing
-        if update_type:
-            return self._handle_enhanced_update(living_note_path, summary, change_type, settings, update_type)
 
         # Create living note if it doesn't exist
         if not living_note_path.exists():
@@ -1036,7 +979,7 @@ IMPORTANT:
             existing_content = living_note_path.read_text(encoding='utf-8')
 
         # Always create new entry with simple format (no session management needed)
-        self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings, update_type)
+        self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings)
 
         # Extract semantic metadata and create searchable index entry
         try:
@@ -1063,13 +1006,13 @@ IMPORTANT:
         # Return success status
         return True
 
-    def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None, update_type=None):
+    def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None):
         """Create a new session entry in the structured format."""
 
         # Generate initial insights
         if settings is None:
             settings = self._load_living_note_settings()
-        insights = self._generate_session_insights([summary], [change_type], is_new_session=True, settings=settings, update_type=update_type)
+        insights = self._generate_session_insights([summary], [change_type], is_new_session=True, settings=settings)
 
         # Load format configuration for session template
         format_config = self._load_format_config()
@@ -1125,7 +1068,7 @@ IMPORTANT:
         import time
         time.sleep(0.1)
 
-    def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line, settings=None, update_type=None):
+    def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line, settings=None):
         """Add to an existing session in the structured format."""
         from datetime import datetime
 
@@ -1172,7 +1115,7 @@ IMPORTANT:
             all_change_types = existing_change_types + [change_type]
             if settings is None:
                 settings = self._load_living_note_settings()
-            new_insights = self._generate_session_insights(all_summaries, all_change_types, is_new_session=False, settings=settings, update_type=update_type)
+            new_insights = self._generate_session_insights(all_summaries, all_change_types, is_new_session=False, settings=settings)
 
             # Replace insights section
             if insights_line != -1:
@@ -1195,7 +1138,7 @@ IMPORTANT:
         import time
         time.sleep(0.1)
 
-    def _generate_session_insights(self, summaries, change_types, is_new_session=True, settings=None, update_type=None):
+    def _generate_session_insights(self, summaries, change_types, is_new_session=True, settings=None):
         """Generate intelligent insights based on session patterns and changes."""
         try:
             # Ensure client is warmed up
@@ -1215,7 +1158,7 @@ IMPORTANT:
             changes_text = "\n".join([f"- {summary}" for summary in summaries])
 
             # Build system prompt using format configuration
-            system_prompt = self._build_system_prompt(settings, "insights", update_type)
+            system_prompt = self._build_system_prompt(settings, "insights")
 
             # Apply variable substitution to the prompt
             user_prompt = system_prompt.format(
@@ -1247,103 +1190,6 @@ IMPORTANT:
                 return "- Active development session in progress\n- Monitoring file changes and updates"
             else:
                 return f"- Development session with {len(summaries)} changes\n- Mix of content and structural modifications\n- Iterative development pattern observed"
-
-    def _handle_enhanced_update(self, living_note_path, summary, change_type, settings, update_type):
-        """Handle enhanced update types with specialized processing."""
-
-        living_note_path = Path(living_note_path)
-
-        # Create living note if it doesn't exist
-        if not living_note_path.exists():
-            living_note_path.parent.mkdir(exist_ok=True)
-            today = datetime.now().strftime("%Y-%m-%d")
-            initial_content = f"# Living Note - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
-            living_note_path.write_text(initial_content, encoding='utf-8')
-
-        # Read existing content
-        existing_content = ""
-        if living_note_path.exists() and living_note_path.stat().st_size > 0:
-            existing_content = living_note_path.read_text(encoding='utf-8')
-
-        now = datetime.now()
-        date_str = now.strftime("%Y-%m-%d")
-        time_str = now.strftime("%I:%M %p")
-
-        if update_type == "quick":
-            return self._handle_quick_update(living_note_path, summary, settings, date_str, time_str, existing_content)
-        elif update_type == "full":
-            return self._handle_full_regeneration(living_note_path, summary, settings, date_str, time_str, existing_content)
-        elif update_type == "smart":
-            return self._handle_smart_refresh(living_note_path, summary, settings, date_str, time_str, existing_content)
-
-        # Fallback to regular processing
-        return self._handle_regular_update(living_note_path, summary, change_type, settings, date_str, time_str, existing_content)
-
-    def _handle_quick_update(self, living_note_path, summary, settings, date_str, time_str, existing_content):
-        """Handle quick update focusing on recent changes."""
-        # Generate a quick summary focusing on immediate context
-        enhanced_summary = f"Quick Update: {summary} - Recent development activity focused on immediate progress"
-
-        # Use regular session creation/updating but with enhanced context
-        return self._process_enhanced_session(living_note_path, enhanced_summary, "manual", settings, date_str, time_str, existing_content, "quick")
-
-    def _handle_full_regeneration(self, living_note_path, summary, settings, date_str, time_str, existing_content):
-        """Handle full regeneration of the current session."""
-        # Create comprehensive summary
-        enhanced_summary = f"Full Session Regeneration: {summary} - Comprehensive analysis of today's complete development session"
-
-        # Use enhanced session processing
-        return self._process_enhanced_session(living_note_path, enhanced_summary, "manual", settings, date_str, time_str, existing_content, "full")
-
-    def _handle_smart_refresh(self, living_note_path, summary, settings, date_str, time_str, existing_content):
-        """Handle smart refresh with content gap analysis."""
-        # Analyze existing content to identify gaps
-        enhanced_summary = f"Smart Refresh: {summary} - Intelligent content analysis and gap identification"
-
-        # Use enhanced session processing
-        return self._process_enhanced_session(living_note_path, enhanced_summary, "manual", settings, date_str, time_str, existing_content, "smart")
-
-    def _handle_regular_update(self, living_note_path, summary, change_type, settings, date_str, time_str, existing_content):
-        """Handle regular update processing (fallback)."""
-        return self._process_enhanced_session(living_note_path, summary, change_type, settings, date_str, time_str, existing_content, None)
-
-    def _process_enhanced_session(self, living_note_path, summary, change_type, settings, date_str, time_str, existing_content, update_type):
-        """Process session with enhanced context based on update type."""
-        lines = existing_content.split('\n')
-        session_exists = False
-        session_start_line = -1
-
-        # Look for today's session
-        for i, line in enumerate(lines):
-            if line.strip().startswith(f"# Living Note - {date_str}"):
-                session_exists = True
-                session_start_line = i
-                break
-
-        if session_exists:
-            # Add to existing session with enhanced processing
-            self._add_to_existing_session(living_note_path, summary, change_type, lines, session_start_line, settings, update_type)
-        else:
-            # Create new session with enhanced processing
-            self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings, update_type)
-
-        # Enhanced semantic metadata extraction
-        try:
-            metadata = self.extract_semantic_metadata(summary)
-            if metadata:
-                # Enhanced metadata with update type context
-                metadata['update_type'] = update_type
-                metadata['timestamp'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-                # Store enhanced metadata (would integrate with database)
-                logging.info(f"Enhanced semantic metadata extracted with update type: {update_type}")
-        except Exception as e:
-            logging.warning(f"Failed to create enhanced semantic index entry: {e}")
-
-        logging.info(f"Living note updated with enhanced {update_type} processing: {living_note_path}")
-
-        # Return success status
-        return True
 
     def extract_semantic_metadata(self, summary_text):
         """

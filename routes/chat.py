@@ -262,57 +262,6 @@ async def chat_with_history(request: Request):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-async def _chat_with_openai_simple(messages: List[Dict], data: Dict) -> Dict:
-    """Simple chat with OpenAI (no tools)."""
-    # Normalize messages
-    normalized = []
-    for m in messages:
-        role = (m.get('role') or '').strip()
-        content = (m.get('content') or '').strip()
-        
-        if role not in ('system', 'user', 'assistant'):
-            return JSONResponse({'error': f'invalid role: {role}'}, status_code=400)
-        if not content:
-            return JSONResponse({'error': 'message content cannot be empty'}, status_code=400)
-        
-        normalized.append({'role': role, 'content': content})
-    
-    temperature = float(data.get('temperature') or cfg.OPENAI_TEMPERATURES.get('chat', 0.7))
-    
-    client = OpenAIClient.get_instance()
-    if not client.is_available():
-        return JSONResponse({'error': 'OpenAI client not configured; set OPENAI_API_KEY'}, status_code=400)
-    
-    if not getattr(OpenAIClient, '_warmed_up', False):
-        try:
-            client.warm_up()
-        except Exception:
-            pass
-    
-    try:
-        resp = client._retry_with_backoff(
-            client._invoke_model,
-            model=client.model,
-            messages=normalized,
-            max_completion_tokens=cfg.OPENAI_TOKEN_LIMITS.get('chat', 2000),
-            temperature=client._get_temperature(temperature),
-        )
-        reply = resp.choices[0].message.content.strip()
-        finish_reason = getattr(resp.choices[0], 'finish_reason', None)
-        
-        return {
-            'reply': reply,
-            'model': client.model,
-            'finish_reason': finish_reason,
-            'tools_used': False,
-            'provider_used': 'openai',
-            'backend': 'openai'
-        }
-    except Exception as api_err:
-        logger.error(f"OpenAI simple chat error: {api_err}")
-        return JSONResponse({'error': f'Chat failed: {str(api_err)}'}, status_code=500)
-
-
 async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: str = None) -> Dict:
     """Tool-based chat with OpenAI + AgentOrchestrator (fallback)."""
     # Normalize messages with tool support

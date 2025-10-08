@@ -380,7 +380,6 @@ class LivingNoteService:
                     summary_block,
                     change_type="content",
                     settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
-                    update_type=None,
                 )
                 logger.info(f"Living note: file update success={success}")
             except Exception as e:
