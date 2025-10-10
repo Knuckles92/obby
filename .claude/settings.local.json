@@ -24,7 +24,9 @@
       "Read(//home/fiori/.claude/**)",
       "WebSearch",
       "Read(//d/Python/**)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Read(//d/Python Projects/whisper_local/**)",
+      "Read(//d/**)"
     ],
     "deny": []
   },

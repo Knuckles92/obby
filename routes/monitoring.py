@@ -375,28 +375,39 @@ async def get_comprehensive_summaries(request: Request):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
+@monitoring_bp.get('/comprehensive-summary/status')
+async def get_comprehensive_status():
+    """Get comprehensive summary generation status (for polling)"""
+    try:
+        from routes.monitoring_comp_helper import get_comprehensive_status as get_status_data
+        return get_status_data()
+    except Exception as e:
+        logger.error(f"Failed to get comprehensive status: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
 @monitoring_bp.get('/comprehensive-summary/{summary_id}')
 async def get_comprehensive_summary(summary_id: int):
     """Get details of a specific comprehensive summary"""
     try:
         from database.models import ComprehensiveSummaryModel, db
-        
+
         query = """
             SELECT * FROM comprehensive_summaries WHERE id = ?
         """
         rows = db.execute_query(query, (summary_id,))
-        
+
         if not rows:
             return JSONResponse({'error': 'Comprehensive summary not found'}, status_code=404)
-        
+
         summary = dict(rows[0])
         # Parse JSON fields
         import json
         summary['key_topics'] = json.loads(summary['key_topics']) if summary['key_topics'] else []
         summary['key_keywords'] = json.loads(summary['key_keywords']) if summary['key_keywords'] else []
-        
+
         return summary
-        
+
     except Exception as e:
         logger.error(f"Failed to get comprehensive summary {summary_id}: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
@@ -407,27 +418,16 @@ async def delete_comprehensive_summary(summary_id: int):
     """Delete a specific comprehensive summary"""
     try:
         from database.models import ComprehensiveSummaryModel
-        
+
         success = ComprehensiveSummaryModel.delete_summary(summary_id)
-        
+
         if success:
             return {'success': True, 'message': f'Comprehensive summary {summary_id} deleted successfully'}
         else:
             return JSONResponse({'error': 'Comprehensive summary not found'}, status_code=404)
-        
+
     except Exception as e:
         logger.error(f"Failed to delete comprehensive summary {summary_id}: {e}")
-        return JSONResponse({'error': str(e)}, status_code=500)
-
-
-@monitoring_bp.get('/comprehensive-summary/status')
-async def get_comprehensive_status():
-    """Get comprehensive summary generation status (for polling)"""
-    try:
-        from routes.monitoring_comp_helper import get_comprehensive_status
-        return get_comprehensive_status()
-    except Exception as e:
-        logger.error(f"Failed to get comprehensive status: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 

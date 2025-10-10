@@ -8,7 +8,7 @@ import ConfirmationDialog from '../components/ConfirmationDialog'
 import SummaryGrid from '../components/SummaryGrid'
 import SearchFilters from '../components/SearchFilters'
 import SearchResultsPopup from '../components/SearchResultsPopup'
-import { apiFetch, triggerLivingNoteUpdate, triggerComprehensiveSummaryGeneration, getComprehensiveSummaryStatus } from '../utils/api'
+import { apiFetch, triggerComprehensiveSummaryGeneration, getComprehensiveSummaryStatus } from '../utils/api'
 import { 
   SummaryNote, 
   SummaryPaginationInfo, 
@@ -84,15 +84,10 @@ export default function SummaryNotes() {
   const [bulkDeleteLoading, setBulkDeleteLoading] = useState(false)
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false)
   
-  // Manual summary generation state
+  // Summary generation state
   const [generateLoading, setGenerateLoading] = useState(false)
   const [generateSuccess, setGenerateSuccess] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
-  
-  // Comprehensive summary generation state
-  const [compGenerateLoading, setCompGenerateLoading] = useState(false)
-  const [compGenerateSuccess, setCompGenerateSuccess] = useState<string | null>(null)
-  const [compGenerateError, setCompGenerateError] = useState<string | null>(null)
   
   // Search popup state (for single view)
   const [searchPopupOpen, setSearchPopupOpen] = useState(false)
@@ -493,65 +488,11 @@ export default function SummaryNotes() {
     }
   }
 
-  const handleManualSummaryGeneration = async () => {
+  const handleSummaryGeneration = async () => {
     try {
       setGenerateLoading(true)
       setGenerateError(null)
       setGenerateSuccess(null)
-      
-      console.log('Triggering Living Note update (async)...')
-      const result = await triggerLivingNoteUpdate(true)
-      
-      // Treat 202 Accepted or accepted:true as an in-progress success
-      const accepted = result?.accepted === true || (result?.success === true && !result?.updated)
-      if (accepted) {
-        setGenerateSuccess('Generation started… This will complete in the background.')
-        // Keep loading state briefly so the CTA shows working state
-        setTimeout(() => setGenerateLoading(false), 1500)
-        // Rely on SSE to refresh; fallback polling once after a short delay
-        setTimeout(() => {
-          if (!isConnected) {
-            fetchSummaries()
-          }
-        }, 4000)
-        setTimeout(() => setGenerateSuccess(null), 5000)
-        return
-      }
-      
-      if (result?.success) {
-        if (result.updated && result.individual_summary_created) {
-          setGenerateSuccess('Living Note updated and new summary created successfully!')
-          // Refresh the summaries list to show the new entry
-          await fetchSummaries()
-        } else if (result.updated) {
-          setGenerateSuccess('Living Note updated successfully!')
-        } else {
-          setGenerateSuccess(result.message || 'No new changes to summarize')
-        }
-        
-        // Clear success message after 5 seconds
-        setTimeout(() => setGenerateSuccess(null), 5000)
-      } else {
-        setGenerateError(result?.message || 'Failed to generate summaries')
-        // Clear error message after 8 seconds
-        setTimeout(() => setGenerateError(null), 8000)
-      }
-    } catch (error) {
-      console.error('Error generating summaries:', error)
-      setGenerateError(error instanceof Error ? error.message : 'Failed to generate summaries. Please try again.')
-      // Clear error message after 8 seconds
-      setTimeout(() => setGenerateError(null), 8000)
-    } finally {
-      setGenerateLoading(false)
-    }
-  }
-
-
-  const handleComprehensiveSummaryGeneration = async () => {
-    try {
-      setCompGenerateLoading(true)
-      setCompGenerateError(null)
-      setCompGenerateSuccess(null)
       
       console.log('Triggering comprehensive summary generation (async)...')
       const result = await triggerComprehensiveSummaryGeneration(true)
@@ -559,7 +500,7 @@ export default function SummaryNotes() {
       // Treat 202 Accepted or accepted:true as an in-progress success
       const accepted = result?.accepted === true || (result?.success === true && !result?.result?.processed)
       if (accepted) {
-        setCompGenerateSuccess('Comprehensive summary generation started… This will complete in the background.')
+        setGenerateSuccess('Summary generation started… This will complete in the background.')
         
         // Poll for status updates
         let pollCount = 0
@@ -570,28 +511,28 @@ export default function SummaryNotes() {
             
             if (!status.running && status.last) {
               clearInterval(pollInterval)
-              setCompGenerateLoading(false)
+              setGenerateLoading(false)
               
               if (status.last.success) {
-                setCompGenerateSuccess('Comprehensive summary generated successfully!')
+                setGenerateSuccess('Summary generated successfully!')
                 // Refresh summaries list
                 await fetchSummaries()
               } else {
-                setCompGenerateError(status.last.message || 'Generation failed')
+                setGenerateError(status.last.message || 'Generation failed')
               }
               
               setTimeout(() => {
-                setCompGenerateSuccess(null)
-                setCompGenerateError(null)
+                setGenerateSuccess(null)
+                setGenerateError(null)
               }, 5000)
             }
             
             pollCount++
             if (pollCount >= maxPolls) {
               clearInterval(pollInterval)
-              setCompGenerateLoading(false)
-              setCompGenerateSuccess('Generation is taking longer than expected. Check back soon.')
-              setTimeout(() => setCompGenerateSuccess(null), 5000)
+              setGenerateLoading(false)
+              setGenerateSuccess('Generation is taking longer than expected. Check back soon.')
+              setTimeout(() => setGenerateSuccess(null), 5000)
             }
           } catch (error) {
             console.error('Error polling comprehensive status:', error)
@@ -602,19 +543,19 @@ export default function SummaryNotes() {
       }
       
       if (result?.success && result?.result?.processed) {
-        setCompGenerateSuccess('Comprehensive summary generated successfully!')
+        setGenerateSuccess('Summary generated successfully!')
         await fetchSummaries()
-        setTimeout(() => setCompGenerateSuccess(null), 5000)
+        setTimeout(() => setGenerateSuccess(null), 5000)
       } else {
-        setCompGenerateError(result?.message || 'Failed to generate comprehensive summary')
-        setTimeout(() => setCompGenerateError(null), 8000)
+        setGenerateError(result?.message || 'Failed to generate summary')
+        setTimeout(() => setGenerateError(null), 8000)
       }
     } catch (error) {
-      console.error('Error generating comprehensive summary:', error)
-      setCompGenerateError(error instanceof Error ? error.message : 'Failed to generate comprehensive summary. Please try again.')
-      setTimeout(() => setCompGenerateError(null), 8000)
+      console.error('Error generating summary:', error)
+      setGenerateError(error instanceof Error ? error.message : 'Failed to generate summary. Please try again.')
+      setTimeout(() => setGenerateError(null), 8000)
     } finally {
-      setCompGenerateLoading(false)
+      setGenerateLoading(false)
     }
   }
 
@@ -879,10 +820,10 @@ export default function SummaryNotes() {
             </button>
             
             <button
-              onClick={handleManualSummaryGeneration}
+              onClick={handleSummaryGeneration}
               disabled={generateLoading || loading}
               className="btn-primary btn-gradient flex items-center justify-center"
-              title="Generate living note summary for recent file changes"
+              title="Generate comprehensive summary of all changes since last summary"
             >
               {generateLoading ? (
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -890,21 +831,6 @@ export default function SummaryNotes() {
                 <Zap className="h-4 w-4 mr-2" />
               )}
               Generate Summary
-            </button>
-            
-            <button
-              onClick={handleComprehensiveSummaryGeneration}
-              disabled={compGenerateLoading || loading}
-              className="btn-secondary flex items-center justify-center"
-              title="Generate comprehensive summary of all changes since last summary"
-            >
-              {compGenerateLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-              ) : (
-                <FileText className="h-4 w-4 mr-2" />
-              )}
-              <span className="hidden sm:inline">Comprehensive</span>
-              <span className="sm:hidden">Comp</span>
             </button>
             
             <div className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md ${
@@ -921,7 +847,7 @@ export default function SummaryNotes() {
         </div>
       </div>
 
-      {/* Success/Error Messages for Manual Generation */}
+      {/* Success/Error Messages for Generation */}
       {generateSuccess && (
         <div className="bg-green-50 border border-green-200 rounded-md p-4">
           <div className="flex">
@@ -946,37 +872,6 @@ export default function SummaryNotes() {
             <div className="ml-3">
               <p className="text-sm font-medium text-red-800">
                 {generateError}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Success/Error Messages for Comprehensive Generation */}
-      {compGenerateSuccess && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <FileText className="h-5 w-5 text-blue-400" />
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-blue-800">
-                {compGenerateSuccess}
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {compGenerateError && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <div className="h-5 w-5 text-red-400">⚠</div>
-            </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-red-800">
-                {compGenerateError}
               </p>
             </div>
           </div>
