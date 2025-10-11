@@ -271,8 +271,10 @@ Guidelines:
             actionType = 'assistant_thinking'
           } else if (eventType === 'error') {
             actionType = 'error'
-          } else if (eventType === 'validating' || eventType === 'configuring') {
+          } else if (eventType === 'warning') {
             actionType = 'warning'
+          } else if (eventType === 'validating' || eventType === 'configuring' || eventType === 'connecting' || eventType === 'sending') {
+            actionType = 'progress'
           }
 
           let detail: string | null = null
@@ -281,12 +283,27 @@ Guidelines:
             if (toolLabel) {
               detail = `Tool: ${String(toolLabel)}`
             }
+            // Add provider info if available
+            if (extras.provider) {
+              detail = (detail ? detail + '\n' : '') + `Provider: ${extras.provider}`
+            }
           } else if (actionType === 'tool_result') {
+            const resultDetails: string[] = []
             if (typeof extras.success === 'boolean') {
-              detail = `Success: ${extras.success ? 'true' : 'false'}`
+              resultDetails.push(`Success: ${extras.success ? 'Yes' : 'No'}`)
+            }
+            if (extras.tool_name) {
+              resultDetails.push(`Tool: ${extras.tool_name}`)
+            }
+            if (resultDetails.length > 0) {
+              detail = resultDetails.join('\n')
             }
           } else if ((actionType === 'error' || actionType === 'warning') && Object.keys(extras).length > 0) {
-            detail = JSON.stringify(extras, null, 2)
+            // Only show extras if they have meaningful content
+            const meaningfulKeys = Object.keys(extras).filter(k => extras[k] && k !== 'type')
+            if (meaningfulKeys.length > 0) {
+              detail = JSON.stringify(extras, null, 2)
+            }
           }
 
           const label = data.message || eventType
@@ -336,7 +353,11 @@ Guidelines:
 
     const sessionId = `chat-${Date.now()}-${Math.random().toString(36).substring(7)}`
     setCurrentSessionId(sessionId)
-    recordAgentAction('progress', 'Started new request', null, sessionId)
+
+    // Show preview of the query being sent
+    const queryPreview = content.length > 80 ? content.slice(0, 80) + '...' : content
+    recordAgentAction('progress', `Sending: "${queryPreview}"`, `Provider: ${provider}`, sessionId)
+
     setProgressMessage(null)
     setProgressType(null)
     connectToProgressSSE(sessionId)

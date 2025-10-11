@@ -210,14 +210,15 @@ async def chat_with_history(request: Request):
         if not session_id:
             session_id = str(uuid.uuid4())
         
-        # Send initial progress update with more context
-        user_msg_preview = next((m['content'][:60] + '...' if len(m['content']) > 60 else m['content'] 
+        # Send initial progress update with query preview
+        user_msg_preview = next((m['content'][:80] + '...' if len(m['content']) > 80 else m['content']
                                 for m in reversed(messages) if m['role'] == 'user'), '')
-        notify_chat_progress(session_id, 'started', 
-            f'Processing query with {provider.upper()}: "{user_msg_preview}"', {
-            'provider': provider,
-            'message_count': len(messages)
-        })
+        if user_msg_preview:
+            notify_chat_progress(session_id, 'started',
+                f'Query: "{user_msg_preview}"', {
+                'provider': provider,
+                'message_count': len(messages)
+            })
 
         # Route based on provider selection
         if provider == 'claude':
@@ -325,11 +326,21 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: 
                 # Capture intermediate assistant messages that introduce tool calls
                 content = payload.get("content", "")
                 if content.strip():
-                    action["label"] = "Agent reasoning"
-                    action["detail"] = content[:500]  # Truncate long messages
+                    # Extract meaningful preview from content
+                    preview = content.strip()[:120]
+                    if len(content.strip()) > 120:
+                        preview += "..."
+
                     tool_count = payload.get("tool_count", 0)
                     if tool_count:
-                        action["label"] = f"Agent planning ({tool_count} tool{'s' if tool_count > 1 else ''})"
+                        action["label"] = f"Planning to use {tool_count} tool{'s' if tool_count > 1 else ''}"
+                        action["detail"] = preview
+                    else:
+                        action["label"] = f"Analyzing: {preview}"
+                        action["detail"] = content[:500] if len(content) > 120 else None
+
+                    if session_id:
+                        notify_chat_progress(session_id, 'assistant_thinking', action["label"])
                 else:
                     # Empty reasoning, skip it
                     return
@@ -337,27 +348,27 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: 
             elif event_type == "tool_call":
                 tool_name = payload.get("name", "tool")
                 arguments = payload.get("arguments")
-                
+
                 # Create descriptive label based on tool and arguments
                 if tool_name == "notes_search" and isinstance(arguments, dict):
                     query = arguments.get("query", "")
                     max_matches = arguments.get("max_matches")
                     if query:
-                        label = f"Searching notes for: '{query[:50]}{'...' if len(query) > 50 else ''}'"
+                        label = f"Searching: '{query[:60]}{'...' if len(query) > 60 else ''}'"
                         if max_matches:
-                            label += f" (limit: {max_matches})"
+                            label += f" (max {max_matches} results)"
                         action["label"] = label
                     else:
-                        action["label"] = f"Calling {tool_name}"
+                        action["label"] = f"Searching notes"
                 else:
-                    action["label"] = f"Calling {tool_name}"
-                
+                    action["label"] = f"Using {tool_name}"
+
                 # Include full arguments in detail
                 if isinstance(arguments, dict):
                     action["detail"] = json.dumps(arguments, indent=2)
                 elif isinstance(arguments, str) and arguments:
                     action["detail"] = arguments
-                    
+
                 action["tool_call_id"] = payload.get("tool_call_id")
                 if session_id:
                     notify_chat_progress(session_id, 'tool_use', action["label"], {
@@ -414,19 +425,29 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: 
                     })
 
             elif event_type == "error":
-                action["label"] = "Agent error"
-                action["detail"] = payload.get("error") or payload.get("message")
-                action["error_type"] = payload.get("exception_type")
+                error_msg = payload.get("error") or payload.get("message") or "Unknown error"
+                error_type = payload.get("exception_type")
+
+                # Create more descriptive error label
+                if error_type:
+                    action["label"] = f"Error: {error_type}"
+                else:
+                    action["label"] = f"Error: {error_msg[:60]}{'...' if len(error_msg) > 60 else ''}"
+
+                action["detail"] = error_msg
+                action["error_type"] = error_type
+
                 if session_id:
-                    notify_chat_progress(session_id, 'error', action["detail"] or "Agent error", {
-                        'error_type': payload.get("exception_type")
+                    notify_chat_progress(session_id, 'error', action["label"], {
+                        'error_type': error_type
                     })
 
             elif event_type == "warning":
-                action["label"] = payload.get("message", "Agent warning")
+                warning_msg = payload.get("message", "Agent warning")
+                action["label"] = warning_msg[:80] + "..." if len(warning_msg) > 80 else warning_msg
                 action["detail"] = json.dumps(payload) if payload else None
                 if session_id:
-                    notify_chat_progress(session_id, 'processing', action["label"], payload)
+                    notify_chat_progress(session_id, 'warning', action["label"], payload)
 
             # Avoid adding empty labels
             if action.get("label"):
@@ -592,17 +613,22 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                 message_type = message.__class__.__name__
                 logger.info(f"📨 Received message #{message_count}: {message_type}")
 
-                # Send progress update for each message received
-                if session_id:
-                    notify_chat_progress(session_id, 'receiving', f'Received message #{message_count}: {message_type}')
-
                 if message_type == "AssistantMessage":
                     # Extract text from message content
                     if hasattr(message, 'content'):
+                        # First, check for text blocks to show assistant thinking
+                        text_blocks = [block for block in message.content if hasattr(block, 'text')]
+                        if text_blocks and session_id:
+                            # Show preview of assistant's message
+                            first_text = text_blocks[0].text.strip()
+                            preview = first_text[:80] + "..." if len(first_text) > 80 else first_text
+                            if preview:
+                                notify_chat_progress(session_id, 'assistant_thinking', f'Claude: {preview}')
+
                         for idx, block in enumerate(message.content):
                             block_type = block.__class__.__name__
                             logger.info(f"   Block {idx}: {block_type}")
-                            
+
                             # Handle tool use blocks
                             if block_type == "ToolUseBlock" and hasattr(block, 'name'):
                                 tool_name = block.name
@@ -654,10 +680,6 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                                 text_preview = block.text[:100] + "..." if len(block.text) > 100 else block.text
                                 logger.info(f"   Text: {text_preview}")
                                 response_parts.append(block.text)
-                                
-                                # Send progress update for text blocks
-                                if session_id:
-                                    notify_chat_progress(session_id, 'generating', f'Generating response... ({len(response_parts)} blocks so far)')
                     else:
                         logger.warning(f"   ⚠️  AssistantMessage has no content attribute")
                 
@@ -697,9 +719,14 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                 
                 else:
                     logger.info(f"   ℹ️  Other message type: {message_type}")
-                    # Send progress update for other message types
+                    # Send progress update for other message types with more context
                     if session_id:
-                        notify_chat_progress(session_id, 'processing', f'Processing: {message_type}')
+                        if message_type == "SystemMessage":
+                            notify_chat_progress(session_id, 'processing', 'Processing system context and instructions')
+                        elif message_type == "UserMessage":
+                            notify_chat_progress(session_id, 'processing', 'Processing user query')
+                        else:
+                            notify_chat_progress(session_id, 'processing', f'Processing: {message_type}')
 
         reply = "\n".join(response_parts) if response_parts else "No response generated"
         elapsed = time.time() - start_time
