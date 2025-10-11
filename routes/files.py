@@ -257,7 +257,7 @@ async def clear_file_data():
 
 @files_bp.post('/clear-unwatched')
 async def clear_unwatched_file_diffs():
-    """Clear file diffs for files no longer being watched"""
+    """Clear file diffs for files no longer being watched - STRICT MODE: removes all unwatched file data"""
     try:
         # Initialize watch handler
         from utils.watch_handler import WatchHandler
@@ -265,11 +265,19 @@ async def clear_unwatched_file_diffs():
         root_folder = Path(__file__).parent.parent
         watch_handler = WatchHandler(root_folder)
         
+        # AUDIT: Log unwatched files before clearing
+        logger.warning("=" * 60)
+        logger.warning("CLEARING UNWATCHED FILE DATA - AUDIT LOG")
+        logger.warning("=" * 60)
+        
         # Clear unwatched diffs
         clear_result = FileQueries.clear_unwatched_file_diffs(watch_handler)
         
         if clear_result['success']:
-            logger.info(f"Cleared unwatched file diffs successfully")
+            logger.warning(f"✓ Cleared {clear_result.get('content_diffs_cleared', 0)} unwatched file diffs")
+            logger.warning(f"✓ Removed {clear_result.get('unwatched_files_removed', 0)} unwatched file references")
+            logger.warning("=" * 60)
+            
             return {
                 'message': 'Unwatched file diffs cleared successfully',
                 'clearedRecords': {
@@ -308,10 +316,20 @@ async def clear_semantic_data():
 
 @files_bp.post('/clear-missing')
 async def clear_missing_file_diffs():
-    """Clear content diffs (and related change rows) for files that no longer exist on disk."""
+    """Clear content diffs (and related change rows) for files that no longer exist on disk - STRICT MODE."""
     try:
+        # AUDIT: Log before clearing
+        logger.warning("=" * 60)
+        logger.warning("CLEARING MISSING FILE DATA - AUDIT LOG")
+        logger.warning("=" * 60)
+        
         clear_result = FileQueries.clear_nonexistent_file_diffs()
         if clear_result.get('success'):
+            logger.warning(f"✓ Cleared {clear_result.get('content_diffs_cleared', 0)} diffs for non-existent files")
+            logger.warning(f"✓ Cleared {clear_result.get('file_changes_cleared', 0)} file changes")
+            logger.warning(f"✓ Affected {clear_result.get('files_affected', 0)} files")
+            logger.warning("=" * 60)
+            
             return {
                 'message': 'Cleared diffs for non-existent files',
                 'clearedRecords': {
@@ -380,15 +398,22 @@ async def get_file_tree():
 
 @files_bp.get('/watched')
 async def get_watched_files():
-    """Get detailed information about watched files"""
+    """Get detailed information about watched files - STRICT MODE: only returns files matching .obbywatch patterns"""
     try:
         from config.settings import get_configured_notes_folder
         from routes.monitoring import monitoring_active
+        from utils.watch_handler import WatchHandler
+        from utils.ignore_handler import IgnoreHandler
+        
+        # STRICT: Initialize watch and ignore handlers
+        root_folder = Path(__file__).parent.parent
+        watch_handler = WatchHandler(root_folder)
+        notes_folder = get_configured_notes_folder()
+        ignore_handler = IgnoreHandler(root_folder, notes_folder)
         
         watched_files = []
         directories = {}
         
-        notes_folder = get_configured_notes_folder()
         if os.path.exists(notes_folder):
             root_path = Path(notes_folder)
             
@@ -396,6 +421,14 @@ async def get_watched_files():
                 if file_path.is_file():
                     # Skip hidden files and directories
                     if any(part.startswith('.') for part in file_path.parts):
+                        continue
+                    
+                    # STRICT: Check if file should be ignored
+                    if ignore_handler.should_ignore(file_path):
+                        continue
+                    
+                    # STRICT: Check if file matches watch patterns
+                    if not watch_handler.should_watch(file_path):
                         continue
                     
                     try:

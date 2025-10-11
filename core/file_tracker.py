@@ -54,9 +54,9 @@ class FileContentTracker:
                 logger.debug(f"Ignoring file change for {file_path} (matched ignore pattern)")
                 return None
             
-            # Check if file should be watched (if using watch patterns)
-            if getattr(self.watch_handler, 'watch_patterns', None) and not self.watch_handler.should_watch(Path(file_path)):
-                logger.debug(f"Ignoring file change for {file_path} (not in watch patterns)")
+            # STRICT: Always check if file should be watched
+            if not self.watch_handler.should_watch(Path(file_path)):
+                logger.debug(f"Rejecting file change for {file_path} (not in watch patterns)")
                 return None
             
             # Check if file was deleted
@@ -352,8 +352,8 @@ class FileContentTracker:
                         if self.ignore_handler.should_ignore(Path(file_path)):
                             continue
                         
-                        # Check if file should be watched (if using watch patterns)
-                        if getattr(self.watch_handler, 'watch_patterns', None) and not self.watch_handler.should_watch(Path(file_path)):
+                        # STRICT: Always check if file should be watched
+                        if not self.watch_handler.should_watch(Path(file_path)):
                             continue
                         
                         current_files.add(file_path)

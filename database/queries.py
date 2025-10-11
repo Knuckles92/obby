@@ -23,8 +23,18 @@ class FileQueries:
     
     @staticmethod
     def get_recent_diffs(limit: int = 20, offset: int = 0, file_path: str = None, watch_handler = None) -> List[Dict[str, Any]]:
-        """Get recent file diffs with pagination support - replaces git-based diff endpoints."""
+        """Get recent file diffs with pagination support - replaces git-based diff endpoints.
+        
+        STRICT MODE: Always applies watch filtering. If watch_handler is None, it will be initialized.
+        """
         try:
+            # STRICT: Always initialize watch_handler if not provided
+            if watch_handler is None:
+                from utils.watch_handler import WatchHandler
+                from pathlib import Path
+                root_folder = Path.cwd()
+                watch_handler = WatchHandler(root_folder)
+                logger.debug("Initialized watch_handler for strict filtering in get_recent_diffs")
             if file_path:
                 diffs = ContentDiffModel.get_for_file(file_path, limit=limit, offset=offset)
             else:
@@ -84,8 +94,17 @@ class FileQueries:
 
         This enables creating summaries scoped to the window since the last
         living-note update (cursor-based summarization).
+        
+        STRICT MODE: Always applies watch filtering. If watch_handler is None, it will be initialized.
         """
         try:
+            # STRICT: Always initialize watch_handler if not provided
+            if watch_handler is None:
+                from utils.watch_handler import WatchHandler
+                from pathlib import Path
+                root_folder = Path.cwd()
+                watch_handler = WatchHandler(root_folder)
+                logger.debug("Initialized watch_handler for strict filtering in get_diffs_since")
             if file_path:
                 query = """
                     SELECT cd.*, fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
@@ -164,7 +183,7 @@ class FileQueries:
             return []
     
     @staticmethod
-    def get_comprehensive_time_analysis(start_time: datetime, end_time: datetime, 
+    def get_comprehensive_time_analysis(start_time: datetime, end_time: datetime,
                                       focus_areas: List[str] = None, watch_handler = None,
                                       exclude_nonexistent: bool = True) -> Dict[str, Any]:
         """Get comprehensive analysis for a specific time range including diffs, files, and metrics.
@@ -173,11 +192,20 @@ class FileQueries:
             start_time: Range start
             end_time: Range end
             focus_areas: Optional string filters to include file paths containing any of these
-            watch_handler: Optional watch filter; if provided, only include paths it watches
+            watch_handler: Watch filter - if None, will be initialized for strict filtering
             exclude_nonexistent: If True, exclude files that no longer exist on disk to avoid
                 stale context from deleted notes.
+                
+        STRICT MODE: Always applies watch filtering. If watch_handler is None, it will be initialized.
         """
         try:
+            # STRICT: Always initialize watch_handler if not provided
+            if watch_handler is None:
+                from utils.watch_handler import WatchHandler
+                from pathlib import Path
+                root_folder = Path.cwd()
+                watch_handler = WatchHandler(root_folder)
+                logger.debug("Initialized watch_handler for strict filtering in get_comprehensive_time_analysis")
             logger.info(f"Starting comprehensive analysis for range: {start_time} to {end_time}")
             
             # 1. Get all diffs in time range
@@ -472,8 +500,18 @@ class FileQueries:
     
     @staticmethod
     def get_diffs_count(file_path: str = None, watch_handler = None) -> int:
-        """Get total count of diffs for pagination metadata."""
+        """Get total count of diffs for pagination metadata.
+        
+        STRICT MODE: Always applies watch filtering. If watch_handler is None, it will be initialized.
+        """
         try:
+            # STRICT: Always initialize watch_handler if not provided
+            if watch_handler is None:
+                from utils.watch_handler import WatchHandler
+                from pathlib import Path
+                root_folder = Path.cwd()
+                watch_handler = WatchHandler(root_folder)
+                logger.debug("Initialized watch_handler for strict filtering in get_diffs_count")
             if file_path:
                 query = "SELECT COUNT(*) as count FROM content_diffs WHERE file_path = ?"
                 params = (file_path,)
@@ -670,7 +708,7 @@ class FileQueries:
 
     @staticmethod
     def clear_unwatched_file_diffs(watch_handler) -> Dict[str, Any]:
-        """Clear file diffs that no longer match watch patterns."""
+        """Clear file diffs that no longer match watch patterns - STRICT MODE with audit logging."""
         try:
             if watch_handler is None:
                 return {'success': False, 'error': 'No watch handler provided'}
@@ -680,11 +718,19 @@ class FileQueries:
             rows = db.execute_query(query)
             
             unwatched_diff_ids = []
+            unwatched_files = set()
             for row in rows:
                 diff_id, file_path = row
                 from pathlib import Path
                 if not watch_handler.should_watch(Path(file_path)):
                     unwatched_diff_ids.append(diff_id)
+                    unwatched_files.add(file_path)
+            
+            # AUDIT: Log unwatched files being removed
+            if unwatched_files:
+                logger.warning(f"AUDIT: Removing {len(unwatched_files)} unwatched files from database:")
+                for file_path in sorted(unwatched_files):
+                    logger.warning(f"  - {file_path}")
             
             if not unwatched_diff_ids:
                 logger.info("No unwatched file diffs found to clear")

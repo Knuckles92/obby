@@ -152,11 +152,13 @@ class NoteChangeHandler(FileSystemEventHandler):
             self.ignore_handler.should_ignore(dest_path)):
             return
         
-        # Check if either source or destination should be watched based on .obbywatch patterns
+        # STRICT: Both source AND destination must be in watched paths for move tracking
+        # This prevents files from being moved OUT of watched areas and still being tracked
         src_should_watch = self.watch_handler.should_watch(src_path)
         dest_should_watch = self.watch_handler.should_watch(dest_path)
         
-        if not (src_should_watch or dest_should_watch):
+        if not (src_should_watch and dest_should_watch):
+            logging.debug(f"Ignoring move: src_watched={src_should_watch}, dest_watched={dest_should_watch}")
             return
         
         # Check if either source or destination is a markdown file
@@ -365,9 +367,11 @@ class FileWatcher:
         watch_dirs = self.handler.watch_handler.get_watch_directories()
         
         if not watch_dirs:
-            # If no watch directories specified, fall back to notes folder
-            watch_dirs = [self.notes_folder]
-            logging.warning(f"No watch directories specified in .obbywatch, watching default: {self.notes_folder}")
+            # STRICT MODE: If no watch directories specified, refuse to start
+            # This prevents accidentally watching everything when .obbywatch is misconfigured
+            logging.error("No watch directories specified in .obbywatch - file watching will not start!")
+            logging.error("Please add watch patterns to .obbywatch to enable monitoring")
+            return
         
         # Schedule watching for each directory
         for watch_dir in watch_dirs:

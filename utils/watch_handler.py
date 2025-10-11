@@ -84,8 +84,9 @@ docs/
             bool: True if the file should be watched, False otherwise
         """
         if not self.watch_patterns:
-            # If no patterns specified, watch everything
-            return True
+            # STRICT MODE: If no patterns specified, watch NOTHING (prevent tracking unwatched files)
+            logging.warning(f"No watch patterns defined in .obbywatch - file {file_path} will be ignored")
+            return False
         
         # Use utils folder (where .obbywatch lives) as base path if not specified
         if base_path is None:
