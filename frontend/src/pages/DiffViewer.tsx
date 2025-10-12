@@ -316,35 +316,17 @@ export default function DiffViewer() {
           </div>
 
           {monitoringStatus && (
-            <div className="flex items-center space-x-4">
-              <div className="hidden md:flex items-center space-x-3 text-sm">
-                <div className="flex items-center px-3 py-1 rounded-md backdrop-blur-sm border" style={{
-                  borderColor: 'rgba(255,255,255,0.25)',
-                  backgroundColor: 'rgba(255,255,255,0.12)'
-                }}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  <span>{monitoringStatus.tracked_files_count} tracked</span>
-                </div>
-                <div className="px-3 py-1 rounded-md backdrop-blur-sm border" style={{
-                  borderColor: 'rgba(255,255,255,0.25)',
-                  backgroundColor: 'rgba(255,255,255,0.12)'
-                }}>
-                  <span className="text-xs uppercase tracking-wide opacity-90">{monitoringStatus.system_type}</span>
-                </div>
-              </div>
-
-              <div className={`flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border transition-all duration-300 ${
-                monitoringStatus.monitoring_active
-                  ? 'bg-green-500/20 border-green-400/30 text-green-100'
-                  : 'bg-red-500/20 border-red-400/30 text-red-100'
-              }`}>
-                <div className={`w-2 h-2 rounded-full animate-pulse ${
-                  monitoringStatus.monitoring_active ? 'bg-green-400' : 'bg-red-400'
-                }`}></div>
-                <span className="text-sm font-medium">
-                  {monitoringStatus.monitoring_active ? 'Monitoring Active' : 'Monitoring Inactive'}
-                </span>
-              </div>
+            <div className={`flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border transition-all duration-300 ${
+              monitoringStatus.monitoring_active
+                ? 'bg-green-500/20 border-green-400/30 text-green-100'
+                : 'bg-red-500/20 border-red-400/30 text-red-100'
+            }`}>
+              <div className={`w-2 h-2 rounded-full animate-pulse ${
+                monitoringStatus.monitoring_active ? 'bg-green-400' : 'bg-red-400'
+              }`}></div>
+              <span className="text-sm font-medium">
+                {monitoringStatus.monitoring_active ? 'Monitoring Active' : 'Monitoring Inactive'}
+              </span>
             </div>
           )}
         </div>
