@@ -9,7 +9,7 @@ This analysis identifies where Claude Agent SDK can **replace**, **enhance**, or
 | Area | Action | Priority |
 |------|--------|----------|
 | **Batch Processing** | Keep OpenAI | ✅ High |
-| **Living Note Updates** | Keep OpenAI | ✅ High |
+| **Session Summary Updates** | Keep OpenAI | ✅ High |
 | **Chat with Tools** | **Replace with Claude** | 🔥 Critical |
 | **Interactive Code Review** | **Add Claude** | ⭐ Medium |
 | **File Analysis** | **Hybrid Approach** | ⭐ Medium |
@@ -52,10 +52,10 @@ if change_impact == "significant":
 
 ---
 
-### 2. **Living Note Service** (`services/living_note_service.py`)
+### 2. **Session Summary Service** (`services/session_summary_service.py`)
 
 **Current Implementation:**
-- Real-time updates to living notes
+- Real-time updates to session summaries
 - Calls `summarize_minimal()` for concise bullets
 - Calls `generate_proposed_questions()` for follow-ups
 - Calls `generate_session_title()` for headers
@@ -208,7 +208,7 @@ server = create_sdk_mcp_server(
 
 | Method | Current Use | Recommendation |
 |--------|-------------|----------------|
-| `summarize_diff()` | Batch processing, living notes | **Keep OpenAI** ✅ |
+| `summarize_diff()` | Batch processing, session summaries | **Keep OpenAI** ✅ |
 | `summarize_minimal()` | Living notes | **Keep OpenAI** ✅ |
 | `summarize_events()` | Event summaries | **Keep OpenAI** ✅ |
 | `generate_proposed_questions()` | Living notes | **Keep OpenAI** ✅ |
@@ -549,7 +549,7 @@ async def hybrid_analysis(request: Request):
 | Component | Action | Reason |
 |-----------|--------|--------|
 | **Batch Processing** | Keep OpenAI | Speed, cost, volume |
-| **Living Notes** | Keep OpenAI | Real-time, structured |
+| **Session Summarys** | Keep OpenAI | Real-time, structured |
 | **Chat System** | **Migrate to Claude** | Better UX, less code |
 | **Agent Orchestrator** | **Replace with MCP** | Simpler, standard |
 | **Deep Analysis** | **Add Claude** | New capability |

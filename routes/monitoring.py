@@ -306,10 +306,10 @@ async def trigger_manual_ai_processing(request: Request):
                     
                     # Map AI impact values to database schema values
                     impact_mapping = {
-                        'brief': 'minor',
+                        'brief': 'brief',
                         'medium': 'moderate', 
                         'major': 'significant',
-                        'minor': 'minor',
+                        'minor': 'brief',
                         'moderate': 'moderate',
                         'significant': 'significant'
                     }
@@ -323,7 +323,8 @@ async def trigger_manual_ai_processing(request: Request):
                         impact=db_impact,
                         topics=metadata.get('topics', []),
                         keywords=metadata.get('keywords', []),
-                        file_path=file_path
+                        file_path=file_path,
+                        source_type='session_summary_auto'
                     )
                     
                     if semantic_id:

@@ -80,11 +80,11 @@ class ObbyMonitor:
             # Initialize file watcher with file tracking integration
             notes_folder = get_configured_notes_folder()
             utils_folder = notes_folder.parent
-            from utils.living_note_path import resolve_living_note_path
+            from utils.session_summary_path import resolve_session_summary_path
             self.file_watcher = FileWatcher(
                 notes_folder, 
                 self.ai_client, 
-                resolve_living_note_path(), 
+                resolve_session_summary_path(), 
                 utils_folder,
                 file_tracker=self.file_tracker  # Pass file tracker to watcher
             )
@@ -281,11 +281,12 @@ class ObbyMonitor:
                 semantic_id = SemanticModel.insert_entry(
                     summary=metadata.get('summary', 'AI-generated summary'),
                     entry_type='immediate_processing',
-                    impact=metadata.get('impact', 'minor'),
+                    impact=metadata.get('impact', 'brief'),
                     topics=metadata.get('topics', []),
                     keywords=metadata.get('keywords', []),
                     file_path=file_path,
-                    version_id=version_id
+                    version_id=version_id,
+                    source_type='session_summary_auto'
                 )
                 
                 logger.info(f"✅ Created semantic entry {semantic_id} for {file_path}")

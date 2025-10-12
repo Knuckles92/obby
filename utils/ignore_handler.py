@@ -59,7 +59,7 @@ class IgnoreHandler:
 # Lines starting with # are comments
 
 # Living note file (to prevent feedback loops)
-living_note.md
+session_summary.md
 daily/
 
 # Temporary files

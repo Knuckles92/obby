@@ -441,7 +441,7 @@ class SemanticModel:
     def insert_entry(cls, summary: str, entry_type: str, impact: str, 
                     topics: List[str], keywords: List[str], 
                     file_path: str = "", version_id: int = None,
-                    timestamp: datetime = None) -> int:
+                    timestamp: datetime = None, source_type: str = 'session_summary_auto') -> int:
         """Insert semantic entry for file content analysis."""
         # Apply migration if table constraint needs updating
         from .migration_semantic_impact import apply_migration
@@ -456,8 +456,8 @@ class SemanticModel:
         # Insert main entry
         query = """
             INSERT INTO semantic_entries 
-            (timestamp, date, time, type, summary, impact, file_path, searchable_text, version_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (timestamp, date, time, type, summary, impact, file_path, searchable_text, version_id, source_type)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         params = (
             timestamp,
@@ -468,7 +468,8 @@ class SemanticModel:
             impact,
             file_path,
             searchable_text,
-            version_id
+            version_id,
+            source_type
         )
         
         db.execute_update(query, params)
@@ -493,7 +494,7 @@ class SemanticModel:
                 keyword_params
             )
         
-        logger.info(f"Created semantic entry {entry_id} for file {file_path}")
+        logger.info(f"Created semantic entry {entry_id} for file {file_path} (source_type={source_type})")
         return entry_id
     
     @classmethod

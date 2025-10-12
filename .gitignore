@@ -91,16 +91,13 @@ snapshots/*
 database/schema.sql
 .codeiumignore
 format.md
-notes/living_note.md
+notes/session_summary.md
 notes/test.md
 utils/.obbyignore
 ouput/*
 output/summaries/*
 GEMINI.md
-output/daily/Living Note - 2025-08-15.md
+output/daily/Session Summary - *.md
 obby.db.backup_20250817_124404
-output/daily/Living Note - 2025-08-17.md
-output/daily/Living Note - 2025-08-17.md
 AGENTS.md
-output/daily/Living Note - 2025-08-22.md
 obby.db.*

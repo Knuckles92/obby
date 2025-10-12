@@ -97,7 +97,7 @@ if watch_handler is None:
 ### 6. AI/Agent Queries
 
 All AI/agent features now respect watch filtering:
-- Living Note updates
+- Session Summary updates
 - Time-based queries
 - Comprehensive analysis
 - Batch processing

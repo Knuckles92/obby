@@ -93,7 +93,7 @@ class FileQueries:
         """Get content diffs strictly after a given timestamp, ordered ASC.
 
         This enables creating summaries scoped to the window since the last
-        living-note update (cursor-based summarization).
+        session-summary update (cursor-based summarization).
         
         STRICT MODE: Always applies watch filtering. If watch_handler is None, it will be initialized.
         """
@@ -1251,7 +1251,7 @@ class SemanticQueries:
 
     @staticmethod
     def search_semantic_index(query: str, limit: int = 10) -> List[Dict[str, Any]]:
-        """Search semantic index for living note summaries.
+        """Search semantic index for session summary summaries.
         
         Args:
             query: Search query string
@@ -1261,7 +1261,7 @@ class SemanticQueries:
             List of matching semantic entries
         """
         try:
-            # Search specifically in living note entries
+            # Search specifically in session summary entries
             search_query = """
                 SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
                        GROUP_CONCAT(st.topic) as topics,
@@ -1269,7 +1269,7 @@ class SemanticQueries:
                 FROM semantic_entries se
                 LEFT JOIN semantic_topics st ON se.id = st.entry_id  
                 LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                WHERE se.source_type = 'living_note'
+                WHERE se.source_type = 'session_summary'
                   AND (se.summary LIKE ? OR 
                        EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
                        EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
@@ -1532,8 +1532,8 @@ class AnalyticsQueries:
                 'semantic_keywords',
                 
                 # Living note tables
-                'living_note_sessions',
-                'living_note_entries',
+                'session_summary_sessions',
+                'session_summary_entries',
                 
                 # (Removed legacy git_* tables)
                 

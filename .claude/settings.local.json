@@ -26,7 +26,8 @@
       "Read(//d/Python/**)",
       "Bash(rm:*)",
       "Read(//d/Python Projects/whisper_local/**)",
-      "Read(//d/**)"
+      "Read(//d/**)",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   },

@@ -17,20 +17,20 @@ from database.queries import EventQueries
 class NoteChangeHandler(FileSystemEventHandler):
     """Handles file system events for note changes."""
     
-    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None, file_tracker=None):
+    def __init__(self, notes_folder, ai_client, session_summary_path, utils_folder=None, file_tracker=None):
         """
         Initialize the note change handler.
         
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
             ai_client: OpenAIClient instance for generating summaries
-            living_note_path: Path to the living note file
+            session_summary_path: Path to the session summary file
             utils_folder: Path to config folder containing .obbywatch/.obbyignore (defaults to project root)
             file_tracker: FileContentTracker instance for change tracking
         """
         self.notes_folder = Path(notes_folder)
         self.ai_client = ai_client
-        self.living_note_path = living_note_path
+        self.session_summary_path = session_summary_path
         self.file_tracker = file_tracker
         self.last_event_times = {}  # Track debounce per file
         self.debounce_delay = 0.5  # 500ms debounce to prevent duplicate events (increased to handle editor patterns)
@@ -272,11 +272,12 @@ class NoteChangeHandler(FileSystemEventHandler):
                 semantic_id = SemanticModel.insert_entry(
                     summary=metadata.get('summary', 'AI-generated summary'),
                     entry_type='immediate_processing',
-                    impact=metadata.get('impact', 'minor'),
+                    impact=metadata.get('impact', 'brief'),
                     topics=metadata.get('topics', []),
                     keywords=metadata.get('keywords', []),
                     file_path=file_path,
-                    version_id=version_id
+                    version_id=version_id,
+                    source_type='session_summary_auto'
                 )
                 
                 logging.info(f"[AI] Created semantic entry {semantic_id} for {Path(file_path).name}")
@@ -335,14 +336,14 @@ class NoteChangeHandler(FileSystemEventHandler):
 class FileWatcher:
     """Main file watcher class for managing the observer."""
     
-    def __init__(self, notes_folder, ai_client, living_note_path, utils_folder=None, file_tracker=None):
+    def __init__(self, notes_folder, ai_client, session_summary_path, utils_folder=None, file_tracker=None):
         """
         Initialize the file watcher.
         
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
             ai_client: OpenAIClient instance
-            living_note_path: Path to the living note file
+            session_summary_path: Path to the session summary file
             utils_folder: Path to the utils folder (defaults to notes_folder/utils)
             file_tracker: FileContentTracker instance for change tracking
         """
@@ -354,7 +355,7 @@ class FileWatcher:
         else:
             self.utils_folder = Path(utils_folder)
         
-        self.handler = NoteChangeHandler(notes_folder, ai_client, living_note_path, self.utils_folder, file_tracker)
+        self.handler = NoteChangeHandler(notes_folder, ai_client, session_summary_path, self.utils_folder, file_tracker)
         self.observer = Observer()
         self.is_running = False
         

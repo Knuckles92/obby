@@ -87,9 +87,9 @@ export const triggerManualSummaryGeneration = async (force: boolean = true): Pro
 }
 
 /**
- * Living Note update API response type
+ * Session Summary update API response type
  */
-export interface LivingNoteUpdateResponse {
+export interface SessionSummaryUpdateResponse {
   success: boolean
   message: string
   updated: boolean
@@ -98,10 +98,10 @@ export interface LivingNoteUpdateResponse {
 }
 
 /**
- * Trigger Living Note update (for hybrid summary system)
+ * Trigger Session Summary update (for hybrid summary system)
  */
-export const triggerLivingNoteUpdate = async (force: boolean = true): Promise<any> => {
-  return apiRequest<any>('/api/living-note/update', {
+export const triggerSessionSummaryUpdate = async (force: boolean = true): Promise<any> => {
+  return apiRequest<any>('/api/session-summary/update', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'

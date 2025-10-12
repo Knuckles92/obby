@@ -79,7 +79,7 @@ def apply_migration(db_path: str = "obby.db") -> bool:
                     file_path TEXT NOT NULL,
                     searchable_text TEXT NOT NULL,
                     markdown_file_path TEXT,
-                    source_type TEXT DEFAULT 'living_note',
+                    source_type TEXT DEFAULT 'session_summary',
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)

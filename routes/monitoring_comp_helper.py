@@ -340,21 +340,22 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                     # Create semantic entry for display in Summary Notes
                     semantic_id = SemanticModel.insert_entry(
                         summary=summary_data.get('summary', 'No summary'),
-                        entry_type='comprehensive',  # Different type to distinguish from living notes
+                        entry_type='comprehensive',  # Different type to distinguish from session summaries
                         impact=summary_data.get('impact', 'moderate'),
                         topics=summary_data.get('topics', []),
                         keywords=summary_data.get('keywords', []),
                         file_path=f"comprehensive/{len(changes_by_file)} files",  # Virtual path
                         version_id=None,
-                        timestamp=current_time
+                        timestamp=current_time,
+                        source_type='comprehensive'
                     )
 
                     # Update semantic entry with markdown path and source type
                     # Normalize path to forward slashes for cross-platform compatibility
                     markdown_path_normalized = str(markdown_path).replace('\\', '/')
                     db.execute_update(
-                        "UPDATE semantic_entries SET markdown_file_path = ?, source_type = ? WHERE id = ?",
-                        (markdown_path_normalized, 'comprehensive', semantic_id)
+                        "UPDATE semantic_entries SET markdown_file_path = ? WHERE id = ?",
+                        (markdown_path_normalized, semantic_id)
                     )
 
                     logger.info(f"Created semantic entry {semantic_id} for comprehensive summary {summary_id}")

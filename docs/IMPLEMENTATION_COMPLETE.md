@@ -302,7 +302,7 @@ ERROR: Claude tool chat failed: <error>
 - ✅ `ai/agent_orchestrator.py` - Kept as fallback
 - ✅ `ai/openai_client.py` - No changes needed
 - ✅ `ai/batch_processor.py` - Still uses OpenAI
-- ✅ `services/living_note_service.py` - Still uses OpenAI
+- ✅ `services/session_summary_service.py` - Still uses OpenAI
 
 ---
 

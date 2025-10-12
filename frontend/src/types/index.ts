@@ -104,21 +104,21 @@ export interface ConfigSettings {
   lastAiUpdateTimestamp?: string | null; // when AI was last run
 }
 
-export interface LivingNoteSection {
+export interface SessionSummarySection {
   title: string;
   content: string;
   type: string;
   metadata?: Record<string, any>;
 }
 
-export interface LivingNote {
+export interface SessionSummary {
   content: string;
   lastUpdated: string;
   wordCount: number;
-  sections?: LivingNoteSection[];
+  sections?: SessionSummarySection[];
 }
 
-export interface LivingNoteSettings {
+export interface SessionSummarySettings {
   updateFrequency: 'realtime' | 'hourly' | 'daily' | 'weekly' | 'manual';
   summaryLength: 'brief' | 'moderate' | 'detailed';
   writingStyle: 'technical' | 'casual' | 'formal' | 'bullet-points';

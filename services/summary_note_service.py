@@ -107,7 +107,7 @@ class SummaryNoteService:
                     FROM semantic_entries se
                     LEFT JOIN semantic_topics st ON se.id = st.entry_id
                     LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                    WHERE se.source_type IN ('living_note', 'comprehensive')
+                    WHERE se.source_type IN ('session_summary', 'comprehensive')
                       AND (se.summary LIKE ? OR 
                            EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
                            EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
@@ -124,7 +124,7 @@ class SummaryNoteService:
                     FROM semantic_entries se
                     LEFT JOIN semantic_topics st ON se.id = st.entry_id
                     LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                    WHERE se.source_type IN ('living_note', 'comprehensive')
+                    WHERE se.source_type IN ('session_summary', 'comprehensive')
                       AND (se.summary LIKE ? OR 
                            EXISTS (SELECT 1 FROM semantic_topics st2 WHERE st2.entry_id = se.id AND st2.topic LIKE ?) OR
                            EXISTS (SELECT 1 FROM semantic_keywords sk2 WHERE sk2.entry_id = se.id AND sk2.keyword LIKE ?))
@@ -139,7 +139,7 @@ class SummaryNoteService:
                     FROM semantic_entries se
                     LEFT JOIN semantic_topics st ON se.id = st.entry_id
                     LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                    WHERE se.source_type IN ('living_note', 'comprehensive')
+                    WHERE se.source_type IN ('session_summary', 'comprehensive')
                     GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
                     ORDER BY se.timestamp DESC
                     LIMIT ? OFFSET ?
@@ -147,7 +147,7 @@ class SummaryNoteService:
                 query_params = (page_size, offset)
                 
                 # Standard count query
-                count_query = "SELECT COUNT(*) as count FROM semantic_entries WHERE source_type IN ('living_note', 'comprehensive')"
+                count_query = "SELECT COUNT(*) as count FROM semantic_entries WHERE source_type IN ('session_summary', 'comprehensive')"
                 count_params = ()
             
             # Execute count query
@@ -166,7 +166,7 @@ class SummaryNoteService:
                     filename = Path(markdown_path).name
                 else:
                     # Fallback filename
-                    filename = f"Summary-{row['id']}-living-note.md"
+                    filename = f"Summary-{row['id']}-session-summary.md"
                 
                 # Parse timestamp
                 timestamp = datetime.fromisoformat(row['timestamp']) if row['timestamp'] else datetime.now()
@@ -248,7 +248,7 @@ class SummaryNoteService:
                 FROM semantic_entries se
                 LEFT JOIN semantic_topics st ON se.id = st.entry_id
                 LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                WHERE se.source_type IN ('living_note', 'comprehensive') AND
+                WHERE se.source_type IN ('session_summary', 'comprehensive') AND
                       (se.markdown_file_path LIKE ? OR 
                        se.markdown_file_path LIKE ? OR 
                        se.markdown_file_path = ?)
@@ -277,7 +277,7 @@ class SummaryNoteService:
                         FROM semantic_entries se
                         LEFT JOIN semantic_topics st ON se.id = st.entry_id
                         LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
-                        WHERE se.id = ? AND se.source_type IN ('living_note', 'comprehensive')
+                        WHERE se.id = ? AND se.source_type IN ('session_summary', 'comprehensive')
                         GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
                     """
                     rows = db.execute_query(id_query, (semantic_id,))
@@ -334,7 +334,7 @@ class SummaryNoteService:
                 'filename': filename,
                 'content': content,
                 'timestamp': timestamp.isoformat(),
-                'title': f"Living Note Summary - {timestamp.strftime('%Y-%m-%d')}",
+                'title': f"Session Summary - {timestamp.strftime('%Y-%m-%d')}",
                 'word_count': len(content.split()) if content else 0,
                 'created_time': f"*Created: {timestamp.strftime('%Y-%m-%d %H:%M:%S')}*",
                 'file_size': file_size,
@@ -392,7 +392,7 @@ class SummaryNoteService:
             query = """
                 SELECT se.id, se.markdown_file_path
                 FROM semantic_entries se
-                WHERE se.source_type IN ('living_note', 'comprehensive') AND
+                WHERE se.source_type IN ('session_summary', 'comprehensive') AND
                       (se.markdown_file_path LIKE ? OR se.markdown_file_path = ?)
                 ORDER BY se.timestamp DESC
                 LIMIT 1
@@ -406,7 +406,7 @@ class SummaryNoteService:
                     semantic_id = int(match.group(1))
                     id_query = (
                         "SELECT id, markdown_file_path FROM semantic_entries "
-                        "WHERE id = ? AND source_type IN ('living_note', 'comprehensive')"
+                        "WHERE id = ? AND source_type IN ('session_summary', 'comprehensive')"
                     )
                     rows = db.execute_query(id_query, (semantic_id,))
 

@@ -48,7 +48,7 @@
 - **Multiple Model Support**: GPT-4o, GPT-4.1, GPT-4.1-mini, O4-mini, GPT-4.1-nano
 - **Semantic Metadata**: Automatic extraction of topics, keywords, and impact levels
 - **Structured Summaries**: AI-generated content with configurable length and style
-- **Living Note Generation**: Dynamic, evolving summaries of your work sessions
+- **Session Summary Generation**: Dynamic, evolving summaries of your work sessions
 - **Context-Aware Processing**: AI understands project context and development patterns
 - **Custom Prompting**: Configurable AI behavior through format templates
 
@@ -150,7 +150,7 @@ obby/
 │   ├── backend.py                 # FastAPI server + SPA host (port 8001)
 │   ├── config/
 │   │   ├── settings.py            # Core configuration
-│   │   └── living_note_settings.json # AI behavior configuration
+│   │   └── session_summary_settings.json # AI behavior configuration
 │   ├── core/
 │   │   ├── monitor.py             # File monitoring orchestration
 │   │   └── file_tracker.py        # On-demand directory scanning
@@ -160,7 +160,7 @@ obby/
 │   ├── routes/
 │   │   ├── monitoring.py          # /api/monitor/* (control, status, batch AI)
 │   │   ├── files.py               # /api/files/* (events, diffs, tree, scans)
-│   │   ├── living_note.py         # /api/living-note/* (content, settings, SSE)
+│   │   ├── session_summary.py         # /api/session-summary/* (content, settings, SSE)
 │   │   ├── search.py              # /api/search/* (semantic, topics, keywords)
 │   │   ├── config.py              # /api/config/* (settings, models)
 │   │   ├── data.py                # /api/data/* (clear data)
@@ -177,7 +177,7 @@ obby/
 │       ├── ignore_handler.py      # .obbyignore pattern matching
 │       ├── watch_handler.py       # .obbywatch directory management
 │       ├── migrations.py          # One-off migration tasks
-│       └── living_note_path.py    # Living note path resolution
+│       └── session_summary_path.py    # Living note path resolution
 │
 ├── 🎨 Frontend (React + TypeScript)
 │   ├── src/
@@ -192,7 +192,7 @@ obby/
 │   │   │   ├── Dashboard.tsx      # Real-time monitoring dashboard
 │   │   │   ├── SearchPage.tsx     # Semantic search interface (148 lines)
 │   │   │   ├── DiffViewer.tsx     # Change history viewer
-│   │   │   ├── LivingNote.tsx     # AI-generated summaries
+│   │   │   ├── SessionSummary.tsx     # AI-generated summaries
 │   │   │   └── Settings.tsx       # Configuration management
 │   │   ├── contexts/
 │   │   │   └── ThemeContext.tsx   # Theme state management (292 lines)
@@ -211,8 +211,8 @@ obby/
 │   │   └── obby.db               # Main SQLite database
 │   ├── notes/                    # Watched markdown files
 │   │   ├── test.md               # Sample note
-│   │   └── daily/                # Daily Living Notes (default)
-│   │       └── Living Note - YYYY-MM-DD.md
+│   │   └── daily/                # Daily Session Summaries (default)
+│   │       └── Session Summary - YYYY-MM-DD.md
 │   └── diffs/                   # Legacy file-based diffs (migrated to DB)
 │
 ├── ⚙️ Configuration
@@ -299,7 +299,7 @@ impact:significant date:2024-01-01     // Metadata filters
 - **Impact Assessment**: AI-generated significance levels for changes
 - **Structured Prompting**: Configurable AI behavior through format templates
 - **Context Awareness**: AI understands project context and development patterns
-- **Living Note Generation**: Dynamic, evolving summaries of work sessions
+- **Session Summary Generation**: Dynamic, evolving summaries of work sessions
 
 ### **Customization Options**
 - **Prompt Templates**: Custom AI instructions for different content types
@@ -327,7 +327,7 @@ node_modules/
 **/archive/**
 ```
 
-### **Living Note Settings**
+### **Session Summary Settings**
 ```json
 {
   "updateFrequency": "realtime",
@@ -405,15 +405,15 @@ GET    /api/search/topics          # All topics with counts
 GET    /api/search/keywords        # All keywords with frequency
 ```
 
-### **Living Note Endpoints**
+### **Session Summary Endpoints**
 ```http
-GET    /api/living-note/           # Get current living note content (root)
-GET    /api/living-note/content    # Get current living note content
-POST   /api/living-note/clear      # Clear living note content
-POST   /api/living-note/update     # Update/regenerate from AI (JSON: { force: boolean })
-GET    /api/living-note/events     # Server-Sent Events stream for updates
-GET    /api/living-note/settings   # Get living note settings
-POST   /api/living-note/settings   # Save living note settings
+GET    /api/session-summary/           # Get current session summary content (root)
+GET    /api/session-summary/content    # Get current session summary content
+POST   /api/session-summary/clear      # Clear session summary content
+POST   /api/session-summary/update     # Update/regenerate from AI (JSON: { force: boolean })
+GET    /api/session-summary/events     # Server-Sent Events stream for updates
+GET    /api/session-summary/settings   # Get session summary settings
+POST   /api/session-summary/settings   # Save session summary settings
 ```
 
 ### **Configuration Endpoints**

@@ -43,7 +43,7 @@ Obby is a web-based note monitoring application:
 - SSE (Server-Sent Events) for real-time frontend updates
 - Database-backed storage replacing in-memory event tracking
 - Integrated file monitoring via `APIObbyMonitor` class
-- Organized route modules: `monitoring`, `files`, `living_note`, `summary_note`, `search`, `config`, `data`, `admin`, `watch_config`
+- Organized route modules: `monitoring`, `files`, `session_summary`, `summary_note`, `search`, `config`, `data`, `admin`, `watch_config`
 
 #### Core Monitoring (`core/monitor.py`)
 - `ObbyMonitor`: Main monitoring orchestrator
@@ -105,10 +105,10 @@ Obby is a web-based note monitoring application:
   - Let the model render the provenance section to keep output consistent.
   - Respect `.obbywatch`/`.obbyignore` and exclude internal artifacts from context.
 
-### Living Note
+### Session Summary
 - One AI call that returns both minimal bullets and a '### Sources' section.
 - Code: `OpenAIClient.summarize_minimal(...)` now accepts `files_used` and instructs the model to include Sources.
-- Called by `services/living_note_service.py` using recent diffs as context.
+- Called by `services/session_summary_service.py` using recent diffs as context.
 
 ### Comprehensive/Batch Summaries
 - Batch prompt format now includes a required 'Sources' section.
@@ -129,9 +129,9 @@ Obby is a web-based note monitoring application:
   - `react-syntax-highlighter`: Code syntax highlighting
   - `lucide-react`: Modern icon library
 - **Real-time updates** via SSE connections:
-  - `/api/living-note/events`
+  - `/api/session-summary/events`
   - `/api/summary-notes/events`
-- **Main pages**: Dashboard, DiffViewer, LivingNote, Settings, Administration, SummaryNotes
+- **Main pages**: Dashboard, DiffViewer, SessionSummary, Settings, Administration, SummaryNotes
 - **Component architecture** with reusable UI elements and contexts
 - **Advanced theming system** with multiple built-in themes and dynamic switching
 
@@ -145,7 +145,7 @@ Obby is a web-based note monitoring application:
 ### Configuration Management
 - **Core settings**: `config/settings.py` (file paths, intervals, AI model)
 - **Runtime config**: `config.json` (managed via web interface)
-- **Living note config**: `config/living_note_settings.json` (living note specific settings)
+- **Living note config**: `config/session_summary_settings.json` (session summary specific settings)
 - **Format templates**: `config/format.md` and `config/format_current_backup.md` (AI formatting templates)
 - **Watch paths**: `.obbywatch` (directories to monitor, located in project root)
 - **Ignore patterns**: `.obbyignore` (glob patterns to skip, located in project root)
@@ -155,7 +155,7 @@ Obby is a web-based note monitoring application:
 - **Modular blueprint architecture** for clean API organization
 - `monitoring.py`: File monitoring and system status endpoints
 - `files.py`: File operations and content management
-- `living_note.py`: Living note functionality and management
+- `session_summary.py`: Living note functionality and management
 - `summary_note.py`: Summary note generation and management endpoints
 - `search.py`: Search and semantic query endpoints
 - `config.py`: Configuration management endpoints
@@ -166,7 +166,7 @@ Obby is a web-based note monitoring application:
 
 #### Services Layer (`services/`)
 - **Business logic abstraction** providing core functionality for routes
-- `living_note_service.py`: Living note creation, update, and management logic
+- `session_summary_service.py`: Living note creation, update, and management logic
 - `summary_note_service.py`: Summary note generation and processing services
 - Services handle complex operations and integrate with multiple data models
 - Provides reusable business logic across different API endpoints
@@ -199,7 +199,7 @@ Obby is a web-based note monitoring application:
 - Production mode serves built frontend from `frontend/dist/`
 - Development uses separate Vite server at :5173
 - SSE endpoints provide real-time updates:
-  - `/api/living-note/events`
+  - `/api/session-summary/events`
   - `/api/summary-notes/events`
 - All API endpoints are prefixed with `/api/`
 
@@ -227,5 +227,5 @@ Obby is a web-based note monitoring application:
 - **Database backups**: Automatic retention policy (7 days) via `utils/backup_retention.py`
 - **Log files**: Automatic cleanup for log backups (3 days) and general logs (14 days)
 - **Manual cleanup**: Run `python utils/backup_retention.py` for dry-run analysis
-- Living Note: Daily mode enabled by default. Notes are written to `output/daily/Living Note - YYYY-MM-DD.md` (configurable in `config/settings.py`). Single-file mode `output/living_note.md` remains available if explicitly configured.
+- Session Summary: Daily mode enabled by default. Notes are written to `output/daily/Session Summary - YYYY-MM-DD.md` (configurable in `config/settings.py`). Single-file mode `output/session_summary.md` remains available if explicitly configured.
 - Summary Notes: Generated summaries are stored in `output/summaries/` directory with timestamped filenames

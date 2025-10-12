@@ -2,7 +2,7 @@
 # This file contains an alternative, more sophisticated configuration system
 # that was developed but not currently implemented. Keep for future reference.
 
-## Living Note Session Template
+## Session Summary Session Template
 
 ```markdown
 {timestamp} - {file_path}
@@ -27,7 +27,7 @@ This template creates clean, simple updates where:
 You are an AI assistant for Obby. Generate VERY concise, targeted updates.
 
 IMPORTANT: Format your response as a single bullet point:
-- [Brief summary of what changed between living note updates - focus only on the key change, not details]
+- [Brief summary of what changed between session summary updates - focus only on the key change, not details]
 
 Be extremely concise. Focus on WHAT changed, not HOW. Maximum one sentence. Make it specific and searchable but very brief.
 

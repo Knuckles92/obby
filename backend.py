@@ -45,7 +45,7 @@ load_dotenv()  # Load .env file if it exists
 # Import FastAPI routers
 from routes.monitoring import monitoring_bp
 from routes.files import files_bp
-from routes.living_note import living_note_bp
+from routes.session_summary import session_summary_bp
 from routes.summary_note import summary_note_bp
 from routes.search import search_bp
 from routes.config import config_bp
@@ -128,7 +128,7 @@ monitoring_active = False
 # Include routers
 app.include_router(monitoring_bp)
 app.include_router(files_bp)
-app.include_router(living_note_bp)
+app.include_router(session_summary_bp)
 app.include_router(summary_note_bp)
 app.include_router(search_bp)
 app.include_router(config_bp)
@@ -203,7 +203,7 @@ def serve_frontend(full_path: str):
         'endpoints': {
             'monitoring': '/api/monitor/*',
             'files': '/api/files/*',
-            'living-note': '/api/living-note/*',
+            'session-summary': '/api/session-summary/*',
             'search': '/api/search/*',
             'config': '/api/config/*',
             'data': '/api/data/*',
@@ -269,14 +269,14 @@ if __name__ == '__main__':
     if not monitoring_initialized:
         logger.warning('File monitoring system failed to initialize - continuing without it')
 
-    watcher_enabled = os.getenv('LIVING_NOTE_WATCHER_ENABLED', 'false').lower() == 'true'
-    stop_living_note_watcher = None
+    watcher_enabled = os.getenv('SESSION_SUMMARY_WATCHER_ENABLED', 'false').lower() == 'true'
+    stop_session_summary_watcher = None
     if watcher_enabled:
-        from routes.living_note import start_living_note_watcher, stop_living_note_watcher as _stop
-        start_living_note_watcher()
-        stop_living_note_watcher = _stop
+        from routes.session_summary import start_session_summary_watcher, stop_session_summary_watcher as _stop
+        start_session_summary_watcher()
+        stop_session_summary_watcher = _stop
     else:
-        logger.info('Living note watcher disabled (LIVING_NOTE_WATCHER_ENABLED=false)')
+        logger.info('Session summary watcher disabled (SESSION_SUMMARY_WATCHER_ENABLED=false)')
 
     try:
         # On Windows, disable reload to avoid event loop policy issues with Claude SDK
@@ -298,6 +298,6 @@ if __name__ == '__main__':
         
         uvicorn.run(**uvicorn_config)
     finally:
-        if stop_living_note_watcher:
-            stop_living_note_watcher()
+        if stop_session_summary_watcher:
+            stop_session_summary_watcher()
         cleanup_monitoring()

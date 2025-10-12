@@ -1,5 +1,5 @@
 """
-OpenAI integration for AI-managed living notes.
+OpenAI integration for AI-managed session summaries.
 This module will handle communication with OpenAI API for summarizing diffs.
 """
 
@@ -142,7 +142,7 @@ class OpenAIClient:
             logging.info("Starting OpenAI client warm-up...")
             
             # Step 1: Load local configurations
-            _ = self._load_living_note_settings()
+            _ = self._load_session_summary_settings()
             _ = self._load_format_config()
             
             # Step 2: Ensure client is initialized
@@ -299,12 +299,12 @@ class OpenAIClient:
 
     def summarize_diff(self, diff_content, settings=None, recent_tree_changes=None):
         """
-        Summarize a diff for the living note with semantic indexing optimization.
+        Summarize a diff for the session summary with semantic indexing optimization.
         Now includes retry logic and warm-up check.
 
         Args:
             diff_content: The diff content to summarize
-            settings: Optional living note settings for customization
+            settings: Optional session summary settings for customization
             recent_tree_changes: Optional list of recent tree changes to include as context
 
         Returns:
@@ -317,7 +317,7 @@ class OpenAIClient:
                 
             # Load settings if not provided
             if settings is None:
-                settings = self._load_living_note_settings()
+                settings = self._load_session_summary_settings()
 
             # Build customized system prompt based on settings
             system_prompt = self._build_system_prompt(settings, "diff")
@@ -373,7 +373,7 @@ class OpenAIClient:
             return f"Error generating AI summary: {str(e)}"
 
     def summarize_minimal(self, context_text: str, files_used: list[str] | None = None):
-        """Concise living-note summary with Sources section in one pass.
+        """Concise session-summary summary with Sources section in one pass.
         - First: 1–3 ultra-concise bullets, each starting with '- '
         - Then: a '### Sources' section listing files used with one-sentence rationales
         - If context appears trivial/noisy, return exactly: '- no meaningful changes'
@@ -630,17 +630,17 @@ class OpenAIClient:
             logging.warning(f"Sources section generation failed: {e}")
             return ""
 
-    def _load_living_note_settings(self):
-        """Load living note settings from config file."""
+    def _load_session_summary_settings(self):
+        """Load session summary settings from config file."""
         import json
 
-        settings_file = Path('config/living_note_settings.json')
+        settings_file = Path('config/session_summary_settings.json')
         if settings_file.exists():
             try:
                 with open(settings_file, 'r') as f:
                     return json.load(f)
             except Exception as e:
-                logging.warning(f"Failed to load living note settings: {e}")
+                logging.warning(f"Failed to load session summary settings: {e}")
 
         # Return default settings
         return {
@@ -682,7 +682,7 @@ class OpenAIClient:
         """Parse format.md content into structured configuration.
         
         NOTE: The current config/format.md file doesn't contain the specific sections
-        this parser looks for (e.g., "## Living Note Session Template", style variations).
+        this parser looks for (e.g., "## Session Summary Session Template", style variations).
         As a result, it always falls back to hardcoded templates. The regex parsing here
         is legacy code that could be simplified in the future.
         """
@@ -701,7 +701,7 @@ class OpenAIClient:
 
         # Extract session template
         template_match = re.search(
-            r'## Living Note Session Template\s*```markdown\s*(.+?)\s*```',
+            r'## Session Summary Session Template\s*```markdown\s*(.+?)\s*```',
             content, re.DOTALL
         )
         if template_match:
@@ -786,7 +786,7 @@ class OpenAIClient:
             'diff_prompt': '''You are an AI assistant for Obby. Generate VERY concise, targeted updates. {style_instruction} {length_instruction}
 
 IMPORTANT: Format your response as a single bullet point:
-- [Brief summary of what changed between living note updates - focus only on the key change, not details]
+- [Brief summary of what changed between session summary updates - focus only on the key change, not details]
 
 Be extremely concise. Focus on WHAT changed, not HOW. Maximum one sentence. Make it specific and searchable but very brief.''',
             'tree_prompt': '''You are an AI assistant for Obby, a comprehensive note monitoring system. When summarizing file tree changes, provide a structured summary optimized for search and discovery.
@@ -881,11 +881,11 @@ IMPORTANT:
 
     def summarize_tree_change(self, tree_change_description, settings=None):
         """
-        Summarize a file tree change for the living note with semantic metadata.
+        Summarize a file tree change for the session summary with semantic metadata.
 
         Args:
             tree_change_description: Description of the tree change (creation, deletion, move)
-            settings: Optional living note settings for customization
+            settings: Optional session summary settings for customization
 
         Returns:
             str: AI-generated summary with semantic metadata
@@ -897,7 +897,7 @@ IMPORTANT:
                 
             # Load settings if not provided
             if settings is None:
-                settings = self._load_living_note_settings()
+                settings = self._load_session_summary_settings()
 
             # Build system prompt using format configuration
             system_prompt = self._build_system_prompt(settings, "tree")
@@ -946,28 +946,28 @@ IMPORTANT:
         except Exception as e:
             return f"Error generating tree change summary: {str(e)}"
 
-    def update_living_note(self, living_note_path, summary, change_type="content", settings=None):
+    def update_session_summary(self, session_summary_path, summary, change_type="content", settings=None):
         """
-        Update the living note with the AI summary using structured format.
+        Update the session summary with the AI summary using structured format.
 
         Args:
-            living_note_path: Path to the living note file
+            session_summary_path: Path to the session summary file
             summary: AI-generated summary to add
             change_type: Type of change ("content" or "tree")
-            settings: Optional living note settings for customization
+            settings: Optional session summary settings for customization
         """
-        living_note_path = Path(living_note_path)
+        session_summary_path = Path(session_summary_path)
 
         # Load settings if not provided
         if settings is None:
-            settings = self._load_living_note_settings()
+            settings = self._load_session_summary_settings()
 
-        # Create living note if it doesn't exist
-        if not living_note_path.exists():
-            living_note_path.parent.mkdir(exist_ok=True)
+        # Create session summary if it doesn't exist
+        if not session_summary_path.exists():
+            session_summary_path.parent.mkdir(exist_ok=True)
             today = datetime.now().strftime("%Y-%m-%d")
-            initial_content = f"# Living Note - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
-            living_note_path.write_text(initial_content, encoding='utf-8')
+            initial_content = f"# Session Summary - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
+            session_summary_path.write_text(initial_content, encoding='utf-8')
 
         now = datetime.now()
         date_str = now.strftime("%Y-%m-%d")
@@ -975,17 +975,17 @@ IMPORTANT:
 
         # Read existing content
         existing_content = ""
-        if living_note_path.exists() and living_note_path.stat().st_size > 0:
-            existing_content = living_note_path.read_text(encoding='utf-8')
+        if session_summary_path.exists() and session_summary_path.stat().st_size > 0:
+            existing_content = session_summary_path.read_text(encoding='utf-8')
 
         # Always create new entry with simple format (no session management needed)
-        self._create_new_session(living_note_path, summary, change_type, date_str, time_str, existing_content, settings)
+        self._create_new_session(session_summary_path, summary, change_type, date_str, time_str, existing_content, settings)
 
         # Extract semantic metadata and create searchable index entry
         try:
             metadata = self.extract_semantic_metadata(summary)
             # Use the current file path if available, otherwise fall back to notes folder
-            file_path_for_index = getattr(self, '_current_file_path', str(living_note_path.parent))
+            file_path_for_index = getattr(self, '_current_file_path', str(session_summary_path.parent))
             searchable_entry = self.create_searchable_entry(
                 metadata,
                 datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -999,19 +999,19 @@ IMPORTANT:
         except Exception as e:
             logging.warning(f"Failed to create semantic index entry: {e}")
 
-        # Git integration has been removed from Obby - living notes are saved without auto-commit
+        # Git integration has been removed from Obby - session summaries are saved without auto-commit
 
-        logging.info(f"Living note updated with structured format and semantic indexing: {living_note_path}")
+        logging.info(f"Session summary updated with structured format and semantic indexing: {session_summary_path}")
 
         # Return success status
         return True
 
-    def _create_new_session(self, living_note_path, summary, change_type, date_str, time_str, existing_content, settings=None):
+    def _create_new_session(self, session_summary_path, summary, change_type, date_str, time_str, existing_content, settings=None):
         """Create a new session entry in the structured format."""
 
         # Generate initial insights
         if settings is None:
-            settings = self._load_living_note_settings()
+            settings = self._load_session_summary_settings()
         insights = self._generate_session_insights([summary], [change_type], is_new_session=True, settings=settings)
 
         # Load format configuration for session template
@@ -1060,7 +1060,7 @@ IMPORTANT:
         else:
             updated_content = session_header + existing_content
 
-        with open(living_note_path, "w", encoding='utf-8') as f:
+        with open(session_summary_path, "w", encoding='utf-8') as f:
             f.write(updated_content)
             f.flush()  # Ensure content is written to disk
 
@@ -1068,7 +1068,7 @@ IMPORTANT:
         import time
         time.sleep(0.1)
 
-    def _add_to_existing_session(self, living_note_path, summary, change_type, lines, session_start_line, settings=None):
+    def _add_to_existing_session(self, session_summary_path, summary, change_type, lines, session_start_line, settings=None):
         """Add to an existing session in the structured format."""
         from datetime import datetime
 
@@ -1114,7 +1114,7 @@ IMPORTANT:
             all_summaries = existing_summaries + [summary]
             all_change_types = existing_change_types + [change_type]
             if settings is None:
-                settings = self._load_living_note_settings()
+                settings = self._load_session_summary_settings()
             new_insights = self._generate_session_insights(all_summaries, all_change_types, is_new_session=False, settings=settings)
 
             # Replace insights section
@@ -1130,7 +1130,7 @@ IMPORTANT:
                 lines[insights_line + 1:insights_end] = [new_insights, ""]
 
         # Write updated content back to file
-        with open(living_note_path, "w", encoding='utf-8') as f:
+        with open(session_summary_path, "w", encoding='utf-8') as f:
             f.write('\n'.join(lines))
             f.flush()  # Ensure content is written to disk
 
@@ -1147,7 +1147,7 @@ IMPORTANT:
                 
             # Load settings if not provided
             if settings is None:
-                settings = self._load_living_note_settings()
+                settings = self._load_session_summary_settings()
 
             # Analyze patterns in the summaries
             content_changes = sum(1 for ct in change_types if ct == "content")
@@ -1369,7 +1369,7 @@ IMPORTANT:
 
         Args:
             batch_data: Dictionary containing accumulated changes information
-            settings: Optional living note settings for customization
+            settings: Optional session summary settings for customization
 
         Returns:
             str: AI-generated batch summary with semantic metadata
@@ -1381,7 +1381,7 @@ IMPORTANT:
                 
             # Load settings if not provided
             if settings is None:
-                settings = self._load_living_note_settings()
+                settings = self._load_session_summary_settings()
 
             # Build system prompt for batch processing
             system_prompt = self._build_batch_system_prompt(settings)

@@ -90,7 +90,7 @@ tests/
 ├── integration/                # Integration tests for API endpoints
 │   ├── test_monitoring_api.py
 │   ├── test_sse_streams.py
-│   └── test_living_note_api.py
+│   └── test_session_summary_api.py
 ├── fixtures/                   # Test data and fixtures
 └── conftest.py                 # Pytest configuration
 ```
@@ -101,7 +101,7 @@ Future test additions:
 - Unit tests for diff generation (`core/file_tracker.py`)
 - Unit tests for file monitoring (`core/monitor.py`)
 - Integration tests for SSE streams
-- Integration tests for living notes
+- Integration tests for session summaries
 - Performance/load tests
 - Frontend component tests (vitest)
 

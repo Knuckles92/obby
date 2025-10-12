@@ -5,7 +5,7 @@ import Sidebar from './components/Sidebar'
 import ThemeEffects from './components/ThemeEffects'
 import Dashboard from './pages/Dashboard'
 import DiffViewer from './pages/DiffViewer'
-import LivingNote from './pages/LivingNote'
+import SessionSummary from './pages/SessionSummary'
 import SummaryNotes from './pages/SummaryNotes'
 import Administration from './pages/Administration'
 import Settings from './pages/Settings'
@@ -38,7 +38,7 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diffs" element={<DiffViewer />} />
                 <Route path="/chat" element={<Chat />} />
-                <Route path="/living-note" element={<LivingNote />} />
+                <Route path="/session-summary" element={<SessionSummary />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
                 <Route path="/admin" element={<Administration />} />
                 <Route path="/settings" element={<Settings />} />

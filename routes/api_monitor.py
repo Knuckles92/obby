@@ -124,7 +124,7 @@ class APIObbyMonitor(ObbyMonitor):
             # Use our custom API-aware handler
             from utils.file_watcher import FileWatcher
             from ai.openai_client import OpenAIClient
-            from utils.living_note_path import resolve_living_note_path
+            from utils.session_summary_path import resolve_session_summary_path
             
             # Initialize AI client
             ai_client = OpenAIClient()
@@ -135,7 +135,7 @@ class APIObbyMonitor(ObbyMonitor):
             self.file_watcher = FileWatcher(
                 notes_folder=self.notes_folder,
                 ai_client=ai_client,
-                living_note_path=resolve_living_note_path(),
+                session_summary_path=resolve_session_summary_path(),
                 utils_folder=utils_folder
             )
             
@@ -143,12 +143,12 @@ class APIObbyMonitor(ObbyMonitor):
             self.file_watcher.handler = APIAwareNoteChangeHandler(
                 notes_folder=self.notes_folder,
                 ai_client=ai_client,
-                living_note_path=resolve_living_note_path(),
+                session_summary_path=resolve_session_summary_path(),
                 utils_folder=utils_folder,
                 file_tracker=self.file_tracker  # Pass file_tracker for content diff generation
             )
             
-            # Start watching (no batch AI scheduler here; Living Note updates are triggered explicitly)
+            # Start watching (no batch AI scheduler here; Session Summary updates are triggered explicitly)
             self.file_watcher.start()
             self.is_running = True
             

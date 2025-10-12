@@ -4,7 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { LivingNote as LivingNoteType } from '../types'
+import { SessionSummary as SessionSummaryType } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import { apiFetch } from '../utils/api'
 
@@ -19,8 +19,8 @@ interface CodeComponentProps {
 
  
 
-export default function LivingNote() {
-  const [note, setNote] = useState<LivingNoteType>({
+export default function SessionSummary() {
+  const [note, setNote] = useState<SessionSummaryType>({
     content: '',
     lastUpdated: '',
     wordCount: 0
@@ -36,10 +36,10 @@ export default function LivingNote() {
 
   useEffect(() => {
     try {
-      fetchLivingNote()
+      fetchSessionSummary()
       connectToSSE()
     } catch (error) {
-      console.error('Error initializing LivingNote component:', error)
+      console.error('Error initializing SessionSummary component:', error)
       setLoading(false)
     }
     
@@ -66,11 +66,11 @@ export default function LivingNote() {
     }
 
     try {
-      const eventSource = new EventSource('/api/living-note/events')
+      const eventSource = new EventSource('/api/session-summary/events')
       eventSourceRef.current = eventSource
 
       eventSource.onopen = () => {
-        console.log('Connected to living note updates')
+        console.log('Connected to session summary updates')
         setIsConnected(true)
       }
 
@@ -78,7 +78,7 @@ export default function LivingNote() {
         try {
           const data = JSON.parse(event.data)
           
-          if (data.type === 'living_note_updated') {
+          if (data.type === 'session_summary_updated') {
             setNote({
               content: data.content,
               lastUpdated: data.lastUpdated,
@@ -128,14 +128,14 @@ export default function LivingNote() {
     }
   }
 
-  const fetchLivingNote = async () => {
+  const fetchSessionSummary = async () => {
     try {
       setLoading(true)
-      const response = await apiFetch('/api/living-note/')
+      const response = await apiFetch('/api/session-summary/')
       const data = await response.json()
       setNote(data)
     } catch (error) {
-      console.error('Error fetching living note:', error)
+      console.error('Error fetching session summary:', error)
       setHasError(true)
     } finally {
       setLoading(false)
@@ -146,7 +146,7 @@ export default function LivingNote() {
   const triggerUpdate = async () => {
     setUpdateLoading(true)
     try {
-      const response = await apiFetch('/api/living-note/update', {
+      const response = await apiFetch('/api/session-summary/update', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -156,18 +156,18 @@ export default function LivingNote() {
       
       if (response.ok) {
         console.log('Update completed successfully')
-        // SSE will automatically refresh the content via notify_living_note_change()
+        // SSE will automatically refresh the content via notify_session_summary_change()
         
         // Set up fallback mechanism in case SSE fails to deliver the update
         if (!isConnected) {
           // If SSE is not connected, immediately fetch the updated content
           console.log('SSE disconnected, fetching content immediately')
-          await fetchLivingNote()
+          await fetchSessionSummary()
         } else {
           // If SSE is connected, wait for automatic update but have a fallback timeout
           fallbackTimeoutRef.current = setTimeout(async () => {
             console.log('SSE fallback timeout triggered, fetching content manually')
-            await fetchLivingNote()
+            await fetchSessionSummary()
             fallbackTimeoutRef.current = null
           }, 1500) // 1.5 second timeout for better responsiveness
         }
@@ -178,7 +178,7 @@ export default function LivingNote() {
     } catch (error) {
       console.error('Error triggering update:', error)
       // On error, always try to fetch the latest content
-      await fetchLivingNote()
+      await fetchSessionSummary()
     } finally {
       setUpdateLoading(false)
     }
@@ -187,7 +187,7 @@ export default function LivingNote() {
   const handleClearNote = async () => {
     try {
       setClearLoading(true)
-      const response = await apiFetch('/api/living-note/clear', {
+      const response = await apiFetch('/api/session-summary/clear', {
         method: 'POST'
       })
       
@@ -195,15 +195,15 @@ export default function LivingNote() {
         const result = await response.json()
         console.log(result.message)
         // Refresh the note content
-        await fetchLivingNote()
+        await fetchSessionSummary()
         setClearDialogOpen(false)
       } else {
         const error = await response.json()
-        console.error('Error clearing living note:', error.error)
+        console.error('Error clearing session summary:', error.error)
         alert('Failed to clear Summary: ' + error.error)
       }
     } catch (error) {
-      console.error('Error clearing living note:', error)
+      console.error('Error clearing session summary:', error)
       alert('Failed to clear Summary. Please try again.')
     } finally {
       setClearLoading(false)
@@ -259,7 +259,7 @@ export default function LivingNote() {
         
         <div className="flex space-x-3">
           <button
-            onClick={fetchLivingNote}
+            onClick={fetchSessionSummary}
             disabled={loading}
             className="btn-secondary flex items-center"
           >

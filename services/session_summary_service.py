@@ -11,21 +11,21 @@ from ai.openai_client import OpenAIClient
 logger = logging.getLogger(__name__)
 
 
-class LivingNoteService:
-    """Service layer for all Living Note operations.
+class SessionSummaryService:
+    """Service layer for all Session Summary operations.
 
     Centralizes update, content, and settings logic so routes stay thin.
     """
 
-    def __init__(self, living_note_path: str):
+    def __init__(self, session_summary_path: str):
         # Base path provided by caller; final path may be dynamically resolved (daily mode)
-        self.living_note_path = Path(living_note_path)
-        self.settings_path = Path('config/living_note_settings.json')
+        self.session_summary_path = Path(session_summary_path)
+        self.settings_path = Path('config/session_summary_settings.json')
         self.format_path = Path('config/format.md')
         # Use singleton pattern to get the OpenAI client
         self.openai_client = OpenAIClient.get_instance()
         # Warm-up will be performed automatically on first use if needed
-        logger.info("Living note service initialized with singleton OpenAI client")
+        logger.info("Session summary service initialized with singleton OpenAI client")
         # Ensure format.md is in config if legacy file exists
         try:
             from utils.migrations import migrate_format_md
@@ -33,51 +33,83 @@ class LivingNoteService:
         except Exception:
             pass
 
-        # Load dynamic living note configuration (daily vs single file)
+        # Load dynamic session summary configuration (daily vs single file)
         try:
             from config.settings import (
-                LIVING_NOTE_MODE,
-                LIVING_NOTE_DAILY_DIR,
-                LIVING_NOTE_DAILY_FILENAME_TEMPLATE,
-                LIVING_NOTE_PATH as LIVING_NOTE_SINGLE_PATH,
+                SESSION_SUMMARY_MODE,
+                SESSION_SUMMARY_DAILY_DIR,
+                SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE,
+                SESSION_SUMMARY_PATH as SESSION_SUMMARY_SINGLE_PATH,
             )
-            self._LIVING_NOTE_MODE = str(LIVING_NOTE_MODE).lower()
-            self._LIVING_NOTE_DAILY_DIR = Path(LIVING_NOTE_DAILY_DIR)
-            self._LIVING_NOTE_DAILY_FILENAME_TEMPLATE = LIVING_NOTE_DAILY_FILENAME_TEMPLATE
-            self._LIVING_NOTE_SINGLE_PATH = Path(LIVING_NOTE_SINGLE_PATH)
+            self._SESSION_SUMMARY_MODE = str(SESSION_SUMMARY_MODE).lower()
+            self._SESSION_SUMMARY_DAILY_DIR = Path(SESSION_SUMMARY_DAILY_DIR)
+            self._SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE = SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE
+            self._SESSION_SUMMARY_SINGLE_PATH = Path(SESSION_SUMMARY_SINGLE_PATH)
         except Exception:
             # Fallback defaults
-            self._LIVING_NOTE_MODE = "single"
-            self._LIVING_NOTE_DAILY_DIR = Path('notes/daily')
-            self._LIVING_NOTE_DAILY_FILENAME_TEMPLATE = "Living Note - {date}.md"
-            self._LIVING_NOTE_SINGLE_PATH = Path('notes/living_note.md')
+            self._SESSION_SUMMARY_MODE = "single"
+            self._SESSION_SUMMARY_DAILY_DIR = Path('notes/daily')
+            self._SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE = "Session Summary - {date}.md"
+            self._SESSION_SUMMARY_SINGLE_PATH = Path('notes/session_summary.md')
 
-    def _resolve_living_note_path(self, now: datetime = None) -> Path:
-        """Resolve current living note file path based on configured mode."""
+        # Apply lightweight migration to keep legacy session summary entries aligned
+        self._migrate_legacy_entries()
+
+    def _resolve_session_summary_path(self, now: datetime = None) -> Path:
+        """Resolve current session summary file path based on configured mode."""
         if now is None:
             now = datetime.now()
-        if self._LIVING_NOTE_MODE == "daily":
-            self._LIVING_NOTE_DAILY_DIR.mkdir(parents=True, exist_ok=True)
+        if self._SESSION_SUMMARY_MODE == "daily":
+            self._SESSION_SUMMARY_DAILY_DIR.mkdir(parents=True, exist_ok=True)
             date_str = now.strftime('%Y-%m-%d')
-            filename = self._LIVING_NOTE_DAILY_FILENAME_TEMPLATE.format(date=date_str)
-            resolved = self._LIVING_NOTE_DAILY_DIR / filename
+            filename = self._SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE.format(date=date_str)
+            resolved = self._SESSION_SUMMARY_DAILY_DIR / filename
         else:
-            self._LIVING_NOTE_SINGLE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            resolved = self._LIVING_NOTE_SINGLE_PATH
+            self._SESSION_SUMMARY_SINGLE_PATH.parent.mkdir(parents=True, exist_ok=True)
+            resolved = self._SESSION_SUMMARY_SINGLE_PATH
         # Cache resolved path
-        self.living_note_path = resolved
+        self.session_summary_path = resolved
         return resolved
+
+    def _migrate_legacy_entries(self) -> None:
+        """Update legacy session summary records to the new taxonomy."""
+        try:
+            from database.models import db
+
+            db.execute_update(
+                "UPDATE semantic_entries SET source_type = 'session_summary' WHERE source_type = 'living_note'"
+            )
+            db.execute_update(
+                "UPDATE semantic_entries SET type = 'session_summary_summary' WHERE type = 'living_note_summary'"
+            )
+            db.execute_update(
+                "UPDATE semantic_entries SET impact = 'brief' WHERE impact = 'minor'"
+            )
+            db.execute_update(
+                """
+                UPDATE semantic_entries
+                SET source_type = 'session_summary_auto'
+                WHERE source_type = 'session_summary'
+                  AND (
+                    markdown_file_path IS NULL OR
+                    markdown_file_path = '' OR
+                    markdown_file_path NOT LIKE 'output/summaries/%'
+                  )
+                """
+            )
+        except Exception as migration_error:
+            logger.debug(f"Session summary migration skipped: {migration_error}")
 
     # ---------- Content ----------
     def get_content(self):
         try:
-            current_path = self._resolve_living_note_path()
+            current_path = self._resolve_session_summary_path()
             if current_path.exists():
                 content = current_path.read_text(encoding='utf-8')
                 stat = current_path.stat()
                 last_updated = datetime.fromtimestamp(stat.st_mtime).isoformat()
             else:
-                content = "# Living Note\n\nNo content yet. Start monitoring to see automated summaries appear here."
+                content = "# Session Summary\n\nNo content yet. Start monitoring to see automated summaries appear here."
                 last_updated = datetime.now().isoformat()
 
             return {
@@ -88,21 +120,21 @@ class LivingNoteService:
                 'wordCount': len(content.split()) if content else 0,
             }
         except Exception as e:
-            logger.error(f"Failed to read living note: {e}")
+            logger.error(f"Failed to read session summary: {e}")
             raise
 
     def clear(self):
         try:
-            current_path = self._resolve_living_note_path()
+            current_path = self._resolve_session_summary_path()
             current_path.parent.mkdir(parents=True, exist_ok=True)
             with open(current_path, 'w', encoding='utf-8') as f:
-                f.write("# Living Note\n\nCleared at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n\n")
+                f.write("# Session Summary\n\nCleared at " + datetime.now().strftime('%Y-%m-%d %H:%M:%S') + "\n\n")
             return {
                 'success': True,
-                'message': 'Living note cleared successfully'
+                'message': 'Session summary cleared successfully'
             }
         except Exception as e:
-            logger.error(f"Failed to clear living note: {e}")
+            logger.error(f"Failed to clear session summary: {e}")
             raise
 
     # ---------- Settings ----------
@@ -134,7 +166,7 @@ class LivingNoteService:
                 'format_path': str(self.format_path)
             }
         except Exception as e:
-            logger.error(f"Failed to get living note settings: {e}")
+            logger.error(f"Failed to get session summary settings: {e}")
             raise
 
     def save_settings(self, data: dict):
@@ -166,12 +198,12 @@ class LivingNoteService:
                 'format_path': str(self.format_path)
             }
         except Exception as e:
-            logger.error(f"Failed to save living note settings: {e}")
+            logger.error(f"Failed to save session summary settings: {e}")
             raise
 
     # ---------- Update ----------
     def update(self, force: bool = False):
-        """Update the living note by summarizing diffs since last update.
+        """Update the session summary by summarizing diffs since last update.
 
         Returns dict with success, updated, message, and summary when applicable.
         """
@@ -180,19 +212,19 @@ class LivingNoteService:
             
             # Warm up the OpenAI client before starting
             try:
-                logger.info("Living note update: warming up OpenAI client...")
+                logger.info("Session summary update: warming up OpenAI client...")
                 self.openai_client.warm_up()
-                logger.info("Living note update: OpenAI client warmed up successfully")
+                logger.info("Session summary update: OpenAI client warmed up successfully")
             except Exception as warm_up_error:
                 logger.warning(f"OpenAI client warm-up failed (non-fatal): {warm_up_error}")
                 # Continue anyway as the client might still work
             
             # Resolve target path (daily or single)
-            target_path = self._resolve_living_note_path()
+            target_path = self._resolve_session_summary_path()
 
             # Cursor window
             from database.models import ConfigModel
-            last_ts_str = ConfigModel.get('living_note_last_update', None)
+            last_ts_str = ConfigModel.get('session_summary_last_update', None)
             window_start = datetime.fromisoformat(last_ts_str) if last_ts_str else datetime.now() - timedelta(hours=4)
 
             # Optional file filtering
@@ -201,9 +233,9 @@ class LivingNoteService:
                 from utils.watch_handler import WatchHandler
                 root_folder = Path(__file__).parent.parent
                 watch_handler = WatchHandler(root_folder)
-                logger.info(f"Living note: initialized WatchHandler with root_folder: {root_folder}")
-                logger.info(f"Living note: loaded watch patterns: {watch_handler.watch_patterns}")
-                logger.info(f"Living note: watch file path: {watch_handler.watch_file}")
+                logger.info(f"Session summary: initialized WatchHandler with root_folder: {root_folder}")
+                logger.info(f"Session summary: loaded watch patterns: {watch_handler.watch_patterns}")
+                logger.info(f"Session summary: watch file path: {watch_handler.watch_file}")
             except Exception as e:
                 logger.debug(f"Watch patterns unavailable, proceeding without filter: {e}")
 
@@ -212,17 +244,17 @@ class LivingNoteService:
             t_diffs_start = time.perf_counter()
             all_diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
             t_diffs = time.perf_counter() - t_diffs_start
-            logger.info(f"Living note timing: get_diffs_since took {t_diffs:.3f}s (window_start={window_start.isoformat()})")
+            logger.info(f"Session summary timing: get_diffs_since took {t_diffs:.3f}s (window_start={window_start.isoformat()})")
             
-            # Exclude the living note file itself to prevent feedback loops
-            target_path = self._resolve_living_note_path().resolve()
+            # Exclude the session summary file itself to prevent feedback loops
+            target_path = self._resolve_session_summary_path().resolve()
             diffs = []
             excluded_count = 0
             for diff in all_diffs:
                 diff_path = Path(diff.get('filePath', '')).resolve()
                 if diff_path == target_path:
                     excluded_count += 1
-                    logger.debug(f"Excluding living note file from its own update: {diff_path}")
+                    logger.debug(f"Excluding session summary file from its own update: {diff_path}")
                     continue
                 # Exclude internal semantic index file and non-markdown files to avoid stale context pollution
                 file_path_str = str(diff_path)
@@ -231,20 +263,20 @@ class LivingNoteService:
                     logger.debug(f"Excluding internal semantic index file from diffs: {diff_path}")
                     continue
                 if not file_path_str.lower().endswith('.md'):
-                    # Only summarize note markdown changes for the living note
+                    # Only summarize note markdown changes for the session summary
                     excluded_count += 1
                     continue
                 diffs.append(diff)
             
-            logger.info(f"Living note: excluded {excluded_count} self-references, processing {len(diffs)} actual content diffs")
+            logger.info(f"Session summary: excluded {excluded_count} self-references, processing {len(diffs)} actual content diffs")
 
             # Fallback to recent diffs to avoid empty updates
             if not diffs:
                 t_recent_start = time.perf_counter()
                 all_recent_diffs = FileQueries.get_recent_diffs(limit=10, watch_handler=watch_handler)
                 t_recent = time.perf_counter() - t_recent_start
-                logger.info(f"Living note timing: get_recent_diffs took {t_recent:.3f}s")
-                # Also exclude living note file from recent diffs
+                logger.info(f"Session summary timing: get_recent_diffs took {t_recent:.3f}s")
+                # Also exclude session summary file from recent diffs
                 recent_diffs = []
                 for diff in all_recent_diffs:
                     diff_path = Path(diff.get('filePath', '')).resolve()
@@ -258,7 +290,7 @@ class LivingNoteService:
                     recent_diffs.append(diff)
                 if recent_diffs:
                     diffs = recent_diffs
-                    logger.info(f"Living note: using {len(recent_diffs)} recent diffs (excluded living note file)")
+                    logger.info(f"Session summary: using {len(recent_diffs)} recent diffs (excluded session summary file)")
                 elif not force:
                     return {
                         'success': True,
@@ -267,7 +299,7 @@ class LivingNoteService:
                     }
                 else:
                     # When forced but no diffs found, return success without processing
-                    logger.info("Living note: forced update requested but no content changes found")
+                    logger.info("Session summary: forced update requested but no content changes found")
                     return {
                         'success': True,
                         'message': 'No new changes to summarize',
@@ -289,10 +321,10 @@ class LivingNoteService:
                         diff_text = diff_text[:800] + "\n..."
                     combined_parts.append(f"File: {file_path} ({ts})\n{diff_text}")
                 context_text = "\n\n---\n\n".join(combined_parts)
-                logger.info(f"Living note: sending {len(files_for_ai)} files to AI: {files_for_ai}")
+                logger.info(f"Session summary: sending {len(files_for_ai)} files to AI: {files_for_ai}")
             else:
                 context_text = ""
-                logger.info("Living note: no diffs to send to AI")
+                logger.info("Session summary: no diffs to send to AI")
 
             total_changes = len(diffs)
             files_affected = len({d.get('filePath') for d in diffs})
@@ -309,9 +341,9 @@ class LivingNoteService:
             summary_bullets = "- no meaningful changes"
             if context_text:
                 try:
-                    logger.info("Living note: generating AI summary (with Sources)...")
+                    logger.info("Session summary: generating AI summary (with Sources)...")
                     summary_bullets = self.openai_client.summarize_minimal(context_text, files_used=files_for_ai)
-                    logger.info("Living note: AI summary generated successfully")
+                    logger.info("Session summary: AI summary generated successfully")
                 except Exception as e:
                     logger.error(f"Failed to generate AI summary (using fallback): {e}")
                     # Fallback to basic summary from metrics
@@ -339,16 +371,16 @@ class LivingNoteService:
             questions_text = ""
             if context_text:
                 try:
-                    logger.info("Living note: generating proposed questions...")
+                    logger.info("Session summary: generating proposed questions...")
                     questions_text = self.openai_client.generate_proposed_questions(context_text)
-                    logger.info("Living note: proposed questions generated successfully")
+                    logger.info("Session summary: proposed questions generated successfully")
                 except Exception as e:
                     logger.error(f"Failed to generate proposed questions (skipping): {e}")
                     # Questions are optional, so we can continue without them
                     questions_text = ""
             
             t_ai_questions = time.perf_counter() - t_ai_q_start
-            logger.info(f"Living note timing: AI summarize_minimal={t_ai_summary:.3f}s, generate_proposed_questions={t_ai_questions:.3f}s")
+            logger.info(f"Session summary timing: AI summarize_minimal={t_ai_summary:.3f}s, generate_proposed_questions={t_ai_questions:.3f}s")
             
             # Metrics section formatted consistently with a header (like Questions)
             parts = [
@@ -370,23 +402,23 @@ class LivingNoteService:
 
             summary_block = "\n".join(parts)
 
-            # Update the living note file with structured append (with error handling)
+            # Update the session summary file with structured append (with error handling)
             t_write_start = time.perf_counter()
             success = False
             try:
-                logger.info("Living note: updating living note file...")
-                success = self.openai_client.update_living_note(
+                logger.info("Session summary: updating session summary file...")
+                success = self.openai_client.update_session_summary(
                     str(target_path),
                     summary_block,
                     change_type="content",
                     settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
                 )
-                logger.info(f"Living note: file update success={success}")
+                logger.info(f"Session summary: file update success={success}")
             except Exception as e:
-                logger.error(f"Failed to update living note file: {e}")
+                logger.error(f"Failed to update session summary file: {e}")
                 # Try a simple fallback write without AI processing
                 try:
-                    logger.info("Living note: attempting fallback file write...")
+                    logger.info("Session summary: attempting fallback file write...")
                     target_path.parent.mkdir(parents=True, exist_ok=True)
                     existing_content = ""
                     if target_path.exists():
@@ -397,18 +429,18 @@ class LivingNoteService:
                     new_content = f"{existing_content}\n\n---\n\n## Update: {timestamp_str}\n\n{summary_block}\n"
                     target_path.write_text(new_content, encoding='utf-8')
                     success = True
-                    logger.info("Living note: fallback file write successful")
+                    logger.info("Session summary: fallback file write successful")
                 except Exception as fallback_error:
                     logger.error(f"Fallback file write also failed: {fallback_error}")
                     success = False
             
             t_write = time.perf_counter() - t_write_start
-            logger.info(f"Living note timing: update_living_note (file write + semantic index) took {t_write:.3f}s")
+            logger.info(f"Session summary timing: update_session_summary (file write + semantic index) took {t_write:.3f}s")
             
             if not success:
                 return {
                     'success': False,
-                    'message': 'Failed to update living note file',
+                    'message': 'Failed to update session summary file',
                     'updated': False
                 }
 
@@ -416,7 +448,7 @@ class LivingNoteService:
             t_individual_start = time.perf_counter()
             individual_summary_created = self._create_individual_summary(summary_block)
             t_individual = time.perf_counter() - t_individual_start
-            logger.info(f"Living note timing: _create_individual_summary took {t_individual:.3f}s (created={bool(individual_summary_created)})")
+            logger.info(f"Session summary timing: _create_individual_summary took {t_individual:.3f}s (created={bool(individual_summary_created)})")
             if individual_summary_created:
                 logger.info("Individual summary file created successfully")
                 # Notify summary note SSE clients
@@ -427,24 +459,24 @@ class LivingNoteService:
                 t_cursor_start = time.perf_counter()
                 latest_ts = diffs[-1]['timestamp'] if diffs else datetime.now().isoformat()
                 latest_ts_str = latest_ts if isinstance(latest_ts, str) else latest_ts.isoformat()
-                ConfigModel.set('living_note_last_update', latest_ts_str, 'Living note last update')
+                ConfigModel.set('session_summary_last_update', latest_ts_str, 'Session summary last update')
                 t_cursor = time.perf_counter() - t_cursor_start
-                logger.info(f"Living note timing: ConfigModel.set cursor update took {t_cursor:.3f}s")
+                logger.info(f"Session summary timing: ConfigModel.set cursor update took {t_cursor:.3f}s")
             except Exception:
-                ConfigModel.set('living_note_last_update', datetime.now().isoformat(), 'Living note last update')
+                ConfigModel.set('session_summary_last_update', datetime.now().isoformat(), 'Session summary last update')
 
             t_total = time.perf_counter() - t_total_start
-            logger.info(f"Living note timing: total update duration {t_total:.3f}s")
+            logger.info(f"Session summary timing: total update duration {t_total:.3f}s")
             return {
                 'success': True,
-                'message': 'Living note updated from diffs since last check',
+                'message': 'Session summary updated from diffs since last check',
                 'updated': True,
                 'summary': summary_block,
                 'individual_summary_created': individual_summary_created
             }
 
         except Exception as e:
-            logger.error(f"Failed to update living note: {e}")
+            logger.error(f"Failed to update session summary: {e}")
             raise
 
     def _create_individual_summary(self, summary_block: str) -> bool:
@@ -477,9 +509,9 @@ class LivingNoteService:
             # Extract semantic metadata from summary content using AI client (with fallback)
             metadata = {}
             try:
-                logger.info("Living note: extracting semantic metadata...")
+                logger.info("Session summary: extracting semantic metadata...")
                 metadata = self.openai_client.extract_semantic_metadata(summary_block)
-                logger.info(f"Living note: semantic metadata extracted: topics={len(metadata.get('topics', []))}, keywords={len(metadata.get('keywords', []))}")
+                logger.info(f"Session summary: semantic metadata extracted: topics={len(metadata.get('topics', []))}, keywords={len(metadata.get('keywords', []))}")
             except Exception as e:
                 logger.error(f"Failed to extract semantic metadata (using defaults): {e}")
                 # Fallback to basic metadata
@@ -511,14 +543,14 @@ class LivingNoteService:
                     now.isoformat(),
                     now.strftime('%Y-%m-%d'),
                     now.strftime('%H:%M:%S'),
-                    'living_note_summary',
+                    'session_summary_summary',
                     metadata.get('summary', summary_block[:200]),  # Fallback to truncated summary_block
                     metadata.get('impact', 'moderate'),
                     markdown_file_path,  # Use markdown file path as file_path
                     searchable_text,
                     markdown_file_path,  # This is the key linking field
-                    'living_note',
-                    None  # version_id not applicable for living notes
+                    'session_summary',
+                    None  # version_id not applicable for session summaries
                 )
                 
                 db.execute_update(semantic_query, params)

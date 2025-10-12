@@ -14,18 +14,18 @@ def get_configured_notes_folder():
         return NOTES_FOLDER
 DIFF_PATH = Path("diffs")
 
-# Living Note configuration
+# Session Summary configuration
 # Mode can be "single" (append to one file) or "daily" (one file per day)
-LIVING_NOTE_MODE = "daily"
+SESSION_SUMMARY_MODE = "daily"
 
-# Single-file fallback path (used when LIVING_NOTE_MODE == "single")
-LIVING_NOTE_PATH = Path("output/living_note.md")
+# Single-file fallback path (used when SESSION_SUMMARY_MODE == "single")
+SESSION_SUMMARY_PATH = Path("output/session_summary.md")
 
-# Daily mode configuration (used when LIVING_NOTE_MODE == "daily")
-# The daily notes will be created inside this directory with the filename format below
-LIVING_NOTE_DAILY_DIR = Path("output/daily")
+# Daily mode configuration (used when SESSION_SUMMARY_MODE == "daily")
+# The daily summaries will be created inside this directory with the filename format below
+SESSION_SUMMARY_DAILY_DIR = Path("output/daily")
 # Filename may include {date} placeholder in YYYY-MM-DD format
-LIVING_NOTE_DAILY_FILENAME_TEMPLATE = "Living Note - {date}.md"
+SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE = "Session Summary - {date}.md"
 
 # Timing settings
 CHECK_INTERVAL = 20  # seconds

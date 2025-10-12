@@ -1,7 +1,7 @@
 
 """
-Living Notes API routes (FastAPI)
-Handles living note content, settings, updates, and SSE events
+Session Summary API routes (FastAPI)
+Handles session summary content, settings, updates, and SSE events
 """
 
 from fastapi import APIRouter, Request
@@ -10,10 +10,15 @@ import logging
 import os
 import json
 from pathlib import Path
-from config.settings import LIVING_NOTE_PATH, LIVING_NOTE_MODE, LIVING_NOTE_DAILY_DIR, LIVING_NOTE_DAILY_FILENAME_TEMPLATE
-from utils.living_note_path import resolve_living_note_path
+from config.settings import (
+    SESSION_SUMMARY_PATH,
+    SESSION_SUMMARY_MODE,
+    SESSION_SUMMARY_DAILY_DIR,
+    SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE,
+)
+from utils.session_summary_path import resolve_session_summary_path
 from ai.openai_client import OpenAIClient
-from services.living_note_service import LivingNoteService
+from services.session_summary_service import SessionSummaryService
 import queue
 from datetime import datetime
 from watchdog.observers import Observer
@@ -23,91 +28,91 @@ import time
 
 logger = logging.getLogger(__name__)
 
-living_note_bp = APIRouter(prefix='/api/living-note', tags=['living-note'])
+session_summary_bp = APIRouter(prefix='/api/session-summary', tags=['session-summary'])
 
 # SSE client management
 sse_clients = []
-living_note_observer = None
-living_note_service = LivingNoteService(str(LIVING_NOTE_PATH))
-living_note_update_lock = threading.Lock()
+session_summary_observer = None
+session_summary_service = SessionSummaryService(str(SESSION_SUMMARY_PATH))
+session_summary_update_lock = threading.Lock()
 
 
-@living_note_bp.get('/')
-async def get_living_note_root():
-    """Get the current living note content (root endpoint)"""
+@session_summary_bp.get('/')
+async def get_session_summary_root():
+    """Get the current session summary content (root endpoint)"""
     try:
-        data = living_note_service.get_content()
+        data = session_summary_service.get_content()
         return data
     except Exception as e:
-        logger.error(f"Failed to read living note: {e}")
+        logger.error(f"Failed to read session summary: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@living_note_bp.get('/content')
-async def get_living_note():
-    """Get the current living note content"""
+@session_summary_bp.get('/content')
+async def get_session_summary():
+    """Get the current session summary content"""
     try:
-        data = living_note_service.get_content()
+        data = session_summary_service.get_content()
         return data
     except Exception as e:
-        logger.error(f"Failed to read living note: {e}")
+        logger.error(f"Failed to read session summary: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@living_note_bp.post('/clear')
-async def clear_living_note():
-    """Clear the living note content"""
+@session_summary_bp.post('/clear')
+async def clear_session_summary():
+    """Clear the session summary content"""
     try:
-        result = living_note_service.clear()
-        logger.info("Living note cleared")
-        notify_living_note_change()
+        result = session_summary_service.clear()
+        logger.info("Session summary cleared")
+        notify_session_summary_change()
         return result
     except Exception as e:
-        logger.error(f"Failed to clear living note: {e}")
+        logger.error(f"Failed to clear session summary: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@living_note_bp.api_route('/settings', methods=['GET', 'POST'])
-async def handle_living_note_settings(request: Request):
-    """Get or save living note customization settings"""
+@session_summary_bp.api_route('/settings', methods=['GET', 'POST'])
+async def handle_session_summary_settings(request: Request):
+    """Get or save session summary customization settings"""
     if request.method == 'GET':
-        return await get_living_note_settings()
+        return await get_session_summary_settings()
     else:
-        return await save_living_note_settings(request)
+        return await save_session_summary_settings(request)
 
 
-async def get_living_note_settings():
-    """Get living note customization settings"""
+async def get_session_summary_settings():
+    """Get session summary customization settings"""
     try:
-        data = living_note_service.get_settings()
+        data = session_summary_service.get_settings()
         return data
     except Exception as e:
-        logger.error(f"Failed to get living note settings: {e}")
+        logger.error(f"Failed to get session summary settings: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-async def save_living_note_settings(request: Request):
-    """Save living note customization settings"""
+async def save_session_summary_settings(request: Request):
+    """Save session summary customization settings"""
     try:
         data = await request.json()
         if not data:
             return JSONResponse({'error': 'No settings provided'}, status_code=400)
-        result = living_note_service.save_settings(data)
-        logger.info("Living note settings saved successfully")
+        result = session_summary_service.save_settings(data)
+        logger.info("Session summary settings saved successfully")
         return result
     except Exception as e:
-        logger.error(f"Failed to save living note settings: {e}")
+        logger.error(f"Failed to save session summary settings: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
 def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
-    """Background worker to perform the living note update with locking.
+    """Background worker to perform the session summary update with locking.
 
     Writes the result dict into result_box['result'] when done.
     """
-    acquired = living_note_update_lock.acquire(timeout=max(lock_timeout, 0.0))
+    acquired = session_summary_update_lock.acquire(timeout=max(lock_timeout, 0.0))
     if not acquired:
-        logger.info("Living note update: another run is in progress; skipping new execution")
+        logger.info("Session summary update: another run is in progress; skipping new execution")
         result_box['result'] = {
             'success': True,
             'updated': False,
@@ -115,30 +120,30 @@ def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
         }
         return
     try:
-        logger.info(f"Living note update: starting (force={force})")
-        res = living_note_service.update(force=force)
+        logger.info(f"Session summary update: starting (force={force})")
+        res = session_summary_service.update(force=force)
         result_box['result'] = res
         # Small delay to ensure FS timestamps are visible
         time.sleep(0.2)
-        notify_living_note_change()
-        logger.info("Living note update: completed and SSE notified")
+        notify_session_summary_change()
+        logger.info("Session summary update: completed and SSE notified")
     except Exception as e:
-        logger.error(f"Living note update failed in worker: {e}")
+        logger.error(f"Session summary update failed in worker: {e}")
         result_box['result'] = {
             'success': False,
             'updated': False,
-            'message': f'Living note update failed: {str(e)}'
+            'message': f'Session summary update failed: {str(e)}'
         }
     finally:
         try:
-            living_note_update_lock.release()
+            session_summary_update_lock.release()
         except Exception:
             pass
 
 
-@living_note_bp.post('/update')
-async def trigger_living_note_update(request: Request):
-    """Update the living note with optional async execution and overall timeout ceiling.
+@session_summary_bp.post('/update')
+async def trigger_session_summary_update(request: Request):
+    """Update the session summary with optional async execution and overall timeout ceiling.
 
     Request body supports:
       - force (bool): force update even with no diffs
@@ -159,11 +164,11 @@ async def trigger_living_note_update(request: Request):
         worker.start()
 
         if run_async:
-            logger.info("Living note update: triggered asynchronously; returning 202")
+            logger.info("Session summary update: triggered asynchronously; returning 202")
             return JSONResponse({
                 'accepted': True,
                 'success': True,
-                'message': 'Living note update started in background',
+                'message': 'Session summary update started in background',
             }, status_code=202)
 
         # Synchronous path with protective ceiling
@@ -171,15 +176,15 @@ async def trigger_living_note_update(request: Request):
         if result_box['result'] is not None:
             return result_box['result']
         else:
-            logger.info(f"Living note update: still running after {max_duration:.1f}s; returning 202 to avoid blocking")
+            logger.info(f"Session summary update: still running after {max_duration:.1f}s; returning 202 to avoid blocking")
             return JSONResponse({
                 'accepted': True,
                 'success': True,
-                'message': 'Living note update continuing in background',
+                'message': 'Session summary update continuing in background',
             }, status_code=202)
 
     except Exception as e:
-        logger.error(f"Failed to trigger living note update: {e}", exc_info=True)
+        logger.error(f"Failed to trigger session summary update: {e}", exc_info=True)
         # Provide more detailed error message
         error_message = str(e)
         if "API" in error_message or "OpenAI" in error_message:
@@ -197,16 +202,16 @@ async def trigger_living_note_update(request: Request):
         }, status_code=500)
 
 
-@living_note_bp.get('/events')
-async def living_note_events():
-    """SSE endpoint for living note updates"""
+@session_summary_bp.get('/events')
+async def session_summary_events():
+    """SSE endpoint for session summary updates"""
     def event_stream():
         client_queue = queue.Queue()
         sse_clients.append(client_queue)
         
         try:
             # Send initial connection message
-            yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to living note updates'})}\n\n"
+            yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to session summary updates'})}\n\n"
             
             while True:
                 try:
@@ -231,14 +236,14 @@ async def living_note_events():
     })
 
 
-def notify_living_note_change():
-    """Notify all SSE clients of living note changes"""
+def notify_session_summary_change():
+    """Notify all SSE clients of session summary changes"""
     try:
-        # Read current living note content
+        # Read current session summary content
         content = ""
         last_updated = datetime.now().isoformat()
 
-        current_path = _resolve_current_living_note_path()
+        current_path = _resolve_current_session_summary_path()
         if current_path.exists():
             with open(current_path, 'r', encoding='utf-8') as f:
                 content = f.read()
@@ -249,9 +254,9 @@ def notify_living_note_change():
         # Calculate word count
         word_count = len(content.split()) if content else 0
         
-        # Create notification event matching the LivingNote interface
+        # Create notification event matching the SessionSummary interface
         event = {
-            'type': 'living_note_updated',
+            'type': 'session_summary_updated',
             'content': content,
             'lastUpdated': last_updated,
             'wordCount': word_count
@@ -274,69 +279,69 @@ def notify_living_note_change():
             if client in sse_clients:
                 sse_clients.remove(client)
         
-        logger.info(f"Notified {len(sse_clients)} SSE clients of living note change")
-        logger.debug(f"Living note content length: {len(content)} characters, word count: {word_count}")
+        logger.info(f"Notified {len(sse_clients)} SSE clients of session summary change")
+        logger.debug(f"Session summary content length: {len(content)} characters, word count: {word_count}")
         
     except Exception as e:
         logger.error(f"Failed to notify SSE clients: {e}")
 
 
-class LivingNoteFileHandler(FileSystemEventHandler):
-    """File system event handler for living note changes"""
+class SessionSummaryFileHandler(FileSystemEventHandler):
+    """File system event handler for session summary changes"""
     
-    def __init__(self, living_note_path):
-        self.living_note_path = Path(living_note_path)
+    def __init__(self, session_summary_path):
+        self.session_summary_path = Path(session_summary_path)
     
     def on_modified(self, event):
         if event.is_directory:
             return
         
-        if Path(event.src_path) == self.living_note_path:
-            logger.info(f"Living note file changed: {event.src_path}")
-            notify_living_note_change()
+        if Path(event.src_path) == self.session_summary_path:
+            logger.info(f"Session summary file changed: {event.src_path}")
+            notify_session_summary_change()
 
 
-def _resolve_current_living_note_path() -> Path:
-    """Resolve the current living note path according to mode (single/daily)."""
-    return resolve_living_note_path()
+def _resolve_current_session_summary_path() -> Path:
+    """Resolve the current session summary path according to mode (single/daily)."""
+    return resolve_session_summary_path()
 
-def start_living_note_watcher():
-    """Start watching the living note file for changes"""
-    global living_note_observer
+def start_session_summary_watcher():
+    """Start watching the session summary file for changes"""
+    global session_summary_observer
     
-    if living_note_observer is not None:
+    if session_summary_observer is not None:
         return  # Already watching
     
     try:
-        living_note_path = _resolve_current_living_note_path()
-        watch_dir = living_note_path.parent
+        session_summary_path = _resolve_current_session_summary_path()
+        watch_dir = session_summary_path.parent
         
         # Ensure the directory exists
         watch_dir.mkdir(parents=True, exist_ok=True)
         
         # Create file if it doesn't exist
-        if not living_note_path.exists():
-            with open(living_note_path, 'w', encoding='utf-8') as f:
-                f.write("# Living Note\n\nAutomated summaries will appear here.\n")
+        if not session_summary_path.exists():
+            with open(session_summary_path, 'w', encoding='utf-8') as f:
+                f.write("# Session Summary\n\nAutomated summaries will appear here.\n")
         
         # Set up file watcher
-        event_handler = LivingNoteFileHandler(living_note_path)
-        living_note_observer = Observer()
-        living_note_observer.schedule(event_handler, str(watch_dir), recursive=False)
-        living_note_observer.start()
+        event_handler = SessionSummaryFileHandler(session_summary_path)
+        session_summary_observer = Observer()
+        session_summary_observer.schedule(event_handler, str(watch_dir), recursive=False)
+        session_summary_observer.start()
         
-        logger.info(f"Started watching living note file: {living_note_path}")
+        logger.info(f"Started watching session summary file: {session_summary_path}")
         
     except Exception as e:
-        logger.error(f"Failed to start living note watcher: {e}")
+        logger.error(f"Failed to start session summary watcher: {e}")
 
 
-def stop_living_note_watcher():
-    """Stop watching the living note file"""
-    global living_note_observer
+def stop_session_summary_watcher():
+    """Stop watching the session summary file"""
+    global session_summary_observer
     
-    if living_note_observer is not None:
-        living_note_observer.stop()
-        living_note_observer.join()
-        living_note_observer = None
-        logger.info("Stopped living note file watcher")
+    if session_summary_observer is not None:
+        session_summary_observer.stop()
+        session_summary_observer.join()
+        session_summary_observer = None
+        logger.info("Stopped session summary file watcher")

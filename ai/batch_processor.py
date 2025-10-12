@@ -311,7 +311,8 @@ class BatchAIProcessor:
                     topics=metadata.get('topics', []),
                     keywords=metadata.get('keywords', []),
                     file_path=file_path,
-                    version_id=latest_change.get('new_version_id')
+                    version_id=latest_change.get('new_version_id'),
+                    source_type='session_summary_auto'
                 )
                 
                 logger.debug(f"Created semantic entry {semantic_id} for batch processing of {file_path}")

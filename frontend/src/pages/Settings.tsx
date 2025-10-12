@@ -399,6 +399,9 @@ export default function Settings() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 AI Model
               </label>
+              <p className="text-sm text-gray-600 mb-3">
+                <strong>OpenAI model used for:</strong> Session summaries, diff analysis, batch processing, and non-interactive AI features.
+              </p>
               <select
                 value={config.aiModel}
                 onChange={(e) => setConfig({ ...config, aiModel: e.target.value })}
@@ -416,7 +419,7 @@ export default function Settings() {
                                        key === 'o4-mini' ? 'O4 Mini' :
                                        key === 'gpt-4.1-nano' ? 'GPT-4.1 Nano' :
                                        key.charAt(0).toUpperCase() + key.slice(1)
-                    
+
                     return (
                       <option key={key} value={value}>
                         {displayName}
@@ -441,6 +444,17 @@ export default function Settings() {
                 placeholder="sk-..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
               />
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <h4 className="text-sm font-medium text-blue-900 mb-2">🤖 Claude for Interactive Chat</h4>
+              <p className="text-sm text-blue-700 mb-2">
+                <strong>Claude (Anthropic) is used for:</strong> Interactive conversations, tool-based chat, file operations, and shell commands.
+              </p>
+              <p className="text-sm text-blue-600">
+                Claude provides powerful built-in tools for reading files, executing commands, and exploring your codebase interactively.
+                Set <code className="bg-blue-100 px-1 rounded">ANTHROPIC_API_KEY</code> environment variable to enable Claude chat features.
+              </p>
             </div>
 
             {/* AI Update Frequency Section */}
@@ -612,7 +626,7 @@ export default function Settings() {
                 <li>• <code className="bg-yellow-100 px-1 rounded">*.tmp</code> - Ignore temporary files</li>
                 <li>• <code className="bg-yellow-100 px-1 rounded">.git/</code> - Ignore git directory</li>
                 <li>• <code className="bg-yellow-100 px-1 rounded">node_modules/</code> - Ignore node modules</li>
-                <li>• <code className="bg-yellow-100 px-1 rounded">living_note.md</code> - Ignore specific file</li>
+                <li>• <code className="bg-yellow-100 px-1 rounded">session_summary.md</code> - Ignore specific file</li>
                 <li>• <code className="bg-yellow-100 px-1 rounded">*.swp</code> - Ignore editor swap files</li>
               </ul>
               <p className="text-sm text-yellow-600 mt-2">
