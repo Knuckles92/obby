@@ -283,11 +283,27 @@ class ClaudeAgentClient:
             Structured summary text with topics, keywords, and impact
         """
         try:
-            # Build file summary section
+            # Convert absolute paths to relative paths for Claude's Read tool
+            def make_relative(path: str) -> str:
+                """Convert absolute path to relative path from working directory."""
+                try:
+                    abs_path = Path(path)
+                    if abs_path.is_absolute():
+                        return str(abs_path.relative_to(self.working_dir))
+                    return path
+                except (ValueError, Exception):
+                    # If path is not relative to working_dir, return as-is
+                    return path
+            
+            # Build file summary section with paths for Claude to read
             files_section = "\n".join([
-                f"- {fs['file_path']}: {fs['summary']}"
-                for fs in file_summaries[:10]  # Limit to first 10
+                f"- {make_relative(fs['file_path'])}: {fs['summary']}"
+                for fs in file_summaries[:20]  # Allow up to 20 files
             ])
+
+            # Extract unique file paths for Claude to read (use relative paths)
+            file_paths = [make_relative(fs['file_path']) for fs in file_summaries[:20]]
+            files_to_read = "\n".join([f"  - {path}" for path in file_paths])
 
             # Determine length instruction
             length_instruction = {
@@ -296,19 +312,16 @@ class ClaudeAgentClient:
                 'detailed': 'Provide a detailed analysis with multiple sections.'
             }.get(summary_length, 'Provide a concise 2-3 sentence summary.')
 
-            # Build comprehensive prompt
-            prompt = f"""Analyze these code changes and provide a structured summary.
+            # Build comprehensive prompt that instructs Claude to READ the files
+            prompt = f"""Analyze code changes from the past {time_span} and provide a structured summary.
 
-**Time Span**: {time_span}
-**Files Changed**: {len(file_summaries)}
-
-**File Summaries**:
+**Files Changed** ({len(file_summaries)} total):
 {files_section}
 
-**Recent Changes**:
-{changes_context}
+**IMPORTANT**: Please use your Read tool to examine the actual content of these files:
+{files_to_read}
 
-Please provide your response in the following format:
+After reading the files, provide your analysis in this format:
 
 **Summary**: [Your summary here - {length_instruction}]
 
@@ -319,17 +332,20 @@ Please provide your response in the following format:
 **Overall Impact**: [one word: brief, moderate, or significant]
 
 Focus on:
-1. What changed and why
-2. Key themes or patterns
+1. What changed and why (read the files to understand the actual content)
+2. Key themes or patterns in the changes
 3. Technical areas affected
 4. Overall significance of changes
+
+Note: The diff summary below is provided for context, but please READ the actual files for accurate analysis:
+{changes_context[:1000] if changes_context else "(No diff context available - please read the files directly)"}
 """
 
             options = ClaudeAgentOptions(
                 cwd=str(self.working_dir),
                 allowed_tools=["Read"],
-                max_turns=3,
-                system_prompt="You are a technical code analyst. Provide structured, concise summaries."
+                max_turns=5,  # Allow more turns for file reading
+                system_prompt="You are a technical code analyst. Use the Read tool to examine files, then provide structured, concise summaries based on actual file content."
             )
 
             result = []
