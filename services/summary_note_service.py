@@ -237,7 +237,10 @@ class SummaryNoteService:
             Dict containing summary content and metadata
         """
         try:
+            logger.debug(f"get_summary_content called with filename: {filename}")
+            
             # First try to find by exact filename match in markdown_file_path
+            # Use multiple patterns to handle both forward and backslash separators
             query = """
                 SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
                        GROUP_CONCAT(st.topic) as topics,
@@ -246,21 +249,27 @@ class SummaryNoteService:
                 LEFT JOIN semantic_topics st ON se.id = st.entry_id
                 LEFT JOIN semantic_keywords sk ON se.id = sk.entry_id
                 WHERE se.source_type IN ('living_note', 'comprehensive') AND
-                      (se.markdown_file_path LIKE ? OR se.markdown_file_path = ?)
+                      (se.markdown_file_path LIKE ? OR 
+                       se.markdown_file_path LIKE ? OR 
+                       se.markdown_file_path = ?)
                 GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
                 ORDER BY se.timestamp DESC
                 LIMIT 1
             """
 
-            # Try pattern match with just filename (OS-agnostic - works with both / and \)
-            rows = db.execute_query(query, (f"%{filename}", filename))
+            # Try pattern match with both forward and backslash paths (OS-agnostic)
+            rows = db.execute_query(query, (f"%/{filename}", f"%\\{filename}", filename))
+            
+            logger.debug(f"Query returned {len(rows) if rows else 0} rows for filename: {filename}")
             
             # Fallback: try to extract semantic ID from old format (Summary-{id}-{stem}.md)
             if not rows:
+                logger.debug(f"No rows found with path matching, trying ID extraction for: {filename}")
                 import re
                 match = re.match(r'Summary-(\d+)-.*\.md', filename)
                 if match:
                     semantic_id = int(match.group(1))
+                    logger.debug(f"Extracted semantic_id: {semantic_id} from filename")
                     id_query = """
                         SELECT se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path,
                                GROUP_CONCAT(st.topic) as topics,
@@ -272,8 +281,10 @@ class SummaryNoteService:
                         GROUP BY se.id, se.timestamp, se.summary, se.impact, se.file_path, se.markdown_file_path
                     """
                     rows = db.execute_query(id_query, (semantic_id,))
+                    logger.debug(f"ID-based query returned {len(rows) if rows else 0} rows")
             
             if not rows:
+                logger.error(f"Summary not found for {filename} - no database entries matched")
                 raise FileNotFoundError(f"Summary not found for {filename}")
             
             row = rows[0]
@@ -281,27 +292,43 @@ class SummaryNoteService:
             
             # Read content from the actual markdown file
             markdown_file_path = row['markdown_file_path']
-            if not markdown_file_path:
-                raise FileNotFoundError(f"No markdown file linked for {filename}")
-            
-            # Handle both relative and absolute paths
-            file_path = Path(markdown_file_path)
-            if not file_path.is_absolute():
-                file_path = Path.cwd() / file_path
-            
-            if not file_path.exists():
-                raise FileNotFoundError(f"Markdown file not found: {file_path}")
-            
-            # Read the actual markdown content
-            with open(file_path, 'r', encoding='utf-8') as f:
-                content = f.read()
-            
-            # Get file stats
-            file_stats = file_path.stat()
-            file_size = file_stats.st_size
-            last_modified = datetime.fromtimestamp(file_stats.st_mtime)
-            
-            # Content is already in markdown format from file
+            logger.debug(f"Found markdown_file_path: {markdown_file_path}")
+
+            content = None
+            file_size = 0
+            last_modified = timestamp
+
+            if markdown_file_path:
+                # Handle both relative and absolute paths
+                file_path = Path(markdown_file_path)
+                if not file_path.is_absolute():
+                    file_path = Path.cwd() / file_path
+                
+                logger.debug(f"Resolved file path: {file_path}")
+                
+                if file_path.exists():
+                    logger.debug(f"Reading markdown file: {file_path}")
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    logger.debug(f"Successfully read {len(content)} characters from {file_path.name}")
+                    file_stats = file_path.stat()
+                    file_size = file_stats.st_size
+                    last_modified = datetime.fromtimestamp(file_stats.st_mtime)
+                else:
+                    logger.warning(f"Markdown file not found on disk for {filename}: {file_path}. Falling back to database content.")
+            else:
+                logger.warning(f"No markdown file path linked for {filename} (semantic_id: {row['id']}). Falling back to database content.")
+
+            if content is None:
+                if row['summary']:
+                    content = self._format_summary_as_markdown(row, timestamp)
+                    file_size = len(content.encode('utf-8'))
+                    last_modified = timestamp
+                    logger.debug(f"Generated markdown content from database for {filename}")
+                else:
+                    logger.error(f"No markdown content available for {filename} (semantic_id: {row['id']})")
+                    raise FileNotFoundError(f"Summary content not available for {filename}")
             
             return {
                 'filename': filename,

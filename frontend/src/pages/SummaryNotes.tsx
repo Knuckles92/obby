@@ -343,20 +343,34 @@ export default function SummaryNotes() {
   const fetchSummaryContent = async (filename: string) => {
     try {
       setContentLoading(true)
+      console.log(`Fetching summary content for: ${filename}`)
       const response = await apiFetch(`/api/summary-notes/${filename}`)
+      
       if (!response.ok) {
+        // Try to get detailed error message
         let errText = `HTTP ${response.status}`
         try {
           const err = await response.json()
           errText = err?.error || errText
-        } catch {}
+          console.error(`Failed to load ${filename}: ${response.status} - ${errText}`)
+        } catch {
+          // If JSON parsing fails, try to get text
+          try {
+            const textError = await response.text()
+            errText = textError || errText
+            console.error(`Failed to load ${filename}: ${response.status} - ${errText}`)
+          } catch {}
+        }
         throw new Error(errText)
       }
+      
       const data: SummaryContentResponse = await response.json()
+      console.log(`Successfully loaded summary: ${filename}`)
       setCurrentSummaryContent(data)
     } catch (error) {
-      console.error('Error fetching summary content:', error)
-      alert('Failed to load summary content')
+      console.error('Error fetching summary content:', error, 'filename:', filename)
+      const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+      alert(`Failed to load summary content: ${errorMsg}`)
     } finally {
       setContentLoading(false)
     }

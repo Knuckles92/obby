@@ -32,10 +32,13 @@ def run_comprehensive_worker(force: bool, result_box: dict):
             
             # Get last comprehensive summary timestamp
             last_summary_timestamp = ComprehensiveSummaryModel.get_last_summary_timestamp()
+            current_time = datetime.now()
             
             if not last_summary_timestamp:
                 last_summary_timestamp = datetime.now() - timedelta(days=7)
                 logger.info("No previous comprehensive summary found, using 7 days ago as start time")
+            
+            logger.info(f"Comprehensive summary time range: {last_summary_timestamp} to {current_time}")
             
             # Get ALL changes since last comprehensive summary
             changes_query = """
@@ -47,6 +50,7 @@ def run_comprehensive_worker(force: bool, result_box: dict):
             """
             
             changes = db.execute_query(changes_query, (last_summary_timestamp,))
+            logger.info(f"Found {len(changes)} changes in database since {last_summary_timestamp}")
             
             if not changes and not force:
                 result = {
@@ -244,9 +248,11 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                     )
 
                     # Update semantic entry with markdown path and source type
+                    # Normalize path to forward slashes for cross-platform compatibility
+                    markdown_path_normalized = str(markdown_path).replace('\\', '/')
                     db.execute_update(
                         "UPDATE semantic_entries SET markdown_file_path = ?, source_type = ? WHERE id = ?",
-                        (str(markdown_path), 'comprehensive', semantic_id)
+                        (markdown_path_normalized, 'comprehensive', semantic_id)
                     )
 
                     logger.info(f"Created semantic entry {semantic_id} for comprehensive summary {summary_id}")
