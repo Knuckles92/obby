@@ -66,13 +66,14 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
 
   const navigationStyle = {
     marginTop: 'var(--spacing-xl)',
-    padding: `0 var(--spacing-md)`
+    padding: `0 ${isOpen ? 'var(--spacing-md)' : 'var(--spacing-sm)'}`
   }
 
   const getNavItemStyle = (isActive: boolean) => ({
     display: 'flex',
     alignItems: 'center',
-    padding: 'var(--spacing-sm) var(--spacing-md)',
+    justifyContent: isOpen ? 'flex-start' : 'center',
+    padding: isOpen ? 'var(--spacing-sm) var(--spacing-md)' : 'var(--spacing-sm)',
     fontSize: 'var(--font-size-sm)',
     fontWeight: 500,
     borderRadius: 'var(--border-radius-md)',
@@ -81,7 +82,9 @@ export default function Sidebar({ isOpen, onToggle }: SidebarProps) {
     backgroundColor: isActive ? 'var(--color-primary)' : 'transparent',
     color: isActive ? 'var(--color-text-inverse)' : 'var(--color-text-secondary)',
     borderRight: isActive ? `2px solid var(--color-accent)` : 'none',
-    marginBottom: 'var(--spacing-xs)'
+    marginBottom: 'var(--spacing-xs)',
+    width: isOpen ? 'auto' : '100%',
+    minHeight: isOpen ? 'auto' : '2.5rem'
   })
 
   const getIconStyle = (isActive: boolean) => ({
