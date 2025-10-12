@@ -263,22 +263,6 @@ export default function Settings() {
 
 
 
-  const addIgnorePattern = () => {
-    if (newIgnorePattern.trim() && !config.ignorePatterns.includes(newIgnorePattern.trim())) {
-      setConfig({
-        ...config,
-        ignorePatterns: [...config.ignorePatterns, newIgnorePattern.trim()]
-      })
-      setNewIgnorePattern('')
-    }
-  }
-
-  const removeIgnorePattern = (index: number) => {
-    setConfig({
-      ...config,
-      ignorePatterns: config.ignorePatterns.filter((_, i) => i !== index)
-    })
-  }
 
   if (loading) {
     return (
@@ -289,39 +273,71 @@ export default function Settings() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <SettingsIcon className="h-6 w-6 text-gray-600 mr-3" />
-          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+    <div className="min-h-screen space-y-6">
+      {/* Modern Header */}
+      <div className="relative overflow-hidden rounded-2xl mb-8 p-8 text-white shadow-2xl" style={{
+        background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
+      }}>
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <SettingsIcon className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
+            </div>
+            <p className="text-blue-100 text-lg">Configure your Obby monitoring and AI preferences</p>
+          </div>
+
+          <button
+            onClick={saveConfig}
+            disabled={saving}
+            className="relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group bg-white/20 hover:bg-white/30 border border-white/30 text-white"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            <div className="relative flex items-center space-x-2">
+              {saving ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  <span>Save Changes</span>
+                </>
+              )}
+            </div>
+          </button>
         </div>
-        
-        <button
-          onClick={saveConfig}
-          disabled={saving}
-          className="btn-primary flex items-center justify-center"
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {saving ? 'Saving...' : 'Save Changes'}
-        </button>
       </div>
 
       {/* Theme Settings */}
-      <div className="card">
+      <div className="group relative overflow-visible rounded-2xl p-6 shadow-lg border transition-all duration-300 hover:shadow-xl hover:-translate-y-1" style={{
+        background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+        borderColor: 'var(--color-border)',
+        minHeight: '500px'
+      }}>
         <div className="flex items-center mb-4">
-          <Palette className="h-5 w-5 text-primary-600 mr-3" />
-          <h3 className="text-lg font-medium text-gray-900">Theme & Appearance</h3>
+          <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--color-primary)' }}>
+            <Palette className="h-5 w-5" style={{ color: 'var(--color-text-inverse)' }} />
+          </div>
+          <h3 className="text-lg font-medium ml-3" style={{ color: 'var(--color-text-primary)' }}>Theme & Appearance</h3>
         </div>
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-secondary)' }}>
               Current Theme
             </label>
             <ThemeSwitcher />
           </div>
           
-          <div className="text-sm text-gray-600">
+          <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
             <p>Choose from 11 beautiful themes across different categories:</p>
             <ul className="mt-2 space-y-1 ml-4">
               <li>• <strong>Professional:</strong> Corporate, Minimal, Classic</li>
@@ -335,15 +351,18 @@ export default function Settings() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* General Settings */}
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">General Settings</h3>
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border transition-all duration-300 hover:shadow-xl hover:-translate-y-1" style={{
+          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+          borderColor: 'var(--color-border)'
+        }}>
+          <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>General Settings</h3>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
                 Periodic Check Interval (seconds)
               </label>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
                 In addition to real-time monitoring, Obby can also periodically scan all files for changes.
               </p>
               <input
@@ -353,7 +372,13 @@ export default function Settings() {
                 value={config.checkInterval}
                 onChange={(e) => setConfig({ ...config, checkInterval: parseInt(e.target.value) || 5 })}
                 disabled={!config.periodicCheckEnabled}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-md disabled:opacity-50 transition-colors"
+                style={{
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid'
+                }}
               />
             </div>
 
@@ -363,24 +388,25 @@ export default function Settings() {
                   type="checkbox"
                   checked={config.periodicCheckEnabled}
                   onChange={(e) => setConfig({ ...config, periodicCheckEnabled: e.target.checked })}
-                  className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                  className="h-4 w-4 rounded"
+                  style={{ accentColor: 'var(--color-primary)' }}
                 />
-                <span className="text-sm font-medium text-gray-700">
+                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                   Enable Periodic Checking
                 </span>
               </label>
-              <p className="text-sm text-gray-500 mt-1 ml-7">
+              <p className="text-sm mt-1 ml-7" style={{ color: 'var(--color-text-secondary)' }}>
                 When enabled, Obby will check all watched files at the specified interval,
                 in addition to real-time change detection.
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
                 <FolderOpen className="h-4 w-4 inline mr-2" />
                 Monitoring Directory
               </label>
-              <p className="text-sm text-gray-500 mb-2">
+              <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
                 The base directory that Obby monitors for changes. All generated summaries will be saved to the output/ directory.
               </p>
               <input
@@ -388,25 +414,37 @@ export default function Settings() {
                 value={config.monitoringDirectory || 'notes'}
                 onChange={(e) => setConfig({ ...config, monitoringDirectory: e.target.value })}
                 placeholder="notes"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 rounded-md transition-colors"
+                style={{
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid'
+                }}
               />
-              <p className="text-sm text-gray-400 mt-1">
+              <p className="text-sm mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
                 ⚠️ Cannot be set to 'output' to prevent feedback loops
               </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
                 AI Model
               </label>
-              <p className="text-sm text-gray-600 mb-3">
+              <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
                 <strong>OpenAI model used for:</strong> Session summaries, diff analysis, batch processing, and non-interactive AI features.
               </p>
               <select
                 value={config.aiModel}
                 onChange={(e) => setConfig({ ...config, aiModel: e.target.value })}
                 disabled={modelsLoading}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
+                className="w-full px-3 py-2 rounded-md disabled:opacity-50 transition-colors"
+                style={{
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid'
+                }}
               >
                 {modelsLoading ? (
                   <option value="">Loading models...</option>
@@ -429,12 +467,12 @@ export default function Settings() {
                 )}
               </select>
               {modelsLoading && (
-                <p className="text-sm text-gray-500 mt-1">Fetching latest models...</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>Fetching latest models...</p>
               )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
                 OpenAI API Key
               </label>
               <input
@@ -442,24 +480,33 @@ export default function Settings() {
                 value={config.openaiApiKey}
                 onChange={(e) => setConfig({ ...config, openaiApiKey: e.target.value })}
                 placeholder="sk-..."
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                className="w-full px-3 py-2 rounded-md transition-colors"
+                style={{
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid'
+                }}
               />
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">🤖 Claude for Interactive Chat</h4>
-              <p className="text-sm text-blue-700 mb-2">
+            <div className="rounded-xl p-4" style={{
+              backgroundColor: 'var(--color-info-bg, #dbeafe)',
+              border: '1px solid var(--color-info-border, #93c5fd)'
+            }}>
+              <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-info-text, #1e40af)' }}>🤖 Claude for Interactive Chat</h4>
+              <p className="text-sm mb-2" style={{ color: 'var(--color-info-text, #1e40af)' }}>
                 <strong>Claude (Anthropic) is used for:</strong> Interactive conversations, tool-based chat, file operations, and shell commands.
               </p>
-              <p className="text-sm text-blue-600">
+              <p className="text-sm" style={{ color: 'var(--color-info-text, #2563eb)' }}>
                 Claude provides powerful built-in tools for reading files, executing commands, and exploring your codebase interactively.
-                Set <code className="bg-blue-100 px-1 rounded">ANTHROPIC_API_KEY</code> environment variable to enable Claude chat features.
+                Set <code className="px-1 rounded" style={{ backgroundColor: 'var(--color-info-bg-light, #bfdbfe)' }}>ANTHROPIC_API_KEY</code> environment variable to enable Claude chat features.
               </p>
             </div>
 
             {/* AI Update Frequency Section */}
-            <div className="border-t border-gray-200 pt-4">
-              <h4 className="text-md font-medium text-gray-900 mb-4">AI Update Frequency</h4>
+            <div className="pt-4" style={{ borderTop: '1px solid var(--color-divider)' }}>
+              <h4 className="text-md font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>AI Update Frequency</h4>
               
               <div className="space-y-4">
                 <div>
@@ -468,22 +515,23 @@ export default function Settings() {
                       type="checkbox"
                       checked={config.aiAutoUpdateEnabled || false}
                       onChange={(e) => setConfig({ ...config, aiAutoUpdateEnabled: e.target.checked })}
-                      className="h-4 w-4 text-primary-600 focus:ring-primary-500 border-gray-300 rounded"
+                      className="h-4 w-4 rounded"
+                      style={{ accentColor: 'var(--color-primary)' }}
                     />
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
                       Enable Automatic AI Updates
                     </span>
                   </label>
-                  <p className="text-sm text-gray-500 mt-1 ml-7">
+                  <p className="text-sm mt-1 ml-7" style={{ color: 'var(--color-text-secondary)' }}>
                     When enabled, AI analysis will run automatically at the specified interval.
                   </p>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
                     AI Update Interval (hours)
                   </label>
-                  <p className="text-sm text-gray-500 mb-2">
+                  <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
                     How often AI processing runs (separate from file monitoring). Default is 12 hours (twice daily).
                   </p>
                   <input
@@ -493,19 +541,25 @@ export default function Settings() {
                     value={config.aiUpdateInterval || 12}
                     onChange={(e) => setConfig({ ...config, aiUpdateInterval: parseInt(e.target.value) || 12 })}
                     disabled={!config.aiAutoUpdateEnabled}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500 disabled:opacity-50"
+                    className="w-full px-3 py-2 rounded-md disabled:opacity-50 transition-colors"
+                    style={{
+                      backgroundColor: 'var(--color-background)',
+                      borderColor: 'var(--color-border)',
+                      color: 'var(--color-text-primary)',
+                      border: '1px solid'
+                    }}
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
                     Range: 1 hour to 168 hours (1 week)
                   </p>
                 </div>
 
                 {config.lastAiUpdateTimestamp && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
                       Last AI Update
                     </label>
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
                       {new Date(config.lastAiUpdateTimestamp).toLocaleString()}
                     </p>
                   </div>
@@ -516,23 +570,35 @@ export default function Settings() {
         </div>
 
         {/* Interactive Watch Configuration */}
-        <div className="card">
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border transition-all duration-300 hover:shadow-xl hover:-translate-y-1" style={{
+          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+          borderColor: 'var(--color-border)'
+        }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center">
-              <FolderOpen className="h-5 w-5 text-primary-600 mr-3" />
-              <h3 className="text-lg font-medium text-gray-900">Watch Directories</h3>
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--color-success)' }}>
+                <FolderOpen className="h-5 w-5" style={{ color: 'var(--color-text-inverse)' }} />
+              </div>
+              <h3 className="text-lg font-medium ml-3" style={{ color: 'var(--color-text-primary)' }}>Watch Directories</h3>
             </div>
             <div className="flex items-center space-x-2">
               <button
                 onClick={() => setShowWatchHelp(!showWatchHelp)}
-                className="p-2 text-gray-500 hover:text-gray-700"
+                className="p-2 rounded-lg transition-colors"
+                style={{
+                  color: 'var(--color-text-secondary)',
+                  backgroundColor: showWatchHelp ? 'var(--color-surface)' : 'transparent'
+                }}
                 title="Show help"
               >
                 {showWatchHelp ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
               <button
                 onClick={reloadWatchConfig}
-                className="p-2 text-gray-500 hover:text-gray-700"
+                className="p-2 rounded-lg transition-colors"
+                style={{ color: 'var(--color-text-secondary)' }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-surface)'}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 title="Reload configuration"
               >
                 <RefreshCw className="h-4 w-4" />
@@ -541,16 +607,19 @@ export default function Settings() {
           </div>
           
           {showWatchHelp && (
-            <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
-              <h4 className="text-sm font-medium text-blue-900 mb-2">Watch Pattern Examples:</h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• <code className="bg-blue-100 px-1 rounded">notes/</code> - Monitor entire notes directory</li>
-                <li>• <code className="bg-blue-100 px-1 rounded">*.md</code> - Monitor all markdown files</li>
-                <li>• <code className="bg-blue-100 px-1 rounded">docs/</code> - Monitor docs directory</li>
-                <li>• <code className="bg-blue-100 px-1 rounded">project_notes/</code> - Monitor specific subdirectory</li>
+            <div className="rounded-xl p-4 mb-4" style={{
+              backgroundColor: 'var(--color-info-bg, #dbeafe)',
+              border: '1px solid var(--color-info-border, #93c5fd)'
+            }}>
+              <h4 className="text-sm font-medium mb-2" style={{ color: 'var(--color-info-text, #1e40af)' }}>Watch Pattern Examples:</h4>
+              <ul className="text-sm space-y-1" style={{ color: 'var(--color-info-text, #1e40af)' }}>
+                <li>• <code className="px-1 rounded" style={{ backgroundColor: 'var(--color-info-bg-light, #bfdbfe)' }}>notes/</code> - Monitor entire notes directory</li>
+                <li>• <code className="px-1 rounded" style={{ backgroundColor: 'var(--color-info-bg-light, #bfdbfe)' }}>*.md</code> - Monitor all markdown files</li>
+                <li>• <code className="px-1 rounded" style={{ backgroundColor: 'var(--color-info-bg-light, #bfdbfe)' }}>docs/</code> - Monitor docs directory</li>
+                <li>• <code className="px-1 rounded" style={{ backgroundColor: 'var(--color-info-bg-light, #bfdbfe)' }}>project_notes/</code> - Monitor specific subdirectory</li>
               </ul>
-              <p className="text-sm text-blue-600 mt-2">
-                Patterns are saved to <code className="bg-blue-100 px-1 rounded">.obbywatch</code> file in project root.
+              <p className="text-sm mt-2" style={{ color: 'var(--color-info-text, #2563eb)' }}>
+                Patterns are saved to <code className="px-1 rounded" style={{ backgroundColor: 'var(--color-info-bg-light, #bfdbfe)' }}>.obbywatch</code> file in project root.
               </p>
             </div>
           )}
@@ -562,12 +631,21 @@ export default function Settings() {
                 value={newWatchPattern}
                 onChange={(e) => setNewWatchPattern(e.target.value)}
                 placeholder="Enter watch pattern (e.g., notes/, *.md, docs/)"
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                className="flex-1 px-3 py-2 rounded-md transition-colors"
+                style={{
+                  backgroundColor: 'var(--color-background)',
+                  borderColor: 'var(--color-border)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid'
+                }}
                 onKeyPress={(e) => e.key === 'Enter' && addWatchPattern()}
               />
               <button
                 onClick={addWatchPattern}
-                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                className="px-4 py-2 text-white rounded-xl transition-all duration-200 flex items-center"
+                style={{ backgroundColor: 'var(--color-success)' }}
+                onMouseEnter={(e) => e.currentTarget.style.filter = 'brightness(1.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.filter = 'brightness(1)'}
               >
                 <Plus className="h-4 w-4 mr-1" />
                 Add
