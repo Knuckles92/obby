@@ -180,8 +180,23 @@ export const triggerComprehensiveSummaryGeneration = async (force: boolean = tru
 /**
  * Get comprehensive summary generation status
  */
-export const getComprehensiveSummaryStatus = async (): Promise<{running: boolean, last: any}> => {
-  return apiRequest<{running: boolean, last: any}>('/api/monitor/comprehensive-summary/status')
+export interface ComprehensiveStatusEntry {
+  step: string
+  message: string
+  details?: string | null
+  progress?: number | null
+  timestamp?: string
+}
+
+export interface ComprehensiveStatusResponse {
+  running: boolean
+  status?: ComprehensiveStatusEntry | null
+  history?: ComprehensiveStatusEntry[]
+  last?: any
+}
+
+export const getComprehensiveSummaryStatus = async (): Promise<ComprehensiveStatusResponse> => {
+  return apiRequest<ComprehensiveStatusResponse>('/api/monitor/comprehensive-summary/status')
 }
 
 /**

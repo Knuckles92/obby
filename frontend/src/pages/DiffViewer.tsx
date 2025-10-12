@@ -295,51 +295,85 @@ export default function DiffViewer() {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center">
-          <Archive className="h-6 w-6 text-gray-600 mr-3" />
-          <h1 className="text-2xl font-bold text-gray-900">File History</h1>
-        </div>
-        
-        {monitoringStatus && (
-          <div className="flex items-center space-x-4 text-sm text-gray-600">
-            <div className="flex items-center space-x-1">
-              <FileText className="h-4 w-4" />
-              <span>{monitoringStatus.tracked_files_count} files tracked</span>
+    <div className="min-h-screen space-y-6">
+      {/* Modern Header */}
+      <div className="relative overflow-hidden rounded-2xl mb-2 p-8 text-white shadow-2xl" style={{
+        background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
+      }}>
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <Archive className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">File History</h1>
             </div>
-            <div className="flex items-center space-x-1">
-              <Hash className="h-4 w-4" />
-              <span>{monitoringStatus.system_type}</span>
-            </div>
-            {monitoringStatus.monitoring_active && (
-              <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                Active
-              </span>
-            )}
+            <p className="text-blue-100 text-lg">Browse recent diffs and file change events</p>
           </div>
-        )}
+
+          {monitoringStatus && (
+            <div className="flex items-center space-x-4">
+              <div className="hidden md:flex items-center space-x-3 text-sm">
+                <div className="flex items-center px-3 py-1 rounded-md backdrop-blur-sm border" style={{
+                  borderColor: 'rgba(255,255,255,0.25)',
+                  backgroundColor: 'rgba(255,255,255,0.12)'
+                }}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  <span>{monitoringStatus.tracked_files_count} tracked</span>
+                </div>
+                <div className="px-3 py-1 rounded-md backdrop-blur-sm border" style={{
+                  borderColor: 'rgba(255,255,255,0.25)',
+                  backgroundColor: 'rgba(255,255,255,0.12)'
+                }}>
+                  <span className="text-xs uppercase tracking-wide opacity-90">{monitoringStatus.system_type}</span>
+                </div>
+              </div>
+
+              <div className={`flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border transition-all duration-300 ${
+                monitoringStatus.monitoring_active
+                  ? 'bg-green-500/20 border-green-400/30 text-green-100'
+                  : 'bg-red-500/20 border-red-400/30 text-red-100'
+              }`}>
+                <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  monitoringStatus.monitoring_active ? 'bg-green-400' : 'bg-red-400'
+                }`}></div>
+                <span className="text-sm font-medium">
+                  {monitoringStatus.monitoring_active ? 'Monitoring Active' : 'Monitoring Inactive'}
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Panel - Details */}
-        <div className="card">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border transition-all duration-300" style={{
+          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+          borderColor: 'var(--color-border)'
+        }}>
+          <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>
             {selectedDiff ? 'Content Diff Details' : selectedChange ? 'File Change Details' : 'Details'}
           </h3>
           {renderSelectedContent()}
         </div>
 
         {/* Right Panel - Diffs and Changes */}
-        <div className="card">
+        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border transition-all duration-300" style={{
+          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+          borderColor: 'var(--color-border)'
+        }}>
           <div className="flex items-center justify-between mb-4">
             <div className="flex space-x-1">
               <button
                 onClick={() => setActiveTab('diffs')}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeTab === 'diffs'
-                    ? 'bg-primary-100 text-primary-700'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -349,7 +383,7 @@ export default function DiffViewer() {
                 onClick={() => setActiveTab('changes')}
                 className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                   activeTab === 'changes'
-                    ? 'bg-primary-100 text-primary-700'
+                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
                     : 'text-gray-600 hover:text-gray-900'
                 }`}
               >
@@ -360,21 +394,27 @@ export default function DiffViewer() {
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleRefresh}
-                className="flex items-center px-3 py-2 text-sm font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors"
+                className="relative overflow-hidden px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-300 text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100"
                 disabled={loading || refreshing}
               >
-                <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                Refresh
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                <div className="relative flex items-center">
+                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </div>
               </button>
               
               {(diffs.length > 0 || fileChanges.length > 0) && (
                 <button
                   onClick={() => setShowClearDialog(true)}
-                  className="flex items-center px-3 py-2 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors"
+                  className="relative overflow-hidden px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-300 text-red-700 bg-red-50 border border-red-200 hover:bg-red-100"
                   disabled={loading || clearing}
                 >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Clear All
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="relative flex items-center">
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Clear All
+                  </div>
                 </button>
               )}
             </div>
@@ -390,7 +430,7 @@ export default function DiffViewer() {
               <p className="text-sm text-gray-600 mb-4">{error}</p>
               <button
                 onClick={() => fetchFileData()}
-                className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 transition-colors"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
               >
                 Retry
               </button>
@@ -401,12 +441,15 @@ export default function DiffViewer() {
                 <div
                   key={diff.id}
                   onClick={() => handleDiffSelection(diff)}
-                  className={`p-3 rounded-md cursor-pointer transition-colors ${
+                  className={`group/item relative overflow-hidden p-3 rounded-md cursor-pointer transition-colors border ${
                     selectedDiff?.id === diff.id
-                      ? 'bg-primary-50 border border-primary-200'
-                      : 'bg-gray-50 hover:bg-gray-100'
+                      ? 'bg-blue-50 border-blue-200'
+                      : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
                   }`}
                 >
+                  <div className="absolute inset-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" style={{
+                    background: 'linear-gradient(90deg, transparent, var(--color-surface), transparent)'
+                  }}></div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
                       <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(diff.changeType)}`}>
@@ -433,12 +476,15 @@ export default function DiffViewer() {
                 <div
                   key={change.id}
                   onClick={() => handleChangeSelection(change)}
-                  className={`p-3 rounded-md cursor-pointer transition-colors ${
+                  className={`group/item relative overflow-hidden p-3 rounded-md cursor-pointer transition-colors border ${
                     selectedChange?.id === change.id
-                      ? 'bg-primary-50 border border-primary-200'
-                      : 'bg-gray-50 hover:bg-gray-100'
+                      ? 'bg-blue-50 border-blue-200'
+                      : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
                   }`}
                 >
+                  <div className="absolute inset-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" style={{
+                    background: 'linear-gradient(90deg, transparent, var(--color-surface), transparent)'
+                  }}></div>
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-2">
                       <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(change.changeType)}`}>

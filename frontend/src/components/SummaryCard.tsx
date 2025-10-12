@@ -53,140 +53,157 @@ export default function SummaryCard({
 
   return (
     <div 
-      className={`card cursor-pointer transition-all duration-200 hover:shadow-lg relative ${
-        isSelected ? 'ring-2 ring-blue-500 border-blue-200' : ''
+      className={`group/card relative overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-2xl rounded-2xl border-2 ${
+        isSelected ? 'shadow-2xl scale-105' : 'shadow-lg'
       } ${
-        isItemSelected ? 'ring-2 ring-green-500 border-green-200 bg-green-50' : ''
+        isItemSelected ? 'shadow-2xl' : ''
       }`}
       style={{
-        borderColor: isSelected ? 'var(--color-primary)' : isItemSelected ? 'var(--color-success)' : 'var(--color-border)',
-        backgroundColor: isItemSelected ? 'var(--color-success-50, #f0fdf4)' : undefined,
+        background: isItemSelected 
+          ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)' 
+          : 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+        borderColor: isSelected 
+          ? 'var(--color-primary)' 
+          : isItemSelected 
+            ? '#4ade80' 
+            : 'var(--color-border)',
         transform: 'translateY(0)',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease, background-color 0.2s ease'
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
       }}
       onClick={handleCardClick}
       onMouseEnter={(e) => {
         if (!isSelected) {
-          e.currentTarget.style.transform = 'translateY(-2px)'
-          e.currentTarget.style.boxShadow = 'var(--shadow-lg)'
+          e.currentTarget.style.transform = 'translateY(-4px)'
+          e.currentTarget.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)'
         }
       }}
       onMouseLeave={(e) => {
         if (!isSelected) {
           e.currentTarget.style.transform = 'translateY(0)'
-          e.currentTarget.style.boxShadow = 'var(--shadow-md)'
+          e.currentTarget.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
         }
       }}
     >
-      {/* Selection checkbox overlay */}
-      {isSelectMode && (
-        <div className="absolute top-2 left-2 z-10">
-          <div 
-            className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all duration-200 ${
-              isItemSelected 
-                ? 'bg-green-600 border-green-600 text-white' 
-                : 'bg-white border-gray-300 hover:border-green-400'
-            }`}
-            style={{
-              backgroundColor: isItemSelected ? 'var(--color-success)' : 'white',
-              borderColor: isItemSelected ? 'var(--color-success)' : 'var(--color-border)',
-              color: isItemSelected ? 'white' : 'transparent'
-            }}
-          >
-            {isItemSelected && <Check className="h-4 w-4" />}
+      {/* Hover gradient overlay */}
+      <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 transition-opacity duration-300 pointer-events-none" style={{
+        background: 'radial-gradient(circle at top right, var(--color-primary)08, transparent)'
+      }}></div>
+      
+      <div className="relative p-6">
+        {/* Selection checkbox overlay */}
+        {isSelectMode && (
+          <div className="absolute top-4 left-4 z-10">
+            <div 
+              className={`w-7 h-7 rounded-xl border-2 flex items-center justify-center transition-all duration-300 shadow-md ${
+                isItemSelected 
+                  ? 'bg-green-600 border-green-600 text-white scale-110' 
+                  : 'bg-white/90 border-gray-300 hover:border-green-400 hover:scale-110'
+              }`}
+              style={{
+                backgroundColor: isItemSelected ? '#16a34a' : 'rgba(255, 255, 255, 0.9)',
+                borderColor: isItemSelected ? '#16a34a' : 'var(--color-border)',
+                color: isItemSelected ? 'white' : 'transparent'
+              }}
+            >
+              {isItemSelected && <Check className="h-4 w-4" />}
+            </div>
           </div>
-        </div>
-      )}
-
-      {/* Header with title and delete button */}
-      <div className={`flex items-start justify-between mb-3 ${isSelectMode ? 'pl-8' : ''}`}>
-        <div className="flex-1 mr-2">
-          <h3 
-            className="font-medium text-gray-900 leading-tight"
-            style={{ 
-              fontSize: 'var(--font-size-base)',
-              fontWeight: 'var(--font-weight-medium)',
-              color: 'var(--color-text-primary)'
-            }}
-            title={summary.title}
-          >
-            {truncateTitle(summary.title)}
-          </h3>
-        </div>
-        {!isSelectMode && (
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              onDelete(summary.filename)
-            }}
-            className="opacity-0 group-hover:opacity-100 sm:opacity-100 transition-opacity duration-200 p-2 hover:bg-red-100 rounded-md touch-manipulation flex items-center justify-center"
-            style={{
-              color: 'var(--color-error)',
-              transition: 'opacity 0.2s ease, background-color 0.2s ease',
-              minWidth: '44px',
-              minHeight: '44px'
-            }}
-            title="Delete summary"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
         )}
-      </div>
 
-      {/* Preview content */}
-      <div 
-        className={`text-gray-600 text-sm mb-4 line-clamp-3 ${isSelectMode ? 'pl-8' : ''}`}
-        style={{ 
-          color: 'var(--color-text-secondary)',
-          fontSize: 'var(--font-size-sm)',
-          lineHeight: 'var(--line-height-relaxed)'
-        }}
-      >
-        {summary.preview || 'No preview available'}
-      </div>
-
-      {/* Metadata row */}
-      <div className={`flex items-center justify-between text-xs text-gray-500 mb-3 ${isSelectMode ? 'pl-8' : ''}`}>
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center" title="Creation date">
-            <Clock className="h-3 w-3 mr-1" />
-            <span>{formatDate(summary.timestamp)}</span>
+        {/* Header with title and delete button */}
+        <div className={`flex items-start justify-between mb-4 ${isSelectMode ? 'pl-10' : ''}`}>
+          <div className="flex-1 mr-2">
+            <h3 
+              className="font-bold text-gray-900 leading-tight text-lg"
+              style={{ 
+                color: 'var(--color-text-primary)'
+              }}
+              title={summary.title}
+            >
+              {truncateTitle(summary.title)}
+            </h3>
           </div>
-          <div className="flex items-center" title="Word count">
-            <FileText className="h-3 w-3 mr-1" />
-            <span>{summary.word_count} words</span>
-          </div>
+          {!isSelectMode && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(summary.filename)
+              }}
+              className="opacity-0 group-hover/card:opacity-100 sm:opacity-100 transition-all duration-300 p-2.5 hover:bg-red-50 rounded-xl touch-manipulation flex items-center justify-center border-2 border-transparent hover:border-red-200 hover:scale-110"
+              style={{
+                color: 'var(--color-error)',
+                minWidth: '44px',
+                minHeight: '44px'
+              }}
+              title="Delete summary"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
-        <div 
-          className="text-xs"
-          style={{ color: 'var(--color-text-secondary)' }}
-          title="File size"
-        >
-          {formatFileSize(summary.file_size)}
-        </div>
-      </div>
 
-      {/* Click hint */}
-      <div className="flex justify-center pt-2">
+        {/* Preview content */}
         <div 
-          className="text-xs text-gray-400 flex items-center"
+          className={`text-gray-600 text-sm mb-4 line-clamp-3 leading-relaxed ${isSelectMode ? 'pl-10' : ''}`}
           style={{ 
-            color: 'var(--color-text-secondary)',
-            fontSize: 'var(--font-size-xs)',
-            opacity: 0.7
+            color: 'var(--color-text-secondary)'
           }}
         >
-          {isSelectMode ? (
-            <>
-              <Check className="h-3 w-3 mr-1" />
-              Click to select
-            </>
-          ) : (
-            <>
-              <Eye className="h-3 w-3 mr-1" />
-              Click to view
-            </>
-          )}
+          {summary.preview || 'No preview available'}
+        </div>
+
+        {/* Metadata row with modern badges */}
+        <div className={`flex flex-wrap items-center gap-2 mb-4 ${isSelectMode ? 'pl-10' : ''}`}>
+          <div className="flex items-center px-3 py-1.5 rounded-lg shadow-sm" style={{
+            backgroundColor: 'var(--color-info)',
+            color: 'var(--color-text-inverse)'
+          }} title="Creation date">
+            <Clock className="h-3.5 w-3.5 mr-1.5" />
+            <span className="text-xs font-semibold">{formatDate(summary.timestamp)}</span>
+          </div>
+          <div className="flex items-center px-3 py-1.5 rounded-lg shadow-sm" style={{
+            backgroundColor: 'var(--color-success)',
+            color: 'var(--color-text-inverse)'
+          }} title="Word count">
+            <FileText className="h-3.5 w-3.5 mr-1.5" />
+            <span className="text-xs font-semibold">{summary.word_count} words</span>
+          </div>
+          <div 
+            className="flex items-center px-3 py-1.5 rounded-lg shadow-sm text-xs font-semibold"
+            style={{ 
+              backgroundColor: 'var(--color-warning)',
+              color: 'var(--color-text-inverse)'
+            }}
+            title="File size"
+          >
+            {formatFileSize(summary.file_size)}
+          </div>
+        </div>
+
+        {/* Click hint with modern styling */}
+        <div className="flex justify-center pt-3 border-t" style={{
+          borderColor: 'var(--color-divider)'
+        }}>
+          <div 
+            className="text-xs flex items-center px-3 py-1.5 rounded-lg transition-all duration-300 group-hover/card:scale-105"
+            style={{ 
+              color: 'var(--color-text-secondary)',
+              backgroundColor: 'var(--color-surface)',
+              fontWeight: '600'
+            }}
+          >
+            {isSelectMode ? (
+              <>
+                <Check className="h-3.5 w-3.5 mr-1.5" />
+                Click to {isItemSelected ? 'deselect' : 'select'}
+              </>
+            ) : (
+              <>
+                <Eye className="h-3.5 w-3.5 mr-1.5" />
+                Click to view full summary
+              </>
+            )}
+          </div>
         </div>
       </div>
     </div>

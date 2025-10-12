@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { FileText, Trash2, ChevronLeft, ChevronRight, Grid, Square, Search, Zap } from 'lucide-react'
+import { FileText, Trash2, ChevronLeft, ChevronRight, Grid, Square, Search, Zap, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -8,7 +8,12 @@ import ConfirmationDialog from '../components/ConfirmationDialog'
 import SummaryGrid from '../components/SummaryGrid'
 import SearchFilters from '../components/SearchFilters'
 import SearchResultsPopup from '../components/SearchResultsPopup'
-import { apiFetch, triggerComprehensiveSummaryGeneration, getComprehensiveSummaryStatus } from '../utils/api'
+import { 
+  apiFetch, 
+  triggerComprehensiveSummaryGeneration, 
+  getComprehensiveSummaryStatus,
+  type ComprehensiveStatusResponse
+} from '../utils/api'
 import { 
   SummaryNote, 
   SummaryPaginationInfo, 
@@ -52,6 +57,23 @@ interface SummaryListResponse {
   pagination: SummaryPaginationInfo
 }
 
+type GenerationStatusPhase = 'idle' | 'starting' | 'running'
+
+interface GenerationStatusStep {
+  id: string
+  label: string
+  detail: string | null
+  timestamp: string | null
+}
+
+interface GenerationStatusState {
+  phase: GenerationStatusPhase
+  currentMessage: string
+  details: string | null
+  progress: number | null
+  steps: GenerationStatusStep[]
+}
+
 export default function SummaryNotes() {
   const [summaries, setSummaries] = useState<SummaryNote[]>([])
   const [pagination, setPagination] = useState<SummaryPaginationInfo>({
@@ -88,6 +110,13 @@ export default function SummaryNotes() {
   const [generateLoading, setGenerateLoading] = useState(false)
   const [generateSuccess, setGenerateSuccess] = useState<string | null>(null)
   const [generateError, setGenerateError] = useState<string | null>(null)
+  const [generationStatus, setGenerationStatus] = useState<GenerationStatusState>({
+    phase: 'idle',
+    currentMessage: '',
+    details: null,
+    progress: null,
+    steps: []
+  })
   
   // Search popup state (for single view)
   const [searchPopupOpen, setSearchPopupOpen] = useState(false)
@@ -95,6 +124,99 @@ export default function SummaryNotes() {
   const [searchResultsLoading, setSearchResultsLoading] = useState(false)
   
   const eventSourceRef = useRef<EventSource | null>(null)
+  const pollIntervalRef = useRef<number | null>(null)
+  const statusStepCounterRef = useRef(0)
+
+  const createStatusStep = (label: string, detail: string | null = null): GenerationStatusStep => {
+    statusStepCounterRef.current += 1
+    return {
+      id: `local-step-${statusStepCounterRef.current}`,
+      label,
+      detail,
+      timestamp: new Date().toISOString()
+    }
+  }
+
+  const clampProgress = (value: number | null | undefined): number | null => {
+    if (typeof value !== 'number' || Number.isNaN(value)) return null
+    const clamped = Math.max(0, Math.min(1, value))
+    return Number(clamped.toFixed(2))
+  }
+
+  const progressToPercent = (value: number): number =>
+    Math.min(100, Math.max(0, Math.round(value * 100)))
+
+  const mapStatusResponseToState = (
+    status: ComprehensiveStatusResponse,
+    prev: GenerationStatusState
+  ): GenerationStatusState => {
+    const history = status.history ?? []
+    const stepsFromServer: GenerationStatusStep[] = history.map((entry, index) => {
+      const label =
+        typeof entry.message === 'string' && entry.message.trim().length > 0
+          ? entry.message
+          : entry.step || 'Processing…'
+      const detail =
+        typeof entry.details === 'string' && entry.details.trim().length > 0
+          ? entry.details
+          : null
+      const timestamp = entry.timestamp ?? null
+      const identifier =
+        timestamp && entry.step
+          ? `${timestamp}-${entry.step}`
+          : timestamp || `${entry.step || 'step'}-${index}`
+
+      return {
+        id: identifier,
+        label,
+        detail,
+        timestamp
+      }
+    })
+
+    const current = status.status
+    const messageFromCurrent =
+      typeof current?.message === 'string' && current.message.trim().length > 0
+        ? current.message
+        : null
+    const detailsFromCurrent =
+      typeof current?.details === 'string' && current.details.trim().length > 0
+        ? current.details
+        : null
+    const progress = clampProgress(current?.progress)
+
+    const effectiveSteps =
+      stepsFromServer.length > 0 ? stepsFromServer : status.running ? prev.steps : []
+
+    const currentMessage =
+      messageFromCurrent ??
+      (effectiveSteps.length > 0
+        ? effectiveSteps[effectiveSteps.length - 1].label
+        : status.running
+          ? prev.currentMessage || 'Summary generation in progress…'
+          : '')
+
+    const currentDetails =
+      detailsFromCurrent ?? (status.running ? prev.details : null)
+
+    const effectiveProgress =
+      progress !== null ? progress : status.running ? prev.progress : null
+
+    return {
+      phase: status.running ? 'running' : 'idle',
+      currentMessage,
+      details: currentDetails,
+      progress: effectiveProgress,
+      steps: effectiveSteps
+    }
+  }
+
+  const formatStatusTimestamp = (timestamp: string | null): string | null => {
+    if (!timestamp) return null
+    const date = new Date(timestamp)
+    if (Number.isNaN(date.getTime())) return null
+    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  }
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -107,6 +229,10 @@ export default function SummaryNotes() {
     }
     
     return () => {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
       try {
         disconnectSSE()
       } catch (error) {
@@ -504,9 +630,27 @@ export default function SummaryNotes() {
 
   const handleSummaryGeneration = async () => {
     try {
+      if (pollIntervalRef.current) {
+        clearInterval(pollIntervalRef.current)
+        pollIntervalRef.current = null
+      }
+
       setGenerateLoading(true)
       setGenerateError(null)
       setGenerateSuccess(null)
+
+      const initialStep = createStatusStep(
+        'Preparing comprehensive summary request…',
+        'Sending request to the monitoring service.'
+      )
+
+      setGenerationStatus({
+        phase: 'starting',
+        currentMessage: initialStep.label,
+        details: initialStep.detail,
+        progress: 0.05,
+        steps: [initialStep]
+      })
       
       console.log('Triggering comprehensive summary generation (async)...')
       const result = await triggerComprehensiveSummaryGeneration(true)
@@ -514,18 +658,40 @@ export default function SummaryNotes() {
       // Treat 202 Accepted or accepted:true as an in-progress success
       const accepted = result?.accepted === true || (result?.success === true && !result?.result?.processed)
       if (accepted) {
-        setGenerateSuccess('Summary generation started… This will complete in the background.')
+        setGenerateSuccess('Summary generation started. Follow the status feed below.')
+        const acceptedStep = createStatusStep(
+          'Summary generation job accepted.',
+          'Background worker is analyzing recent changes.'
+        )
+        setGenerationStatus(prev => ({
+          phase: 'running',
+          currentMessage: 'Summary generation has started. Monitoring progress…',
+          details: acceptedStep.detail,
+          progress: clampProgress((prev.progress ?? 0) + 0.05) ?? 0.1,
+          steps: [...prev.steps, acceptedStep]
+        }))
         
-        // Poll for status updates
         let pollCount = 0
         const maxPolls = 20 // Poll for up to ~60 seconds
-        const pollInterval = setInterval(async () => {
+        pollIntervalRef.current = window.setInterval(async () => {
           try {
             const status = await getComprehensiveSummaryStatus()
-            
-            if (!status.running && status.last) {
-              clearInterval(pollInterval)
+
+            if (status.running) {
+              setGenerationStatus(prev => mapStatusResponseToState(status, prev))
+            } else if (status.last) {
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
               setGenerateLoading(false)
+              setGenerationStatus({
+                phase: 'idle',
+                currentMessage: '',
+                details: null,
+                progress: null,
+                steps: []
+              })
               
               if (status.last.success) {
                 setGenerateSuccess('Summary generated successfully!')
@@ -539,17 +705,43 @@ export default function SummaryNotes() {
                 setGenerateSuccess(null)
                 setGenerateError(null)
               }, 5000)
+              return
             }
             
             pollCount++
             if (pollCount >= maxPolls) {
-              clearInterval(pollInterval)
+              if (pollIntervalRef.current) {
+                clearInterval(pollIntervalRef.current)
+                pollIntervalRef.current = null
+              }
               setGenerateLoading(false)
+              setGenerationStatus({
+                phase: 'idle',
+                currentMessage: '',
+                details: null,
+                progress: null,
+                steps: []
+              })
               setGenerateSuccess('Generation is taking longer than expected. Check back soon.')
               setTimeout(() => setGenerateSuccess(null), 5000)
+              return
             }
           } catch (error) {
             console.error('Error polling comprehensive status:', error)
+            setGenerationStatus(prev => {
+              if (prev.phase !== 'running') {
+                return prev
+              }
+              const detailMessage =
+                error instanceof Error
+                  ? error.message
+                  : 'Encountered a polling issue, retrying…'
+              return {
+                ...prev,
+                currentMessage: prev.currentMessage || 'Summary generation in progress…',
+                details: detailMessage
+              }
+            })
           }
         }, 3000) // Poll every 3 seconds
         
@@ -557,19 +749,41 @@ export default function SummaryNotes() {
       }
       
       if (result?.success && result?.result?.processed) {
+        setGenerationStatus({
+          phase: 'idle',
+          currentMessage: '',
+          details: null,
+          progress: null,
+          steps: []
+        })
+        setGenerateLoading(false)
         setGenerateSuccess('Summary generated successfully!')
         await fetchSummaries()
         setTimeout(() => setGenerateSuccess(null), 5000)
       } else {
+        setGenerationStatus({
+          phase: 'idle',
+          currentMessage: '',
+          details: null,
+          progress: null,
+          steps: []
+        })
+        setGenerateLoading(false)
         setGenerateError(result?.message || 'Failed to generate summary')
         setTimeout(() => setGenerateError(null), 8000)
       }
     } catch (error) {
       console.error('Error generating summary:', error)
+      setGenerationStatus({
+        phase: 'idle',
+        currentMessage: '',
+        details: null,
+        progress: null,
+        steps: []
+      })
+      setGenerateLoading(false)
       setGenerateError(error instanceof Error ? error.message : 'Failed to generate summary. Please try again.')
       setTimeout(() => setGenerateError(null), 8000)
-    } finally {
-      setGenerateLoading(false)
     }
   }
 
@@ -740,136 +954,289 @@ export default function SummaryNotes() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0">
-        <div className="flex items-center">
-          <FileText className="h-6 w-6 text-gray-600 mr-3" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Summary</h1>
-            <p className="text-gray-600">AI-generated summaries of your file changes</p>
-          </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4">
-          {/* Search Toggle Button */}
-          <button
-            onClick={() => setIsSearchVisible(!isSearchVisible)}
-            className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-              isSearchVisible || searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-            }`}
-            title={isSearchVisible ? "Hide Search" : "Show Search"}
-          >
-            <Search className={`h-4 w-4 mr-1 sm:mr-2 transition-transform duration-200 ${
-              isSearchVisible ? 'rotate-90' : 'rotate-0'
-            }`} />
-            <span className="hidden sm:inline">Search</span>
-            {(searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest') && (
-              <span className="ml-1 px-1.5 py-0.5 text-xs bg-white text-blue-600 rounded-full font-medium">
-                !
-              </span>
-            )}
-          </button>
+    <div className="min-h-screen">
+      {/* Modern Header */}
+      <div className="relative overflow-hidden rounded-2xl mb-8 p-8 text-white shadow-2xl" style={{
+        background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
+      }}>
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
 
-          {/* Select Mode Toggle - Only show in grid view */}
-          {viewMode === 'grid' && (
-            <button
-              onClick={handleToggleSelectMode}
-              className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                isSelectMode
-                  ? 'bg-green-600 text-white'
-                  : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-              }`}
-              title={isSelectMode ? "Exit Select Mode" : "Select Multiple"}
-            >
-              <Trash2 className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">{isSelectMode ? 'Cancel' : 'Select'}</span>
-              {selectedItems.size > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 text-xs bg-white text-green-600 rounded-full font-medium">
-                  {selectedItems.size}
+        <div className="relative z-10">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-6 lg:space-y-0">
+            <div className="space-y-2">
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                  <FileText className="h-6 w-6" />
+                </div>
+                <h1 className="text-3xl font-bold tracking-tight">Summary Notes</h1>
+              </div>
+              <p className="text-blue-100 text-lg">AI-powered insights from your file changes</p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Connection Status */}
+              <div className={`flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border transition-all duration-300 ${
+                isConnected
+                  ? 'bg-green-500/20 border-green-400/30 text-green-100'
+                  : 'bg-red-500/20 border-red-400/30 text-red-100'
+              }`}>
+                <div className={`w-2 h-2 rounded-full animate-pulse ${
+                  isConnected ? 'bg-green-400' : 'bg-red-400'
+                }`}></div>
+                <span className="text-sm font-medium">
+                  {isConnected ? 'Connected' : 'Disconnected'}
                 </span>
-              )}
-            </button>
-          )}
+              </div>
 
-          {/* View Mode Toggle */}
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => handleViewModeChange('single')}
-              className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'single'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              <Square className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Single View</span>
-              <span className="sm:hidden">Single</span>
-            </button>
-            <button
-              onClick={() => handleViewModeChange('grid')}
-              className={`flex items-center justify-center px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                viewMode === 'grid'
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-              }`}
-            >
-              <Grid className="h-4 w-4 mr-1 sm:mr-2" />
-              <span className="hidden sm:inline">Grid View</span>
-              <span className="sm:hidden">Grid</span>
-            </button>
-          </div>
-          
-          <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-            <button
-              onClick={() => fetchSummaries()}
-              disabled={loading}
-              className="btn-secondary flex items-center justify-center"
-            >
-              {loading && (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
-              )}
-              Refresh
-            </button>
-            
-            <button
-              onClick={handleSummaryGeneration}
-              disabled={generateLoading || loading}
-              className="btn-primary btn-gradient flex items-center justify-center"
-              title="Generate comprehensive summary of all changes since last summary"
-            >
-              {generateLoading ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Zap className="h-4 w-4 mr-2" />
-              )}
-              Generate Summary
-            </button>
-            
-            <div className={`flex items-center justify-center space-x-2 px-3 py-2 rounded-md ${
-              isConnected ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-            }`}>
-              <div className={`h-2 w-2 rounded-full ${
-                isConnected ? 'bg-green-500' : 'bg-red-500'
-              }`} />
-              <span className="text-sm font-medium">
-                {isConnected ? 'Connected' : 'Disconnected'}
-              </span>
+              {/* Generate Summary Button - Keep the gradient! */}
+              <button
+                onClick={handleSummaryGeneration}
+                disabled={loading || generateLoading || generationStatus.phase !== 'idle'}
+                className="relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:shadow-xl hover:scale-105"
+                title="Generate comprehensive summary of all changes since last summary"
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                <div className="relative flex items-center space-x-2">
+                  {generateLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                      <span>Generating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="h-4 w-4" />
+                      <span>Generate Summary</span>
+                    </>
+                  )}
+                </div>
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Success/Error Messages for Generation */}
-      {generateSuccess && (
-        <div className="bg-green-50 border border-green-200 rounded-md p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <Zap className="h-5 w-5 text-green-400" />
+      {/* Enhanced Control Bar */}
+      <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border transition-all duration-300" style={{
+        background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+        borderColor: 'var(--color-border)'
+      }}>
+        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
+          background: 'linear-gradient(135deg, var(--color-primary) 3%, var(--color-accent) 3%)'
+        }}></div>
+        
+        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+          {/* Left side controls */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Search Toggle Button */}
+            <button
+              onClick={() => setIsSearchVisible(!isSearchVisible)}
+              className={`relative overflow-hidden flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 ${
+                isSearchVisible || searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest'
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+              }`}
+              title={isSearchVisible ? "Hide Search" : "Show Search"}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <div className="relative flex items-center">
+                <Search className={`h-4 w-4 mr-2 transition-transform duration-200 ${
+                  isSearchVisible ? 'rotate-90' : 'rotate-0'
+                }`} />
+                <span>Search</span>
+                {(searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest') && (
+                  <span className="ml-2 px-2 py-0.5 text-xs bg-white text-blue-600 rounded-full font-bold">
+                    •
+                  </span>
+                )}
+              </div>
+            </button>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-2 p-1 rounded-xl" style={{ backgroundColor: 'var(--color-surface)' }}>
+              <button
+                onClick={() => handleViewModeChange('single')}
+                className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
+                  viewMode === 'single'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Square className="h-4 w-4 mr-2" />
+                <span>Single</span>
+              </button>
+              <button
+                onClick={() => handleViewModeChange('grid')}
+                className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
+                  viewMode === 'grid'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                }`}
+              >
+                <Grid className="h-4 w-4 mr-2" />
+                <span>Grid</span>
+              </button>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-green-800">
+            
+            {/* Refresh Button */}
+            <button
+              onClick={() => fetchSummaries()}
+              disabled={loading}
+              className="relative overflow-hidden flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+              <div className="relative flex items-center">
+                {loading ? (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                ) : (
+                  <FileText className="h-4 w-4 mr-2" />
+                )}
+                Refresh
+              </div>
+            </button>
+          </div>
+
+          {/* Right side controls */}
+          <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+            {/* Select Mode Toggle - Only show in grid view */}
+            {viewMode === 'grid' && (
+              <button
+                onClick={handleToggleSelectMode}
+                className={`relative overflow-hidden flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 ${
+                  isSelectMode
+                    ? 'bg-green-600 text-white shadow-lg'
+                    : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+                }`}
+                title={isSelectMode ? "Exit Select Mode" : "Select Multiple"}
+              >
+                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                <div className="relative flex items-center">
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span>{isSelectMode ? 'Cancel' : 'Select'}</span>
+                  {selectedItems.size > 0 && (
+                    <span className="ml-2 px-2 py-0.5 text-xs bg-white text-green-600 rounded-full font-bold">
+                      {selectedItems.size}
+                    </span>
+                  )}
+                </div>
+              </button>
+            )}
+
+            {/* Summary Count Badge */}
+            <div className="flex items-center px-4 py-2 rounded-xl shadow-sm" style={{
+              backgroundColor: 'var(--color-info)',
+              color: 'var(--color-text-inverse)'
+            }}>
+              <FileText className="h-4 w-4 mr-2" />
+              <span className="text-sm font-semibold">{pagination.total_count} {pagination.total_count === 1 ? 'Summary' : 'Summaries'}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Generation Status Area - Modern Design */}
+      {generationStatus.phase !== 'idle' && (
+        <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-xl border transition-all duration-300" style={{
+          background: 'linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%)',
+          borderColor: '#60a5fa'
+        }}>
+          <div className="absolute inset-0 opacity-50" style={{
+            background: 'radial-gradient(circle at top right, #60a5fa20, transparent)'
+          }}></div>
+          
+          <div className="relative flex">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl shadow-lg" style={{
+                background: 'linear-gradient(135deg, #3b82f6, #2563eb)'
+              }}>
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
+              </div>
+            </div>
+            <div className="ml-4 flex-1">
+              <div className="flex items-start justify-between mb-2">
+                <p className="text-base font-bold text-blue-900">
+                  {generationStatus.currentMessage || 'Summary generation in progress…'}
+                </p>
+                {generationStatus.progress !== null && (
+                  <span className="text-sm font-bold px-3 py-1 rounded-full" style={{
+                    background: 'linear-gradient(135deg, #3b82f6, #2563eb)',
+                    color: 'white'
+                  }}>
+                    {progressToPercent(generationStatus.progress)}%
+                  </span>
+                )}
+              </div>
+              {generationStatus.details && (
+                <p className="text-sm text-blue-800 mt-2">
+                  {generationStatus.details}
+                </p>
+              )}
+              {generationStatus.progress !== null && (
+                <div className="mt-4 h-3 w-full overflow-hidden rounded-full shadow-inner" style={{
+                  backgroundColor: '#bfdbfe'
+                }}>
+                  <div
+                    className="h-full rounded-full transition-all duration-500 shadow-md"
+                    style={{ 
+                      width: `${progressToPercent(generationStatus.progress)}%`,
+                      background: 'linear-gradient(90deg, #3b82f6, #2563eb, #1d4ed8)'
+                    }}
+                  />
+                </div>
+              )}
+              {generationStatus.steps.length > 0 && (
+                <ul className="mt-4 space-y-3">
+                  {generationStatus.steps.map(step => {
+                    const formattedTime = formatStatusTimestamp(step.timestamp)
+                    return (
+                      <li key={step.id} className="flex items-start p-3 rounded-xl backdrop-blur-sm" style={{
+                        backgroundColor: 'rgba(255, 255, 255, 0.5)'
+                      }}>
+                        <span className="mt-1.5 mr-3 h-2.5 w-2.5 rounded-full shadow-sm" style={{
+                          backgroundColor: '#3b82f6'
+                        }}></span>
+                        <div className="flex-1">
+                          <p className="text-sm font-semibold text-blue-900">{step.label}</p>
+                          {step.detail && (
+                            <p className="text-xs text-blue-700 mt-1">{step.detail}</p>
+                          )}
+                          {formattedTime && (
+                            <p className="text-xs text-blue-600 mt-1 flex items-center">
+                              <Clock className="h-3 w-3 mr-1" />
+                              {formattedTime}
+                            </p>
+                          )}
+                        </div>
+                      </li>
+                    )
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Message - Modern Design */}
+      {generateSuccess && (
+        <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-xl border transition-all duration-300" style={{
+          background: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)',
+          borderColor: '#4ade80'
+        }}>
+          <div className="absolute inset-0 opacity-50" style={{
+            background: 'radial-gradient(circle at top right, #4ade8020, transparent)'
+          }}></div>
+          <div className="relative flex items-center">
+            <div className="flex-shrink-0">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl shadow-lg" style={{
+                background: 'linear-gradient(135deg, #22c55e, #16a34a)'
+              }}>
+                <CheckCircle className="h-6 w-6 text-white" />
+              </div>
+            </div>
+            <div className="ml-4">
+              <p className="text-base font-bold text-green-900">
                 {generateSuccess}
               </p>
             </div>
@@ -877,14 +1244,25 @@ export default function SummaryNotes() {
         </div>
       )}
 
+      {/* Error Message - Modern Design */}
       {generateError && (
-        <div className="bg-red-50 border border-red-200 rounded-md p-4">
-          <div className="flex">
+        <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-xl border transition-all duration-300" style={{
+          background: 'linear-gradient(135deg, #fee2e2 0%, #fecaca 100%)',
+          borderColor: '#f87171'
+        }}>
+          <div className="absolute inset-0 opacity-50" style={{
+            background: 'radial-gradient(circle at top right, #f8717120, transparent)'
+          }}></div>
+          <div className="relative flex items-center">
             <div className="flex-shrink-0">
-              <div className="h-5 w-5 text-red-400">⚠</div>
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl shadow-lg" style={{
+                background: 'linear-gradient(135deg, #ef4444, #dc2626)'
+              }}>
+                <AlertCircle className="h-6 w-6 text-white" />
+              </div>
             </div>
-            <div className="ml-3">
-              <p className="text-sm font-medium text-red-800">
+            <div className="ml-4">
+              <p className="text-base font-bold text-red-900">
                 {generateError}
               </p>
             </div>
@@ -893,49 +1271,56 @@ export default function SummaryNotes() {
       )}
 
 
-      {/* Stats and Navigation - Different for single vs grid view */}
-      {viewMode === 'grid' ? (
-        /* Simple stats for grid view */
-        <div className="flex items-center justify-center space-x-6 py-2 px-4 bg-gray-50 rounded-md text-xs text-gray-500">
-          <div className="flex items-center space-x-1.5">
-            <FileText className="h-3.5 w-3.5" />
-            <span>{pagination.total_count} total</span>
+      {/* Stats and Navigation - Modern Design */}
+      {viewMode === 'single' && pagination.total_count > 1 && (
+        <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border transition-all duration-300" style={{
+          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+          borderColor: 'var(--color-border)'
+        }}>
+          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
+            background: 'linear-gradient(135deg, var(--color-info) 3%, var(--color-primary) 3%)'
+          }}></div>
+          
+          <div className="relative flex items-center justify-between">
+            <button
+              onClick={() => handlePageChange(pagination.current_page - 1)}
+              disabled={!pagination.has_previous}
+              className="group/btn relative overflow-hidden flex items-center px-5 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0" style={{
+                backgroundColor: 'var(--color-primary)',
+                color: 'var(--color-text-inverse)'
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
+              <ChevronLeft className="h-5 w-5 mr-2 relative" />
+              <span className="relative">Previous</span>
+            </button>
+            
+            <div className="text-center px-6">
+              <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                Summary {pagination.current_page} of {pagination.total_count}
+              </p>
+              <p className="text-xs mt-1 px-3 py-1 rounded-full inline-block" style={{
+                color: 'var(--color-text-secondary)',
+                backgroundColor: 'var(--color-surface)'
+              }}>
+                {currentSummaryContent?.filename}
+              </p>
+            </div>
+            
+            <button
+              onClick={() => handlePageChange(pagination.current_page + 1)}
+              disabled={!pagination.has_next}
+              className="group/btn relative overflow-hidden flex items-center px-5 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0" style={{
+                backgroundColor: 'var(--color-primary)',
+                color: 'var(--color-text-inverse)'
+              }}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
+              <span className="relative">Next</span>
+              <ChevronRight className="h-5 w-5 ml-2 relative" />
+            </button>
           </div>
         </div>
-      ) : (
-        /* Summary navigation for single view */
-        pagination.total_count > 1 && (
-          <div className="card">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => handlePageChange(pagination.current_page - 1)}
-                disabled={!pagination.has_previous}
-                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="h-5 w-5 mr-2" />
-                Previous Summary
-              </button>
-              
-              <div className="text-center">
-                <p className="text-sm font-medium text-gray-900">
-                  Summary {pagination.current_page} of {pagination.total_count}
-                </p>
-                <p className="text-xs text-gray-500">
-                  {currentSummaryContent?.filename}
-                </p>
-              </div>
-              
-              <button
-                onClick={() => handlePageChange(pagination.current_page + 1)}
-                disabled={!pagination.has_next}
-                className="flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Next Summary
-                <ChevronRight className="h-5 w-5 ml-2" />
-              </button>
-            </div>
-          </div>
-        )
       )}
 
       {/* Search and Filter Controls - Only show when search is visible */}
@@ -972,22 +1357,51 @@ export default function SummaryNotes() {
           onBulkDelete={() => setBulkDeleteDialogOpen(true)}
         />
       ) : (
-        /* Single Summary Display */
-        <div className="space-y-4">
+        /* Single Summary Display - Modern Design */
+        <div className="space-y-6">
           {loading ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+            <div className="group relative overflow-hidden rounded-2xl p-16 shadow-lg border transition-all duration-300" style={{
+              background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+              borderColor: 'var(--color-border)'
+            }}>
+              <div className="flex flex-col items-center justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-full" style={{
+                    background: 'radial-gradient(circle, var(--color-primary)30, transparent)'
+                  }}></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-4 border-t-transparent" style={{
+                    borderColor: 'var(--color-primary)',
+                    borderTopColor: 'transparent'
+                  }}></div>
+                </div>
+                <p className="mt-4 text-lg font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                  Loading summaries...
+                </p>
+              </div>
             </div>
           ) : currentSummaryContent ? (
-            <div className="card">
+            <div className="group relative overflow-hidden rounded-2xl p-8 shadow-xl border transition-all duration-300 hover:shadow-2xl" style={{
+              background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+              borderColor: 'var(--color-border)'
+            }}>
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500" style={{
+                background: 'radial-gradient(circle at top right, var(--color-primary)08, transparent)'
+              }}></div>
+              
               {/* Summary Content */}
               {contentLoading ? (
-                <div className="flex items-center justify-center h-32">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent mb-4" style={{
+                    borderColor: 'var(--color-primary)',
+                    borderTopColor: 'transparent'
+                  }}></div>
+                  <p className="text-base font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                    Loading summary content...
+                  </p>
                 </div>
               ) : (
                 <>
-                  <div className="prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:mt-2 prose-li:my-1 marker:text-gray-500">
+                  <div className="relative prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:mt-2 prose-li:my-1 marker:text-gray-500">
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
                       components={{ code: CodeBlock }}
@@ -996,38 +1410,72 @@ export default function SummaryNotes() {
                     </ReactMarkdown>
                   </div>
 
-                  {/* Delete button - subtle within container */}
-                  <div className="flex justify-end mt-3">
+                  {/* Delete button - modern style */}
+                  <div className="relative flex justify-end mt-6 pt-6" style={{
+                    borderTop: `1px solid var(--color-divider)`
+                  }}>
                     <button
                       onClick={() => {
                         setSelectedSummary(currentSummaryContent.filename)
                         setDeleteDialogOpen(true)
                       }}
-                      className="flex items-center px-2 py-1 text-xs font-medium text-gray-500 rounded-md hover:bg-red-50 hover:text-red-600 transition-colors"
+                      className="group/del relative overflow-hidden flex items-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200"
                       title="Delete summary"
                     >
-                      <Trash2 className="h-4 w-4 mr-1" />
-                      <span className="hidden sm:inline">Delete</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0 translate-x-[-100%] group-hover/del:translate-x-[100%] transition-transform duration-700"></div>
+                      <Trash2 className="h-4 w-4 mr-2 relative" />
+                      <span className="relative">Delete Summary</span>
                     </button>
                   </div>
                 </>
               )}
             </div>
           ) : pagination.total_count > 0 ? (
-            <div className="card">
-              <div className="text-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
-                <p className="text-gray-600">Loading summary content...</p>
+            <div className="group relative overflow-hidden rounded-2xl p-16 shadow-lg border transition-all duration-300" style={{
+              background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+              borderColor: 'var(--color-border)'
+            }}>
+              <div className="flex flex-col items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-4 border-t-transparent mb-4" style={{
+                  borderColor: 'var(--color-primary)',
+                  borderTopColor: 'transparent'
+                }}></div>
+                <p className="text-base font-semibold" style={{ color: 'var(--color-text-secondary)' }}>
+                  Loading summary content...
+                </p>
               </div>
             </div>
           ) : (
-            <div className="card">
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No summary notes yet</p>
-                <p className="text-sm text-gray-500 mt-2">
+            <div className="group relative overflow-hidden rounded-2xl p-16 shadow-lg border transition-all duration-300" style={{
+              background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+              borderColor: 'var(--color-border)'
+            }}>
+              <div className="absolute inset-0 opacity-50" style={{
+                background: 'radial-gradient(circle at center, var(--color-info)10, transparent)'
+              }}></div>
+              <div className="relative text-center">
+                <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl shadow-lg mb-6" style={{
+                  background: 'linear-gradient(135deg, var(--color-info), var(--color-primary))'
+                }}>
+                  <FileText className="h-12 w-12 text-white" />
+                </div>
+                <h3 className="text-2xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
+                  No Summary Notes Yet
+                </h3>
+                <p className="text-base mb-6" style={{ color: 'var(--color-text-secondary)' }}>
                   AI-generated summaries will appear here as you make changes to your notes
                 </p>
+                <button
+                  onClick={handleSummaryGeneration}
+                  disabled={loading || generateLoading || generationStatus.phase !== 'idle'}
+                  className="relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group bg-gradient-to-r from-purple-500 via-pink-500 to-orange-500 hover:shadow-xl hover:scale-105 text-white"
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                  <div className="relative flex items-center">
+                    <Zap className="h-5 w-5 mr-2" />
+                    <span>Generate Your First Summary</span>
+                  </div>
+                </button>
               </div>
             </div>
           )}
