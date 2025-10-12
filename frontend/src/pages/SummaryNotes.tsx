@@ -1273,14 +1273,10 @@ export default function SummaryNotes() {
 
       {/* Stats and Navigation - Modern Design */}
       {viewMode === 'single' && pagination.total_count > 1 && (
-        <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border transition-all duration-300" style={{
+        <div className="relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border" style={{
           background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
           borderColor: 'var(--color-border)'
         }}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-            background: 'linear-gradient(135deg, var(--color-info) 3%, var(--color-primary) 3%)'
-          }}></div>
-          
           <div className="relative flex items-center justify-between">
             <button
               onClick={() => handlePageChange(pagination.current_page - 1)}
