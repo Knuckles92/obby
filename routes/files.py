@@ -413,22 +413,22 @@ async def get_watched_files():
         
         watched_files = []
         directories = {}
-        
+
         if os.path.exists(notes_folder):
-            root_path = Path(notes_folder)
-            
+            root_path = Path(notes_folder).resolve()  # Convert to absolute path
+
             for file_path in root_path.rglob('*.md'):
                 if file_path.is_file():
                     # Skip hidden files and directories
                     if any(part.startswith('.') for part in file_path.parts):
                         continue
-                    
+
                     # STRICT: Check if file should be ignored
                     if ignore_handler.should_ignore(file_path):
                         continue
-                    
-                    # STRICT: Check if file matches watch patterns
-                    if not watch_handler.should_watch(file_path):
+
+                    # STRICT: Check if file matches watch patterns (pass resolved absolute path)
+                    if not watch_handler.should_watch(file_path.resolve()):
                         continue
                     
                     try:

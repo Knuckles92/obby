@@ -1017,121 +1017,165 @@ export default function SummaryNotes() {
         </div>
       </div>
 
-      {/* Enhanced Control Bar */}
-      <div className="group relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border transition-all duration-300" style={{
+      {/* Unified Control Bar */}
+      <div className="relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border" style={{
         background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
         borderColor: 'var(--color-border)'
       }}>
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-          background: 'linear-gradient(135deg, var(--color-primary) 3%, var(--color-accent) 3%)'
-        }}></div>
-        
-        <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
-          {/* Left side controls */}
-          <div className="flex flex-wrap items-center gap-3">
-            {/* Search Toggle Button */}
-            <button
-              onClick={() => setIsSearchVisible(!isSearchVisible)}
-              className={`relative overflow-hidden flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 ${
-                isSearchVisible || searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest'
-                  ? 'bg-blue-600 text-white shadow-lg'
-                  : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-              }`}
-              title={isSearchVisible ? "Hide Search" : "Show Search"}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              <div className="relative flex items-center">
-                <Search className={`h-4 w-4 mr-2 transition-transform duration-200 ${
-                  isSearchVisible ? 'rotate-90' : 'rotate-0'
-                }`} />
+        <div className="relative flex flex-col gap-4">
+          {/* Top Row - Main Controls */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            {/* Left side controls */}
+            <div className="flex flex-wrap items-center gap-3">
+              {/* Search Toggle Button */}
+              <button
+                onClick={() => setIsSearchVisible(!isSearchVisible)}
+                className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                  isSearchVisible || searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest'
+                    ? 'bg-blue-600 text-white shadow-lg'
+                    : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+                }`}
+                title={isSearchVisible ? "Hide Search" : "Show Search"}
+              >
+                <Search className="h-4 w-4 mr-2" />
                 <span>Search</span>
                 {(searchFilters.searchTerm || searchFilters.dateRange || searchFilters.sortBy !== 'newest') && (
                   <span className="ml-2 px-2 py-0.5 text-xs bg-white text-blue-600 rounded-full font-bold">
                     •
                   </span>
                 )}
-              </div>
-            </button>
+              </button>
 
-            {/* View Mode Toggle */}
-            <div className="flex items-center space-x-2 p-1 rounded-xl" style={{ backgroundColor: 'var(--color-surface)' }}>
+              {/* View Mode Toggle */}
+              <div className="flex items-center space-x-2 p-1 rounded-xl" style={{ backgroundColor: 'var(--color-surface)' }}>
+                <button
+                  onClick={() => handleViewModeChange('single')}
+                  className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                    viewMode === 'single'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Square className="h-4 w-4 mr-2" />
+                  <span>Single</span>
+                </button>
+                <button
+                  onClick={() => handleViewModeChange('grid')}
+                  className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all ${
+                    viewMode === 'grid'
+                      ? 'bg-blue-600 text-white shadow-md'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+                >
+                  <Grid className="h-4 w-4 mr-2" />
+                  <span>Grid</span>
+                </button>
+              </div>
+
+              {/* Refresh Button */}
               <button
-                onClick={() => handleViewModeChange('single')}
-                className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
-                  viewMode === 'single'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
+                onClick={() => fetchSummaries()}
+                disabled={loading}
+                className="flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
               >
-                <Square className="h-4 w-4 mr-2" />
-                <span>Single</span>
-              </button>
-              <button
-                onClick={() => handleViewModeChange('grid')}
-                className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-lg transition-all duration-300 ${
-                  viewMode === 'grid'
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                }`}
-              >
-                <Grid className="h-4 w-4 mr-2" />
-                <span>Grid</span>
-              </button>
-            </div>
-            
-            {/* Refresh Button */}
-            <button
-              onClick={() => fetchSummaries()}
-              disabled={loading}
-              className="relative overflow-hidden flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 text-gray-700 bg-gray-100 hover:bg-gray-200 disabled:opacity-50"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-              <div className="relative flex items-center">
                 {loading ? (
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
                 ) : (
                   <FileText className="h-4 w-4 mr-2" />
                 )}
                 Refresh
-              </div>
-            </button>
-          </div>
-
-          {/* Right side controls */}
-          <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
-            {/* Select Mode Toggle - Only show in grid view */}
-            {viewMode === 'grid' && (
-              <button
-                onClick={handleToggleSelectMode}
-                className={`relative overflow-hidden flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 ${
-                  isSelectMode
-                    ? 'bg-green-600 text-white shadow-lg'
-                    : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
-                }`}
-                title={isSelectMode ? "Exit Select Mode" : "Select Multiple"}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <div className="relative flex items-center">
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  <span>{isSelectMode ? 'Cancel' : 'Select'}</span>
-                  {selectedItems.size > 0 && (
-                    <span className="ml-2 px-2 py-0.5 text-xs bg-white text-green-600 rounded-full font-bold">
-                      {selectedItems.size}
-                    </span>
-                  )}
-                </div>
               </button>
-            )}
+            </div>
 
-            {/* Summary Count Badge */}
-            <div className="flex items-center px-4 py-2 rounded-xl shadow-sm" style={{
-              backgroundColor: 'var(--color-info)',
-              color: 'var(--color-text-inverse)'
-            }}>
-              <FileText className="h-4 w-4 mr-2" />
-              <span className="text-sm font-semibold">{pagination.total_count} {pagination.total_count === 1 ? 'Summary' : 'Summaries'}</span>
+            {/* Right side controls */}
+            <div className="flex flex-wrap items-center gap-3 sm:ml-auto">
+              {/* Select Mode Toggle - Only show in grid view */}
+              {viewMode === 'grid' && (
+                <>
+                  <button
+                    onClick={handleToggleSelectMode}
+                    className={`flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all ${
+                      isSelectMode
+                        ? 'bg-green-600 text-white shadow-lg'
+                        : 'text-gray-700 bg-gray-100 hover:bg-gray-200'
+                    }`}
+                    title={isSelectMode ? "Exit Select Mode" : "Select Multiple"}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    <span>{isSelectMode ? 'Cancel' : 'Select'}</span>
+                    {selectedItems.size > 0 && (
+                      <span className="ml-2 px-2 py-0.5 text-xs bg-white text-green-600 rounded-full font-bold">
+                        {selectedItems.size}
+                      </span>
+                    )}
+                  </button>
+
+                  {/* Select All Button - Only show when in select mode */}
+                  {isSelectMode && (
+                    <button
+                      onClick={handleSelectAll}
+                      className="flex items-center justify-center px-4 py-2 text-sm font-semibold rounded-xl transition-all bg-orange-600 text-white shadow-lg hover:bg-orange-700"
+                      title={selectedItems.size === summaries.length ? "Deselect All" : "Select All on Page"}
+                    >
+                      <span>{selectedItems.size === summaries.length ? 'Deselect All' : 'Select All'}</span>
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* Summary Count Badge */}
+              <div className="flex items-center px-4 py-2 rounded-xl shadow-sm" style={{
+                backgroundColor: 'var(--color-info)',
+                color: 'var(--color-text-inverse)'
+              }}>
+                <FileText className="h-4 w-4 mr-2" />
+                <span className="text-sm font-semibold">{pagination.total_count} {pagination.total_count === 1 ? 'Summary' : 'Summaries'}</span>
+              </div>
             </div>
           </div>
+
+          {/* Bottom Row - Navigation (Single View Only) */}
+          {viewMode === 'single' && pagination.total_count > 1 && (
+            <div className="flex items-center justify-between pt-4 border-t" style={{
+              borderColor: 'var(--color-border)'
+            }}>
+              <button
+                onClick={() => handlePageChange(pagination.current_page - 1)}
+                disabled={!pagination.has_previous}
+                className="flex items-center px-5 py-3 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-text-inverse)'
+                }}
+              >
+                <ChevronLeft className="h-5 w-5 mr-2" />
+                <span>Previous</span>
+              </button>
+
+              <div className="text-center px-6">
+                <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                  Summary {pagination.current_page} of {pagination.total_count}
+                </p>
+                <p className="text-xs mt-1 px-3 py-1 rounded-full inline-block" style={{
+                  color: 'var(--color-text-secondary)',
+                  backgroundColor: 'var(--color-surface)'
+                }}>
+                  {currentSummaryContent?.filename}
+                </p>
+              </div>
+
+              <button
+                onClick={() => handlePageChange(pagination.current_page + 1)}
+                disabled={!pagination.has_next}
+                className="flex items-center px-5 py-3 text-sm font-semibold rounded-xl transition-all disabled:opacity-40 disabled:cursor-not-allowed" style={{
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-text-inverse)'
+                }}
+              >
+                <span>Next</span>
+                <ChevronRight className="h-5 w-5 ml-2" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1270,54 +1314,6 @@ export default function SummaryNotes() {
         </div>
       )}
 
-
-      {/* Stats and Navigation - Modern Design */}
-      {viewMode === 'single' && pagination.total_count > 1 && (
-        <div className="relative overflow-hidden rounded-2xl p-6 mb-6 shadow-lg border" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
-          <div className="relative flex items-center justify-between">
-            <button
-              onClick={() => handlePageChange(pagination.current_page - 1)}
-              disabled={!pagination.has_previous}
-              className="group/btn relative overflow-hidden flex items-center px-5 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0" style={{
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-text-inverse)'
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
-              <ChevronLeft className="h-5 w-5 mr-2 relative" />
-              <span className="relative">Previous</span>
-            </button>
-            
-            <div className="text-center px-6">
-              <p className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>
-                Summary {pagination.current_page} of {pagination.total_count}
-              </p>
-              <p className="text-xs mt-1 px-3 py-1 rounded-full inline-block" style={{
-                color: 'var(--color-text-secondary)',
-                backgroundColor: 'var(--color-surface)'
-              }}>
-                {currentSummaryContent?.filename}
-              </p>
-            </div>
-            
-            <button
-              onClick={() => handlePageChange(pagination.current_page + 1)}
-              disabled={!pagination.has_next}
-              className="group/btn relative overflow-hidden flex items-center px-5 py-3 text-sm font-semibold rounded-xl transition-all duration-300 hover:-translate-y-0.5 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:translate-y-0" style={{
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-text-inverse)'
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover/btn:translate-x-[100%] transition-transform duration-700"></div>
-              <span className="relative">Next</span>
-              <ChevronRight className="h-5 w-5 ml-2 relative" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Search and Filter Controls - Only show when search is visible */}
       <div className={`transition-all duration-300 ease-in-out ${

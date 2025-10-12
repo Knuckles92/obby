@@ -33,31 +33,62 @@ def init_monitoring_routes(app_monitor_instance, app_monitor_thread, app_monitor
 async def get_status():
     """Get current monitoring status"""
     global monitoring_active, monitor_instance
-    
+
     watched_paths = []
     total_files = 0
-    
+
     # Get events today from database instead of memory
     try:
         events_today = EventQueries.get_events_today_count()
     except Exception as e:
         logger.error(f"Failed to get events count from database: {e}")
         events_today = 0
-    
+
     if monitor_instance and monitoring_active:
         watched_paths = getattr(monitor_instance, 'watched_paths', [])
-        # Count files in watched directories
-        for path in watched_paths:
-            if os.path.exists(path):
-                # Count only .md files that aren't ignored
-                path_obj = Path(path)
-                for f in path_obj.rglob('*.md'):
-                    if f.is_file():
-                        # Check if file would be watched (simplified check)
-                        rel_path = f.relative_to(path_obj) if f.is_relative_to(path_obj) else f
-                        if not any(part.startswith('.') for part in rel_path.parts):
+
+        # Initialize watch and ignore handlers for STRICT filtering (matches /api/files/watched)
+        try:
+            from utils.watch_handler import WatchHandler
+            from utils.ignore_handler import IgnoreHandler
+            from config.settings import get_configured_notes_folder
+
+            root_folder = Path(__file__).parent.parent
+            watch_handler = WatchHandler(root_folder)
+            notes_folder = get_configured_notes_folder()
+            ignore_handler = IgnoreHandler(root_folder, notes_folder)
+
+            # Count files in watched directories with strict filtering
+            for path in watched_paths:
+                if os.path.exists(path):
+                    path_obj = Path(path).resolve()  # Convert to absolute path
+                    for f in path_obj.rglob('*.md'):
+                        if f.is_file():
+                            # Skip hidden files and directories
+                            if any(part.startswith('.') for part in f.parts):
+                                continue
+
+                            # STRICT: Apply ignore patterns
+                            if ignore_handler.should_ignore(f):
+                                continue
+
+                            # STRICT: Apply watch patterns (pass resolved absolute path)
+                            if not watch_handler.should_watch(f.resolve()):
+                                continue
+
                             total_files += 1
-    
+        except Exception as e:
+            logger.warning(f"Could not apply watch/ignore filters, using simple count: {e}")
+            # Fallback to simple counting if handlers fail
+            for path in watched_paths:
+                if os.path.exists(path):
+                    path_obj = Path(path)
+                    for f in path_obj.rglob('*.md'):
+                        if f.is_file():
+                            rel_path = f.relative_to(path_obj) if f.is_relative_to(path_obj) else f
+                            if not any(part.startswith('.') for part in rel_path.parts):
+                                total_files += 1
+
     return {
         'isActive': monitoring_active,
         'watchedPaths': watched_paths,
@@ -100,7 +131,7 @@ async def start_monitoring():
 def get_monitoring_status():
     """Get monitoring system status"""
     global monitoring_active, monitor_instance
-    
+
     status = {
         'is_active': monitoring_active,
         'watched_paths': [],
@@ -108,26 +139,59 @@ def get_monitoring_status():
         'last_scan_time': None,
         'errors': []
     }
-    
+
     if monitor_instance and monitoring_active:
         # Get watched paths from monitor
         watched_paths = getattr(monitor_instance, 'watched_paths', [])
         status['watched_paths'] = watched_paths
-        
-        # Count total files being watched
-        total_files = 0
-        for path in watched_paths:
-            if os.path.exists(path):
-                for root, dirs, files in os.walk(path):
-                    # Skip hidden directories
-                    dirs[:] = [d for d in dirs if not d.startswith('.')]
-                    for file in files:
-                        if file.endswith('.md'):
+
+        # Initialize watch and ignore handlers for STRICT filtering (matches /api/files/watched)
+        try:
+            from utils.watch_handler import WatchHandler
+            from utils.ignore_handler import IgnoreHandler
+            from config.settings import get_configured_notes_folder
+
+            root_folder = Path(__file__).parent.parent
+            watch_handler = WatchHandler(root_folder)
+            notes_folder = get_configured_notes_folder()
+            ignore_handler = IgnoreHandler(root_folder, notes_folder)
+
+            # Count total files being watched with strict filtering
+            total_files = 0
+            for path in watched_paths:
+                if os.path.exists(path):
+                    path_obj = Path(path).resolve()  # Convert to absolute path
+                    for f in path_obj.rglob('*.md'):
+                        if f.is_file():
+                            # Skip hidden files and directories
+                            if any(part.startswith('.') for part in f.parts):
+                                continue
+
+                            # STRICT: Apply ignore patterns
+                            if ignore_handler.should_ignore(f):
+                                continue
+
+                            # STRICT: Apply watch patterns (pass resolved absolute path)
+                            if not watch_handler.should_watch(f.resolve()):
+                                continue
+
                             total_files += 1
-        
+        except Exception as e:
+            logger.warning(f"Could not apply watch/ignore filters in status, using simple count: {e}")
+            # Fallback to simple counting if handlers fail
+            total_files = 0
+            for path in watched_paths:
+                if os.path.exists(path):
+                    for root, dirs, files in os.walk(path):
+                        # Skip hidden directories
+                        dirs[:] = [d for d in dirs if not d.startswith('.')]
+                        for file in files:
+                            if file.endswith('.md'):
+                                total_files += 1
+
         status['total_watched_files'] = total_files
         status['last_scan_time'] = getattr(monitor_instance, 'last_scan_time', None)
-    
+
     return status
 
 

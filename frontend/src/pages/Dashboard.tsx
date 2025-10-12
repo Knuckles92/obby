@@ -34,6 +34,9 @@ export default function Dashboard() {
   const [monitoringLoading, setMonitoringLoading] = useState(false)
   const [autoStartAttempted, setAutoStartAttempted] = useState(false)
   const [watchedFilesModalOpen, setWatchedFilesModalOpen] = useState(false)
+  const [watchedFilesCardHovered, setWatchedFilesCardHovered] = useState(false)
+  const [eventsCardHovered, setEventsCardHovered] = useState(false)
+  const [recentDiffsCardHovered, setRecentDiffsCardHovered] = useState(false)
 
   useEffect(() => {
     fetchDashboardData()
@@ -269,6 +272,8 @@ export default function Dashboard() {
         <div
           className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
           onClick={() => setWatchedFilesModalOpen(true)}
+          onMouseEnter={() => setWatchedFilesCardHovered(true)}
+          onMouseLeave={() => setWatchedFilesCardHovered(false)}
           style={{
             background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
             borderColor: 'var(--color-border)'
@@ -291,8 +296,18 @@ export default function Dashboard() {
               }} />
             </div>
             <div>
-              <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Watched Files</p>
-              <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{status.totalFiles}</p>
+              <p
+                className="text-sm font-medium mb-1 transition-colors duration-300"
+                style={{ color: watchedFilesCardHovered ? 'var(--color-info)' : 'var(--color-text-secondary)' }}
+              >
+                Watched Files
+              </p>
+              <p
+                className="text-2xl font-bold transition-colors duration-300"
+                style={{ color: watchedFilesCardHovered ? 'var(--color-info)' : 'var(--color-text-primary)' }}
+              >
+                {status.totalFiles}
+              </p>
               <div className="mt-3 flex items-center space-x-1">
                 <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-divider)' }}>
                   <div className="h-full rounded-full transition-all duration-1000"
@@ -301,17 +316,27 @@ export default function Dashboard() {
                          width: `${Math.min((status.totalFiles / 100) * 100, 100)}%`
                        }}></div>
                 </div>
-                <span className="text-xs font-medium" style={{ color: 'var(--color-info)' }}>{status.totalFiles}</span>
+                <span
+                  className="text-xs font-medium transition-colors duration-300"
+                  style={{ color: watchedFilesCardHovered ? 'var(--color-info)' : 'var(--color-info)' }}
+                >
+                  {status.totalFiles}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Events Today Card */}
-        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300 hover:-translate-y-1" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
+        <div
+          className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+          onMouseEnter={() => setEventsCardHovered(true)}
+          onMouseLeave={() => setEventsCardHovered(false)}
+          style={{
+            background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+            borderColor: 'var(--color-border)'
+          }}
+        >
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
             background: 'linear-gradient(135deg, var(--color-warning) 5%, var(--color-accent) 5%)'
           }}></div>
@@ -329,8 +354,18 @@ export default function Dashboard() {
               }} />
             </div>
             <div>
-              <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Events Today</p>
-              <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{status.eventsToday}</p>
+              <p
+                className="text-sm font-medium mb-1 transition-colors duration-300"
+                style={{ color: eventsCardHovered ? 'var(--color-warning)' : 'var(--color-text-secondary)' }}
+              >
+                Events Today
+              </p>
+              <p
+                className="text-2xl font-bold transition-colors duration-300"
+                style={{ color: eventsCardHovered ? 'var(--color-warning)' : 'var(--color-text-primary)' }}
+              >
+                {status.eventsToday}
+              </p>
               <div className="mt-3 flex items-center space-x-1">
                 <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-divider)' }}>
                   <div className="h-full rounded-full transition-all duration-1000"
@@ -339,19 +374,29 @@ export default function Dashboard() {
                          width: `${Math.min((status.eventsToday / 50) * 100, 100)}%`
                        }}></div>
                 </div>
-                <span className="text-xs font-medium" style={{ color: 'var(--color-warning)' }}>{status.eventsToday}</span>
+                <span
+                  className="text-xs font-medium transition-colors duration-300"
+                  style={{ color: eventsCardHovered ? 'var(--color-warning)' : 'var(--color-warning)' }}
+                >
+                  {status.eventsToday}
+                </span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Recent Diffs Card */}
-        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300 hover:-translate-y-1" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
+        <div
+          className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300 hover:-translate-y-1"
+          onMouseEnter={() => setRecentDiffsCardHovered(true)}
+          onMouseLeave={() => setRecentDiffsCardHovered(false)}
+          style={{
+            background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+            borderColor: 'var(--color-border)'
+          }}
+        >
           <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-            background: 'linear-gradient(135deg, var(--color-success) 5%, var(--color-info) 5%)'
+            background: 'linear-gradient(135deg, var(--color-success) 5%, var(--color-primary) 5%)'
           }}></div>
           <div className="relative">
             <div className="flex items-center justify-between mb-4">
@@ -367,8 +412,18 @@ export default function Dashboard() {
               }} />
             </div>
             <div>
-              <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-secondary)' }}>Recent Diffs</p>
-              <p className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>{recentDiffs.length}</p>
+              <p
+                className="text-sm font-medium mb-1 transition-colors duration-300"
+                style={{ color: recentDiffsCardHovered ? 'var(--color-success)' : 'var(--color-text-secondary)' }}
+              >
+                Recent Diffs
+              </p>
+              <p
+                className="text-2xl font-bold transition-colors duration-300"
+                style={{ color: recentDiffsCardHovered ? 'var(--color-success)' : 'var(--color-text-primary)' }}
+              >
+                {recentDiffs.length}
+              </p>
               <div className="mt-3 flex items-center space-x-1">
                 <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-divider)' }}>
                   <div className="h-full rounded-full transition-all duration-1000"
@@ -377,7 +432,12 @@ export default function Dashboard() {
                          width: `${Math.min((recentDiffs.length / 10) * 100, 100)}%`
                        }}></div>
                 </div>
-                <span className="text-xs font-medium" style={{ color: 'var(--color-success)' }}>{recentDiffs.length}</span>
+                <span
+                  className="text-xs font-medium transition-colors duration-300"
+                  style={{ color: recentDiffsCardHovered ? 'var(--color-success)' : 'var(--color-success)' }}
+                >
+                  {recentDiffs.length}
+                </span>
               </div>
             </div>
           </div>
@@ -388,13 +448,10 @@ export default function Dashboard() {
       {/* Enhanced Activity Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Events Section */}
-        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300" style={{
+        <div className="relative overflow-hidden rounded-2xl p-6 shadow-lg border" style={{
           background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
           borderColor: 'var(--color-border)'
         }}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-            background: 'linear-gradient(135deg, var(--color-info) 3%, var(--color-primary) 3%)'
-          }}></div>
           <div className="relative">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
@@ -406,9 +463,8 @@ export default function Dashboard() {
               {recentEvents.length > 0 && (
                 <button
                   onClick={() => setClearEventsDialogOpen(true)}
-                  className="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm"
+                  className="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm text-white"
                   style={{
-                    color: 'var(--color-error)',
                     backgroundColor: 'var(--color-error)',
                     border: '1px solid var(--color-error)',
                     filter: 'brightness(0.95)'
@@ -481,13 +537,10 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Diffs Section */}
-        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border hover:shadow-xl transition-all duration-300" style={{
+        <div className="relative overflow-hidden rounded-2xl p-6 shadow-lg border" style={{
           background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
           borderColor: 'var(--color-border)'
         }}>
-          <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" style={{
-            background: 'linear-gradient(135deg, var(--color-success) 3%, var(--color-info) 3%)'
-          }}></div>
           <div className="relative">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center space-x-3">
