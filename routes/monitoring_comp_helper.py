@@ -1,12 +1,12 @@
 """
 Helper module for comprehensive summary generation with async worker pattern
+
+Refactored to use Claude Agent SDK via ComprehensiveSummaryService.
 """
 import logging
-import hashlib
 import time
 import threading
 from datetime import datetime, timedelta
-from fastapi.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -18,130 +18,15 @@ _last_comp_result = {
 }
 
 
-def _fingerprint_combined(files_count: int, total_changes: int, combined_diff: str) -> str:
-    """Create fingerprint hash of comprehensive summary inputs"""
-    try:
-        h = hashlib.sha256()
-        h.update(str(files_count).encode('utf-8'))
-        h.update(str(total_changes).encode('utf-8'))
-        h.update((combined_diff or '').encode('utf-8'))
-        return h.hexdigest()
-    except Exception:
-        return ''
-
-
-def _prepare_combined_diff(changes_by_file: dict, max_len: int = 4000) -> str:
-    """Prepare a combined diff string with length cap"""
-    diff_parts = []
-    
-    for file_path, file_changes in changes_by_file.items():
-        diff_parts.append(f"\n=== Changes in {file_path} ===")
-        
-        for change in file_changes:
-            if change.get('diff_content'):
-                timestamp = change.get('timestamp', 'unknown')
-                diff_parts.append(f"--- Change at {timestamp} ---")
-                diff_parts.append(change['diff_content'])
-        
-        diff_parts.append("")  # Add spacing between files
-    
-    combined = "\n".join(diff_parts)
-    
-    # Truncate if too long to avoid API limits
-    if len(combined) > max_len:
-        return combined[:max_len] + "\n... (truncated for API limits)"
-    
-    return combined
-
-
-def _calculate_time_span(start_time: datetime, end_time: datetime) -> str:
-    """Calculate human-readable time span between two timestamps."""
-    span = end_time - start_time
-    
-    if span.days > 0:
-        return f"{span.days} day{'s' if span.days != 1 else ''}"
-    elif span.seconds >= 3600:
-        hours = span.seconds // 3600
-        return f"{hours} hour{'s' if hours != 1 else ''}"
-    elif span.seconds >= 60:
-        minutes = span.seconds // 60
-        return f"{minutes} minute{'s' if minutes != 1 else ''}"
-    else:
-        return f"{span.seconds} second{'s' if span.seconds != 1 else ''}"
-
-
-def _prepare_file_summaries(changes_by_file: dict) -> list:
-    """Prepare individual file summary data."""
-    file_summaries = []
-    
-    for file_path, file_changes in changes_by_file.items():
-        changes_count = len(file_changes)
-        lines_added = sum(c.get('lines_added', 0) for c in file_changes)
-        lines_removed = sum(c.get('lines_removed', 0) for c in file_changes)
-        
-        summary = f"{changes_count} change{'s' if changes_count != 1 else ''}"
-        if lines_added > 0 or lines_removed > 0:
-            summary += f" (+{lines_added}/-{lines_removed} lines)"
-        
-        file_summaries.append({
-            'file_path': file_path,
-            'summary': summary,
-            'changes_count': changes_count,
-            'lines_added': lines_added,
-            'lines_removed': lines_removed
-        })
-    
-    return file_summaries
-
-
-def _parse_ai_summary(ai_summary: str) -> dict:
-    """Parse structured AI summary response into components."""
-    import re
-    
-    parsed = {
-        'summary': ai_summary,
-        'topics': [],
-        'keywords': [],
-        'impact': 'moderate'
-    }
-    
-    # Try to extract structured sections
-    lines = ai_summary.split('\n')
-    
-    for line in lines:
-        line = line.strip()
-        
-        # Extract topics
-        if line.startswith('**Key Topics**:'):
-            topics_text = line.replace('**Key Topics**:', '').strip()
-            parsed['topics'] = [t.strip() for t in topics_text.split(',') if t.strip()]
-        
-        # Extract keywords  
-        elif line.startswith('**Key Keywords**:'):
-            keywords_text = line.replace('**Key Keywords**:', '').strip()
-            parsed['keywords'] = [k.strip() for k in keywords_text.split(',') if k.strip()]
-        
-        # Extract impact
-        elif line.startswith('**Overall Impact**:'):
-            impact_text = line.replace('**Overall Impact**:', '').strip().lower()
-            if impact_text in ['brief', 'moderate', 'significant']:
-                parsed['impact'] = impact_text
-        
-        # Extract main summary
-        elif line.startswith('**Batch Summary**:'):
-            parsed['summary'] = line.replace('**Batch Summary**:', '').strip()
-    
-    return parsed
-
-
 def run_comprehensive_worker(force: bool, result_box: dict):
     """Background worker for comprehensive summary generation"""
     with _comp_lock:
         _last_comp_result['running'] = True
         try:
             from database.models import ComprehensiveSummaryModel, ConfigModel, db
-            from ai.openai_client import OpenAIClient
-            
+            from services.comprehensive_summary_service import get_comprehensive_summary_service
+            import asyncio
+
             logger.info(f"Comprehensive worker starting (force={force})")
             start_time = time.time()
             
@@ -194,22 +79,32 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                 changes_by_file[file_path].append(change_dict)
             
             logger.info(f"Comprehensive worker: processing {len(changes)} changes across {len(changes_by_file)} files")
-            
-            # Get AI client
-            ai_client = OpenAIClient.get_instance()
-            ai_client.warm_up()
-            
-            # Prepare batch data (with reduced diff size)
-            batch_data = {
-                'files_count': len(changes_by_file),
-                'total_changes': len(changes),
-                'time_span': _calculate_time_span(last_summary_timestamp, datetime.now()),
-                'combined_diff': _prepare_combined_diff(changes_by_file, max_len=4000),
-                'file_summaries': _prepare_file_summaries(changes_by_file)
-            }
-            
+
+            # Get service instance
+            service = get_comprehensive_summary_service()
+
+            # Check if Claude Agent is available
+            if not service.is_available():
+                result = {
+                    'success': False,
+                    'message': 'Claude Agent SDK not available. Check ANTHROPIC_API_KEY environment variable.',
+                    'result': {
+                        'processed': False,
+                        'changes_count': len(changes),
+                        'error': 'Claude Agent SDK not configured'
+                    }
+                }
+                result_box['result'] = result
+                _last_comp_result['last'] = result
+                logger.error("Comprehensive worker: Claude Agent SDK not available")
+                return
+
+            # Prepare combined diff
+            combined_diff = service.prepare_combined_diff(changes_by_file, max_len=4000)
+            time_span = service.calculate_time_span(last_summary_timestamp, datetime.now())
+
             # Fingerprint check to skip redundant runs
-            fp = _fingerprint_combined(batch_data['files_count'], batch_data['total_changes'], batch_data['combined_diff'])
+            fp = service.fingerprint_combined(len(changes_by_file), len(changes), combined_diff)
             try:
                 last_fp = ConfigModel.get('last_comprehensive_fingerprint', '')
                 if fp and last_fp == fp and not force:
@@ -223,7 +118,7 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                             'time_range_start': last_summary_timestamp.isoformat(),
                             'time_range_end': datetime.now().isoformat(),
                             'processing_time': time.time() - start_time,
-                            'time_span': batch_data['time_span'],
+                            'time_span': time_span,
                             'reason': 'fingerprint_unchanged'
                         }
                     }
@@ -233,40 +128,132 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                     return
             except Exception as e:
                 logger.debug(f"Fingerprint check failed: {e}")
-            
+
             # Generate summary with brief setting for speed
-            logger.info("Comprehensive worker: calling AI with brief mode")
-            ai_summary = ai_client.summarize_batch_changes(batch_data, settings={'summaryLength': 'brief'})
-            
-            if not ai_summary or "Error" in ai_summary:
+            logger.info("Comprehensive worker: calling Claude Agent with brief mode")
+
+            # Run async method in sync context
+            current_time = datetime.now()
+            success, summary_data, error_msg = asyncio.run(
+                service.generate_comprehensive_summary(
+                    changes_by_file=changes_by_file,
+                    time_range_start=last_summary_timestamp,
+                    time_range_end=current_time,
+                    settings={'summaryLength': 'brief'}
+                )
+            )
+
+            if not success or not summary_data:
                 result = {
                     'success': False,
-                    'message': 'Failed to generate comprehensive summary',
+                    'message': f'Failed to generate comprehensive summary: {error_msg}',
                     'result': {
                         'processed': False,
                         'changes_count': len(changes),
-                        'error': ai_summary or 'Unknown AI error'
+                        'error': error_msg or 'Unknown error from Claude Agent'
                     }
                 }
                 result_box['result'] = result
                 _last_comp_result['last'] = result
+                logger.error(f"Comprehensive worker: AI generation failed - {error_msg}")
                 return
             
-            # Parse and save
-            summary_data = _parse_ai_summary(ai_summary)
-            current_time = datetime.now()
-            
+            # Save to database
             summary_id = ComprehensiveSummaryModel.create_summary(
                 time_range_start=last_summary_timestamp,
                 time_range_end=current_time,
-                summary_content=summary_data.get('summary', ai_summary),
+                summary_content=summary_data.get('summary', 'No summary generated'),
                 key_topics=summary_data.get('topics', []),
                 key_keywords=summary_data.get('keywords', []),
                 overall_impact=summary_data.get('impact', 'moderate'),
                 files_affected_count=len(changes_by_file),
                 changes_count=len(changes),
-                time_span=batch_data['time_span']
+                time_span=time_span
             )
+
+            # Also create a semantic entry + markdown file for display in Summary Notes page
+            if summary_id:
+                try:
+                    from database.models import SemanticModel
+                    from pathlib import Path
+                    import os
+
+                    # Create markdown file for comprehensive summary
+                    output_dir = Path("output/summaries")
+                    output_dir.mkdir(parents=True, exist_ok=True)
+
+                    timestamp_str = current_time.strftime('%Y-%m-%d-%H%M%S')
+                    markdown_filename = f"Comprehensive-Summary-{timestamp_str}.md"
+                    markdown_path = output_dir / markdown_filename
+
+                    # Format comprehensive summary as markdown
+                    topics_str = ", ".join(summary_data.get('topics', []))
+                    keywords_str = ", ".join(summary_data.get('keywords', []))
+
+                    markdown_content = f"""# Comprehensive Summary - {current_time.strftime('%Y-%m-%d %H:%M')}
+
+*Generated: {current_time.strftime('%Y-%m-%d at %H:%M:%S')}*
+*Time Range: {last_summary_timestamp.strftime('%Y-%m-%d %H:%M')} to {current_time.strftime('%Y-%m-%d %H:%M')} ({time_span})*
+*Files Affected: {len(changes_by_file)} files*
+*Changes Processed: {len(changes)} changes*
+*Overall Impact: {summary_data.get('impact', 'moderate')}*
+
+---
+
+## Summary
+
+{summary_data.get('summary', 'No summary available')}
+
+---
+
+## Metadata
+
+**Topics:** {topics_str or 'None'}
+
+**Keywords:** {keywords_str or 'None'}
+
+**Files Changed:**
+"""
+
+                    # Add list of changed files
+                    file_summaries = service.prepare_file_summaries(changes_by_file)
+                    for fs in file_summaries[:20]:  # Limit to first 20
+                        markdown_content += f"\n- `{fs['file_path']}` - {fs['summary']}"
+
+                    if len(file_summaries) > 20:
+                        markdown_content += f"\n- ... and {len(file_summaries) - 20} more files"
+
+                    markdown_content += f"\n\n---\n\n*Summary ID: {summary_id}*"
+
+                    # Write markdown file
+                    with open(markdown_path, 'w', encoding='utf-8') as f:
+                        f.write(markdown_content)
+
+                    logger.info(f"Created markdown file: {markdown_path}")
+
+                    # Create semantic entry for display in Summary Notes
+                    semantic_id = SemanticModel.insert_entry(
+                        summary=summary_data.get('summary', 'No summary'),
+                        entry_type='comprehensive',  # Different type to distinguish from living notes
+                        impact=summary_data.get('impact', 'moderate'),
+                        topics=summary_data.get('topics', []),
+                        keywords=summary_data.get('keywords', []),
+                        file_path=f"comprehensive/{len(changes_by_file)} files",  # Virtual path
+                        version_id=None,
+                        timestamp=current_time
+                    )
+
+                    # Update semantic entry with markdown path and source type
+                    db.execute_update(
+                        "UPDATE semantic_entries SET markdown_file_path = ?, source_type = ? WHERE id = ?",
+                        (str(markdown_path), 'comprehensive', semantic_id)
+                    )
+
+                    logger.info(f"Created semantic entry {semantic_id} for comprehensive summary {summary_id}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to create semantic entry for comprehensive summary: {e}")
+                    # Don't fail the whole operation if semantic entry fails
             
             processing_time = time.time() - start_time
             
@@ -277,7 +264,8 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                         ConfigModel.set('last_comprehensive_fingerprint', fp, 'Fingerprint of last comprehensive input')
                 except Exception:
                     pass
-                
+
+                summary_text = summary_data.get('summary', 'No summary')
                 result = {
                     'success': True,
                     'message': f'Comprehensive summary generated successfully for {len(changes)} changes across {len(changes_by_file)} files',
@@ -289,8 +277,8 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                         'time_range_start': last_summary_timestamp.isoformat(),
                         'time_range_end': current_time.isoformat(),
                         'processing_time': processing_time,
-                        'time_span': batch_data['time_span'],
-                        'summary_preview': summary_data.get('summary', ai_summary)[:200] + '...'
+                        'time_span': time_span,
+                        'summary_preview': summary_text[:200] + '...' if len(summary_text) > 200 else summary_text
                     }
                 }
                 result_box['result'] = result

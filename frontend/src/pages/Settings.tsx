@@ -299,7 +299,7 @@ export default function Settings() {
         <button
           onClick={saveConfig}
           disabled={saving}
-          className="btn-primary"
+          className="btn-primary flex items-center justify-center"
         >
           <Save className="h-4 w-4 mr-2" />
           {saving ? 'Saving...' : 'Save Changes'}

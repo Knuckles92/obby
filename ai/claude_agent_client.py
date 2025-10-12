@@ -260,6 +260,95 @@ class ClaudeAgentClient:
             logger.error(f"Error asking question: {e}", exc_info=True)
             return f"Error: {str(e)}"
     
+    async def generate_comprehensive_summary(
+        self,
+        changes_context: str,
+        file_summaries: List[Dict],
+        time_span: str,
+        summary_length: str = "brief"
+    ) -> str:
+        """
+        Generate a comprehensive summary of file changes.
+
+        Specialized method for comprehensive summary generation with
+        structured output format.
+
+        Args:
+            changes_context: Combined diff and change context
+            file_summaries: List of dicts with file-level summaries
+            time_span: Human-readable time span (e.g., "2 days")
+            summary_length: 'brief', 'moderate', or 'detailed'
+
+        Returns:
+            Structured summary text with topics, keywords, and impact
+        """
+        try:
+            # Build file summary section
+            files_section = "\n".join([
+                f"- {fs['file_path']}: {fs['summary']}"
+                for fs in file_summaries[:10]  # Limit to first 10
+            ])
+
+            # Determine length instruction
+            length_instruction = {
+                'brief': 'Provide a concise 2-3 sentence summary.',
+                'moderate': 'Provide a moderate summary with 3-5 key points.',
+                'detailed': 'Provide a detailed analysis with multiple sections.'
+            }.get(summary_length, 'Provide a concise 2-3 sentence summary.')
+
+            # Build comprehensive prompt
+            prompt = f"""Analyze these code changes and provide a structured summary.
+
+**Time Span**: {time_span}
+**Files Changed**: {len(file_summaries)}
+
+**File Summaries**:
+{files_section}
+
+**Recent Changes**:
+{changes_context}
+
+Please provide your response in the following format:
+
+**Summary**: [Your summary here - {length_instruction}]
+
+**Key Topics**: [comma-separated list of main topics/themes]
+
+**Key Keywords**: [comma-separated list of technical keywords]
+
+**Overall Impact**: [one word: brief, moderate, or significant]
+
+Focus on:
+1. What changed and why
+2. Key themes or patterns
+3. Technical areas affected
+4. Overall significance of changes
+"""
+
+            options = ClaudeAgentOptions(
+                cwd=str(self.working_dir),
+                allowed_tools=["Read"],
+                max_turns=3,
+                system_prompt="You are a technical code analyst. Provide structured, concise summaries."
+            )
+
+            result = []
+            async for message in query(prompt=prompt, options=options):
+                message_type = message.__class__.__name__
+
+                if message_type == "AssistantMessage":
+                    # Extract text from message content
+                    if hasattr(message, 'content'):
+                        for block in message.content:
+                            if hasattr(block, 'text'):
+                                result.append(block.text)
+
+            return "\n".join(result) if result else "No response generated."
+
+        except Exception as e:
+            logger.error(f"Error generating comprehensive summary: {e}", exc_info=True)
+            return f"Error: {str(e)}"
+
     def is_available(self) -> bool:
         """Check if Claude Agent SDK is available and configured."""
         return CLAUDE_SDK_AVAILABLE and bool(self.api_key)
