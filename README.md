@@ -45,7 +45,7 @@
 - **Performance Optimized**: Debounced events and efficient batch processing
 
 ### ✅ **AI-Enhanced Analysis**
-- **Multiple Model Support**: GPT-4o, GPT-4.1, GPT-4.1-mini, O4-mini, GPT-4.1-nano
+- **Multiple Model Support**: GPT-5, GPT-5-mini, GPT-5-nano, GPT-5-chat-latest
 - **Semantic Metadata**: Automatic extraction of topics, keywords, and impact levels
 - **Structured Summaries**: AI-generated content with configurable length and style
 - **Session Summary Generation**: Dynamic, evolving summaries of your work sessions
@@ -288,11 +288,10 @@ impact:significant date:2024-01-01     // Metadata filters
 ## ⚙️ AI Integration
 
 ### **OpenAI Model Support**
-- **GPT-4o**: Latest flagship model with enhanced capabilities
-- **GPT-4.1**: Advanced reasoning and analysis
-- **GPT-4.1-mini**: Optimized for speed and efficiency
-- **O4-mini**: Specialized for structured analysis
-- **GPT-4.1-nano**: Ultra-fast processing for real-time analysis
+- **GPT-5**: The standard GPT-5 model, offering advanced reasoning capabilities and improved performance across various tasks
+- **GPT-5-mini**: A lighter version of GPT-5, designed for faster responses with slightly reduced computational requirements
+- **GPT-5-nano**: An even more efficient variant, optimized for minimal resource usage while maintaining core functionalities
+- **GPT-5-chat-latest**: The non-reasoning version of GPT-5, used in ChatGPT, accessible via the API
 
 ### **Advanced AI Features**
 - **Semantic Analysis**: Automatic topic and keyword extraction

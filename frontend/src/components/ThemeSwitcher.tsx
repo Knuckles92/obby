@@ -1,12 +1,10 @@
-import React, { useState } from 'react';
-import { 
-  Palette, 
-  Check, 
-  Monitor, 
-  Sun, 
-  Moon, 
-  Eye, 
-  Type, 
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import {
+  Palette,
+  Check,
+  Monitor,
+  Eye,
   Zap,
   Sparkles,
   Accessibility,
@@ -42,11 +40,11 @@ const categoryDescriptions: Record<ThemeCategory, string> = {
   special: 'Unique themes with special effects'
 };
 
-export default function ThemeSwitcher({ 
-  className = '', 
-  showCategories = true, 
+export default function ThemeSwitcher({
+  className = '',
+  showCategories = true,
   showPreview = true,
-  compact = false 
+  compact = false
 }: ThemeSwitcherProps) {
   const { currentTheme, setTheme, preferences, updatePreferences } = useTheme();
   const [selectedCategory, setSelectedCategory] = useState<ThemeCategory>('professional');
@@ -54,10 +52,63 @@ export default function ThemeSwitcher({
   const themesInCategory = useThemesByCategory(selectedCategory);
   const hasGlassmorphism = useThemeFeature('hasGlassmorphism');
   const switcherClasses = useThemeClasses('theme-switcher', className);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+
+  // Update dropdown position when opened or category changes
+  useEffect(() => {
+    const updatePosition = () => {
+      if (isOpen && containerRef.current) {
+        const rect = containerRef.current.getBoundingClientRect();
+        setDropdownPosition({
+          top: rect.bottom + 4,
+          left: rect.left,
+          width: rect.width
+        });
+      }
+    };
+
+    updatePosition();
+
+    if (isOpen) {
+      // Update position on scroll or resize
+      window.addEventListener('scroll', updatePosition, true);
+      window.addEventListener('resize', updatePosition);
+
+      return () => {
+        window.removeEventListener('scroll', updatePosition, true);
+        window.removeEventListener('resize', updatePosition);
+      };
+    }
+  }, [isOpen, selectedCategory]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      // Check if click is outside both the container and the dropdown
+      if (
+        containerRef.current && !containerRef.current.contains(target) &&
+        dropdownRef.current && !dropdownRef.current.contains(target)
+      ) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
 
   const containerStyle = {
     position: 'relative' as const,
-    minWidth: compact ? '200px' : '300px'
+    minWidth: compact ? '200px' : '300px',
+    zIndex: isOpen ? 50 : 10
   };
 
   const triggerStyle = {
@@ -77,19 +128,19 @@ export default function ThemeSwitcher({
   };
 
   const dropdownStyle = {
-    position: 'absolute' as const,
-    top: '100%',
-    left: 0,
-    right: 0,
-    marginTop: 'var(--spacing-xs)',
+    position: 'fixed' as const,
+    top: `${dropdownPosition.top}px`,
+    left: `${dropdownPosition.left}px`,
+    width: `${dropdownPosition.width}px`,
     backgroundColor: hasGlassmorphism ? 'var(--color-overlay)' : 'var(--color-surface)',
     border: `1px solid var(--color-border)`,
     borderRadius: 'var(--border-radius-lg)',
-    boxShadow: 'var(--shadow-lg)',
-    zIndex: 1000,
+    boxShadow: '0 10px 40px rgba(0, 0, 0, 0.3)',
+    zIndex: 9999,
     backdropFilter: hasGlassmorphism ? 'var(--glass-blur)' : 'none',
-    maxHeight: '400px',
-    overflowY: 'auto' as const
+    maxHeight: '500px',
+    overflowY: 'auto' as const,
+    overflowX: 'hidden' as const
   };
 
   const categoryTabStyle = (isActive: boolean) => ({
@@ -156,7 +207,7 @@ export default function ThemeSwitcher({
   };
 
   return (
-    <div className={switcherClasses} style={containerStyle}>
+    <div ref={containerRef} className={switcherClasses} style={containerStyle}>
       <button
         style={triggerStyle}
         onClick={() => setIsOpen(!isOpen)}
@@ -180,8 +231,8 @@ export default function ThemeSwitcher({
         )}
       </button>
 
-      {isOpen && (
-        <div style={dropdownStyle}>
+      {isOpen && createPortal(
+        <div ref={dropdownRef} style={dropdownStyle}>
           {showCategories && !compact && (
             <div style={{ padding: 'var(--spacing-md)', borderBottom: `1px solid var(--color-divider)` }}>
               <div style={{ display: 'flex', marginBottom: 'var(--spacing-sm)' }}>
@@ -359,7 +410,8 @@ export default function ThemeSwitcher({
               </label>
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

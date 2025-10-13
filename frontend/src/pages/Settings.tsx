@@ -317,10 +317,10 @@ export default function Settings() {
       </div>
 
       {/* Theme Settings */}
-      <div className="group relative overflow-visible rounded-2xl p-6 shadow-lg border transition-all duration-300 hover:shadow-xl hover:-translate-y-1" style={{
+      <div className="group relative rounded-2xl p-6 shadow-lg border transition-all duration-300 hover:shadow-xl hover:-translate-y-1" style={{
         background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
         borderColor: 'var(--color-border)',
-        minHeight: '500px'
+        overflow: 'visible'
       }}>
         <div className="flex items-center mb-4">
           <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--color-primary)' }}>
