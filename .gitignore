@@ -30,7 +30,7 @@ ENV/
 env/
 .env.*.local
 !.env.example
-
+wsl_venv/*
 # Project specific
 notes/
 obby.db
