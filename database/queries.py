@@ -1637,6 +1637,58 @@ class AnalyticsQueries:
                     logger.warning(f"Failed to remove notes/semantic_index.json: {fs_err}")
                     results['files_removed_error'] = str(fs_err)
 
+                # Clear output folder contents (AI-generated summaries derived from database)
+                try:
+                    from pathlib import Path
+                    output_daily_cleared = 0
+                    output_summaries_cleared = 0
+
+                    # Clear daily session summaries
+                    output_daily_dir = Path('output/daily')
+                    if output_daily_dir.exists() and output_daily_dir.is_dir():
+                        for file_path in output_daily_dir.glob('*.md'):
+                            try:
+                                file_path.unlink()
+                                output_daily_cleared += 1
+                                logger.debug(f"Removed daily summary: {file_path}")
+                            except Exception as file_err:
+                                logger.warning(f"Failed to remove {file_path}: {file_err}")
+
+                    # Clear comprehensive summaries
+                    output_summaries_dir = Path('output/summaries')
+                    if output_summaries_dir.exists() and output_summaries_dir.is_dir():
+                        for file_path in output_summaries_dir.glob('*.md'):
+                            try:
+                                file_path.unlink()
+                                output_summaries_cleared += 1
+                                logger.debug(f"Removed comprehensive summary: {file_path}")
+                            except Exception as file_err:
+                                logger.warning(f"Failed to remove {file_path}: {file_err}")
+
+                    # Clear single-file session summary if it exists
+                    session_summary_path = Path('output/session_summary.md')
+                    if session_summary_path.exists():
+                        try:
+                            session_summary_path.unlink()
+                            output_daily_cleared += 1
+                            logger.debug(f"Removed single-file session summary: {session_summary_path}")
+                        except Exception as file_err:
+                            logger.warning(f"Failed to remove {session_summary_path}: {file_err}")
+
+                    total_output_cleared = output_daily_cleared + output_summaries_cleared
+                    results['output_files_cleared'] = {
+                        'daily': output_daily_cleared,
+                        'summaries': output_summaries_cleared,
+                        'total': total_output_cleared
+                    }
+
+                    if total_output_cleared > 0:
+                        logger.info(f"Cleared {total_output_cleared} output files during database reset (daily: {output_daily_cleared}, summaries: {output_summaries_cleared})")
+
+                except Exception as output_err:
+                    logger.warning(f"Failed to clear output folder: {output_err}")
+                    results['output_clear_error'] = str(output_err)
+
                 return results
                 
             except Exception as reset_error:

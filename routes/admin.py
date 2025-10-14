@@ -201,7 +201,10 @@ async def reset_database(request: Request):
         
         if reset_results.get('success'):
             logger.info(f"Database reset completed successfully: {reset_results.get('total_records_deleted', 0)} records deleted")
-            
+
+            # Extract output files cleared info
+            output_files_cleared = reset_results.get('output_files_cleared', {})
+
             # Return success response with detailed results
             return {
                 'success': True,
@@ -212,12 +215,15 @@ async def reset_database(request: Request):
                     'total_records_deleted': reset_results.get('total_records_deleted', 0),
                     'tables_reset': len(reset_results.get('tables_reset', [])),
                     'reset_timestamp': reset_results.get('reset_timestamp'),
-                    'post_reset_optimization': reset_results.get('post_reset_optimization')
+                    'post_reset_optimization': reset_results.get('post_reset_optimization'),
+                    'output_files_cleared': output_files_cleared.get('total', 0),
+                    'output_daily_cleared': output_files_cleared.get('daily', 0),
+                    'output_summaries_cleared': output_files_cleared.get('summaries', 0)
                 },
                 'recovery_info': {
                     'backup_available': reset_results.get('backup_created', False),
                     'backup_location': reset_results.get('backup_path'),
-                    'recovery_instructions': 'To restore, stop the application and replace obby.db with the backup file.'
+                    'recovery_instructions': 'To restore, stop the application and replace obby.db with the backup file. Note: Output files (session summaries and comprehensive summaries) cannot be restored from backup.'
                 } if reset_results.get('backup_created') else None
             }
         else:
