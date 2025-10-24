@@ -150,8 +150,19 @@ def db_connection(test_db_path: Path):
 
     # Cleanup
     conn.close()
+
+    # On Windows, wait a moment for file handles to be released
+    import sys
+    import time
+    if sys.platform == 'win32':
+        time.sleep(0.1)
+
     if test_db_path.exists():
-        test_db_path.unlink()
+        try:
+            test_db_path.unlink()
+        except PermissionError:
+            # File still locked, ignore for now
+            pass
 
 
 @pytest.fixture

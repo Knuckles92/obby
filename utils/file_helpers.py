@@ -20,6 +20,6 @@ def create_timestamp():
 def setup_test_file(note_path):
     """Create test file if it doesn't exist."""
     if not note_path.exists():
-        note_path.parent.mkdir(exist_ok=True)
+        note_path.parent.mkdir(parents=True, exist_ok=True)
         note_path.write_text("# My Notes\n\nThis is a test file for obby to watch.\nTry editing this file to see obby in action!\n")
         logging.info(f"Created {note_path}")

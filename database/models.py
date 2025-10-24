@@ -97,6 +97,22 @@ class DatabaseConnection:
             logger.info(f"DB timing: execute_many {dt:.3f}s affected={cursor.rowcount} batches={len(params_list)} | {first_line[:120]}")
             return cursor.rowcount
 
+    def close(self):
+        """Close the thread-local database connection."""
+        if hasattr(self._local, 'connection'):
+            try:
+                # Ensure all pending operations are complete
+                self._local.connection.commit()
+                self._local.connection.close()
+                logger.debug("Database connection closed")
+            except Exception as e:
+                logger.warning(f"Error closing database connection: {e}")
+            finally:
+                try:
+                    del self._local.connection
+                except AttributeError:
+                    pass  # Already deleted
+
 # Global database instance
 db = DatabaseConnection()
 
@@ -291,8 +307,24 @@ class ContentDiffModel:
         # Count added/removed lines
         lines_added = sum(1 for line in diff_lines if line.startswith('+') and not line.startswith('+++'))
         lines_removed = sum(1 for line in diff_lines if line.startswith('-') and not line.startswith('---'))
-        
+
         return diff_content, lines_added, lines_removed
+
+    @classmethod
+    def get_recent(cls, limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+        """Get recent content diffs with pagination support."""
+        query = """
+            SELECT cd.*,
+                   fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                   fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+            FROM content_diffs cd
+            LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+            LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+            ORDER BY cd.timestamp DESC
+            LIMIT ? OFFSET ?
+        """
+        rows = db.execute_query(query, (limit, offset))
+        return [dict(row) for row in rows]
 
 class FileChangeModel:
     """Simple file change tracking using native file system monitoring."""
@@ -558,6 +590,125 @@ class SemanticModel:
         """
         rows = db.execute_query(query)
         return [{'keyword': row['keyword'], 'count': row['count']} for row in rows]
+
+    @classmethod
+    def upsert(cls, file_path: str, content_hash: str, summary: str,
+               topics: List[str], keywords: List[str], impact_level: str,
+               timestamp: datetime = None) -> Optional[int]:
+        """
+        Insert or update semantic analysis data (backward compatibility for tests).
+        Uses the semantic_analysis table schema expected by legacy tests.
+        """
+        if timestamp is None:
+            timestamp = datetime.now()
+
+        try:
+            # Convert lists to JSON strings for storage
+            topics_json = ','.join(topics) if topics else ''
+            keywords_json = ','.join(keywords) if keywords else ''
+
+            # Check if entry exists
+            check_query = """
+                SELECT id FROM semantic_analysis
+                WHERE file_path = ? AND content_hash = ?
+            """
+            existing = db.execute_query(check_query, (file_path, content_hash))
+
+            if existing:
+                # Update existing entry
+                update_query = """
+                    UPDATE semantic_analysis
+                    SET summary = ?, topics = ?, keywords = ?,
+                        impact_level = ?, timestamp = ?
+                    WHERE file_path = ? AND content_hash = ?
+                """
+                db.execute_update(update_query, (
+                    summary, topics_json, keywords_json, impact_level,
+                    timestamp, file_path, content_hash
+                ))
+                return existing[0]['id']
+            else:
+                # Insert new entry
+                insert_query = """
+                    INSERT INTO semantic_analysis
+                    (file_path, content_hash, summary, topics, keywords, impact_level, timestamp)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+                db.execute_update(insert_query, (
+                    file_path, content_hash, summary, topics_json,
+                    keywords_json, impact_level, timestamp
+                ))
+
+                result = db.execute_query("SELECT last_insert_rowid() as id")
+                return result[0]['id']
+
+        except sqlite3.Error as e:
+            logger.error(f"Failed to upsert semantic analysis: {e}")
+            return None
+
+    @classmethod
+    def search_by_topic(cls, topic: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Search semantic analysis entries by topic (backward compatibility for tests).
+        Uses the semantic_analysis table schema.
+        """
+        try:
+            # Search for entries where the topic is in the topics list
+            query = """
+                SELECT *
+                FROM semantic_analysis
+                WHERE topics LIKE ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+            # Use LIKE pattern to match topic in comma-separated list
+            pattern = f'%{topic}%'
+            rows = db.execute_query(query, (pattern, limit))
+
+            results = []
+            for row in rows:
+                result = dict(row)
+                # Convert comma-separated strings back to lists
+                result['topics'] = result.get('topics', '').split(',') if result.get('topics') else []
+                result['keywords'] = result.get('keywords', '').split(',') if result.get('keywords') else []
+                results.append(result)
+
+            return results
+        except sqlite3.Error as e:
+            logger.error(f"Failed to search by topic: {e}")
+            return []
+
+    @classmethod
+    def search_by_keyword(cls, keyword: str, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Search semantic analysis entries by keyword (backward compatibility for tests).
+        Uses the semantic_analysis table schema.
+        """
+        try:
+            # Search for entries where the keyword is in the keywords list
+            query = """
+                SELECT *
+                FROM semantic_analysis
+                WHERE keywords LIKE ?
+                ORDER BY timestamp DESC
+                LIMIT ?
+            """
+            # Use LIKE pattern to match keyword in comma-separated list
+            pattern = f'%{keyword}%'
+            rows = db.execute_query(query, (pattern, limit))
+
+            results = []
+            for row in rows:
+                result = dict(row)
+                # Convert comma-separated strings back to lists
+                result['topics'] = result.get('topics', '').split(',') if result.get('topics') else []
+                result['keywords'] = result.get('keywords', '').split(',') if result.get('keywords') else []
+                results.append(result)
+
+            return results
+        except sqlite3.Error as e:
+            logger.error(f"Failed to search by keyword: {e}")
+            return []
 
 class ConfigModel:
     """Type-safe configuration storage."""

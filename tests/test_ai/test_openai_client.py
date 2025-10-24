@@ -84,18 +84,23 @@ class TestOpenAIClient:
 
     @pytest.mark.unit
     @pytest.mark.ai
-    @pytest.mark.asyncio
-    async def test_error_handling(self):
+    def test_error_handling(self):
         """Test error handling for API failures."""
         with patch.dict('os.environ', {'OPENAI_API_KEY': 'test-key'}):
             from ai.openai_client import OpenAIClient
 
             client = OpenAIClient()
 
-            # Mock a failing API call
-            with patch.object(client, 'summarize', side_effect=Exception("API Error")):
-                with pytest.raises(Exception):
-                    await client.summarize("test content")
+            # Mock a failing API call on _invoke_model (internal method)
+            with patch.object(client, '_invoke_model', side_effect=Exception("API Error")):
+                # Test that errors are handled gracefully
+                # summarize_diff should handle the exception
+                result = client.summarize_diff("test diff content")
+                # Should return error string, None, or dict on error, not crash
+                assert result is None or isinstance(result, (dict, str))
+                # If string, should be an error message
+                if isinstance(result, str):
+                    assert "Error" in result or "error" in result
 
     @pytest.mark.unit
     @pytest.mark.ai

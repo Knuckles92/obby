@@ -449,17 +449,46 @@ npm run dev
 ```
 
 ### **Testing**
-```bash
-# Backend testing
-python -m pytest tests/
 
-# Frontend testing  
+**Backend Tests (pytest)**
+```bash
+# Run all backend tests
+pytest
+
+# Run with coverage report
+pytest --cov=. --cov-report=html --cov-report=term
+
+# Run specific test categories
+pytest -m unit          # Unit tests only
+pytest -m api           # API endpoint tests
+pytest -m database      # Database tests only
+
+# See tests/README.md for detailed documentation
+```
+
+**Frontend Tests (Vitest + React Testing Library)**
+```bash
 cd frontend
+
+# Run tests in watch mode
 npm test
 
-# Integration testing
-npm run test:e2e
+# Run tests once
+npm run test:run
+
+# Generate coverage report
+npm run test:coverage
+
+# Run with UI
+npm run test:ui
+
+# See frontend/src/__tests__/README.md for detailed documentation
 ```
+
+**Test Documentation**
+- **Backend Guide**: `tests/README.md` - Comprehensive pytest guide with fixtures, markers, and best practices
+- **Frontend Guide**: `frontend/src/__tests__/README.md` - Vitest and React Testing Library patterns
+- **Test Summary**: `/specs/TEST_IMPLEMENTATION_SUMMARY.md` - Full test implementation documentation
 
 ### **Production Deployment**
 

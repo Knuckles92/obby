@@ -27,7 +27,11 @@
       "Bash(rm:*)",
       "Read(//d/Python Projects/whisper_local/**)",
       "Read(//d/**)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pytest:*)",
+      "Bash(findstr:*)",
+      "Bash(where pytest:*)",
+      "Bash(where:*)"
     ],
     "deny": []
   },

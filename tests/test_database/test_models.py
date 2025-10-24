@@ -34,12 +34,13 @@ class TestDatabaseConnection:
 
     def test_execute_query(self, db_connection):
         """Test executing a SELECT query."""
-        # Insert test data first
+        # Insert test data first (use valid 64-char SHA-256 hash)
+        valid_hash = "a" * 64  # Valid SHA-256 format
         with db_connection.get_connection() as conn:
             conn.execute("""
                 INSERT INTO file_versions (file_path, content_hash, timestamp)
                 VALUES (?, ?, ?)
-            """, ("test.py", "hash123", datetime.now().timestamp()))
+            """, ("test.py", valid_hash, datetime.now().timestamp()))
             conn.commit()
 
         # Query the data
@@ -53,26 +54,28 @@ class TestDatabaseConnection:
 
     def test_execute_update(self, db_connection):
         """Test executing an INSERT/UPDATE/DELETE query."""
+        valid_hash = "b" * 64  # Valid SHA-256 format
         affected = db_connection.execute_update(
             "INSERT INTO file_versions (file_path, content_hash, timestamp) VALUES (?, ?, ?)",
-            ("test2.py", "hash456", datetime.now().timestamp())
+            ("test2.py", valid_hash, datetime.now().timestamp())
         )
 
         assert affected >= 1
 
     def test_transaction_rollback(self, db_connection):
         """Test that transactions are rolled back on error."""
+        valid_hash = "c" * 64  # Valid SHA-256 format
         with pytest.raises(sqlite3.IntegrityError):
             with db_connection.get_connection() as conn:
                 # Try to insert duplicate primary key (should fail)
                 conn.execute("""
                     INSERT INTO file_versions (file_path, content_hash, timestamp)
                     VALUES (?, ?, ?)
-                """, ("test.py", "hash1", datetime.now().timestamp()))
+                """, ("test.py", valid_hash, datetime.now().timestamp()))
                 conn.execute("""
                     INSERT INTO file_versions (file_path, content_hash, timestamp)
                     VALUES (?, ?, ?)
-                """, ("test.py", "hash1", datetime.now().timestamp()))
+                """, ("test.py", valid_hash, datetime.now().timestamp()))
                 conn.commit()
 
 
