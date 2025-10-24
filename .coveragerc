@@ -1,0 +1,76 @@
+[run]
+# Source code directory
+source = .
+
+# Files to omit from coverage
+omit =
+    */venv/*
+    */wsl_venv/*
+    */tests/*
+    */test_*.py
+    */__pycache__/*
+    */frontend/*
+    */debug/*
+    */docs/*
+    */mocks/*
+    */database/archive/*
+    */database/migration*.py
+    */__init__.py
+    backend.py
+
+# Branch coverage
+branch = True
+
+# Parallel mode for multiprocessing tests
+parallel = False
+
+[report]
+# Reporting precision
+precision = 2
+
+# Show missing lines
+show_missing = True
+
+# Skip covered files
+skip_covered = False
+
+# Skip empty files
+skip_empty = True
+
+# Fail under percentage (set to 0 to not fail builds)
+fail_under = 0
+
+# Exclude lines from coverage
+exclude_lines =
+    # Standard pragma
+    pragma: no cover
+
+    # Don't complain about missing debug code
+    def __repr__
+    def __str__
+
+    # Don't complain if tests don't hit defensive assertion code
+    raise AssertionError
+    raise NotImplementedError
+
+    # Don't complain if non-runnable code isn't run
+    if __name__ == .__main__.:
+    if TYPE_CHECKING:
+
+    # Don't complain about abstract methods
+    @abstractmethod
+    @abc.abstractmethod
+
+    # Don't complain about pass statements
+    pass
+
+    # Don't complain about ellipsis
+    \.\.\.
+
+[html]
+# HTML output directory
+directory = htmlcov
+
+[xml]
+# XML output file
+output = coverage.xml
