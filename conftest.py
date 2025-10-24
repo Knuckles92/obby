@@ -237,6 +237,63 @@ def mock_openai_client():
 
 
 @pytest.fixture
+def mock_claude_agent_client():
+    """
+    Mock Claude Agent SDK client for testing agentic AI functionality.
+
+    Returns a mock that simulates Claude Agent SDK responses without making real calls
+    or requiring the claude-code CLI.
+    """
+    mock = MagicMock()
+
+    # Mock is_available method
+    mock.is_available = MagicMock(return_value=True)
+
+    # Mock analyze_diff method
+    async def mock_analyze_diff(diff_content: str, context: str = None):
+        return "This diff adds a new function that returns True. The change appears to be a test implementation."
+
+    mock.analyze_diff = AsyncMock(side_effect=mock_analyze_diff)
+
+    # Mock summarize_changes method
+    async def mock_summarize_changes(changes, max_length: str = "moderate"):
+        return "• Added new test functionality\n• Updated existing functions\n• Fixed bug in error handling"
+
+    mock.summarize_changes = AsyncMock(side_effect=mock_summarize_changes)
+
+    # Mock ask_question method
+    async def mock_ask_question(question: str, context: str = None):
+        return "The main components include: file monitoring, AI analysis, and database storage."
+
+    mock.ask_question = AsyncMock(side_effect=mock_ask_question)
+
+    # Mock generate_comprehensive_summary method
+    async def mock_generate_comprehensive_summary(changes_context, file_summaries, time_span, summary_length="brief"):
+        return """**Summary**: Updated test files and added new monitoring features over the past 2 hours.
+
+**Key Topics**: testing, monitoring, features
+
+**Key Keywords**: pytest, async, fixtures, file_watcher
+
+**Overall Impact**: moderate"""
+
+    mock.generate_comprehensive_summary = AsyncMock(side_effect=mock_generate_comprehensive_summary)
+
+    # Mock interactive_analysis generator
+    async def mock_interactive_analysis(initial_prompt: str, allow_file_edits: bool = False):
+        yield "Starting analysis..."
+        yield "Found 3 files to examine"
+        yield "Analysis complete: All tests passing"
+
+    mock.interactive_analysis = MagicMock(side_effect=mock_interactive_analysis)
+
+    # Mock working_dir attribute
+    mock.working_dir = Path.cwd()
+
+    return mock
+
+
+@pytest.fixture
 def mock_file_watcher():
     """Mock file watcher for testing monitoring functionality."""
     mock = MagicMock()
@@ -308,6 +365,11 @@ def mock_settings(monkeypatch):
 # Pytest configuration
 def pytest_configure(config):
     """Configure pytest with custom settings."""
+    # Register custom markers
+    config.addinivalue_line("markers", "unit: Unit tests with mocked dependencies")
+    config.addinivalue_line("markers", "integration: Integration tests with real external services")
+    config.addinivalue_line("markers", "ai: AI-related tests")
+
     # Set test environment variable
     os.environ["TESTING"] = "1"
 
