@@ -4,6 +4,16 @@ import { ContentDiff, FileChange, FileMonitoringStatus, PaginatedDiffsResponse, 
 import { apiFetch } from '../utils/api'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 
+type DiffLine = {
+  type: 'addition' | 'deletion' | 'hunk'
+  content: string
+}
+
+type DiffChunk = {
+  type: 'addition' | 'deletion' | 'hunk'
+  lines: string[]
+}
+
 export default function DiffViewer() {
   const [diffs, setDiffs] = useState<ContentDiff[]>([])
   const [fileChanges, setFileChanges] = useState<FileChange[]>([])
@@ -146,6 +156,11 @@ export default function DiffViewer() {
     setSelectedDiff(null)
   }
 
+  const resetSelection = () => {
+    setSelectedDiff(null)
+    setSelectedChange(null)
+  }
+
   const handleClearAllData = async () => {
     try {
       setClearing(true)
@@ -193,6 +208,156 @@ export default function DiffViewer() {
     }
   }
 
+  const buildDiffLines = (diffContent: string): DiffLine[] => {
+    if (!diffContent) return []
+
+    const rawLines = diffContent.split('\n')
+    const diffLines: DiffLine[] = []
+
+    rawLines.forEach(rawLine => {
+      if (!rawLine || rawLine.startsWith('\\ No newline at end of file')) {
+        return
+      }
+
+      if (rawLine.startsWith('@@')) {
+        diffLines.push({ type: 'hunk', content: rawLine })
+        return
+      }
+
+      if (rawLine.startsWith('+++') || rawLine.startsWith('---') || rawLine.startsWith('diff ') || rawLine.startsWith('index ')) {
+        return
+      }
+
+      if (rawLine.startsWith('+') && !rawLine.startsWith('+++')) {
+        diffLines.push({ type: 'addition', content: rawLine.slice(1) })
+        return
+      }
+
+      if (rawLine.startsWith('-') && !rawLine.startsWith('---')) {
+        diffLines.push({ type: 'deletion', content: rawLine.slice(1) })
+      }
+    })
+
+    return diffLines
+  }
+
+  const parseHunkHeader = (hunkLine: string): string => {
+    // Format: @@ -old_start,old_count +new_start,new_count @@
+    const match = hunkLine.match(/@@ -(\d+),?(\d*) \+(\d+),?(\d*) @@/)
+
+    if (!match) {
+      return 'Changed section'
+    }
+
+    const oldStart = parseInt(match[1])
+    const oldCount = match[2] ? parseInt(match[2]) : 1
+    const newStart = parseInt(match[3])
+    const newCount = match[4] ? parseInt(match[4]) : 1
+
+    const oldEnd = oldStart + oldCount - 1
+    const newEnd = newStart + newCount - 1
+
+    // Create a readable description
+    if (oldCount === 0) {
+      return `Lines ${newStart}-${newEnd} added`
+    } else if (newCount === 0) {
+      return `Lines ${oldStart}-${oldEnd} removed`
+    } else {
+      return `Lines ${oldStart}-${oldEnd} → ${newStart}-${newEnd}`
+    }
+  }
+
+  const chunkDiffLines = (diffLines: DiffLine[]): DiffChunk[] => {
+    if (diffLines.length === 0) return []
+
+    const chunks: DiffChunk[] = []
+    let currentChunk: DiffChunk | null = null
+
+    diffLines.forEach(line => {
+      // Hunk headers always get their own chunk
+      if (line.type === 'hunk') {
+        if (currentChunk) {
+          chunks.push(currentChunk)
+          currentChunk = null
+        }
+        chunks.push({ type: 'hunk', lines: [line.content] })
+        return
+      }
+
+      // If we don't have a current chunk or the type changed, start a new chunk
+      if (!currentChunk || currentChunk.type !== line.type) {
+        if (currentChunk) {
+          chunks.push(currentChunk)
+        }
+        currentChunk = { type: line.type, lines: [line.content] }
+      } else {
+        // Same type, add to current chunk
+        currentChunk.lines.push(line.content)
+      }
+    })
+
+    // Don't forget the last chunk
+    if (currentChunk) {
+      chunks.push(currentChunk)
+    }
+
+    return chunks
+  }
+
+  const renderDiffDisplay = (diffContent: string) => {
+    const diffLines = buildDiffLines(diffContent)
+    const diffChunks = chunkDiffLines(diffLines)
+
+    if (diffChunks.length === 0) {
+      return (
+        <p className="px-6 py-5 text-sm text-slate-500">
+          No added or deleted lines were captured in this diff.
+        </p>
+      )
+    }
+
+    return (
+      <div className="space-y-2.5 px-6 py-5">
+        {diffChunks.map((chunk, chunkIndex) => {
+          if (chunk.type === 'hunk') {
+            return (
+              <div
+                key={`hunk-${chunkIndex}`}
+                className="rounded-xl border border-indigo-200/60 bg-indigo-50 px-4 py-2.5 text-xs font-medium text-indigo-700 flex items-center gap-2"
+              >
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-400"></div>
+                {parseHunkHeader(chunk.lines[0])}
+              </div>
+            )
+          }
+
+          const isAddition = chunk.type === 'addition'
+
+          return (
+            <div
+              key={`chunk-${chunkIndex}`}
+              className={`flex items-start gap-3 rounded-2xl border px-4 py-3 text-[13px] font-mono leading-relaxed shadow-sm ${isAddition
+                ? 'border-emerald-200/80 bg-emerald-50 text-emerald-900'
+                : 'border-rose-200/80 bg-rose-50 text-rose-900'
+              }`}
+            >
+              <span className="mt-1 font-semibold select-none">
+                {isAddition ? '+' : '-'}
+              </span>
+              <div className="flex-1">
+                {chunk.lines.map((line, lineIndex) => (
+                  <div key={`line-${lineIndex}`} className="whitespace-pre">
+                    {line || ' '}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
   const handleCopyDiff = async (diffContent: string) => {
     try {
       await navigator.clipboard.writeText(diffContent)
@@ -205,47 +370,81 @@ export default function DiffViewer() {
 
   const renderSelectedContent = () => {
     if (selectedDiff) {
+      const formattedTimestamp = new Date(selectedDiff.timestamp).toLocaleString()
+      const netChange = selectedDiff.linesAdded - selectedDiff.linesRemoved
+      const netChangePrefix = netChange >= 0 ? '+' : ''
+      const netChangeColor = netChange >= 0 ? 'text-emerald-600' : 'text-rose-600'
+      const diffIdentifier = String(selectedDiff.id)
+
       return (
-        <div>
-          <div className="flex items-start space-x-4 mb-4 p-4 bg-gray-50 rounded-md">
-            <FileText className="h-5 w-5 text-gray-600 mt-1" />
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(selectedDiff.changeType)}`}>
-                  {selectedDiff.changeType}
-                </span>
-                <code className="px-2 py-1 bg-gray-200 rounded text-sm font-mono">
-                  {selectedDiff.id}
-                </code>
-              </div>
-              <h3 className="font-medium text-gray-900 mb-1">{selectedDiff.filePath}</h3>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{new Date(selectedDiff.timestamp).toLocaleString()}</span>
+        <div className="flex flex-col gap-6">
+          <section className="rounded-2xl border border-slate-200 bg-slate-50/80 px-6 py-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <span className={`inline-flex items-center rounded-full border border-transparent px-3 py-1 text-xs font-semibold capitalize ${getChangeTypeColor(selectedDiff.changeType)}`}>
+                    {selectedDiff.changeType}
+                  </span>
+                  <code className="inline-flex items-center rounded-full bg-slate-900/90 px-3 py-1 text-xs font-mono text-white shadow-sm">
+                    #{diffIdentifier.length > 10 ? `${diffIdentifier.slice(0, 10)}…` : diffIdentifier}
+                  </code>
                 </div>
-                <span>+{selectedDiff.linesAdded} -{selectedDiff.linesRemoved}</span>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">File</p>
+                  <h2 className="mt-2 text-2xl font-semibold leading-snug text-slate-900 break-words">
+                    {selectedDiff.filePath}
+                  </h2>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Recorded</span>
+                <span className="text-sm font-semibold text-slate-900">{formatTimeAgo(selectedDiff.timestamp)}</span>
+                <span className="text-xs text-slate-500">{formattedTimestamp}</span>
               </div>
             </div>
-          </div>
-          
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              <div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Lines Added</span>
+                <span className="mt-2 block text-lg font-semibold text-emerald-600">
+                  +{selectedDiff.linesAdded}
+                </span>
+              </div>
+              <div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Lines Removed</span>
+                <span className="mt-2 block text-lg font-semibold text-rose-600">
+                  -{selectedDiff.linesRemoved}
+                </span>
+              </div>
+              <div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Net Change</span>
+                <span className={`mt-2 block text-lg font-semibold ${netChangeColor}`}>
+                  {netChangePrefix}{netChange}
+                </span>
+              </div>
+            </div>
+          </section>
+
           {selectedDiff.diffContent && (
-            <div className="border border-gray-200 rounded-md">
-              <div className="p-3 bg-gray-50 border-b flex items-center justify-between">
-                <h4 className="font-medium text-gray-900">Changes:</h4>
+            <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 px-6 py-4">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900">Diff Preview</p>
+                  <p className="text-xs text-slate-500">Only added and removed lines are shown below.</p>
+                </div>
                 <button
                   onClick={() => handleCopyDiff(selectedDiff.diffContent)}
-                  className="flex items-center px-2 py-1 text-xs font-medium text-gray-600 bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+                  className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
                   title="Copy diff content"
                 >
-                  <Copy className="h-3 w-3 mr-1" />
-                  {copied ? 'Copied!' : 'Copy'}
+                  <Copy className="h-3.5 w-3.5" />
+                  {copied ? 'Copied!' : 'Copy Lines'}
                 </button>
               </div>
-              <pre className="text-xs bg-gray-900 text-gray-100 p-4 overflow-auto whitespace-pre-wrap max-h-96">
-                {selectedDiff.diffContent}
-              </pre>
-            </div>
+              <div className="max-h-[520px] overflow-auto bg-white">
+                {renderDiffDisplay(selectedDiff.diffContent)}
+              </div>
+            </section>
           )}
         </div>
       )
@@ -253,44 +452,55 @@ export default function DiffViewer() {
 
     if (selectedChange) {
       return (
-        <div>
-          <div className="flex items-start space-x-4 mb-4 p-4 bg-gray-50 rounded-md">
-            <FileText className="h-5 w-5 text-gray-600 mt-1" />
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-2">
-                <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(selectedChange.changeType)}`}>
+        <div className="flex flex-col gap-6">
+          <section className="rounded-2xl border border-slate-200 bg-slate-50/80 px-6 py-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="space-y-3">
+                <span className={`inline-flex items-center rounded-full border border-transparent px-3 py-1 text-xs font-semibold capitalize ${getChangeTypeColor(selectedChange.changeType)}`}>
                   {selectedChange.changeType}
                 </span>
-              </div>
-              <h3 className="font-medium text-gray-900 mb-1">{selectedChange.filePath}</h3>
-              <div className="flex items-center space-x-4 text-sm text-gray-600">
-                <div className="flex items-center space-x-1">
-                  <Clock className="h-3 w-3" />
-                  <span>{formatTimeAgo(selectedChange.timestamp)}</span>
+                <div>
+                  <p className="text-xs uppercase tracking-wide text-slate-500">File</p>
+                  <h2 className="mt-2 text-2xl font-semibold leading-snug text-slate-900 break-words">
+                    {selectedChange.filePath}
+                  </h2>
                 </div>
-                {selectedChange.newContentHash && (
-                  <div className="flex items-center space-x-1">
-                    <Hash className="h-3 w-3" />
-                    <code className="text-xs">{selectedChange.newContentHash.substring(0, 8)}</code>
-                  </div>
-                )}
+              </div>
+              <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Occurred</span>
+                <span className="text-sm font-semibold text-slate-900">{formatTimeAgo(selectedChange.timestamp)}</span>
+                <span className="text-xs text-slate-500">{new Date(selectedChange.timestamp).toLocaleString()}</span>
               </div>
             </div>
-          </div>
-          
-          <div className="p-4 bg-blue-50 rounded-md">
-            <p className="text-sm text-blue-800">
-              File change event recorded. Use the diff viewer above for detailed content comparison.
+
+            {selectedChange.newContentHash && (
+              <div className="mt-6 rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+                <span className="text-xs uppercase tracking-wide text-slate-500">Latest Hash</span>
+                <code className="mt-2 block text-sm font-medium text-slate-900">
+                  {selectedChange.newContentHash}
+                </code>
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-slate-200 bg-blue-50 px-6 py-6 shadow-inner">
+            <h3 className="text-sm font-semibold text-blue-900">Change captured</h3>
+            <p className="mt-2 text-sm leading-relaxed text-blue-800">
+              This file change was recorded without content diff details. Select a diff from the list to review content-level changes when available.
             </p>
-          </div>
+          </section>
         </div>
       )
     }
 
     return (
-      <p className="text-gray-600 text-center py-8">
-        Select a diff or file change to view details
-      </p>
+      <div className="flex h-full flex-col items-center justify-center rounded-2xl border border-dashed border-slate-200 bg-slate-50/60 px-8 py-16 text-center">
+        <FileText className="h-10 w-10 text-slate-400" />
+        <h3 className="mt-6 text-lg font-semibold text-slate-800">Choose an item to inspect</h3>
+        <p className="mt-2 max-w-md text-sm text-slate-500">
+          Select a content diff or file change from the activity panel to view detailed metadata and highlighted code updates here.
+        </p>
+      </div>
     )
   }
 
@@ -332,223 +542,254 @@ export default function DiffViewer() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Left Panel - Details */}
-        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border transition-all duration-300" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
-          <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>
-            {selectedDiff ? 'Content Diff Details' : selectedChange ? 'File Change Details' : 'Details'}
-          </h3>
-          {renderSelectedContent()}
-        </div>
-
-        {/* Right Panel - Diffs and Changes */}
-        <div className="group relative overflow-hidden rounded-2xl p-6 shadow-lg border transition-all duration-300" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setActiveTab('diffs')}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'diffs'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Content Diffs ({diffsPagination?.total ?? diffs.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('changes')}
-                className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                  activeTab === 'changes'
-                    ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                File Changes ({changesPagination?.total ?? fileChanges.length})
-              </button>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleRefresh}
-                className="relative overflow-hidden px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-300 text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100"
-                disabled={loading || refreshing}
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <div className="relative flex items-center">
-                  <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-                  Refresh
-                </div>
-              </button>
-              
-              {(diffs.length > 0 || fileChanges.length > 0) && (
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+        <section className="flex min-h-[28rem] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl lg:col-span-2">
+          <div className="border-b border-slate-200 bg-slate-50 px-6 py-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Detail View</p>
+                <h3 className="mt-1 text-2xl font-semibold text-slate-900">
+                  {selectedDiff ? 'Content Diff Details' : selectedChange ? 'File Change Details' : 'Details'}
+                </h3>
+              </div>
+              {(selectedDiff || selectedChange) && (
                 <button
-                  onClick={() => setShowClearDialog(true)}
-                  className="relative overflow-hidden px-3 py-2 text-sm font-semibold rounded-xl transition-all duration-300 text-red-700 bg-red-50 border border-red-200 hover:bg-red-100"
-                  disabled={loading || clearing}
+                  onClick={resetSelection}
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900"
                 >
-                  <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                  <div className="relative flex items-center">
-                    <Trash2 className="h-4 w-4 mr-2" />
-                    Clear All
-                  </div>
+                  Clear selection
                 </button>
               )}
             </div>
           </div>
-          
-          {loading ? (
-            <div className="flex items-center justify-center h-32">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto px-6 py-6">
+              {renderSelectedContent()}
             </div>
-          ) : error ? (
-            <div className="text-center py-8">
-              <p className="text-red-600 mb-2">Error loading file data</p>
-              <p className="text-sm text-gray-600 mb-4">{error}</p>
-              <button
-                onClick={() => fetchFileData()}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-              >
-                Retry
-              </button>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {activeTab === 'diffs' && diffs.length > 0 && diffs.map((diff) => (
-                <div
-                  key={diff.id}
-                  onClick={() => handleDiffSelection(diff)}
-                  className={`group/item relative overflow-hidden p-3 rounded-md cursor-pointer transition-colors border ${
-                    selectedDiff?.id === diff.id
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
+          </div>
+        </section>
+
+        <section className="flex min-h-[28rem] flex-col overflow-hidden rounded-3xl border border-slate-200 bg-slate-50 shadow-xl lg:col-span-1">
+          <div className="border-b border-slate-200 bg-white px-5 py-5">
+            <div className="space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500">Activity Feed</p>
+                <h3 className="mt-1 text-lg font-semibold text-slate-900">Tracked updates</h3>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={() => setActiveTab('diffs')}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    activeTab === 'diffs'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700'
                   }`}
                 >
-                  <div className="absolute inset-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" style={{
-                    background: 'linear-gradient(90deg, transparent, var(--color-surface), transparent)'
-                  }}></div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(diff.changeType)}`}>
-                        {diff.changeType}
-                      </span>
-                      <code className="px-2 py-1 bg-gray-200 rounded text-xs font-mono">
-                        {diff.id}
-                      </code>
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatTimeAgo(diff.timestamp)}
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900 mb-1">{diff.filePath}</p>
-                  <div className="flex items-center justify-between text-xs text-gray-600">
-                    <span>+{diff.linesAdded} -{diff.linesRemoved}</span>
-                    <span>{diff.changeType}</span>
-                  </div>
+                  Content Diffs ({diffsPagination?.total ?? diffs.length})
+                </button>
+                <button
+                  onClick={() => setActiveTab('changes')}
+                  className={`inline-flex flex-1 items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
+                    activeTab === 'changes'
+                      ? 'border-blue-500 bg-blue-50 text-blue-700 shadow-sm'
+                      : 'border-slate-200 bg-white text-slate-600 hover:border-blue-200 hover:text-blue-700'
+                  }`}
+                >
+                  File Changes ({changesPagination?.total ?? fileChanges.length})
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  onClick={handleRefresh}
+                  className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={loading || refreshing}
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                  Refresh
+                </button>
+                {(diffs.length > 0 || fileChanges.length > 0) && (
+                  <button
+                    onClick={() => setShowClearDialog(true)}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 transition hover:bg-rose-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={loading || clearing}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Clear All
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden">
+            <div className="h-full overflow-y-auto px-5 py-4">
+              {loading ? (
+                <div className="flex h-full items-center justify-center">
+                  <div className="h-9 w-9 animate-spin rounded-full border-2 border-slate-200 border-t-blue-500"></div>
                 </div>
-              ))}
-              
-              {activeTab === 'changes' && fileChanges.length > 0 && fileChanges.map((change) => (
-                <div
-                  key={change.id}
-                  onClick={() => handleChangeSelection(change)}
-                  className={`group/item relative overflow-hidden p-3 rounded-md cursor-pointer transition-colors border ${
-                    selectedChange?.id === change.id
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
-                  }`}
-                >
-                  <div className="absolute inset-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" style={{
-                    background: 'linear-gradient(90deg, transparent, var(--color-surface), transparent)'
-                  }}></div>
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-2 py-1 rounded-full text-xs ${getChangeTypeColor(change.changeType)}`}>
-                        {change.changeType}
-                      </span>
+              ) : error ? (
+                <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-5 text-center">
+                  <p className="text-sm font-semibold text-rose-600">Error loading file activity</p>
+                  <p className="mt-2 text-xs text-rose-500">{error}</p>
+                  <button
+                    onClick={() => fetchFileData()}
+                    className="mt-4 inline-flex items-center justify-center rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeTab === 'diffs' && diffs.length > 0 && diffs.map((diff) => (
+                    <div
+                      key={diff.id}
+                      onClick={() => handleDiffSelection(diff)}
+                      className={`relative cursor-pointer rounded-2xl border px-4 py-4 transition ${
+                        selectedDiff?.id === diff.id
+                          ? 'border-blue-400 bg-white shadow-sm'
+                          : 'border-transparent bg-white/70 hover:border-slate-300 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className={`inline-flex items-center rounded-full border border-transparent px-2.5 py-1 font-semibold capitalize ${getChangeTypeColor(diff.changeType)}`}>
+                              {diff.changeType}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatTimeAgo(diff.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold leading-snug text-slate-900 break-words">
+                            {diff.filePath}
+                          </p>
+                          <div className="flex items-center gap-4 text-xs font-mono">
+                            <span className="text-emerald-600">+{diff.linesAdded}</span>
+                            <span className="text-rose-600">-{diff.linesRemoved}</span>
+                          </div>
+                        </div>
+                        <code className="rounded-md bg-slate-900/80 px-2 py-1 text-[10px] font-mono text-white shadow-sm">
+                          {String(diff.id).slice(0, 10)}
+                        </code>
+                      </div>
                     </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <Clock className="h-3 w-3 mr-1" />
-                      {formatTimeAgo(change.timestamp)}
+                  ))}
+
+                  {activeTab === 'changes' && fileChanges.length > 0 && fileChanges.map((change) => (
+                    <div
+                      key={change.id}
+                      onClick={() => handleChangeSelection(change)}
+                      className={`relative cursor-pointer rounded-2xl border px-4 py-4 transition ${
+                        selectedChange?.id === change.id
+                          ? 'border-blue-400 bg-white shadow-sm'
+                          : 'border-transparent bg-white/70 hover:border-slate-300 hover:bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="space-y-3">
+                          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+                            <span className={`inline-flex items-center rounded-full border border-transparent px-2.5 py-1 font-semibold capitalize ${getChangeTypeColor(change.changeType)}`}>
+                              {change.changeType}
+                            </span>
+                            <span className="inline-flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {formatTimeAgo(change.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm font-semibold leading-snug text-slate-900 break-words">
+                            {change.filePath}
+                          </p>
+                          {change.newContentHash && (
+                            <code className="block truncate text-xs font-mono text-slate-600">
+                              hash {change.newContentHash.substring(0, 18)}…
+                            </code>
+                          )}
+                        </div>
+                        <div className="flex items-center">
+                          <Hash className="h-4 w-4 text-slate-300" />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900">{change.filePath}</p>
-                  {change.newContentHash && (
-                    <p className="text-xs text-gray-500 font-mono mt-1">
-                      {change.newContentHash.substring(0, 16)}...
-                    </p>
+                  ))}
+
+                  {activeTab === 'diffs' && diffs.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-10 text-center text-sm text-slate-500">
+                      No content diffs found
+                    </div>
+                  )}
+
+                  {activeTab === 'changes' && fileChanges.length === 0 && (
+                    <div className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-10 text-center text-sm text-slate-500">
+                      No file changes found
+                    </div>
                   )}
                 </div>
-              ))}
-              
-              {activeTab === 'diffs' && diffs.length === 0 && (
-                <p className="text-gray-600 text-center py-8">No content diffs found</p>
               )}
-              
-              {activeTab === 'changes' && fileChanges.length === 0 && (
-                <p className="text-gray-600 text-center py-8">No file changes found</p>
-              )}
-
-              {/* Load More Buttons */}
-              {activeTab === 'diffs' && diffsPagination?.hasMore && (
-                <div className="text-center py-4">
+            </div>
+          </div>
+          <div className="border-t border-slate-200 bg-white px-5 py-4">
+            {!loading && !error && (
+              <div className="flex flex-col gap-3">
+                {activeTab === 'diffs' && diffsPagination?.hasMore && (
                   <button
                     onClick={loadMoreDiffs}
                     disabled={loadingMore}
-                    className="flex items-center justify-center mx-auto px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loadingMore ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Loading more...
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        Loading…
                       </>
                     ) : (
-                      `Load More (${diffsPagination.total - diffs.length} remaining)`
+                      <>
+                        Load more
+                        {typeof diffsPagination.total === 'number' && (
+                          <span className="font-normal text-white/80">
+                            ({Math.max(diffsPagination.total - diffs.length, 0)} remaining)
+                          </span>
+                        )}
+                      </>
                     )}
                   </button>
-                </div>
-              )}
-
-              {activeTab === 'changes' && changesPagination?.hasMore && (
-                <div className="text-center py-4">
+                )}
+                {activeTab === 'changes' && changesPagination?.hasMore && (
                   <button
                     onClick={loadMoreChanges}
                     disabled={loadingMore}
-                    className="flex items-center justify-center mx-auto px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-md hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center justify-center gap-2 rounded-full bg-primary-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {loadingMore ? (
                       <>
-                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                        Loading more...
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                        Loading…
                       </>
                     ) : (
-                      `Load More (${changesPagination.total - fileChanges.length} remaining)`
+                      <>
+                        Load more
+                        {typeof changesPagination.total === 'number' && (
+                          <span className="font-normal text-white/80">
+                            ({Math.max(changesPagination.total - fileChanges.length, 0)} remaining)
+                          </span>
+                        )}
+                      </>
                     )}
                   </button>
-                </div>
-              )}
-
-              {/* Pagination Info */}
-              {activeTab === 'diffs' && diffsPagination && diffs.length > 0 && (
-                <div className="text-center py-2 border-t border-gray-200 text-xs text-gray-500">
-                  Showing {diffs.length} of {diffsPagination.total} content diffs
-                </div>
-              )}
-
-              {activeTab === 'changes' && changesPagination && fileChanges.length > 0 && (
-                <div className="text-center py-2 border-t border-gray-200 text-xs text-gray-500">
-                  Showing {fileChanges.length} of {changesPagination.total} file changes
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+                )}
+                {activeTab === 'diffs' && diffsPagination && diffs.length > 0 && (
+                  <p className="text-center text-xs text-slate-500">
+                    Showing {diffs.length} of {diffsPagination.total} content diffs
+                  </p>
+                )}
+                {activeTab === 'changes' && changesPagination && fileChanges.length > 0 && (
+                  <p className="text-center text-xs text-slate-500">
+                    Showing {fileChanges.length} of {changesPagination.total} file changes
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
       <ConfirmationDialog

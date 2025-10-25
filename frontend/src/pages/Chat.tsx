@@ -141,6 +141,8 @@ Tools available:
 
 Guidelines:
 - Be concise and direct in responses
+- Always begin by searching the notes directory with notes_search before considering any other tool or datasource.
+- Do not query SQLite or other databases unless the notes search clearly cannot answer the question.
 - When using tools, proceed without announcing your actions
 - Synthesize results rather than listing raw data
 - Focus on answering the user's question efficiently`
@@ -423,27 +425,46 @@ Guidelines:
 
   return (
     <div className="h-full flex flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="h-6 w-6 text-blue-600" />
-          <h1 className="text-2xl font-bold">Chat</h1>
-          <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-xs font-medium">
-            <Wrench className="h-3 w-3" />
-            {provider === 'openai' ? 'OpenAI' : 'Claude'}
-          </div>
-          {enableFallback && (
-            <div className="px-2 py-1 bg-gray-100 text-gray-600 rounded-md text-xs">
-              Fallback: On
+      {/* Modern Header */}
+      <div className="relative overflow-hidden rounded-2xl mb-2 p-8 text-white shadow-2xl" style={{
+        background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
+      }}>
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <MessageSquare className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Chat</h1>
             </div>
-          )}
+            <p className="text-blue-100 text-lg">Interact with AI assistants powered by Claude or OpenAI</p>
+          </div>
+
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1 px-3 py-2 bg-white/20 text-white rounded-lg text-sm font-medium backdrop-blur-sm">
+                <Wrench className="h-4 w-4" />
+                {provider === 'openai' ? 'OpenAI' : 'Claude'}
+              </div>
+              {enableFallback && (
+                <div className="px-3 py-2 bg-white/10 text-white rounded-lg text-sm backdrop-blur-sm">
+                  Fallback: On
+                </div>
+              )}
+            </div>
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+              title="Chat Settings"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+          </div>
         </div>
-        <button
-          onClick={() => setShowSettings(!showSettings)}
-          className="p-2 rounded-md hover:bg-gray-100"
-          title="Chat Settings"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
       </div>
 
       <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">

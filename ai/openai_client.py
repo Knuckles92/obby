@@ -442,9 +442,11 @@ class OpenAIClient:
             if not OpenAIClient._warmed_up:
                 self.warm_up()
 
-            sys_content = system_prompt or (
-                "You are a precise, reliable assistant. "
-                "Follow the user's instructions exactly. Return only the requested output."
+        sys_content = system_prompt or (
+                "You are a precise, reliable assistant for the Obby project. "
+                "Always begin by searching the local notes before considering other data sources. "
+                "Only query databases or external systems if the notes search cannot answer the question. "
+                "Follow the user's instructions exactly and return only the requested output."
             )
 
             # Sensible defaults using existing centralized settings

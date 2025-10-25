@@ -147,30 +147,28 @@ export default function Administration() {
   ]
 
   return (
-    <div style={{ padding: 'var(--spacing-lg)' }}>
+    <div className="min-h-screen space-y-6">
       <AdminHeader systemOnline={!!systemStats} loading={loading} onRefresh={fetchSystemStats} />
 
       {error && (
-        <div style={{
-          backgroundColor: 'var(--color-error)',
-          color: 'white',
-          padding: 'var(--spacing-md)',
-          borderRadius: 'var(--border-radius-md)',
-          marginBottom: 'var(--spacing-lg)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 'var(--spacing-sm)'
-        }}>
+        <div
+          className="flex items-center gap-3 rounded-xl px-4 py-3 text-white"
+          style={{
+            backgroundColor: 'var(--color-error)'
+          }}
+        >
           <AlertTriangle style={{ width: '1.25rem', height: '1.25rem' }} />
           {error}
         </div>
       )}
 
-      <div style={{
-        borderBottom: '1px solid var(--color-border)',
-        marginBottom: 'var(--spacing-xl)'
-      }}>
-        <div style={{ display: 'flex', gap: 'var(--spacing-md)' }}>
+      <div
+        className="border-b"
+        style={{
+          borderColor: 'var(--color-border)'
+        }}
+      >
+        <div className="flex" style={{ gap: 'var(--spacing-md)' }}>
           {tabs.map((tab) => (
             <button
               key={tab.id}

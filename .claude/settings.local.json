@@ -31,7 +31,8 @@
       "Bash(pytest:*)",
       "Bash(findstr:*)",
       "Bash(where pytest:*)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "Read(//mnt/c/Users/Big D/Documents/ShareX/Screenshots/2025-10/**)"
     ],
     "deny": []
   },

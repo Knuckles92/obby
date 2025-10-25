@@ -576,7 +576,11 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                 "Edit",      # Edit files
             ],
             max_turns=10,
-            system_prompt="You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure. The database is at obby.db (SQLite)."
+            system_prompt=(
+                "You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure."
+                " Always begin your investigation by searching the notes directory using the Grep tool before considering any other data sources."
+                " Only run SQL or other database queries as a last resort when the notes search cannot provide the required context."
+            )
         )
 
         logger.info(f"⚙️  Claude options: max_turns=10, tools={options.allowed_tools}, cwd={options.cwd}")
