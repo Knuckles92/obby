@@ -74,7 +74,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
 
   // Expanded state
   return (
-    <div className="h-full w-80 flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
+    <div className="h-full w-full flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
       {/* Header */}
       <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between px-4 py-3">
