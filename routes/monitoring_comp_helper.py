@@ -324,7 +324,11 @@ def run_comprehensive_worker(force: bool, result_box: dict):
                     # Add list of changed files
                     file_summaries = service.prepare_file_summaries(changes_by_file)
                     for fs in file_summaries[:20]:  # Limit to first 20
-                        markdown_content += f"\n- `{fs['file_path']}` - {fs['summary']}"
+                        highlight = (fs.get('highlights') or '').replace('\n', ' ').strip()
+                        if highlight and len(highlight) > 150:
+                            highlight = highlight[:147] + '...'
+                        highlight_suffix = f" — {highlight}" if highlight else ''
+                        markdown_content += f"\n- `{fs['file_path']}` - {fs['summary']}{highlight_suffix}"
 
                     if len(file_summaries) > 20:
                         markdown_content += f"\n- ... and {len(file_summaries) - 20} more files"

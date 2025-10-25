@@ -152,6 +152,27 @@ class ComprehensiveSummaryService:
             lines_added = sum(c.get('lines_added', 0) for c in file_changes)
             lines_removed = sum(c.get('lines_removed', 0) for c in file_changes)
 
+            highlights: List[str] = []
+            for change in file_changes:
+                diff_content = change.get('diff_content')
+                if not diff_content:
+                    continue
+
+                for line in diff_content.splitlines():
+                    line = line.strip()
+                    if not line or line.startswith('+++') or line.startswith('---'):
+                        continue
+                    if line.startswith('+'):
+                        cleaned = line[1:].strip()
+                        if cleaned:
+                            highlights.append(cleaned)
+                    if len(highlights) >= 3:
+                        break
+                if len(highlights) >= 3:
+                    break
+
+            highlights_text = '; '.join(highlights[:3]) if highlights else ''
+
             summary = f"{changes_count} change{'s' if changes_count != 1 else ''}"
             if lines_added > 0 or lines_removed > 0:
                 summary += f" (+{lines_added}/-{lines_removed} lines)"
@@ -161,7 +182,8 @@ class ComprehensiveSummaryService:
                 'summary': summary,
                 'changes_count': changes_count,
                 'lines_added': lines_added,
-                'lines_removed': lines_removed
+                'lines_removed': lines_removed,
+                'highlights': highlights_text
             })
 
         return file_summaries

@@ -19,6 +19,9 @@ from unittest.mock import MagicMock, AsyncMock
 import sys
 import os
 
+# Load environment variables from .env file for tests
+from dotenv import load_dotenv
+
 # Add project root to Python path
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -365,6 +368,9 @@ def mock_settings(monkeypatch):
 # Pytest configuration
 def pytest_configure(config):
     """Configure pytest with custom settings."""
+    # Load .env file first so tests have access to real environment variables
+    load_dotenv()
+
     # Register custom markers
     config.addinivalue_line("markers", "unit: Unit tests with mocked dependencies")
     config.addinivalue_line("markers", "integration: Integration tests with real external services")
@@ -373,7 +379,7 @@ def pytest_configure(config):
     # Set test environment variable
     os.environ["TESTING"] = "1"
 
-    # Disable AI processing during tests
+    # Disable AI processing during tests (unless running integration tests)
     os.environ["SKIP_AI_PROCESSING"] = "1"
 
 

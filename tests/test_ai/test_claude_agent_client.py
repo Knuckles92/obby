@@ -371,8 +371,8 @@ class TestComprehensiveSummaryService:
 
         changes_by_file = {
             'test.py': [
-                {'lines_added': 5, 'lines_removed': 2},
-                {'lines_added': 3, 'lines_removed': 1}
+                {'lines_added': 5, 'lines_removed': 2, 'diff_content': '--- a/test.py\n+++ b/test.py\n+def foo():\n+    return 1\n'},
+                {'lines_added': 3, 'lines_removed': 1, 'diff_content': '+# Added documentation\n'}
             ]
         }
 
@@ -383,6 +383,7 @@ class TestComprehensiveSummaryService:
         assert result[0]['changes_count'] == 2
         assert result[0]['lines_added'] == 8
         assert result[0]['lines_removed'] == 3
+        assert 'def foo():' in result[0]['highlights']
 
     @pytest.mark.unit
     @pytest.mark.ai

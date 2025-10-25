@@ -259,7 +259,107 @@ class ClaudeAgentClient:
         except Exception as e:
             logger.error(f"Error asking question: {e}", exc_info=True)
             return f"Error: {str(e)}"
-    
+
+    @staticmethod
+    def _is_structured_summary(text: str) -> bool:
+        """Check if Claude's response matches the structured summary format."""
+        if not text:
+            return False
+
+        required_markers = [
+            "**Summary**:",
+            "**Key Topics**:",
+            "**Key Keywords**:",
+            "**Overall Impact**:"
+        ]
+
+        if any(marker not in text for marker in required_markers):
+            return False
+
+        plan_indicators = [
+            "i'll analyze",
+            "i will analyze",
+            "let me check",
+            "let me start",
+            "first, i will",
+            "i'll start by",
+            "i'll begin"
+        ]
+
+        lowered = text.lower()
+        return not any(indicator in lowered for indicator in plan_indicators)
+
+    @staticmethod
+    def _build_fallback_summary(file_summaries: List[Dict], time_span: str) -> str:
+        """Construct a deterministic fallback summary if the model fails to comply."""
+        if not file_summaries:
+            summary_line = f"No tracked file changes were detected in the monitored window ({time_span})."
+            topics = "None"
+            keywords = "None"
+            impact = "brief"
+        else:
+            first_files = ", ".join(fs["file_path"] for fs in file_summaries[:3])
+            if len(file_summaries) > 3:
+                first_files += f", … {len(file_summaries) - 3} more"
+            summary_line = (
+                f"{len(file_summaries)} files changed during the {time_span} window. "
+                f"Notable files: {first_files}."
+            )
+
+            highlight_snippets = [
+                fs.get("highlights") for fs in file_summaries if fs.get("highlights")
+            ]
+            if highlight_snippets:
+                key_updates = "; ".join(highlight_snippets[:2])
+                summary_line += f" Key updates: {key_updates}."
+
+            inferred_topics = ["Code Changes"]
+            if highlight_snippets and any(
+                term in snippet.lower()
+                for snippet in highlight_snippets
+                for term in ("doc", "readme", "guide", "note")
+            ):
+                inferred_topics.insert(0, "Documentation")
+            topics = ", ".join(dict.fromkeys(inferred_topics)) if inferred_topics else "Code Changes"
+
+            def _trim_snippet(snippet: str) -> str:
+                snippet = snippet.strip().replace("\n", " ")
+                return snippet if len(snippet) <= 60 else snippet[:57] + "..."
+
+            keywords_list = [_trim_snippet(snippet) for snippet in highlight_snippets[:3]]
+            keywords = ", ".join(keywords_list) if keywords_list else "code-change"
+            impact = "moderate"
+
+        return (
+            f"**Summary**: {summary_line}\n\n"
+            f"**Key Topics**: {topics}\n\n"
+            f"**Key Keywords**: {keywords}\n\n"
+            f"**Overall Impact**: {impact}"
+        )
+
+    async def _execute_summary_query(
+        self,
+        prompt: str,
+        options: ClaudeAgentOptions
+    ) -> str:
+        """Execute a Claude query and collect all assistant/tool text blocks."""
+        result: List[str] = []
+
+        async for message in query(prompt=prompt, options=options):
+            message_type = message.__class__.__name__
+            logger.debug("Claude comprehensive summary stream: %s", message_type)
+
+            content = getattr(message, "content", None)
+            if not content:
+                continue
+
+            for block in content:
+                block_text = getattr(block, "text", None)
+                if block_text:
+                    result.append(block_text)
+
+        return "\n".join(result).strip()
+
     async def generate_comprehensive_summary(
         self,
         changes_context: str,
@@ -295,71 +395,107 @@ class ClaudeAgentClient:
                     # If path is not relative to working_dir, return as-is
                     return path
             
-            # Build file summary section with paths for Claude to read
-            files_section = "\n".join([
-                f"- {make_relative(fs['file_path'])}: {fs['summary']}"
-                for fs in file_summaries[:20]  # Allow up to 20 files
-            ])
+            # Build a concise file overview for the model to reference
+            overview_entries: List[str] = []
+            for fs in file_summaries[:20]:  # Allow up to 20 files
+                relative_path = make_relative(fs['file_path'])
+                highlight = (fs.get('highlights') or '').replace('\n', ' ').strip()
+                highlight_segment = f" | Highlights: {highlight}" if highlight else ''
+                overview_entries.append(f"- {relative_path}: {fs['summary']}{highlight_segment}")
 
-            # Extract unique file paths for Claude to read (use relative paths)
-            file_paths = [make_relative(fs['file_path']) for fs in file_summaries[:20]]
-            files_to_read = "\n".join([f"  - {path}" for path in file_paths])
+            files_section = "\n".join(overview_entries)
 
-            # Determine length instruction
+            if len(file_summaries) > 20:
+                files_section += f"\n- ... and {len(file_summaries) - 20} more files"
+
+            if not files_section:
+                files_section = "- None"
+
+            # Trim diff context to keep prompt size manageable
+            diff_context = changes_context or "(No diff context provided.)"
+            if len(diff_context) > 3500:
+                diff_context = diff_context[:3500] + "\n... (diff truncated for brevity)"
+
+            # Determine length instruction to set expectations on summary depth
             length_instruction = {
-                'brief': 'Provide a concise 2-3 sentence summary.',
-                'moderate': 'Provide a moderate summary with 3-5 key points.',
-                'detailed': 'Provide a detailed analysis with multiple sections.'
-            }.get(summary_length, 'Provide a concise 2-3 sentence summary.')
+                'brief': 'Write 1-2 tightly written sentences focusing on the most important themes.',
+                'moderate': 'Write 2-3 sentences that capture the major themes, intent, and impact.',
+                'detailed': 'Write 3-4 sentences covering themes, intent, impact, and follow-ups.'
+            }.get(summary_length, 'Write 2-3 sentences that capture the major themes, intent, and impact.')
 
-            # Build comprehensive prompt that instructs Claude to READ the files
-            prompt = f"""Analyze code changes from the past {time_span} and provide a structured summary.
+            # Build comprehensive prompt that encourages direct, structured output
+            prompt = f"""You are a technical code analyst summarizing repository activity over the past {time_span}.
+You must rely solely on the provided context; you cannot run commands, inspect the repository, or use external tools.
+Return the final summary only—do not describe analysis steps or planned actions.
+Do not preface your response with phrases like \"I'll analyze\" or \"Let me check\"; respond with the finished summary immediately.
 
-**Files Changed** ({len(file_summaries)} total):
-{files_section}
+	Follow this exact format:
+	**Summary**: {length_instruction} Focus on what changed and why it matters, using the highlights below.
+**Key Topics**: comma-separated high-level themes (3-5 items)
+**Key Keywords**: comma-separated technical terms (up to 6 items)
+**Overall Impact**: one word (brief, moderate, or significant)
 
-**IMPORTANT**: Please use your Read tool to examine the actual content of these files:
-{files_to_read}
+Context to use:
+	Files overview ({len(file_summaries)} total):
+	{files_section}
 
-After reading the files, provide your analysis in this format:
+	Diff excerpts:
+	{diff_context}
 
-**Summary**: [Your summary here - {length_instruction}]
+	Use the highlights to describe the substantive modifications, naming new sections, behaviors, or documentation themes rather than just counting files.
+	"""
 
-**Key Topics**: [comma-separated list of main topics/themes]
-
-**Key Keywords**: [comma-separated list of technical keywords]
-
-**Overall Impact**: [one word: brief, moderate, or significant]
-
-Focus on:
-1. What changed and why (read the files to understand the actual content)
-2. Key themes or patterns in the changes
-3. Technical areas affected
-4. Overall significance of changes
-
-Note: The diff summary below is provided for context, but please READ the actual files for accurate analysis:
-{changes_context[:1000] if changes_context else "(No diff context available - please read the files directly)"}
-"""
-
-            options = ClaudeAgentOptions(
+            base_options = ClaudeAgentOptions(
                 cwd=str(self.working_dir),
-                allowed_tools=["Read"],
-                max_turns=5,  # Allow more turns for file reading
-                system_prompt="You are a technical code analyst. Use the Read tool to examine files, then provide structured, concise summaries based on actual file content."
+                allowed_tools=[],
+                max_turns=1,
+                system_prompt="You are a technical code analyst who delivers concise, structured summaries without planning narratives or tool usage. Always respond directly in the requested format."
             )
 
-            result = []
-            async for message in query(prompt=prompt, options=options):
-                message_type = message.__class__.__name__
+            response_text = await self._execute_summary_query(prompt, base_options)
 
-                if message_type == "AssistantMessage":
-                    # Extract text from message content
-                    if hasattr(message, 'content'):
-                        for block in message.content:
-                            if hasattr(block, 'text'):
-                                result.append(block.text)
+            def _retry_prompt(base_prompt: str) -> str:
+                return (
+                    f"{base_prompt}\n\n"
+                    "IMPORTANT: Previous reply did not comply. Provide the final structured summary now.\n"
+                    "- Begin immediately with \"**Summary**:\" followed by the completed summary sentence(s).\n"
+                    "- Do not include phrases like \"I'll analyze\" or describe planned actions.\n"
+                    "- Fill in every required section.\n"
+                )
 
-            return "\n".join(result) if result else "No response generated."
+            if not self._is_structured_summary(response_text):
+                logger.warning("Claude summary response missing structure; retrying with stricter instructions.")
+                strict_prompt = _retry_prompt(prompt)
+                strict_options = ClaudeAgentOptions(
+                    cwd=str(self.working_dir),
+                    allowed_tools=[],
+                    max_turns=1,
+                    system_prompt="You must comply exactly with the requested output format. Do not mention planned actions. Respond only with the summary fields."
+                )
+                response_text = await self._execute_summary_query(strict_prompt, strict_options)
+
+            if not self._is_structured_summary(response_text):
+                logger.warning("Retry still missing structure; requesting final summary with direct instructions.")
+                final_prompt = (
+                    "**Summary**: (provide final summary sentence here)\n\n"
+                    "**Key Topics**: (comma-separated topics)\n\n"
+                    "**Key Keywords**: (comma-separated keywords)\n\n"
+                    "**Overall Impact**: brief|moderate|significant\n\n"
+                    "Fill in every placeholder using only the provided context. Do not include planning language."
+                )
+                final_options = ClaudeAgentOptions(
+                    cwd=str(self.working_dir),
+                    allowed_tools=[],
+                    max_turns=1,
+                    system_prompt="Respond exactly in the template supplied. Do not add explanatory text or planning statements."
+                )
+                response_text = await self._execute_summary_query(final_prompt, final_options)
+
+            if not self._is_structured_summary(response_text):
+                logger.error("Claude summary failed to comply after retry; using fallback summary.")
+                response_text = self._build_fallback_summary(file_summaries, time_span)
+
+            return response_text
 
         except Exception as e:
             logger.error(f"Error generating comprehensive summary: {e}", exc_info=True)
