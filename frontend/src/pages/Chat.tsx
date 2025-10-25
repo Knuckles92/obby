@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Send, MessageSquare, Settings, Wrench, Activity } from 'lucide-react'
+import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X } from 'lucide-react'
 import { apiRequest } from '../utils/api'
+import FileBrowser from '../components/FileBrowser'
+import NoteEditor from '../components/NoteEditor'
+import ConfirmationDialog from '../components/ConfirmationDialog'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 type Role = 'system' | 'user' | 'assistant' | 'tool'
 
@@ -125,8 +132,41 @@ export default function Chat() {
   const [agentActions, setAgentActions] = useState<AgentAction[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
 
+  // File browser and note editor state
+  const [fileBrowserOpen, setFileBrowserOpen] = useState(true)
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
+  const [includeNoteContext, setIncludeNoteContext] = useState(true)
+  const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
+  const [pendingFileSelection, setPendingFileSelection] = useState<string | null>(null)
+
+  // Resizable panel widths
+  const [fileBrowserWidth, setFileBrowserWidth] = useState(280)
+  const [chatPanelWidth, setChatPanelWidth] = useState(400)
+  const [isResizingLeft, setIsResizingLeft] = useState(false)
+  const [isResizingRight, setIsResizingRight] = useState(false)
+
   const scrollRef = useRef<HTMLDivElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // Load panel widths from localStorage
+  useEffect(() => {
+    const savedFileBrowserWidth = localStorage.getItem('chatFileBrowserWidth')
+    const savedChatPanelWidth = localStorage.getItem('chatPanelWidth')
+    
+    if (savedFileBrowserWidth) {
+      setFileBrowserWidth(parseInt(savedFileBrowserWidth, 10))
+    }
+    if (savedChatPanelWidth) {
+      setChatPanelWidth(parseInt(savedChatPanelWidth, 10))
+    }
+  }, [])
+
+  // Save panel widths to localStorage
+  useEffect(() => {
+    localStorage.setItem('chatFileBrowserWidth', fileBrowserWidth.toString())
+    localStorage.setItem('chatPanelWidth', chatPanelWidth.toString())
+  }, [fileBrowserWidth, chatPanelWidth])
 
   useEffect(() => {
     setMessages([
@@ -346,7 +386,28 @@ Guidelines:
     if (!content || loading) return
     setError(null)
 
-    const next = [...messages, { role: 'user', content }]
+    // Prepare messages with optional note context
+    let messagesToSend = [...messages]
+    let userMessage = content
+
+    // Include note context if enabled and file is selected
+    if (selectedFile && includeNoteContext) {
+      try {
+        const { fetchFileContent } = await import('../utils/fileOperations')
+        const fileData = await fetchFileContent(selectedFile)
+
+        // Add note content as context before user message
+        const contextMessage = `[Context: User is currently viewing the file "${fileData.name}" at path "${selectedFile}"]\n\n\`\`\`markdown\n${fileData.content}\n\`\`\`\n\n---\n\nUser's question about this note:`
+        userMessage = `${contextMessage}\n\n${content}`
+
+        recordAgentAction('progress', 'Including note context', `File: ${fileData.name}`, undefined)
+      } catch (err) {
+        console.error('Failed to fetch note content for context:', err)
+        recordAgentAction('warning', 'Could not include note context', String(err), undefined)
+      }
+    }
+
+    const next = [...messagesToSend, { role: 'user', content: userMessage }]
     setMessages(next)
     setInput('')
     setLoading(true)
@@ -416,6 +477,78 @@ Guidelines:
     }
   }
 
+  const handleFileSelect = useCallback((filePath: string) => {
+    setSelectedFile(filePath)
+    setPendingFileSelection(null)
+  }, [])
+
+  const handleFileBrowserToggle = useCallback(() => {
+    setFileBrowserOpen(prev => !prev)
+  }, [])
+
+  // Resize handlers for left panel (FileBrowser)
+  const handleMouseDownLeft = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizingLeft(true)
+  }, [])
+
+  const handleMouseDownRight = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsResizingRight(true)
+  }, [])
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeft && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const newWidth = e.clientX - containerRect.left
+        const constrainedWidth = Math.max(200, Math.min(400, newWidth))
+        setFileBrowserWidth(constrainedWidth)
+      } else if (isResizingRight && containerRef.current) {
+        const containerRect = containerRef.current.getBoundingClientRect()
+        const newWidth = containerRect.right - e.clientX
+        const constrainedWidth = Math.max(300, Math.min(600, newWidth))
+        setChatPanelWidth(constrainedWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      setIsResizingLeft(false)
+      setIsResizingRight(false)
+    }
+
+    if (isResizingLeft || isResizingRight) {
+      document.addEventListener('mousemove', handleMouseMove)
+      document.addEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = 'col-resize'
+      document.body.style.userSelect = 'none'
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove)
+      document.removeEventListener('mouseup', handleMouseUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [isResizingLeft, isResizingRight])
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl+B - Toggle file browser
+      if ((e.metaKey || e.ctrlKey) && e.key === 'b') {
+        e.preventDefault()
+        handleFileBrowserToggle()
+      }
+      // Cmd/Ctrl+P - Focus fuzzy search (handled by FileBrowser component)
+      // Cmd/Ctrl+S - Save file (handled by NoteEditor component)
+      // Cmd/Ctrl+E - Toggle edit/preview (handled by NoteEditor component)
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleFileBrowserToggle])
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -423,42 +556,73 @@ Guidelines:
     }
   }
 
-  return (
-    <div className="h-full flex flex-col gap-4">
-      {/* Modern Header */}
-      <div className="relative overflow-hidden rounded-2xl mb-2 p-8 text-white shadow-2xl" style={{
-        background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
-      }}>
-        <div className="absolute inset-0 bg-black/10"></div>
-        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+  // Markdown components for chat messages
+  const markdownComponents = {
+    code({ node, inline, className, children, ...props }: any) {
+      const match = /language-(\w+)/.exec(className || '')
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={oneDark}
+          language={match[1]}
+          PreTag="div"
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className={className} {...props}>
+          {children}
+        </code>
+      )
+    }
+  }
 
-        <div className="relative z-10 flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-                <MessageSquare className="h-6 w-6" />
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight">Chat</h1>
+  return (
+    <div className="h-full flex flex-col">
+      {/* Compact Header */}
+      <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             </div>
-            <p className="text-blue-100 text-lg">Interact with AI assistants powered by Claude or OpenAI</p>
+            <div>
+              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Chat with AI</h1>
+              <p className="text-sm text-gray-500 dark:text-gray-400">Claude or OpenAI with note context</p>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1 px-3 py-2 bg-white/20 text-white rounded-lg text-sm font-medium backdrop-blur-sm">
-                <Wrench className="h-4 w-4" />
-                {provider === 'openai' ? 'OpenAI' : 'Claude'}
+          <div className="flex items-center space-x-3">
+            {/* Note context indicator */}
+            {selectedFile && includeNoteContext && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg text-sm">
+                <FileText className="h-4 w-4" />
+                <span>Context: {selectedFile.split('/').pop()}</span>
+                <button
+                  onClick={() => setIncludeNoteContext(false)}
+                  className="ml-1 hover:bg-green-200 dark:hover:bg-green-800 rounded p-0.5"
+                  title="Remove from context"
+                >
+                  <X className="h-3 w-3" />
+                </button>
               </div>
-              {enableFallback && (
-                <div className="px-3 py-2 bg-white/10 text-white rounded-lg text-sm backdrop-blur-sm">
-                  Fallback: On
-                </div>
-              )}
+            )}
+            {selectedFile && !includeNoteContext && (
+              <button
+                onClick={() => setIncludeNoteContext(true)}
+                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                Include note in context
+              </button>
+            )}
+
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm">
+              <Wrench className="h-4 w-4" />
+              {provider === 'openai' ? 'OpenAI' : 'Claude'}
             </div>
             <button
               onClick={() => setShowSettings(!showSettings)}
-              className="p-2 rounded-lg hover:bg-white/20 transition-colors"
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
               title="Chat Settings"
             >
               <Settings className="h-5 w-5" />
@@ -467,11 +631,62 @@ Guidelines:
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col lg:flex-row gap-4 min-h-0">
-        <div className="flex-1 flex flex-col gap-4 min-h-0">
+      {/* Three-column layout */}
+      <div ref={containerRef} className="flex-1 flex min-h-0">
+        {/* File Browser (collapsible) */}
+        {fileBrowserOpen && (
+          <>
+            <div style={{ width: `${fileBrowserWidth}px` }} className="flex-shrink-0">
+              <FileBrowser
+                isOpen={fileBrowserOpen}
+                onToggle={handleFileBrowserToggle}
+                onFileSelect={handleFileSelect}
+                selectedFile={selectedFile}
+              />
+            </div>
+            {/* Left resize handle */}
+            <div
+              onMouseDown={handleMouseDownLeft}
+              className="w-1 flex-shrink-0 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors"
+              style={{ userSelect: 'none' }}
+            />
+          </>
+        )}
+
+        {!fileBrowserOpen && (
+          <FileBrowser
+            isOpen={fileBrowserOpen}
+            onToggle={handleFileBrowserToggle}
+            onFileSelect={handleFileSelect}
+            selectedFile={selectedFile}
+          />
+        )}
+
+        {/* Note Editor (center, flexible width) */}
+        <div className="flex-1 min-w-0">
+          <NoteEditor
+            filePath={selectedFile}
+            onSave={(path) => {
+              console.log('File saved:', path)
+            }}
+          />
+        </div>
+
+        {/* Right resize handle */}
+        <div
+          onMouseDown={handleMouseDownRight}
+          className="w-1 flex-shrink-0 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors"
+          style={{ userSelect: 'none' }}
+        />
+
+        {/* Chat Panel (right, resizable width) */}
+        <div 
+          style={{ width: `${chatPanelWidth}px` }} 
+          className="flex-shrink-0 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col"
+        >
           {showSettings && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <h3 className="font-semibold mb-3">Chat Settings</h3>
+            <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
+              <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">Chat Settings</h3>
               <div className="space-y-4">
                 <div>
                   <div className="text-sm font-medium mb-2">AI Provider</div>
@@ -538,18 +753,32 @@ Guidelines:
             </div>
           )}
 
-          <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto rounded-lg border border-gray-200 p-4 bg-white/70">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto p-4 bg-gray-50 dark:bg-gray-950">
             {messages.filter((m) => m.role !== 'system' && m.role !== 'tool').length === 0 && (
-              <div className="text-gray-500 text-sm">Start a conversation by sending a message.</div>
+              <div className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+                <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                <p>Start a conversation</p>
+                {selectedFile && includeNoteContext && (
+                  <p className="text-xs mt-2">Your selected note will be included as context</p>
+                )}
+              </div>
             )}
-            <div className="space-y-4">
+            <div className="space-y-3">
               {messages.filter((m) => m.role !== 'system' && m.role !== 'tool').map((m, idx) => (
                 <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] px-3 py-2 rounded-md text-sm whitespace-pre-wrap ${
-                    m.role === 'user' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-900'
-                  }`}>
-                    {m.content}
-                  </div>
+                  {m.role === 'user' ? (
+                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-blue-600 text-white">
+                      {m.content}
+                    </div>
+                  ) : (
+                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {m.content}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               {loading && (
@@ -570,81 +799,49 @@ Guidelines:
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <input
-              className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Type your message…"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={onKeyDown}
-              disabled={loading}
-            />
-            <button
-              onClick={sendMessage}
-              disabled={loading || !input.trim()}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              <Send className="h-4 w-4" />
-              Send
-            </button>
-          </div>
-        </div>
-
-        <div className="lg:w-80 w-full flex flex-col min-h-[200px]">
-          <div className="flex-1 flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white/70">
-            <div className="px-3 py-2 border-b border-gray-200 flex items-center justify-between bg-gray-50">
-              <div className="flex items-center gap-2 text-sm font-semibold text-gray-700">
-                <Activity className="h-4 w-4 text-gray-500" />
-                Agent Activity
-              </div>
-              {loading && (
-                <div className="flex items-center gap-1 text-xs text-blue-600">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                  Live
-                </div>
-              )}
-            </div>
-            {progressMessage && loading && (
-              <div className="px-3 py-2 text-xs border-b border-blue-100 bg-blue-50 text-blue-700">
-                {progressMessage}
-              </div>
-            )}
-            <div className="flex-1 overflow-auto p-3 space-y-3 text-sm">
-              {agentActions.length === 0 ? (
-                <div className="text-xs text-gray-500">
-                  Agent actions, tool calls, and progress updates will appear here while a chat request is running.
-                </div>
-              ) : (
-                agentActions.map((action, index) => {
-                  const previous = agentActions[index - 1]
-                  const showSession = action.sessionId && action.sessionId !== previous?.sessionId
-                  return (
-                    <div key={action.id} className="space-y-1">
-                      {showSession && (
-                        <div className="text-[10px] uppercase tracking-wide text-gray-400">
-                          Session {shortSessionLabel(action.sessionId)}
-                        </div>
-                      )}
-                      <div className={`rounded-md border px-3 py-2 ${actionStyle(action.type)}`}>
-                        <div className="flex items-center justify-between text-xs opacity-75">
-                          <span>{formatTimestamp(action.timestamp)}</span>
-                          <span className="capitalize">{actionTypeLabel(action.type)}</span>
-                        </div>
-                        <div className="mt-1 text-sm font-medium">{action.label}</div>
-                        {action.detail && (
-                          <pre className="mt-2 text-xs whitespace-pre-wrap break-words">
-                            {action.detail}
-                          </pre>
-                        )}
-                      </div>
-                    </div>
-                  )
-                })
-              )}
+          <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+            <div className="flex flex-col gap-2">
+              <input
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                placeholder="Type your message…"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={onKeyDown}
+                disabled={loading}
+              />
+              <button
+                onClick={sendMessage}
+                disabled={loading || !input.trim()}
+                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+              >
+                <Send className="h-4 w-4" />
+                {loading ? 'Sending...' : 'Send'}
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Unsaved changes warning dialog */}
+      <ConfirmationDialog
+        isOpen={showUnsavedWarning}
+        onClose={() => {
+          setShowUnsavedWarning(false)
+          setPendingFileSelection(null)
+        }}
+        onConfirm={() => {
+          if (pendingFileSelection) {
+            setSelectedFile(pendingFileSelection)
+          }
+          setShowUnsavedWarning(false)
+          setPendingFileSelection(null)
+        }}
+        title="Unsaved Changes"
+        message="You have unsaved changes in the current file. Do you want to discard them and switch files?"
+        confirmText="Discard Changes"
+        cancelText="Cancel"
+        danger={true}
+      />
     </div>
   )
 }

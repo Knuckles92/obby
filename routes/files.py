@@ -1,6 +1,6 @@
 """
 File Management API routes
-Handles file events, diffs, history, and file tree operations
+Handles file events, diffs, history, file tree operations, and file content read/write
 """
 
 from fastapi import APIRouter, Request
@@ -9,6 +9,7 @@ import logging
 import os
 from pathlib import Path
 from database.queries import FileQueries, EventQueries
+from services.file_service import get_file_service
 
 logger = logging.getLogger(__name__)
 
@@ -487,20 +488,80 @@ async def get_watched_files():
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
+@files_bp.get('/content/{file_path:path}')
+async def get_file_content(file_path: str):
+    """Read file content with metadata"""
+    try:
+        file_service = get_file_service()
+        result = file_service.read_file_content(file_path)
+        logger.info(f"Successfully read file: {file_path}")
+        return result
+    except FileNotFoundError as e:
+        logger.warning(f"File not found: {file_path}")
+        return JSONResponse({'error': str(e)}, status_code=404)
+    except ValueError as e:
+        logger.warning(f"Invalid file path: {file_path} - {e}")
+        return JSONResponse({'error': str(e)}, status_code=403)
+    except Exception as e:
+        logger.error(f"Failed to read file {file_path}: {e}")
+        return JSONResponse({'error': f'Failed to read file: {str(e)}'}, status_code=500)
+
+
+@files_bp.put('/content/{file_path:path}')
+async def write_file_content(file_path: str, request: Request):
+    """Write file content with atomic operation and backup"""
+    try:
+        data = await request.json()
+        content = data.get('content', '')
+        create_backup = data.get('createBackup', True)
+
+        file_service = get_file_service()
+        result = file_service.write_file_content(file_path, content, create_backup)
+        logger.info(f"Successfully wrote file: {file_path}")
+        return result
+    except ValueError as e:
+        logger.warning(f"Invalid file path: {file_path} - {e}")
+        return JSONResponse({'error': str(e)}, status_code=403)
+    except Exception as e:
+        logger.error(f"Failed to write file {file_path}: {e}")
+        return JSONResponse({'error': f'Failed to write file: {str(e)}'}, status_code=500)
+
+
+@files_bp.post('/search')
+async def search_files(request: Request):
+    """Fuzzy search across watched files"""
+    try:
+        data = await request.json()
+        query = data.get('query', '')
+        max_results = data.get('maxResults', 50)
+
+        if not query:
+            return {'results': []}
+
+        file_service = get_file_service()
+        results = file_service.search_files(query, max_results)
+
+        logger.info(f"File search for '{query}' returned {len(results)} results")
+        return {'results': results, 'query': query, 'count': len(results)}
+    except Exception as e:
+        logger.error(f"Failed to search files: {e}")
+        return JSONResponse({'error': f'Failed to search files: {str(e)}'}, status_code=500)
+
+
 def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0):
     """Build a file tree structure focusing on relevant directories and markdown files"""
     if current_depth > max_depth:
         return None
-    
+
     if not path.exists():
         return None
-    
+
     node = {
         'name': path.name,
         'path': str(path),
         'type': 'directory' if path.is_dir() else 'file',
     }
-    
+
     if path.is_file():
         try:
             stat = path.stat()
@@ -512,7 +573,7 @@ def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0):
         except (OSError, PermissionError):
             pass
         return node
-    
+
     # For directories, add children
     children = []
     try:
@@ -520,18 +581,18 @@ def build_file_tree(path: Path, max_depth: int = 3, current_depth: int = 0):
             # Skip hidden files and directories
             if child.name.startswith('.'):
                 continue
-            
+
             # For files, only include markdown files
             if child.is_file() and not child.name.endswith('.md'):
                 continue
-            
+
             child_node = build_file_tree(child, max_depth, current_depth + 1)
             if child_node:
                 children.append(child_node)
     except (OSError, PermissionError):
         pass
-    
+
     if children:
         node['children'] = children
-    
+
     return node

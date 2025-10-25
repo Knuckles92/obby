@@ -442,7 +442,7 @@ class OpenAIClient:
             if not OpenAIClient._warmed_up:
                 self.warm_up()
 
-        sys_content = system_prompt or (
+            sys_content = system_prompt or (
                 "You are a precise, reliable assistant for the Obby project. "
                 "Always begin by searching the local notes before considering other data sources. "
                 "Only query databases or external systems if the notes search cannot answer the question. "
@@ -466,12 +466,12 @@ class OpenAIClient:
                 temperature=temperature,
             )
             self._last_error = None
-            
+
             content = response.choices[0].message.content
             if content is None:
                 logging.warning("OpenAI returned None content, returning empty string")
                 return ""
-            
+
             return content.strip()
         except Exception as e:
             logging.error(f"get_completion failed: {e}")
