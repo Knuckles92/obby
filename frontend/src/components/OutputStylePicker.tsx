@@ -13,7 +13,7 @@ interface OutputFormat {
   description: string
   icon: React.ComponentType<{ size?: number, className?: string }>
   preview: string
-  color: string
+  color: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
 }
 
 interface OutputStylePickerProps {
@@ -30,7 +30,7 @@ const OUTPUT_FORMATS: OutputFormat[] = [
     description: 'Comprehensive overview with insights and analysis',
     icon: FileText,
     preview: '• Executive Summary\n• Key Highlights\n• File Activity\n• Next Steps',
-    color: 'blue'
+    color: 'info'
   },
   {
     id: 'actionItems',
@@ -38,7 +38,7 @@ const OUTPUT_FORMATS: OutputFormat[] = [
     description: 'Focused on next steps and actionable tasks',
     icon: CheckSquare,
     preview: '• Immediate Actions\n• Code Quality Tasks\n• Future Enhancements\n• Technical Debt',
-    color: 'green'
+    color: 'success'
   },
   {
     id: 'bulletPoints',
@@ -46,7 +46,7 @@ const OUTPUT_FORMATS: OutputFormat[] = [
     description: 'Concise bullet-point overview of changes',
     icon: List,
     preview: '• What Was Accomplished\n• Files Modified\n• Key Changes\n• Quick Stats',
-    color: 'purple'
+    color: 'primary'
   },
   {
     id: 'technicalDetails',
@@ -54,7 +54,7 @@ const OUTPUT_FORMATS: OutputFormat[] = [
     description: 'In-depth technical analysis with metrics',
     icon: BarChart3,
     preview: '• Technical Overview\n• Performance Impact\n• Code Patterns\n• Recommendations',
-    color: 'orange'
+    color: 'warning'
   }
 ]
 

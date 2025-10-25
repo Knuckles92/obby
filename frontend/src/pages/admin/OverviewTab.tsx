@@ -18,12 +18,12 @@ export default function OverviewTab({ systemStats, loading, onOptimizeDatabase, 
 
       {systemStats && (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 'var(--spacing-lg)', marginBottom: 'var(--spacing-xl)' }}>
-          <StatCard title="CPU Cores" value={systemStats.stats.system.cpu_count} icon={Activity} color="green" />
-          <StatCard title="Memory Usage" value={`${Math.round(systemStats.stats.system.memory_percent)}%`} icon={MemoryStick} color="blue" percentage={systemStats.stats.system.memory_percent} />
-          <StatCard title="CPU Usage" value={`${Math.round(systemStats.stats.system.cpu_percent)}%`} icon={Cpu} color="orange" percentage={systemStats.stats.system.cpu_percent} />
-          <StatCard title="Disk Usage" value={`${Math.round(systemStats.stats.system.disk_percent)}%`} icon={HardDrive} color="purple" percentage={systemStats.stats.system.disk_percent} />
-          <StatCard title="Process PID" value={systemStats.stats.process.pid} icon={Activity} color="green" />
-          <StatCard title="Process Memory" value={`${Math.round(systemStats.stats.process.memory_percent)}%`} icon={Database} color="blue" percentage={systemStats.stats.process.memory_percent} />
+          <StatCard title="CPU Cores" value={systemStats.stats.system.cpu_count} icon={Activity} color="success" />
+          <StatCard title="Memory Usage" value={`${Math.round(systemStats.stats.system.memory_percent)}%`} icon={MemoryStick} color="info" percentage={systemStats.stats.system.memory_percent} />
+          <StatCard title="CPU Usage" value={`${Math.round(systemStats.stats.system.cpu_percent)}%`} icon={Cpu} color="warning" percentage={systemStats.stats.system.cpu_percent} />
+          <StatCard title="Disk Usage" value={`${Math.round(systemStats.stats.system.disk_percent)}%`} icon={HardDrive} color="primary" percentage={systemStats.stats.system.disk_percent} />
+          <StatCard title="Process PID" value={systemStats.stats.process.pid} icon={Activity} color="success" />
+          <StatCard title="Process Memory" value={`${Math.round(systemStats.stats.process.memory_percent)}%`} icon={Database} color="info" percentage={systemStats.stats.process.memory_percent} />
         </div>
       )}
 

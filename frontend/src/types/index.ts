@@ -431,6 +431,9 @@ export interface BulkDeleteRequest {
 }
 
 // Search Results Popup interfaces
+// Admin panel interfaces
+export type { SystemStats, DatabaseStats } from './admin';
+
 export interface SearchResultsPopupProps {
   isOpen: boolean;
   onClose: () => void;

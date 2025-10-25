@@ -2,11 +2,25 @@ interface StatCardProps {
   title: string
   value: string | number
   icon: any
-  color?: string
+  color?: 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'info'
   percentage?: number
 }
 
-export default function StatCard({ title, value, icon: Icon, color = 'blue', percentage }: StatCardProps) {
+// Map old color names to theme colors for backward compatibility
+const mapColorToTheme = (color: string): string => {
+  const colorMap: Record<string, string> = {
+    'blue': 'info',
+    'green': 'success',
+    'orange': 'warning',
+    'purple': 'primary',
+    'red': 'error',
+    'yellow': 'warning'
+  }
+  return colorMap[color] || 'info'
+}
+
+export default function StatCard({ title, value, icon: Icon, color = 'info', percentage }: StatCardProps) {
+  const themeColor = mapColorToTheme(color)
   return (
     <div style={{
       backgroundColor: 'var(--color-surface)',
@@ -18,7 +32,7 @@ export default function StatCard({ title, value, icon: Icon, color = 'blue', per
       gap: 'var(--spacing-md)'
     }}>
       <div style={{
-        backgroundColor: `var(--color-${color})`,
+        backgroundColor: `var(--color-${themeColor})`,
         borderRadius: 'var(--border-radius-md)',
         padding: 'var(--spacing-sm)',
         display: 'flex',
@@ -54,7 +68,7 @@ export default function StatCard({ title, value, icon: Icon, color = 'blue', per
             <div style={{
               width: `${percentage}%`,
               height: '100%',
-              backgroundColor: `var(--color-${color})`,
+              backgroundColor: `var(--color-${themeColor})`,
               transition: 'width 0.3s ease'
             }} />
           </div>
