@@ -502,13 +502,11 @@ Guidelines:
       if (isResizingLeft && containerRef.current) {
         const containerRect = containerRef.current.getBoundingClientRect()
         const newWidth = e.clientX - containerRect.left
-        const constrainedWidth = Math.max(200, Math.min(400, newWidth))
-        setFileBrowserWidth(constrainedWidth)
+        setFileBrowserWidth(newWidth)
       } else if (isResizingRight && containerRef.current) {
         const containerRect = containerRef.current.getBoundingClientRect()
         const newWidth = containerRect.right - e.clientX
-        const constrainedWidth = Math.max(300, Math.min(600, newWidth))
-        setChatPanelWidth(constrainedWidth)
+        setChatPanelWidth(newWidth)
       }
     }
 
