@@ -558,6 +558,9 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
         # Configure Claude with built-in tools only
         logger.info("🔧 Configuring Claude with built-in tools...")
         
+        # Get model from environment or config (default: haiku for cost efficiency)
+        claude_model = os.getenv("OBBY_CLAUDE_MODEL", cfg.CLAUDE_MODEL)
+        
         options = ClaudeAgentOptions(
             cwd=str(Path.cwd()),
             allowed_tools=[
@@ -569,6 +572,7 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                 "Edit",      # Edit files
             ],
             max_turns=10,
+            model=claude_model,  # "sonnet", "opus", or "haiku"
             system_prompt=(
                 "You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure."
                 " Always begin your investigation by searching the notes directory using the Grep tool before considering any other data sources."
@@ -576,7 +580,7 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
             )
         )
 
-        logger.info(f"⚙️  Claude options: max_turns=10, tools={options.allowed_tools}, cwd={options.cwd}")
+        logger.info(f"⚙️  Claude options: model={claude_model}, max_turns=10, tools={options.allowed_tools}, cwd={options.cwd}")
 
         # Send progress update with tool list
         if session_id:

@@ -40,6 +40,10 @@ VERBOSE_MONITORING_LOGS = False  # Enable verbose monitoring logs for debugging
 OPENAI_MODEL = "gpt-5-mini"  # Default model for AI summarization
 OPENAI_API_KEY = None  # Set via environment variable OPENAI_API_KEY
 
+# Claude Agent SDK settings
+CLAUDE_MODEL = "haiku"  # Default model for Claude chat: "sonnet", "opus", "haiku"
+# Can be overridden with OBBY_CLAUDE_MODEL environment variable
+
 # OpenAI generation temperatures (centralized)
 # You can override any of these at runtime if desired.
 OPENAI_TEMPERATURES = {

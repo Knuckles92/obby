@@ -335,6 +335,29 @@
       transform: rotate(360deg);
     }
   }
+  
+  @keyframes shimmer-wave {
+    0% {
+      background-position: -1000px 0;
+    }
+    100% {
+      background-position: 1000px 0;
+    }
+  }
+  
+  .shimmer-loading {
+    background: linear-gradient(
+      90deg,
+      rgba(59, 130, 246, 0.1) 0%,
+      rgba(59, 130, 246, 0.3) 20%,
+      rgba(147, 51, 234, 0.4) 40%,
+      rgba(236, 72, 153, 0.4) 60%,
+      rgba(59, 130, 246, 0.3) 80%,
+      rgba(59, 130, 246, 0.1) 100%
+    );
+    background-size: 2000px 100%;
+    animation: shimmer-wave 2.5s linear infinite;
+  }
 }
 
 /* Theme-specific styles */

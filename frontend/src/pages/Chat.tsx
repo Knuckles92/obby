@@ -4,6 +4,7 @@ import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
 import ConfirmationDialog from '../components/ConfirmationDialog'
+import LoadingIndicator from '../components/LoadingIndicator'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -913,26 +914,13 @@ Guidelines:
                         {streamingMessage}
                       </ReactMarkdown>
                     </div>
-                    <div className="flex items-center gap-1 mt-2">
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="shimmer-loading rounded-full w-2.5 h-2.5" />
                     </div>
                   </div>
                 </div>
               )}
-              {loading && !isStreaming && (
-                <div className="text-gray-500 text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
-                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
-                    </div>
-                    <span>Assistant is thinking…</span>
-                  </div>
-                </div>
-              )}
+              {loading && !isStreaming && <LoadingIndicator />}
               {error && (
                 <div className="text-red-600 text-sm">{error}</div>
               )}
