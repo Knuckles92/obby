@@ -59,9 +59,14 @@ async def chat_ping():
         client = OpenAIClient.get_instance()
         available = client.is_available()
         model = getattr(client, 'model', None)
+        
+        # Get Claude model info
+        claude_model = os.getenv("OBBY_CLAUDE_MODEL", cfg.CLAUDE_MODEL)
+        
         return {
             'available': bool(available),
             'model': model,
+            'claude_model': claude_model,
         }
     except Exception as e:
         return JSONResponse({'available': False, 'error': str(e)}, status_code=200)
@@ -591,7 +596,8 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
 
         # Execute with Claude
         logger.info("🚀 Starting Claude SDK client...")
-        response_parts = []
+        conversation_messages = []  # Track separate assistant messages
+        current_message_parts = []  # Text blocks for current AssistantMessage
         message_count = 0
 
         if session_id:
@@ -615,6 +621,25 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                 logger.info(f"📨 Received message #{message_count}: {message_type}")
 
                 if message_type == "AssistantMessage":
+                    # Save previous message if we have text blocks accumulated
+                    if current_message_parts:
+                        conversation_messages.append({
+                            'role': 'assistant',
+                            'content': '\n'.join(current_message_parts)
+                        })
+                        # Signal frontend to finalize current bubble and start new one
+                        if session_id:
+                            notify_chat_progress(session_id, 'assistant_message_complete',
+                                'Completed assistant message', {
+                                    'content': '\n'.join(current_message_parts)
+                                })
+                        current_message_parts = []  # Reset for new message
+
+                    # Signal start of new assistant message turn
+                    if session_id:
+                        notify_chat_progress(session_id, 'assistant_message_start',
+                            'Starting new assistant message')
+
                     # Extract text from message content
                     if hasattr(message, 'content'):
                         # First, check for text blocks to show assistant thinking
@@ -680,7 +705,7 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                             elif hasattr(block, 'text'):
                                 text_preview = block.text[:100] + "..." if len(block.text) > 100 else block.text
                                 logger.info(f"   Text: {text_preview}")
-                                response_parts.append(block.text)
+                                current_message_parts.append(block.text)
 
                                 # Stream text chunk to frontend via SSE
                                 if session_id and block.text:
@@ -736,11 +761,19 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                         else:
                             notify_chat_progress(session_id, 'processing', f'Processing: {message_type}')
 
-        reply = "\n".join(response_parts) if response_parts else "No response generated"
+        # Save final message if we have accumulated text blocks
+        if current_message_parts:
+            conversation_messages.append({
+                'role': 'assistant',
+                'content': '\n'.join(current_message_parts)
+            })
+
+        # Calculate total characters across all messages
+        total_chars = sum(len(msg['content']) for msg in conversation_messages)
         elapsed = time.time() - start_time
 
         logger.info(f"✅ Claude completed successfully in {elapsed:.2f}s")
-        logger.info(f"📊 Response stats: {message_count} messages, {len(response_parts)} text blocks, {len(reply)} chars")
+        logger.info(f"📊 Response stats: {message_count} total messages, {len(conversation_messages)} assistant messages, {total_chars} chars")
 
         # Send text completion marker
         if session_id:
@@ -753,13 +786,15 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
         if session_id:
             notify_chat_progress(session_id, 'completed', f'Claude completed in {elapsed:.2f}s', {
                 'message_count': message_count,
-                'text_blocks': len(response_parts),
-                'response_length': len(reply),
+                'assistant_messages': len(conversation_messages),
+                'response_length': total_chars,
                 'elapsed_time': elapsed
             })
 
+        # Return conversation array for proper multi-bubble display
         return {
-            'reply': reply,
+            'reply': conversation_messages[-1]['content'] if conversation_messages else "No response generated",
+            'conversation': conversation_messages,
             'model': 'claude-3-5-sonnet',
             'finish_reason': 'stop',
             'tools_used': True,

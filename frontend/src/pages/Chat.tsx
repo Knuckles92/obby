@@ -126,6 +126,7 @@ export default function Chat() {
   const [error, setError] = useState<string | null>(null)
   const [provider, setProvider] = useState<'openai' | 'claude'>('claude')
   const [enableFallback, setEnableFallback] = useState(false)
+  const [currentModel, setCurrentModel] = useState<string>('')
   const [availableTools, setAvailableTools] = useState<ToolInfo[]>([])
   const [showSettings, setShowSettings] = useState(false)
   const [progressMessage, setProgressMessage] = useState<string | null>(null)
@@ -195,6 +196,7 @@ Guidelines:
     ])
 
     loadAvailableTools()
+    fetchCurrentModel()
 
     return () => {
       disconnectProgressSSE()
@@ -224,11 +226,48 @@ Guidelines:
     }
   }
 
+  const fetchCurrentModel = async () => {
+    try {
+      const pingResponse = await apiRequest<{ model: string; claude_model: string }>('/api/chat/ping')
+      const model = provider === 'openai' ? pingResponse.model : pingResponse.claude_model
+      setCurrentModel(model || '')
+    } catch (e) {
+      console.warn('Failed to get model from ping endpoint:', e)
+    }
+  }
+
   useEffect(() => {
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages, loading, streamingMessage])
+
+  // Refetch model when provider changes
+  useEffect(() => {
+    fetchCurrentModel()
+  }, [provider])
+
+  // Get display model name
+  const getDisplayModel = () => {
+    if (!currentModel) return ''
+    
+    if (provider === 'claude') {
+      // Map Claude model codes to display names
+      switch (currentModel.toLowerCase()) {
+        case 'sonnet':
+          return 'Sonnet'
+        case 'opus':
+          return 'Opus' 
+        case 'haiku':
+          return 'Haiku'
+        default:
+          return currentModel
+      }
+    }
+    
+    // For OpenAI, return as-is
+    return currentModel
+  }
 
   const appendAgentAction = useCallback((action: AgentAction) => {
     setAgentActions((prev) => {
@@ -300,16 +339,36 @@ Guidelines:
             return
           }
 
+          // Handle new assistant message turn starting
+          if (eventType === 'assistant_message_start') {
+            // Reset streaming state for new turn
+            setStreamingMessage('')
+            setIsStreaming(true)
+            return
+          }
+
+          // Handle assistant message turn completing
+          if (eventType === 'assistant_message_complete') {
+            const content = data.content || streamingMessage
+            if (content) {
+              // Add completed message to conversation
+              setMessages((prev) => [...prev, { role: 'assistant', content }])
+              setStreamingMessage('')
+            }
+            setIsStreaming(false)
+            return
+          }
+
           // Handle streaming text chunks
           if (eventType === 'assistant_text_chunk') {
             const chunk = data.chunk || ''
             const isComplete = data.is_complete || false
 
             if (isComplete) {
-              // Streaming is complete
+              // Streaming is complete (final signal)
               setIsStreaming(false)
             } else if (chunk) {
-              // Append chunk to streaming message
+              // Append chunk to current turn's streaming message
               setIsStreaming(true)
               setStreamingMessage((prev) => prev + chunk)
             }
@@ -650,7 +709,17 @@ Guidelines:
                 <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-lg">
                   <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
                 </div>
-                <span className="font-medium text-gray-900 dark:text-gray-100">Chat</span>
+                <span className="font-medium text-gray-900 dark:text-gray-100">
+                  Chat
+                  {currentModel && (
+                    <>
+                      {' '}
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        ({provider === 'openai' ? 'OpenAI' : 'Claude'} {getDisplayModel()})
+                      </span>
+                    </>
+                  )}
+                </span>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -727,7 +796,15 @@ Guidelines:
 
                 <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10">
                   <Wrench className="h-4 w-4" />
-                  <span className="text-sm font-medium">{provider === 'openai' ? 'OpenAI' : 'Claude'}</span>
+                  <span className="text-sm font-medium">
+                    {provider === 'openai' ? 'OpenAI' : 'Claude'}
+                    {currentModel && (
+                      <>
+                        {' '}
+                        <span className="text-xs opacity-75">({getDisplayModel()})</span>
+                      </>
+                    )}
+                  </span>
                 </div>
                 <button
                   onClick={() => setShowSettings(!showSettings)}
@@ -906,6 +983,7 @@ Guidelines:
                   )}
                 </div>
               ))}
+              {/* Show current streaming turn if we have content */}
               {isStreaming && streamingMessage && (
                 <div className="flex justify-start">
                   <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
@@ -914,13 +992,11 @@ Guidelines:
                         {streamingMessage}
                       </ReactMarkdown>
                     </div>
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="shimmer-loading rounded-full w-2.5 h-2.5" />
-                    </div>
                   </div>
                 </div>
               )}
-              {loading && !isStreaming && <LoadingIndicator />}
+              {/* Show loading animation when streaming (new turn) or waiting for response */}
+              {(isStreaming || loading) && <LoadingIndicator />}
               {error && (
                 <div className="text-red-600 text-sm">{error}</div>
               )}
