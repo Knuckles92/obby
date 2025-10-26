@@ -488,21 +488,27 @@ Guidelines:
         })
       }
 
-      if (res.tools_used && Array.isArray(res.conversation) && res.conversation.length > 0) {
-        // Clean the conversation to remove context from user messages
-        const cleanConversation = res.conversation.map(msg =>
-          msg.role === 'user' && msg.content !== displayMessage ?
-            { ...msg, content: displayMessage } : msg
-        )
-        setMessages(cleanConversation)
-      } else if (Array.isArray(res.conversation) && res.conversation.length > 0) {
-        // Clean the conversation to remove context from user messages
-        const cleanConversation = res.conversation.map(msg =>
-          msg.role === 'user' && msg.content !== displayMessage ?
-            { ...msg, content: displayMessage } : msg
-        )
-        setMessages(cleanConversation)
-      } else {
+      // Handle conversation responses (multiple messages)
+      if (Array.isArray(res.conversation) && res.conversation.length > 0) {
+        setMessages((prevMessages) => {
+          const existingMessageIds = prevMessages.map((m, idx) => `${m.role}:${m.content.substring(0, 50)}`)
+          
+          const newMessages = res.conversation.filter(msg => {
+            const messageId = `${msg.role}:${msg.content.substring(0, 50)}`
+            return !existingMessageIds.includes(messageId)
+          })
+
+          // Clean user messages to match displayMessage
+          const cleanNewMessages = newMessages.map(msg =>
+            msg.role === 'user' && msg.content !== displayMessage ?
+              { ...msg, content: displayMessage } : msg
+          )
+          
+          return [...prevMessages, ...cleanNewMessages]
+        })
+      } 
+      // Handle single reply responses
+      else if (reply) {
         setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
       }
 

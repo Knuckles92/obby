@@ -459,8 +459,8 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: 
             on_agent_event=record_agent_event
         )
 
-        # Only include user/system messages and the FINAL assistant response in chat
-        # Intermediate assistant messages (tool announcements) go only to agent actions
+        # Include user/system messages and ALL assistant responses in chat
+        # Tool messages go only to agent actions
         sanitized_conversation: List[Dict[str, Any]] = []
         for message in full_conversation:
             role = message.get('role')
@@ -469,16 +469,9 @@ async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: 
             if role == 'tool':
                 continue
             
-            # Include user and system messages
-            if role in ('user', 'system'):
+            # Include user, system, and assistant messages
+            if role in ('user', 'system', 'assistant'):
                 sanitized_conversation.append(dict(message))
-        
-        # Add only the FINAL assistant response
-        if reply:
-            sanitized_conversation.append({
-                'role': 'assistant',
-                'content': reply
-            })
 
         tools_used_flag = any(action['type'] in {"tool_call", "tool_result"} for action in agent_actions)
 
