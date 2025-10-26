@@ -1,14 +1,17 @@
 # Core dependencies for Obby - Note Change Tracker
 
-# OpenAI API client (for AI-assisted summarization)
-openai>=1.0.0
+# Web framework
 fastapi>=0.111.0
 uvicorn>=0.30.0
 
-# Claude Agent SDK (optional, for advanced AI features)
+# Claude Agent SDK (for AI-assisted summarization and exploration)
 # Requires: npm install -g @anthropic-ai/claude-code
 claude-agent-sdk>=0.1.0
 anyio>=4.0.0
+
+# OpenAI (for chat, monitoring, and configuration features)
+# Note: Summary features now use Claude Agent SDK exclusively
+openai>=1.0.0
 
 # Environment variable management
 python-dotenv>=1.0.0

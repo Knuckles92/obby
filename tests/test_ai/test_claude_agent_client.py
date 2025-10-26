@@ -136,6 +136,133 @@ class TestClaudeAgentClientUnit:
         """Test availability check with mocked SDK."""
         assert mock_claude_agent_client.is_available() is True
 
+    # ==========================================================================
+    # NEW: Session Summary Methods Tests (Migration from OpenAI)
+    # ==========================================================================
+
+    @pytest.mark.unit
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_summarize_session_mock(self, mock_claude_agent_client):
+        """Test session summary generation with file exploration."""
+        changed_files = [
+            "services/session_summary_service.py",
+            "ai/claude_agent_client.py",
+            "tests/test_ai/test_claude_agent_client.py"
+        ]
+        time_range = "last 2 hours"
+
+        result = await mock_claude_agent_client.summarize_session(
+            changed_files=changed_files,
+            time_range=time_range,
+            working_dir=None
+        )
+
+        # Verify structured format
+        assert result is not None
+        assert isinstance(result, str)
+        assert "## " in result  # Should have title
+        assert "**Summary**:" in result
+        assert "**Change Pattern**:" in result
+        assert "**Impact Assessment**:" in result
+        assert "**Scope**:" in result
+        assert "**Complexity**:" in result
+        assert "**Risk Level**:" in result
+        assert "**Topics**:" in result
+        assert "**Technical Keywords**:" in result
+        assert "### Sources" in result
+        assert "### Proposed Questions" in result
+        assert "### Metrics" in result
+
+    @pytest.mark.unit
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_summarize_session_with_empty_files(self, mock_claude_agent_client):
+        """Test session summary with no files."""
+        result = await mock_claude_agent_client.summarize_session(
+            changed_files=[],
+            time_range="last hour",
+            working_dir=None
+        )
+
+        # Should still return valid summary
+        assert result is not None
+        assert isinstance(result, str)
+
+    @pytest.mark.unit
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_summarize_file_change_mock(self, mock_claude_agent_client):
+        """Test individual file change summary."""
+        result = await mock_claude_agent_client.summarize_file_change(
+            file_path="services/session_summary_service.py",
+            change_type="modified",
+            working_dir=None
+        )
+
+        assert result is not None
+        assert isinstance(result, str)
+        assert len(result) > 0
+        assert "services/session_summary_service.py" in result
+
+    @pytest.mark.unit
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_generate_session_title_single_file(self, mock_claude_agent_client):
+        """Test session title generation for single file."""
+        changed_files = ["README.md"]
+
+        result = await mock_claude_agent_client.generate_session_title(
+            changed_files=changed_files,
+            context_summary=None
+        )
+
+        assert result is not None
+        assert isinstance(result, str)
+        assert len(result) > 0
+        assert len(result) < 100  # Should be concise
+
+    @pytest.mark.unit
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_generate_session_title_multiple_files(self, mock_claude_agent_client):
+        """Test session title generation for multiple files."""
+        changed_files = [
+            "tests/test_ai/test_claude.py",
+            "tests/conftest.py",
+            "tests/test_services/test_summary.py"
+        ]
+
+        result = await mock_claude_agent_client.generate_session_title(
+            changed_files=changed_files,
+            context_summary="Enhanced test coverage"
+        )
+
+        assert result is not None
+        assert isinstance(result, str)
+        assert "test" in result.lower() or "enhanced" in result.lower()
+
+    @pytest.mark.unit
+    @pytest.mark.ai
+    @pytest.mark.asyncio
+    async def test_generate_follow_up_questions_mock(self, mock_claude_agent_client):
+        """Test follow-up question generation."""
+        changed_files = ["services/session_summary_service.py"]
+        summary_context = "Migrated from OpenAI to Claude Agent SDK"
+
+        result = await mock_claude_agent_client.generate_follow_up_questions(
+            changed_files=changed_files,
+            summary_context=summary_context,
+            working_dir=None
+        )
+
+        assert result is not None
+        assert isinstance(result, list)
+        assert len(result) >= 2  # Should generate 2-4 questions
+        assert len(result) <= 4
+        assert all(isinstance(q, str) for q in result)
+        assert all(len(q) > 10 for q in result)  # Questions should be substantial
+
 
 # =============================================================================
 # INTEGRATION TESTS (Real SDK - Manual Run)

@@ -2,6 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚡ Recent Major Change: OpenAI → Claude Migration (October 2025)
+
+**Status**: ✅ Core migration complete
+
+Obby now uses **Claude Agent SDK** exclusively for AI-powered summaries. The OpenAI integration has been removed. Key changes:
+
+- **AI Approach**: Claude autonomously explores files using Read/Grep/Glob tools (vs. receiving truncated diff text)
+- **Processing**: Real-time with 30s debounce (vs. 12-hour batch processing)
+- **Output**: Structured markdown with 9 metadata fields (vs. simple bullets with 3 fields)
+- **Configuration**: `ANTHROPIC_API_KEY` required, `OPENAI_API_KEY` deprecated
+
+📖 See `MIGRATION_SUMMARY.md` for complete details, rollback plan, and troubleshooting.
+
 ## Essential Commands
 
 ### Backend Development

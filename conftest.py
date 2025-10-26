@@ -3,7 +3,7 @@ Pytest configuration and shared fixtures for the Obby test suite.
 
 This module provides:
 - Test database setup and teardown
-- Mock OpenAI client
+- Mock Claude Agent SDK client with summary methods
 - Temporary directory fixtures
 - FastAPI test client
 - Common test data
@@ -282,6 +282,71 @@ def mock_claude_agent_client():
 
     mock.generate_comprehensive_summary = AsyncMock(side_effect=mock_generate_comprehensive_summary)
 
+    # Mock summarize_session method (NEW - for session summary migration)
+    async def mock_summarize_session(changed_files, time_range, working_dir=None):
+        return """## Test Session Summary
+
+**Summary**: Updated core monitoring functionality and test infrastructure over the past 2 hours.
+
+**Change Pattern**: Incremental feature development with test coverage improvements
+
+**Impact Assessment**:
+- **Scope**: moderate
+- **Complexity**: moderate
+- **Risk Level**: low
+
+**Topics**: testing, monitoring, fixtures, mocks
+
+**Technical Keywords**: pytest, async, mock, claude_agent_client, conftest
+
+**Relationships**: The test files work together to validate the monitoring system and AI client integration.
+
+### Sources
+
+- `conftest.py` — Enhanced with new Claude Agent SDK mock fixtures for testing
+- `tests/test_ai/test_claude_agent_client.py` — Comprehensive unit and integration tests
+
+### Proposed Questions
+
+- Should we add integration tests for the new summary methods?
+- Do we need additional mocking for edge cases?
+
+### Metrics
+
+- Total changes: 3
+- Files affected: 2
+- Lines: +150/-20
+- New notes: 1"""
+
+    mock.summarize_session = AsyncMock(side_effect=mock_summarize_session)
+
+    # Mock summarize_file_change method (NEW - for individual file summaries)
+    async def mock_summarize_file_change(file_path, change_type, working_dir=None):
+        return f"Updated {file_path} with {change_type} changes. Enhanced functionality and improved code quality."
+
+    mock.summarize_file_change = AsyncMock(side_effect=mock_summarize_file_change)
+
+    # Mock generate_session_title method (NEW - for session title generation)
+    async def mock_generate_session_title(changed_files, context_summary=None):
+        if len(changed_files) == 1:
+            return "Updated Test Infrastructure"
+        elif any("test" in f.lower() for f in changed_files):
+            return "Enhanced Test Coverage and Mocking"
+        else:
+            return "Improved Core Functionality"
+
+    mock.generate_session_title = AsyncMock(side_effect=mock_generate_session_title)
+
+    # Mock generate_follow_up_questions method (NEW - for contextual questions)
+    async def mock_generate_follow_up_questions(changed_files, summary_context, working_dir=None):
+        return [
+            "Should we add integration tests for the new features?",
+            "Are there any edge cases that need additional test coverage?",
+            "How will these changes affect the existing monitoring workflow?"
+        ]
+
+    mock.generate_follow_up_questions = AsyncMock(side_effect=mock_generate_follow_up_questions)
+
     # Mock interactive_analysis generator
     async def mock_interactive_analysis(initial_prompt: str, allow_file_edits: bool = False):
         yield "Starting analysis..."
@@ -351,11 +416,12 @@ def fastapi_client():
 def mock_settings(monkeypatch):
     """Mock settings for testing."""
     test_settings = {
-        "OPENAI_API_KEY": "test-key-123",
+        "ANTHROPIC_API_KEY": "test-key-123",
         "DATABASE_PATH": ":memory:",
         "WATCH_DIRECTORY": "/tmp/test",
-        "BATCH_SIZE": 10,
-        "BATCH_INTERVAL": 300
+        "CLAUDE_MODEL": "haiku",
+        "SUMMARY_DEBOUNCE_WINDOW": 30,
+        "MAX_FILES_PER_SUMMARY": 50
     }
 
     for key, value in test_settings.items():

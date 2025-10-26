@@ -8,7 +8,6 @@ from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
 from core.file_tracker import FileContentTracker
 from ai.openai_client import OpenAIClient
-from ai.batch_processor import BatchAIProcessor
 import threading
 import time
 import logging
@@ -44,16 +43,7 @@ class ObbyMonitor:
         except Exception as e:
             logger.warning(f"[MONITOR] AI client initialization failed: {e}")
             logger.info("[MONITOR] Monitor will run without AI processing")
-        
-        # Initialize batch AI processor (NOT STARTED - future feature)
-        # The batch processor provides scheduled batch processing of accumulated file changes
-        # To enable: call self.batch_processor.start_scheduler() after monitor.start()
-        try:
-            self.batch_processor = BatchAIProcessor()
-        except Exception as e:
-            logger.warning(f"[MONITOR] BatchAIProcessor initialization failed: {e}")
-            self.batch_processor = None
-        
+
         # Monitoring state
         self.file_watcher = None
         self.is_running = False

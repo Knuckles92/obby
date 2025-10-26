@@ -1,11 +1,13 @@
 import json
 import logging
 import os
+import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 import time
 
-from ai.openai_client import OpenAIClient
+from ai.claude_agent_client import ClaudeAgentClient
+from utils.claude_summary_parser import ClaudeSummaryParser
 
 
 logger = logging.getLogger(__name__)
@@ -15,6 +17,7 @@ class SessionSummaryService:
     """Service layer for all Session Summary operations.
 
     Centralizes update, content, and settings logic so routes stay thin.
+    Now powered by Claude Agent SDK for autonomous file exploration.
     """
 
     def __init__(self, session_summary_path: str):
@@ -22,10 +25,9 @@ class SessionSummaryService:
         self.session_summary_path = Path(session_summary_path)
         self.settings_path = Path('config/session_summary_settings.json')
         self.format_path = Path('config/format.md')
-        # Use singleton pattern to get the OpenAI client
-        self.openai_client = OpenAIClient.get_instance()
-        # Warm-up will be performed automatically on first use if needed
-        logger.info("Session summary service initialized with singleton OpenAI client")
+        # Initialize Claude Agent client
+        self.claude_client = ClaudeAgentClient(working_dir=Path.cwd())
+        logger.info("Session summary service initialized with Claude Agent SDK")
         # Ensure format.md is in config if legacy file exists
         try:
             from utils.migrations import migrate_format_md
@@ -203,22 +205,47 @@ class SessionSummaryService:
 
     # ---------- Update ----------
     def update(self, force: bool = False):
-        """Update the session summary by summarizing diffs since last update.
+        """Update the session summary by having Claude explore changed files.
+
+        Returns dict with success, updated, message, and summary when applicable.
+
+        Note: This method wraps the async _update_async() for backward compatibility.
+        """
+        try:
+            # Run async update in event loop
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                # If we're already in an async context, create a new task
+                import concurrent.futures
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(asyncio.run, self._update_async(force))
+                    return future.result()
+            else:
+                # Run in the current event loop
+                return loop.run_until_complete(self._update_async(force))
+        except Exception as e:
+            logger.error(f"Failed to update session summary: {e}")
+            raise
+
+    async def _update_async(self, force: bool = False):
+        """Async implementation of session summary update using Claude Agent SDK.
 
         Returns dict with success, updated, message, and summary when applicable.
         """
         try:
             t_total_start = time.perf_counter()
-            
-            # Warm up the OpenAI client before starting
-            try:
-                logger.info("Session summary update: warming up OpenAI client...")
-                self.openai_client.warm_up()
-                logger.info("Session summary update: OpenAI client warmed up successfully")
-            except Exception as warm_up_error:
-                logger.warning(f"OpenAI client warm-up failed (non-fatal): {warm_up_error}")
-                # Continue anyway as the client might still work
-            
+
+            # Check Claude availability
+            if not self.claude_client.is_available():
+                logger.error("Claude Agent SDK not available - check API key and installation")
+                return {
+                    'success': False,
+                    'message': 'Claude Agent SDK not available',
+                    'updated': False
+                }
+
+            logger.info("Session summary update: Claude Agent SDK ready")
+
             # Resolve target path (daily or single)
             target_path = self._resolve_session_summary_path()
 
@@ -226,6 +253,17 @@ class SessionSummaryService:
             from database.models import ConfigModel
             last_ts_str = ConfigModel.get('session_summary_last_update', None)
             window_start = datetime.fromisoformat(last_ts_str) if last_ts_str else datetime.now() - timedelta(hours=4)
+
+            # Calculate time range for Claude
+            time_elapsed = datetime.now() - window_start
+            if time_elapsed.days > 0:
+                time_range = f"last {time_elapsed.days} days"
+            elif time_elapsed.seconds > 3600:
+                hours = time_elapsed.seconds // 3600
+                time_range = f"last {hours} hours"
+            else:
+                minutes = time_elapsed.seconds // 60
+                time_range = f"last {minutes} minutes"
 
             # Optional file filtering
             watch_handler = None
@@ -235,71 +273,94 @@ class SessionSummaryService:
                 watch_handler = WatchHandler(root_folder)
                 logger.info(f"Session summary: initialized WatchHandler with root_folder: {root_folder}")
                 logger.info(f"Session summary: loaded watch patterns: {watch_handler.watch_patterns}")
-                logger.info(f"Session summary: watch file path: {watch_handler.watch_file}")
             except Exception as e:
                 logger.debug(f"Watch patterns unavailable, proceeding without filter: {e}")
 
-            # Fetch diffs
+            # Fetch changed files (not full diffs - Claude will explore them)
             from database.queries import FileQueries
-            t_diffs_start = time.perf_counter()
+            t_query_start = time.perf_counter()
             all_diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
-            t_diffs = time.perf_counter() - t_diffs_start
-            logger.info(f"Session summary timing: get_diffs_since took {t_diffs:.3f}s (window_start={window_start.isoformat()})")
-            
-            # Exclude the session summary file itself to prevent feedback loops
+            t_query = time.perf_counter() - t_query_start
+            logger.info(f"Session summary timing: get_diffs_since took {t_query:.3f}s (window_start={window_start.isoformat()})")
+
+            # Extract unique file paths, excluding session summary and internal files
             target_path = self._resolve_session_summary_path().resolve()
-            diffs = []
+            changed_files = []
             excluded_count = 0
+            seen_paths = set()
+
             for diff in all_diffs:
-                diff_path = Path(diff.get('filePath', '')).resolve()
-                if diff_path == target_path:
-                    excluded_count += 1
-                    logger.debug(f"Excluding session summary file from its own update: {diff_path}")
+                file_path = diff.get('filePath') or diff.get('path')
+                if not file_path:
                     continue
-                # Exclude internal semantic index file and non-markdown files to avoid stale context pollution
-                file_path_str = str(diff_path)
+
+                file_path_resolved = Path(file_path).resolve()
+                file_path_str = str(file_path_resolved)
+
+                # Skip if already seen
+                if file_path_str in seen_paths:
+                    continue
+
+                # Exclude session summary file itself
+                if file_path_resolved == target_path:
+                    excluded_count += 1
+                    logger.debug(f"Excluding session summary file: {file_path_str}")
+                    continue
+
+                # Exclude internal semantic index
                 if file_path_str.lower().endswith('semantic_index.json'):
                     excluded_count += 1
-                    logger.debug(f"Excluding internal semantic index file from diffs: {diff_path}")
+                    logger.debug(f"Excluding semantic index file: {file_path_str}")
                     continue
+
+                # Only include markdown files
                 if not file_path_str.lower().endswith('.md'):
-                    # Only summarize note markdown changes for the session summary
                     excluded_count += 1
                     continue
-                diffs.append(diff)
-            
-            logger.info(f"Session summary: excluded {excluded_count} self-references, processing {len(diffs)} actual content diffs")
 
-            # Fallback to recent diffs to avoid empty updates
-            if not diffs:
+                changed_files.append(file_path_str)
+                seen_paths.add(file_path_str)
+
+            logger.info(f"Session summary: excluded {excluded_count} files, {len(changed_files)} files for Claude to explore")
+
+            # Fallback to recent files if none found
+            if not changed_files:
                 t_recent_start = time.perf_counter()
                 all_recent_diffs = FileQueries.get_recent_diffs(limit=10, watch_handler=watch_handler)
                 t_recent = time.perf_counter() - t_recent_start
                 logger.info(f"Session summary timing: get_recent_diffs took {t_recent:.3f}s")
-                # Also exclude session summary file from recent diffs
-                recent_diffs = []
+
+                seen_paths = set()
                 for diff in all_recent_diffs:
-                    diff_path = Path(diff.get('filePath', '')).resolve()
-                    file_path_str = str(diff_path)
-                    if diff_path == target_path:
+                    file_path = diff.get('filePath') or diff.get('path')
+                    if not file_path:
+                        continue
+
+                    file_path_resolved = Path(file_path).resolve()
+                    file_path_str = str(file_path_resolved)
+
+                    if file_path_str in seen_paths:
+                        continue
+                    if file_path_resolved == target_path:
                         continue
                     if file_path_str.lower().endswith('semantic_index.json'):
                         continue
                     if not file_path_str.lower().endswith('.md'):
                         continue
-                    recent_diffs.append(diff)
-                if recent_diffs:
-                    diffs = recent_diffs
-                    logger.info(f"Session summary: using {len(recent_diffs)} recent diffs (excluded session summary file)")
+
+                    changed_files.append(file_path_str)
+                    seen_paths.add(file_path_str)
+
+                if changed_files:
+                    logger.info(f"Session summary: using {len(changed_files)} recent files as fallback")
                 elif not force:
                     return {
                         'success': True,
-                        'message': 'No diffs since last update',
+                        'message': 'No files changed since last update',
                         'updated': False
                     }
                 else:
-                    # When forced but no diffs found, return success without processing
-                    logger.info("Session summary: forced update requested but no content changes found")
+                    logger.info("Session summary: forced update requested but no files found")
                     return {
                         'success': True,
                         'message': 'No new changes to summarize',
@@ -307,135 +368,122 @@ class SessionSummaryService:
                         'individual_summary_created': False
                     }
 
-            # Build AI context and metrics
-            if diffs:
-                combined_parts = []
-                max_items = min(len(diffs), 12)
-                files_for_ai = []
-                for d in diffs[:max_items]:
-                    file_path = d.get('filePath') or d.get('path') or 'unknown'
-                    files_for_ai.append(file_path)
-                    ts = d.get('timestamp') or ''
-                    diff_text = d.get('diffContent') or ''
-                    if isinstance(diff_text, str) and len(diff_text) > 800:
-                        diff_text = diff_text[:800] + "\n..."
-                    combined_parts.append(f"File: {file_path} ({ts})\n{diff_text}")
-                context_text = "\n\n---\n\n".join(combined_parts)
-                logger.info(f"Session summary: sending {len(files_for_ai)} files to AI: {files_for_ai}")
-            else:
-                context_text = ""
-                logger.info("Session summary: no diffs to send to AI")
+            # Limit files to avoid excessive API usage
+            from config import settings as cfg
+            max_files = cfg.MAX_FILES_PER_SUMMARY
+            if len(changed_files) > max_files:
+                logger.info(f"Session summary: limiting from {len(changed_files)} to {max_files} files")
+                changed_files = changed_files[:max_files]
 
-            total_changes = len(diffs)
-            files_affected = len({d.get('filePath') for d in diffs})
-            # Filter out zero-change diffs to avoid counting meaningless +0/-0 entries
-            meaningful_diffs = [d for d in diffs if int(d.get('linesAdded') or 0) > 0 or int(d.get('linesRemoved') or 0) > 0]
+            # Calculate metrics from diffs
+            total_changes = len(all_diffs)
+            files_affected = len(changed_files)
+            meaningful_diffs = [d for d in all_diffs if int(d.get('linesAdded') or 0) > 0 or int(d.get('linesRemoved') or 0) > 0]
             lines_added = sum(int(d.get('linesAdded') or 0) for d in meaningful_diffs)
             lines_removed = sum(int(d.get('linesRemoved') or 0) for d in meaningful_diffs)
-            notes_added_count = len({d.get('filePath') for d in diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
+            notes_added_count = len({d.get('filePath') for d in all_diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
 
-            # AI-generated summary bullets and proposed questions with error handling
-            t_ai_start = time.perf_counter()
-            
-            # Try to generate summary (with embedded Sources) with fallback
-            summary_bullets = "- no meaningful changes"
-            if context_text:
-                try:
-                    logger.info("Session summary: generating AI summary (with Sources)...")
-                    summary_bullets = self.openai_client.summarize_minimal(context_text, files_used=files_for_ai)
-                    logger.info("Session summary: AI summary generated successfully")
-                except Exception as e:
-                    logger.error(f"Failed to generate AI summary (using fallback): {e}")
-                    # Fallback to basic summary from metrics
-                    if diffs:
-                        summary_bullets = f"- {files_affected} files changed with {lines_added} lines added and {lines_removed} lines removed"
-                    else:
-                        summary_bullets = "- no meaningful changes detected"
+            # Call Claude to generate session summary by exploring files
+            t_claude_start = time.perf_counter()
+            claude_summary_md = ""
 
-            # Optional safety-net: if model omitted Sources, append via helper
             try:
-                from config import settings as cfg
-                if context_text and files_for_ai and cfg.AI_SOURCES_FALLBACK_ENABLED:
-                    lower = summary_bullets.lower()
-                    if '## sources' not in lower and '### sources' not in lower:
-                        sources_md = self.openai_client.generate_sources_section(files_for_ai, context_snippet=context_text)
-                        if sources_md and sources_md.strip():
-                            summary_bullets = summary_bullets.rstrip() + "\n\n" + sources_md.strip()
-            except Exception:
-                pass
-            
-            t_ai_summary = time.perf_counter() - t_ai_start
-            
-            # Try to generate questions with graceful fallback
-            t_ai_q_start = time.perf_counter()
-            questions_text = ""
-            if context_text:
-                try:
-                    logger.info("Session summary: generating proposed questions...")
-                    questions_text = self.openai_client.generate_proposed_questions(context_text)
-                    logger.info("Session summary: proposed questions generated successfully")
-                except Exception as e:
-                    logger.error(f"Failed to generate proposed questions (skipping): {e}")
-                    # Questions are optional, so we can continue without them
-                    questions_text = ""
-            
-            t_ai_questions = time.perf_counter() - t_ai_q_start
-            logger.info(f"Session summary timing: AI summarize_minimal={t_ai_summary:.3f}s, generate_proposed_questions={t_ai_questions:.3f}s")
-            
-            # Metrics section formatted consistently with a header (like Questions)
-            parts = [
-                "### Metrics",
-                "",
-                f"- Total changes: {total_changes}",
-                f"- Files affected: {files_affected}",
-                f"- Lines: +{lines_added}/-{lines_removed}",
-                f"- New notes: {notes_added_count}",
-            ]
-            if summary_bullets:
-                parts.append(summary_bullets)
-            if questions_text and questions_text.strip():
-                # Add a proper markdown heading and spacing for questions section
-                parts.append("")
-                parts.append("### Proposed Questions for AI Agent")
-                parts.append("")
-                parts.append(questions_text.strip())
+                logger.info(f"Session summary: calling Claude to explore {len(changed_files)} files...")
+                logger.info(f"Session summary: time range = '{time_range}'")
 
-            summary_block = "\n".join(parts)
+                claude_summary_md = await self.claude_client.summarize_session(
+                    changed_files=changed_files,
+                    time_range=time_range,
+                    working_dir=Path.cwd()
+                )
 
-            # Update the session summary file with structured append (with error handling)
+                logger.info("Session summary: Claude summary generated successfully")
+                t_claude = time.perf_counter() - t_claude_start
+                logger.info(f"Session summary timing: Claude summarize_session took {t_claude:.3f}s")
+
+            except Exception as e:
+                logger.error(f"Failed to generate Claude summary: {e}", exc_info=True)
+                t_claude = time.perf_counter() - t_claude_start
+                logger.info(f"Session summary timing: Claude call failed after {t_claude:.3f}s")
+
+                # Fallback to basic summary
+                claude_summary_md = f"""## Code Changes
+
+**Summary**: {files_affected} files changed during the {time_range} period.
+
+**Change Pattern**: Code modifications
+
+**Impact Assessment**:
+- **Scope**: moderate
+- **Complexity**: moderate
+- **Risk Level**: low
+
+**Topics**: Code Changes
+
+**Technical Keywords**: {', '.join(changed_files[:5])}
+
+**Relationships**: Multiple files modified.
+
+### Sources
+
+{chr(10).join([f"- `{f}` — File modified in this session" for f in changed_files[:10]])}
+
+### Proposed Questions
+
+- What were the main goals of these changes?
+- Are there any related files that should be reviewed?
+
+**Note**: Generated as fallback due to error: {str(e)}"""
+            
+            # Parse Claude's structured summary
+            parsed_summary = ClaudeSummaryParser.parse_session_summary(claude_summary_md)
+            logger.info(f"Session summary: parsed {len(parsed_summary.get('topics', []))} topics, {len(parsed_summary.get('sources', []))} sources")
+
+            # Build final summary block with Claude's output + metrics
+            # Claude's summary is already complete markdown, we just append metrics
+            summary_block = claude_summary_md.strip()
+
+            # Append metrics section after Claude's output
+            metrics_section = f"""
+
+### Metrics
+
+- Total changes: {total_changes}
+- Files affected: {files_affected}
+- Lines: +{lines_added}/-{lines_removed}
+- New notes: {notes_added_count}"""
+
+            summary_block += metrics_section
+
+            # Write summary to file
             t_write_start = time.perf_counter()
             success = False
             try:
-                logger.info("Session summary: updating session summary file...")
-                success = self.openai_client.update_session_summary(
-                    str(target_path),
-                    summary_block,
-                    change_type="content",
-                    settings={"writingStyle": "bullet-points", "summaryLength": "brief", "includeMetrics": True},
-                )
-                logger.info(f"Session summary: file update success={success}")
+                logger.info("Session summary: writing to file...")
+                target_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Create or read existing file
+                if not target_path.exists():
+                    today = datetime.now().strftime("%Y-%m-%d")
+                    initial_content = f"# Session Summary - {today}\n\nThis file contains AI-generated summaries of your development sessions.\n\n---\n\n"
+                    existing_content = initial_content
+                else:
+                    existing_content = target_path.read_text(encoding='utf-8')
+
+                # Append new summary with timestamp separator
+                timestamp_str = datetime.now().strftime('%Y-%m-%d %I:%M %p')
+                new_content = f"{existing_content}\n\n---\n\n**Update: {timestamp_str}**\n\n{summary_block}\n"
+
+                target_path.write_text(new_content, encoding='utf-8')
+                success = True
+                logger.info("Session summary: file written successfully")
+
             except Exception as e:
-                logger.error(f"Failed to update session summary file: {e}")
-                # Try a simple fallback write without AI processing
-                try:
-                    logger.info("Session summary: attempting fallback file write...")
-                    target_path.parent.mkdir(parents=True, exist_ok=True)
-                    existing_content = ""
-                    if target_path.exists():
-                        existing_content = target_path.read_text(encoding='utf-8')
-                    
-                    # Simple append with timestamp
-                    timestamp_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    new_content = f"{existing_content}\n\n---\n\n## Update: {timestamp_str}\n\n{summary_block}\n"
-                    target_path.write_text(new_content, encoding='utf-8')
-                    success = True
-                    logger.info("Session summary: fallback file write successful")
-                except Exception as fallback_error:
-                    logger.error(f"Fallback file write also failed: {fallback_error}")
-                    success = False
-            
+                logger.error(f"Failed to write session summary file: {e}", exc_info=True)
+                success = False
+
             t_write = time.perf_counter() - t_write_start
-            logger.info(f"Session summary timing: update_session_summary (file write + semantic index) took {t_write:.3f}s")
+            logger.info(f"Session summary timing: file write took {t_write:.3f}s")
             
             if not success:
                 return {
@@ -444,9 +492,12 @@ class SessionSummaryService:
                     'updated': False
                 }
 
-            # Also create individual summary file for pagination
+            # Also create individual summary file for pagination with parsed metadata
             t_individual_start = time.perf_counter()
-            individual_summary_created = self._create_individual_summary(summary_block)
+            individual_summary_created = self._create_individual_summary(
+                summary_block,
+                parsed_metadata=parsed_summary
+            )
             t_individual = time.perf_counter() - t_individual_start
             logger.info(f"Session summary timing: _create_individual_summary took {t_individual:.3f}s (created={bool(individual_summary_created)})")
             if individual_summary_created:
@@ -457,7 +508,7 @@ class SessionSummaryService:
             # Advance cursor
             try:
                 t_cursor_start = time.perf_counter()
-                latest_ts = diffs[-1]['timestamp'] if diffs else datetime.now().isoformat()
+                latest_ts = all_diffs[-1]['timestamp'] if all_diffs else datetime.now().isoformat()
                 latest_ts_str = latest_ts if isinstance(latest_ts, str) else latest_ts.isoformat()
                 ConfigModel.set('session_summary_last_update', latest_ts_str, 'Session summary last update')
                 t_cursor = time.perf_counter() - t_cursor_start
@@ -469,22 +520,24 @@ class SessionSummaryService:
             logger.info(f"Session summary timing: total update duration {t_total:.3f}s")
             return {
                 'success': True,
-                'message': 'Session summary updated from diffs since last check',
+                'message': 'Session summary updated with Claude exploration',
                 'updated': True,
                 'summary': summary_block,
+                'parsed_summary': parsed_summary,
                 'individual_summary_created': individual_summary_created
             }
 
         except Exception as e:
-            logger.error(f"Failed to update session summary: {e}")
+            logger.error(f"Failed to update session summary: {e}", exc_info=True)
             raise
 
-    def _create_individual_summary(self, summary_block: str) -> bool:
+    def _create_individual_summary(self, summary_block: str, parsed_metadata: dict = None) -> bool:
         """Create an individual summary with dual-write: markdown file + database entry.
-        
+
         Args:
             summary_block: The summary content to save
-            
+            parsed_metadata: Optional parsed summary metadata from Claude
+
         Returns:
             bool: True if successful, False otherwise
         """
@@ -506,21 +559,38 @@ class SessionSummaryService:
                 logger.error("Failed to create markdown summary file")
                 return False
             
-            # Extract semantic metadata from summary content using AI client (with fallback)
+            # Use parsed Claude metadata if available, otherwise extract from text
             metadata = {}
-            try:
-                logger.info("Session summary: extracting semantic metadata...")
-                metadata = self.openai_client.extract_semantic_metadata(summary_block)
-                logger.info(f"Session summary: semantic metadata extracted: topics={len(metadata.get('topics', []))}, keywords={len(metadata.get('keywords', []))}")
-            except Exception as e:
-                logger.error(f"Failed to extract semantic metadata (using defaults): {e}")
-                # Fallback to basic metadata
-                metadata = {
-                    'summary': summary_block[:200] if len(summary_block) > 200 else summary_block,
-                    'impact': 'moderate',
-                    'topics': ['code-changes'],
-                    'keywords': ['update', 'changes']
-                }
+            if parsed_metadata:
+                # Use metadata extracted from Claude's structured output
+                logger.info("Session summary: using parsed Claude metadata")
+                metadata = ClaudeSummaryParser.extract_semantic_metadata(parsed_metadata)
+                # Add summary field (limit to 200 chars for compatibility)
+                metadata['summary'] = parsed_metadata.get('summary', summary_block[:200])
+                # Map new impact fields to legacy 'impact' field for compatibility
+                metadata['impact'] = parsed_metadata.get('impact_scope', 'moderate')
+                logger.info(f"Session summary: Claude metadata: topics={len(metadata.get('topics', []))}, keywords={len(metadata.get('keywords', []))}")
+            else:
+                # Fallback: parse from markdown text
+                logger.info("Session summary: parsing metadata from markdown")
+                try:
+                    parsed = ClaudeSummaryParser.parse_session_summary(summary_block)
+                    metadata = ClaudeSummaryParser.extract_semantic_metadata(parsed)
+                    metadata['summary'] = parsed.get('summary', summary_block[:200])
+                    metadata['impact'] = parsed.get('impact_scope', 'moderate')
+                except Exception as e:
+                    logger.error(f"Failed to parse metadata (using defaults): {e}")
+                    # Ultimate fallback
+                    metadata = {
+                        'summary': summary_block[:200] if len(summary_block) > 200 else summary_block,
+                        'impact': 'moderate',
+                        'impact_scope': 'moderate',
+                        'impact_complexity': 'moderate',
+                        'impact_risk': 'low',
+                        'topics': ['code-changes'],
+                        'keywords': ['update', 'changes'],
+                        'change_pattern': 'Code modifications'
+                    }
             
             # Get the markdown file path
             markdown_filename = file_result.get('filename', '')

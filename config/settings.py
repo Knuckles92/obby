@@ -36,56 +36,33 @@ PERIODIC_SCAN_ENABLED = True  # Enable periodic scanning (backup to watchdog)
 WATCHDOG_COORDINATION_ENABLED = True  # Skip periodic scans when watchdog is active
 VERBOSE_MONITORING_LOGS = False  # Enable verbose monitoring logs for debugging
 
-# OpenAI settings
-OPENAI_MODEL = "gpt-5-mini"  # Default model for AI summarization
-OPENAI_API_KEY = None  # Set via environment variable OPENAI_API_KEY
+# ============================================================================
+# AI SETTINGS - Claude Agent SDK
+# ============================================================================
 
-# Claude Agent SDK settings
-CLAUDE_MODEL = "haiku"  # Default model for Claude chat: "sonnet", "opus", "haiku"
+# Claude Model Selection
+CLAUDE_MODEL = "haiku"  # Default model for Claude: "sonnet", "opus", "haiku"
 # Can be overridden with OBBY_CLAUDE_MODEL environment variable
+# API Key: Set via ANTHROPIC_API_KEY environment variable
 
-# OpenAI generation temperatures (centralized)
-# You can override any of these at runtime if desired.
-OPENAI_TEMPERATURES = {
-    "diff_summary": 0.7,
-    "minimal_summary": 0.7,
-    "proposed_questions": 0.7,
-    "session_title": 0.6,
-    "events_summary": 0.7,
-    "tree_summary": 0.7,
-    "insights": 0.7,
-    "batch_summary": 0.7,
-}
+# Real-time Summary Processing
+SUMMARY_DEBOUNCE_WINDOW = 30  # seconds - wait time to batch rapid file changes before summarizing
+SUMMARY_AUTO_UPDATE_ENABLED = True  # Enable automatic summary generation on file changes
+MAX_FILES_PER_SUMMARY = 50  # Maximum number of changed files to include in one summary
 
-# OpenAI token limits (centralized)
-# These are per-feature caps for `max_completion_tokens` (or equivalent). Override at runtime if needed.
-OPENAI_TOKEN_LIMITS = {
-    "diff_summary": 25000,
-    "minimal_summary": 800,
-    "proposed_questions": 5000,
-    "session_title": 50,
-    "events_summary": 5000,
-    "tree_summary": 5000,
-    "insights": 30000,
-    "batch_summary": 25000,
-    "chat": 2000,
-}
+# Claude Tool Permissions for Summaries
+CLAUDE_SUMMARY_ALLOWED_TOOLS = ["Read", "Grep", "Glob"]  # Tools Claude can use for exploration
+CLAUDE_SUMMARY_MAX_TURNS = 15  # Maximum exploration turns for session summaries
+CLAUDE_FILE_SUMMARY_MAX_TURNS = 10  # Maximum turns for individual file summaries
 
-# AI Sources fallback (safety net)
-# NOTE: This switch is a last‑resort safety mechanism. Keep it OFF by default.
-# When enabled, if a model response unexpectedly omits the required 'Sources' section,
-# the app will synthesize a minimal '### Sources' block using the already-known file list
-# and lightweight model assistance. Intended only as a contingency to preserve provenance.
-AI_SOURCES_FALLBACK_ENABLED = False
+# Summary Output Validation
+CLAUDE_VALIDATION_RETRY_ENABLED = True  # Retry with stricter prompt if format validation fails
+CLAUDE_FALLBACK_ON_ERROR = True  # Use deterministic fallback if Claude errors or format fails
 
-# AI Update settings (separate from file monitoring frequency)
-AI_UPDATE_INTERVAL = 12  # hours - how often AI processing runs (default: twice daily)
-AI_AUTO_UPDATE_ENABLED = True  # whether AI auto-updates are enabled
-LAST_AI_UPDATE_TIMESTAMP = None  # tracks when AI was last run (managed by database)
-
-# Batch AI Processing settings (legacy - kept for compatibility)
-BATCH_AI_ENABLED = True  # Enable batch AI processing by default
-BATCH_AI_MAX_SIZE = 50  # Maximum number of changes to process in one batch
+# AI Sources section handling
+# NOTE: With Claude's new format, Sources are required in every summary.
+# This setting controls fallback behavior if Sources section is missing.
+AI_SOURCES_FALLBACK_ENABLED = False  # Keep OFF - validation should catch missing Sources
 
 # File change validation settings
 FILE_SIZE_CHANGE_VALIDATION = True  # Check file size before processing changes

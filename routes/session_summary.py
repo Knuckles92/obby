@@ -17,7 +17,6 @@ from config.settings import (
     SESSION_SUMMARY_DAILY_FILENAME_TEMPLATE,
 )
 from utils.session_summary_path import resolve_session_summary_path
-from ai.openai_client import OpenAIClient
 from services.session_summary_service import SessionSummaryService
 import queue
 from datetime import datetime

@@ -55,8 +55,6 @@ from routes.watch_config import watch_config_bp
 from routes.chat import chat_bp
 
 from routes.api_monitor import APIObbyMonitor
-from ai.openai_client import OpenAIClient
-from ai.batch_processor import BatchAIProcessor
 
 logging.basicConfig(
     level=logging.INFO,
@@ -107,18 +105,9 @@ async def startup_event():
         except Exception as e:
             logger.warning(f'Startup: Could not set Windows event loop policy: {e}')
     
-    # Warm up OpenAI client in background to avoid cold start latency
-    try:
-        def _warmup():
-            try:
-                client = OpenAIClient.get_instance()
-                client.warm_up()
-                logger.info('OpenAI client warm-up finished')
-            except Exception as e:
-                logger.warning(f'OpenAI warm-up failed: {e}')
-        threading.Thread(target=_warmup, daemon=True).start()
-    except Exception as e:
-        logger.debug(f'Failed to spawn warm-up thread: {e}')
+    # Note: Claude Agent SDK client is initialized on-demand by services
+    # No warm-up needed as it uses subprocess calls to claude-code CLI
+    logger.info('Claude Agent SDK ready for on-demand usage')
 
 # Global monitoring state
 monitor_instance = None
@@ -227,15 +216,6 @@ def initialize_monitoring():
         except Exception as e:
             logger.debug(f"Could not init monitoring routes: {e}")
         
-        # Start Batch AI processor scheduler (optional, controlled via config)
-        try:
-            global _batch_processor
-            _batch_processor = BatchAIProcessor(OpenAIClient.get_instance())
-            _batch_processor.start_scheduler()
-            logger.info('Batch AI scheduler started')
-        except Exception as e:
-            logger.warning(f'Failed to start Batch AI scheduler: {e}')
-        
         logger.info('File monitoring system initialized successfully')
         return True
     except Exception as e:
@@ -257,6 +237,8 @@ def cleanup_monitoring():
 
 if __name__ == '__main__':
     logger.info('Starting Obby API server on http://localhost:8001')
+
+    # Run migrations
     try:
         from utils.migrations import migrate_format_md
         mig = migrate_format_md()
@@ -264,6 +246,13 @@ if __name__ == '__main__':
             logger.info('format.md migrated to config/format.md')
     except Exception as e:
         logger.warning(f'Migration step skipped/failed: {e}')
+
+    try:
+        from database.migration_claude_fields import migrate as migrate_claude_fields
+        if migrate_claude_fields():
+            logger.info('Claude metadata fields migration completed')
+    except Exception as e:
+        logger.warning(f'Claude fields migration skipped/failed: {e}')
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:
