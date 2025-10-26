@@ -5,6 +5,7 @@ import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import LoadingIndicator from '../components/LoadingIndicator'
+import { ContextModal } from '../components/ContextModal'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -140,10 +141,14 @@ export default function Chat() {
   // File browser and note editor state
   const [fileBrowserOpen, setFileBrowserOpen] = useState(true)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
-  const [includeNoteContext, setIncludeNoteContext] = useState(true)
+  const [contextFiles, setContextFiles] = useState<string[]>([])
+  const [showContextModal, setShowContextModal] = useState(false)
+  const [watchedFiles, setWatchedFiles] = useState<any[]>([])
   const [contextBeingUsed, setContextBeingUsed] = useState(false)
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
   const [pendingFileSelection, setPendingFileSelection] = useState<string | null>(null)
+  const [modifiedContextFiles, setModifiedContextFiles] = useState<Set<string>>(new Set())
+  const [contextFilesMetadata, setContextFilesMetadata] = useState<Map<string, { lastModified: number, size: number }>>(new Map())
 
   // Resizable panel widths
   const [fileBrowserWidth, setFileBrowserWidth] = useState(280)
@@ -153,6 +158,7 @@ export default function Chat() {
 
   const scrollRef = useRef<HTMLDivElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
+  const fileUpdateEventSourceRef = useRef<EventSource | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Load panel widths from localStorage
@@ -173,6 +179,41 @@ export default function Chat() {
     localStorage.setItem('chatFileBrowserWidth', fileBrowserWidth.toString())
     localStorage.setItem('chatPanelWidth', chatPanelWidth.toString())
   }, [fileBrowserWidth, chatPanelWidth])
+
+  // Load watched files for context modal
+  useEffect(() => {
+    const loadWatchedFiles = async () => {
+      try {
+        const response = await apiRequest('/api/files/watched')
+        setWatchedFiles(response.files || [])
+      } catch (err) {
+        console.error('Failed to load watched files:', err)
+      }
+    }
+    loadWatchedFiles()
+  }, [])
+
+  // Auto-add selected file to context when file selection changes
+  useEffect(() => {
+    if (selectedFile && !contextFiles.includes(selectedFile)) {
+      setContextFiles(prev => [selectedFile, ...prev])
+    }
+  }, [selectedFile])
+
+  // Monitor for modifications to context files and show notifications
+  useEffect(() => {
+    // Check which modified files are in our current context
+    const modifiedInContext = contextFiles.filter(file => modifiedContextFiles.has(file))
+
+    if (modifiedInContext.length > 0) {
+      // Show notification for each modified context file
+      modifiedInContext.forEach(file => {
+        const fileName = file.split('/').pop() || file
+        recordAgentAction('warning', `Context file updated: ${fileName}`,
+          'File was modified - will fetch fresh content on next message', undefined)
+      })
+    }
+  }, [modifiedContextFiles, contextFiles, recordAgentAction])
 
   useEffect(() => {
     setMessages([
@@ -197,9 +238,11 @@ Guidelines:
 
     loadAvailableTools()
     fetchCurrentModel()
+    connectToFileUpdatesSSE()
 
     return () => {
       disconnectProgressSSE()
+      disconnectFileUpdatesSSE()
     }
   }, [])
 
@@ -310,6 +353,61 @@ Guidelines:
     setProgressMessage(null)
     setProgressType(null)
   }, [])
+
+  const disconnectFileUpdatesSSE = useCallback(() => {
+    if (fileUpdateEventSourceRef.current) {
+      fileUpdateEventSourceRef.current.close()
+      fileUpdateEventSourceRef.current = null
+    }
+  }, [])
+
+  const connectToFileUpdatesSSE = useCallback(() => {
+    // Don't reconnect if already connected
+    if (fileUpdateEventSourceRef.current) {
+      return
+    }
+
+    try {
+      const eventSource = new EventSource('/api/files/updates/stream')
+      fileUpdateEventSourceRef.current = eventSource
+
+      eventSource.onopen = () => {
+        console.log('Connected to file updates stream')
+      }
+
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+          const eventType = data.type
+
+          if (!eventType || eventType === 'keepalive' || eventType === 'connected') {
+            return
+          }
+
+          // Handle file modification events - track ALL modifications
+          // We'll filter by context membership during rendering
+          if (eventType === 'modified' && data.filePath) {
+            const modifiedPath = data.filePath
+            console.log(`File modified: ${modifiedPath}`)
+
+            // Mark file as modified (track all modifications)
+            setModifiedContextFiles(prev => new Set(prev).add(modifiedPath))
+          }
+        } catch (error) {
+          console.error('Error parsing file update SSE message:', error)
+        }
+      }
+
+      eventSource.onerror = (error) => {
+        console.error('File updates SSE connection error:', error)
+        if (fileUpdateEventSourceRef.current?.readyState === EventSource.CLOSED) {
+          disconnectFileUpdatesSSE()
+        }
+      }
+    } catch (error) {
+      console.error('Failed to establish file updates SSE connection:', error)
+    }
+  }, [disconnectFileUpdatesSSE])
 
   const connectToProgressSSE = useCallback((sessionId: string) => {
     if (eventSourceRef.current) {
@@ -475,21 +573,95 @@ Guidelines:
     let userMessage = content
     let displayMessage = content
 
-    // Include note context if enabled and file is selected
-    if (selectedFile && includeNoteContext) {
+    // Include context files if any are selected
+    if (contextFiles.length > 0) {
       setContextBeingUsed(true)
       try {
         const { fetchFileContent } = await import('../utils/fileOperations')
-        const fileData = await fetchFileContent(selectedFile)
 
-        // Add note content as context before user message (for AI only)
-        const contextMessage = `[Context: User is currently viewing the file "${fileData.name}" at path "${selectedFile}"]\n\n\`\`\`markdown\n${fileData.content}\n\`\`\`\n\n---\n\nUser's question about this note:`
+        // Fetch content for all context files
+        const contextFilesData = []
+        const orderedContextFiles = [...contextFiles]
+
+        // Ensure selected file is first if it's in context
+        if (selectedFile && orderedContextFiles.includes(selectedFile)) {
+          orderedContextFiles.splice(orderedContextFiles.indexOf(selectedFile), 1)
+          orderedContextFiles.unshift(selectedFile)
+        }
+
+        // Store metadata for freshness tracking
+        const newMetadata = new Map<string, { lastModified: number, size: number }>()
+        const failedFiles: string[] = []
+        const validFiles: string[] = []
+
+        // Validate and fetch each context file
+        for (const filePath of orderedContextFiles) {
+          try {
+            const fileData = await fetchFileContent(filePath)
+
+            // Store metadata
+            newMetadata.set(filePath, {
+              lastModified: fileData.lastModified,
+              size: fileData.size
+            })
+
+            contextFilesData.push({
+              ...fileData,
+              path: filePath,
+              isPrimary: filePath === selectedFile
+            })
+
+            validFiles.push(filePath)
+          } catch (err: any) {
+            // File doesn't exist or is not accessible
+            console.warn(`Failed to fetch context file ${filePath}:`, err)
+            failedFiles.push(filePath)
+
+            // Record as warning
+            recordAgentAction('warning', `Context file not found: ${filePath.split('/').pop()}`,
+              'File has been removed from context', undefined)
+          }
+        }
+
+        // Remove failed files from context
+        if (failedFiles.length > 0) {
+          setContextFiles(prev => prev.filter(f => !failedFiles.includes(f)))
+
+          // Show error notification
+          const fileNames = failedFiles.map(f => f.split('/').pop()).join(', ')
+          recordAgentAction('error', `Removed ${failedFiles.length} missing file(s) from context`,
+            `Files not found: ${fileNames}`, undefined)
+        }
+
+        // Update metadata and clear modified indicators (we just fetched fresh content)
+        setContextFilesMetadata(newMetadata)
+        setModifiedContextFiles(new Set())
+
+        // If all context files failed, don't include context
+        if (validFiles.length === 0 && contextFiles.length > 0) {
+          recordAgentAction('error', 'All context files are missing',
+            'Message will be sent without file context', undefined)
+          setContextBeingUsed(false)
+          // Continue without context
+        }
+
+        // Build context message with all files
+        const contextParts = contextFilesData.map((fileData, index) => {
+          const prefix = fileData.isPrimary 
+            ? `[Context: User is currently viewing the file "${fileData.name}" at path "${fileData.path}" (Primary context)]`
+            : `[Context: Additional file "${fileData.name}" at path "${fileData.path}"]`
+          
+          return `${prefix}\n\n\`\`\`markdown\n${fileData.content}\n\`\`\``
+        }).join('\n\n---\n\n')
+
+        const contextMessage = `${contextParts}\n\n---\n\nUser's question about these notes:`
         userMessage = `${contextMessage}\n\n${content}`
 
-        recordAgentAction('progress', 'Including note context', `File: ${fileData.name}`, undefined)
+        recordAgentAction('progress', `Including ${contextFiles.length} file${contextFiles.length !== 1 ? 's' : ''} in context`, 
+          contextFiles.map(f => f.split('/').pop()).join(', '), undefined)
       } catch (err) {
-        console.error('Failed to fetch note content for context:', err)
-        recordAgentAction('warning', 'Could not include note context', String(err), undefined)
+        console.error('Failed to fetch context files:', err)
+        recordAgentAction('warning', 'Could not include some context files', String(err), undefined)
       }
     }
 
@@ -603,6 +775,39 @@ Guidelines:
   const handleFileBrowserToggle = useCallback(() => {
     setFileBrowserOpen(prev => !prev)
   }, [])
+
+  const refreshContextMetadata = useCallback(async () => {
+    if (contextFiles.length === 0) return
+
+    try {
+      const { fetchFileContent } = await import('../utils/fileOperations')
+      const newMetadata = new Map<string, { lastModified: number, size: number }>()
+
+      // Fetch fresh metadata for all context files
+      for (const filePath of contextFiles) {
+        try {
+          const fileData = await fetchFileContent(filePath)
+          newMetadata.set(filePath, {
+            lastModified: fileData.lastModified,
+            size: fileData.size
+          })
+        } catch (error) {
+          console.warn(`Failed to refresh metadata for ${filePath}:`, error)
+        }
+      }
+
+      // Update metadata and clear modified indicators
+      setContextFilesMetadata(newMetadata)
+      setModifiedContextFiles(new Set())
+
+      recordAgentAction('progress', 'Context files refreshed',
+        `Updated metadata for ${newMetadata.size} file(s)`, undefined)
+    } catch (error) {
+      console.error('Failed to refresh context metadata:', error)
+      recordAgentAction('error', 'Failed to refresh context',
+        String(error), undefined)
+    }
+  }, [contextFiles, recordAgentAction])
 
   // Resize handlers for left panel (FileBrowser)
   const handleMouseDownLeft = useCallback((e: React.MouseEvent) => {
@@ -723,20 +928,47 @@ Guidelines:
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Compact note context indicator */}
-                {selectedFile && includeNoteContext && (
-                  <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg text-xs">
+                {/* Context files indicator */}
+                {contextFiles.length > 0 ? (
+                  <div
+                    className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-colors ${
+                      contextFiles.some(f => modifiedContextFiles.has(f))
+                        ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800'
+                        : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800'
+                    }`}
+                    onClick={() => setShowContextModal(true)}
+                    title={contextFiles.some(f => modifiedContextFiles.has(f))
+                      ? "Context files modified - click to manage"
+                      : "Click to manage context files"}
+                  >
                     <FileText className="h-3 w-3" />
-                    <span>{selectedFile.split('/').pop()}</span>
-                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" title="Context included in background"></div>
+                    <span>
+                      {contextFiles.length === 1 ? contextFiles[0].split('/').pop() : `${contextFiles.length} files`}
+                    </span>
+                    {contextFiles.some(f => modifiedContextFiles.has(f)) ? (
+                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" title="Context files modified - fresh content will be fetched"></div>
+                    ) : (
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" title="Context included in background"></div>
+                    )}
                     <button
-                      onClick={() => setIncludeNoteContext(false)}
-                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded p-0.5"
-                      title="Remove from context"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setContextFiles([])
+                      }}
+                      className="hover:bg-opacity-70 rounded p-0.5"
+                      title="Clear all context"
                     >
                       <X className="h-2.5 w-2.5" />
                     </button>
                   </div>
+                ) : (
+                  <button
+                    onClick={() => setShowContextModal(true)}
+                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg text-xs hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                    title="Add context files"
+                  >
+                    + Add Context
+                  </button>
                 )}
                 
                 <button
@@ -770,27 +1002,48 @@ Guidelines:
               </div>
 
               <div className="flex items-center space-x-4">
-                {/* Note context indicator */}
-                {selectedFile && includeNoteContext && (
-                  <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10">
+                {/* Context files indicator */}
+                {contextFiles.length > 0 ? (
+                  <div
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border transition-colors cursor-pointer ${
+                      contextFiles.some(f => modifiedContextFiles.has(f))
+                        ? 'border-amber-400/50 bg-amber-500/20 hover:bg-amber-500/30'
+                        : 'border-white/30 bg-white/10 hover:bg-white/20'
+                    }`}
+                    onClick={() => setShowContextModal(true)}
+                    title={contextFiles.some(f => modifiedContextFiles.has(f))
+                      ? "Context files modified - click to manage"
+                      : "Click to manage context files"}
+                  >
                     <FileText className="h-4 w-4" />
-                    <span className="text-sm font-medium">Context: {selectedFile.split('/').pop()}</span>
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Context included in background"></div>
+                    <span className="text-sm font-medium">
+                      {contextFiles.length === 1 ? contextFiles[0].split('/').pop() : `Context: ${contextFiles.length} files`}
+                    </span>
+                    {contextFiles.some(f => modifiedContextFiles.has(f)) ? (
+                      <>
+                        <div className="w-2 h-2 bg-amber-400 rounded-full animate-pulse" title="Context files modified"></div>
+                        <span className="text-xs opacity-75">(modified)</span>
+                      </>
+                    ) : (
+                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Context included in background"></div>
+                    )}
                     <button
-                      onClick={() => setIncludeNoteContext(false)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setContextFiles([])
+                      }}
                       className="ml-1 hover:bg-white/20 rounded p-0.5 transition-colors"
-                      title="Remove from context"
+                      title="Clear all context"
                     >
                       <X className="h-3 w-3" />
                     </button>
                   </div>
-                )}
-                {selectedFile && !includeNoteContext && (
+                ) : (
                   <button
-                    onClick={() => setIncludeNoteContext(true)}
+                    onClick={() => setShowContextModal(true)}
                     className="px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-colors"
                   >
-                    Include note in background context
+                    + Add Context Files
                   </button>
                 )}
 
@@ -837,6 +1090,16 @@ Guidelines:
                 onToggle={handleFileBrowserToggle}
                 onFileSelect={handleFileSelect}
                 selectedFile={selectedFile}
+                contextFiles={contextFiles}
+                onContextToggle={(filePath, isSelected) => {
+                  setContextFiles(prev => {
+                    if (isSelected) {
+                      return [...prev, filePath]
+                    } else {
+                      return prev.filter(f => f !== filePath)
+                    }
+                  })
+                }}
               />
             </div>
             {/* Left resize handle */}
@@ -854,6 +1117,16 @@ Guidelines:
             onToggle={handleFileBrowserToggle}
             onFileSelect={handleFileSelect}
             selectedFile={selectedFile}
+            contextFiles={contextFiles}
+            onContextToggle={(filePath, isSelected) => {
+              setContextFiles(prev => {
+                if (isSelected) {
+                  return [...prev, filePath]
+                } else {
+                  return prev.filter(f => f !== filePath)
+                }
+              })
+            }}
           />
         )}
 
@@ -953,9 +1226,9 @@ Guidelines:
               <div className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
                 <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>Start a conversation</p>
-                {selectedFile && includeNoteContext && (
+                {contextFiles.length > 0 && (
                   <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
-                    📄 Note context will be included in the background
+                    📄 {contextFiles.length === 1 ? 'Note context' : 'Multiple notes'} will be included in the background
                   </p>
                 )}
               </div>
@@ -1045,6 +1318,19 @@ Guidelines:
         confirmText="Discard Changes"
         cancelText="Cancel"
         danger={true}
+      />
+
+      {/* Context management modal */}
+      <ContextModal
+        isOpen={showContextModal}
+        onClose={() => setShowContextModal(false)}
+        currentContextFiles={contextFiles}
+        onContextChange={setContextFiles}
+        watchedFiles={watchedFiles}
+        currentViewedFile={selectedFile || undefined}
+        modifiedFiles={modifiedContextFiles}
+        filesMetadata={contextFilesMetadata}
+        onRefreshContext={refreshContextMetadata}
       />
     </div>
   )

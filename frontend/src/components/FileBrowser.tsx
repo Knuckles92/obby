@@ -9,11 +9,13 @@ interface FileBrowserProps {
   onToggle: () => void
   onFileSelect: (filePath: string) => void
   selectedFile: string | null
+  contextFiles?: string[]
+  onContextToggle?: (filePath: string, isSelected: boolean) => void
 }
 
 type BrowserMode = 'tree' | 'search'
 
-export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFile }: FileBrowserProps) {
+export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFile, contextFiles = [], onContextToggle }: FileBrowserProps) {
   const [mode, setMode] = useState<BrowserMode>('tree')
   const [tree, setTree] = useState<FileTreeNode | null>(null)
   const [loading, setLoading] = useState(false)
@@ -147,6 +149,8 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
               tree={tree}
               onFileSelect={onFileSelect}
               selectedFile={selectedFile}
+              contextFiles={contextFiles}
+              onContextToggle={onContextToggle}
             />
           ) : (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 px-4">
