@@ -400,7 +400,7 @@ claude_client.ask_question()           # Q&A with file access
 - [ ] Convert `NotesSearchTool` to MCP format
 - [ ] Add `get_file_history` MCP tool (✅ Done)
 - [ ] Add `get_recent_changes` MCP tool (✅ Done)
-- [ ] Create new `/api/chat/complete-v2` endpoint
+- [ ] Create new `/api/chat/agent_query` endpoint (✅ Done)
 - [ ] Add security hooks for file access
 - [ ] Add streaming response support
 - [ ] Test with existing chat UI

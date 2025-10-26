@@ -1,5 +1,7 @@
 # Hybrid Chat Implementation - Complete ✅
 
+> **Status update (2025-03):** The live chat endpoint is now `/api/chat/agent_query`, powered exclusively by the Claude Agent SDK. The details below describe the original hybrid design (OpenAI + Claude) and are kept for historical reference.
+
 ## What Was Implemented
 
 Successfully implemented **hybrid chat strategy** in `routes/chat.py`:
@@ -7,7 +9,7 @@ Successfully implemented **hybrid chat strategy** in `routes/chat.py`:
 ### Architecture
 
 ```
-/api/chat/complete
+/api/chat/agent_query
     ↓
 use_tools=false → OpenAI Simple Chat (fast, cheap)
     ↓
@@ -48,31 +50,19 @@ All chat responses now include:
 }
 ```
 
-## How to Use
+## How to Use (Current)
 
-### Simple Chat (OpenAI)
+### Agent Chat (Claude-only)
 
 ```bash
-curl -X POST http://localhost:8000/api/chat/complete \
+curl -X POST http://localhost:8000/api/chat/agent_query \
   -H "Content-Type: application/json" \
   -d '{
-    "messages": [{"role": "user", "content": "Hello!"}],
-    "use_tools": false
+    "messages": [{"role": "user", "content": "Hello!"}]
   }'
 ```
 
-### Tool-Based Chat (Claude)
-
-```bash
-curl -X POST http://localhost:8000/api/chat/complete \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messages": [{"role": "user", "content": "What files changed recently?"}],
-    "use_tools": true
-  }'
-```
-
-### Check Available Tools
+### Check Available Tools (Claude Agent SDK)
 
 ```bash
 curl http://localhost:8000/api/chat/tools
@@ -96,6 +86,10 @@ Response:
   ]
 }
 ```
+
+> **Note:** The legacy `use_tools`/OpenAI pathways described below have been removed. The remaining sections outline the original hybrid implementation for archival purposes.
+
+## Legacy Hybrid Flow (Historical)
 
 ## Setup Instructions
 

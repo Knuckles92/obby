@@ -1,8 +1,6 @@
 """
 Chat API routes (FastAPI)
-Provides chat completion endpoints with hybrid AI support:
-- OpenAI for simple chat (fast, cost-effective)
-- Claude Agent SDK for tool-based chat (automatic orchestration)
+Provides chat completion endpoints backed by the Claude Agent SDK.
 """
 
 from fastapi import APIRouter, Request
@@ -16,8 +14,6 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
-from ai.openai_client import OpenAIClient
-from ai.agent_orchestrator import get_orchestrator
 from config import settings as cfg
 
 logger = logging.getLogger(__name__)
@@ -56,17 +52,16 @@ chat_sse_lock = threading.Lock()
 async def chat_ping():
     """Connectivity + readiness check for chat functionality."""
     try:
-        client = OpenAIClient.get_instance()
-        available = client.is_available()
-        model = getattr(client, 'model', None)
-        
-        # Get Claude model info
         claude_model = os.getenv("OBBY_CLAUDE_MODEL", cfg.CLAUDE_MODEL)
-        
+        api_key = os.getenv("ANTHROPIC_API_KEY")
+        available = CLAUDE_AVAILABLE and bool(api_key)
+
         return {
-            'available': bool(available),
-            'model': model,
+            'available': available,
+            'model': claude_model,
             'claude_model': claude_model,
+            'claude_sdk': CLAUDE_AVAILABLE,
+            'has_api_key': bool(api_key),
         }
     except Exception as e:
         return JSONResponse({'available': False, 'error': str(e)}, status_code=200)
@@ -140,80 +135,32 @@ def notify_chat_progress(session_id: str, event_type: str, message: str, data: D
 @chat_bp.post('/message')
 async def chat_single_message(request: Request):
     """Stateless chat: send a single message and get a reply."""
-    try:
-        data = await request.json()
-        message = (data.get('message') or '').strip()
-        system_prompt = (data.get('system') or 'You are a helpful assistant.').strip()
-        temperature = float(data.get('temperature') or cfg.OPENAI_TEMPERATURES.get('chat', 0.7))
-
-        if not message:
-            return JSONResponse({'error': 'message is required'}, status_code=400)
-
-        client = OpenAIClient.get_instance()
-        if not client.is_available():
-            return JSONResponse({'error': 'OpenAI client not configured; set OPENAI_API_KEY'}, status_code=400)
-
-        if not getattr(OpenAIClient, '_warmed_up', False):
-            try:
-                client.warm_up()
-            except Exception:
-                pass
-
-        try:
-            resp = client._retry_with_backoff(  # reuse internal backoff helper for resilience
-                client._invoke_model,
-                model=client.model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": message},
-                ],
-                max_completion_tokens=cfg.OPENAI_TOKEN_LIMITS.get('chat', 2000),
-                temperature=client._get_temperature(temperature),
-            )
-            reply = resp.choices[0].message.content.strip()
-            finish_reason = getattr(resp.choices[0], 'finish_reason', None)
-            return {
-                'reply': reply,
-                'model': client.model,
-                'finish_reason': finish_reason,
-            }
-        except Exception as api_err:
-            logger.error(f"Chat API error: {api_err}")
-            return JSONResponse({'error': f'Chat failed: {str(api_err)}'}, status_code=500)
-
-    except Exception as e:
-        logger.error(f"/api/chat/message failed: {e}")
-        return JSONResponse({'error': str(e)}, status_code=500)
+    logger.warning("Stateless OpenAI chat endpoint is no longer supported.")
+    return JSONResponse(
+        {'error': 'OpenAI chat provider has been disabled. Use /api/chat/agent_query with the Claude agent.'},
+        status_code=400
+    )
 
 
-@chat_bp.post('/complete')
+@chat_bp.post('/agent_query')
 async def chat_with_history(request: Request):
     """
-    Chat with messages history and AI provider selection.
+    Chat with message history using the Claude Agent SDK.
 
-    Provider-based approach:
-    - provider='openai': Use OpenAI with tool orchestrator
-    - provider='claude': Use Claude Agent SDK with tools
-    - enable_fallback=true: Automatically fallback to other provider on failure
-
-    Expects JSON: { messages: [{role, content}], temperature?, provider?, enable_fallback? }
+    Expects JSON: { messages: [{role, content}], temperature?, session_id? }
     """
     try:
         data = await request.json()
         messages = data.get('messages')
-        provider = data.get('provider', 'claude').lower()  # Default to Claude
-        enable_fallback = data.get('enable_fallback', False)  # Default to disabled
         session_id = data.get('session_id')  # Accept session_id from frontend
 
         if not isinstance(messages, list) or not messages:
             return JSONResponse({'error': 'messages must be a non-empty list'}, status_code=400)
 
-        if provider not in ('openai', 'claude'):
-            return JSONResponse({'error': f'Invalid provider: {provider}. Use "openai" or "claude"'}, status_code=400)
-
         # Use provided session_id or generate a new one if not provided
         if not session_id:
             session_id = str(uuid.uuid4())
+        provider = 'claude'
         
         # Send initial progress update with query preview
         user_msg_preview = next((m['content'][:80] + '...' if len(m['content']) > 80 else m['content']
@@ -225,279 +172,21 @@ async def chat_with_history(request: Request):
                 'message_count': len(messages)
             })
 
-        # Route based on provider selection
-        if provider == 'claude':
-            if CLAUDE_AVAILABLE:
-                logger.info("Using Claude Agent SDK (user selected)")
-                result = await _chat_with_claude_tools(messages, data, session_id)
+        if not CLAUDE_AVAILABLE:
+            return JSONResponse(
+                {'error': 'Claude Agent SDK not available. Install: pip install claude-agent-sdk'},
+                status_code=400
+            )
 
-                # Check if Claude failed and fallback is enabled
-                if isinstance(result, JSONResponse) and enable_fallback:
-                    logger.info("Claude failed, falling back to OpenAI")
-                    result = await _chat_with_openai_tools(messages, data)
-                    if isinstance(result, dict):
-                        result['fallback_occurred'] = True
-                        result['fallback_reason'] = 'Claude provider failed'
-                return result
-            else:
-                if enable_fallback:
-                    logger.info("Claude not available, falling back to OpenAI")
-                    result = await _chat_with_openai_tools(messages, data, session_id)
-                    if isinstance(result, dict):
-                        result['fallback_occurred'] = True
-                        result['fallback_reason'] = 'Claude SDK not available'
-                    return result
-                else:
-                    return JSONResponse({'error': 'Claude Agent SDK not available. Install: pip install claude-agent-sdk'}, status_code=400)
-        else:
-            # OpenAI provider
-            logger.info("Using OpenAI orchestrator (user selected)")
-            result = await _chat_with_openai_tools(messages, data, session_id)
-
-            # Check if OpenAI failed and fallback is enabled
-            if isinstance(result, JSONResponse) and enable_fallback and CLAUDE_AVAILABLE:
-                logger.info("OpenAI failed, falling back to Claude")
-                result = await _chat_with_claude_tools(messages, data, session_id)
-                if isinstance(result, dict):
-                    result['fallback_occurred'] = True
-                    result['fallback_reason'] = 'OpenAI provider failed'
-            return result
+        logger.info("Using Claude Agent SDK for chat")
+        return await _chat_with_claude_tools(messages, session_id)
 
     except Exception as e:
-        logger.error(f"/api/chat/complete failed: {e}")
+        logger.error(f"/api/chat/agent_query failed: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-async def _chat_with_openai_tools(messages: List[Dict], data: Dict, session_id: str = None) -> Dict:
-    """Tool-based chat with OpenAI + AgentOrchestrator (fallback)."""
-    # Normalize messages with tool support
-    normalized = []
-    for m in messages:
-        role = (m.get('role') or '').strip()
-        content = (m.get('content') or '').strip()
-        
-        if role not in ('system', 'user', 'assistant', 'tool'):
-            return JSONResponse({'error': f'invalid role: {role}'}, status_code=400)
-        
-        if role == 'tool':
-            if not m.get('tool_call_id'):
-                return JSONResponse({'error': 'tool messages must have tool_call_id'}, status_code=400)
-            normalized.append({
-                'role': role,
-                'content': content,
-                'tool_call_id': m['tool_call_id'],
-                'name': m.get('name', '')
-            })
-        else:
-            if not content and role != 'assistant':
-                return JSONResponse({'error': 'message content cannot be empty'}, status_code=400)
-            
-            msg = {'role': role, 'content': content}
-            if role == 'assistant' and 'tool_calls' in m:
-                msg['tool_calls'] = m['tool_calls']
-            
-            normalized.append(msg)
-    
-    client = OpenAIClient.get_instance()
-    if not client.is_available():
-        return JSONResponse({'error': 'OpenAI client not configured; set OPENAI_API_KEY'}, status_code=400)
-    
-    if not getattr(OpenAIClient, '_warmed_up', False):
-        try:
-            client.warm_up()
-        except Exception:
-            pass
-    
-    try:
-        orchestrator = get_orchestrator()
-        agent_actions: List[Dict[str, Any]] = []
-
-        def record_agent_event(event_type: str, payload: Dict[str, Any]):
-            # Record actionable items and intermediate assistant reasoning for the activity stream
-            if event_type not in {"tool_call", "tool_result", "error", "warning", "assistant_thinking"}:
-                # Ignore other low-signal events
-                return
-
-            timestamp = datetime.utcnow().isoformat() + "Z"
-            action: Dict[str, Any] = {
-                "id": str(uuid.uuid4()),
-                "type": event_type,
-                "timestamp": timestamp,
-            }
-            if session_id:
-                action["session_id"] = session_id
-
-            if event_type == "assistant_thinking":
-                # Capture intermediate assistant messages that introduce tool calls
-                content = payload.get("content", "")
-                if content.strip():
-                    # Extract meaningful preview from content
-                    preview = content.strip()[:120]
-                    if len(content.strip()) > 120:
-                        preview += "..."
-
-                    tool_count = payload.get("tool_count", 0)
-                    if tool_count:
-                        action["label"] = f"Planning to use {tool_count} tool{'s' if tool_count > 1 else ''}"
-                        action["detail"] = preview
-                    else:
-                        action["label"] = f"Analyzing: {preview}"
-                        action["detail"] = content[:500] if len(content) > 120 else None
-
-                    if session_id:
-                        notify_chat_progress(session_id, 'assistant_thinking', action["label"])
-                else:
-                    # Empty reasoning, skip it
-                    return
-
-            elif event_type == "tool_call":
-                tool_name = payload.get("name", "tool")
-                arguments = payload.get("arguments")
-
-                # Create descriptive label based on tool and arguments
-                if tool_name == "notes_search" and isinstance(arguments, dict):
-                    query = arguments.get("query", "")
-                    max_matches = arguments.get("max_matches")
-                    if query:
-                        label = f"Searching: '{query[:60]}{'...' if len(query) > 60 else ''}'"
-                        if max_matches:
-                            label += f" (max {max_matches} results)"
-                        action["label"] = label
-                    else:
-                        action["label"] = f"Searching notes"
-                else:
-                    action["label"] = f"Using {tool_name}"
-
-                # Include full arguments in detail
-                if isinstance(arguments, dict):
-                    action["detail"] = json.dumps(arguments, indent=2)
-                elif isinstance(arguments, str) and arguments:
-                    action["detail"] = arguments
-
-                action["tool_call_id"] = payload.get("tool_call_id")
-                if session_id:
-                    notify_chat_progress(session_id, 'tool_use', action["label"], {
-                        'tool_call_id': payload.get("tool_call_id"),
-                        'tool_name': tool_name
-                    })
-
-            elif event_type == "tool_result":
-                tool_name = payload.get("name", "tool")
-                content = payload.get("content")
-                
-                # Create descriptive label with result summary
-                label = f"{tool_name} result"
-                if content and tool_name == "notes_search":
-                    content_str = str(content)
-                    # Try to extract match count and file information
-                    if "Found" in content_str and "matches" in content_str:
-                        # Parse "Found X matches in Y files"
-                        import re
-                        match = re.search(r'Found (\d+) matches? in (\d+) files?', content_str)
-                        if match:
-                            match_count = match.group(1)
-                            file_count = match.group(2)
-                            label = f"Found {match_count} matches in {file_count} files"
-                        else:
-                            # Fallback: count line breaks to estimate matches
-                            lines = content_str.count('\n')
-                            if lines > 0:
-                                label = f"{tool_name} returned {lines} lines"
-                    elif "Error:" in content_str or "failed" in content_str.lower():
-                        label = f"{tool_name} failed"
-                    elif "No matches found" in content_str or "0 matches" in content_str:
-                        label = "No matches found"
-                
-                action["label"] = label
-                
-                # Include content summary in detail
-                if content:
-                    detail_text = str(content)
-                    if len(detail_text) > 1500:
-                        detail_text = detail_text[:1500] + "..."
-                    action["detail"] = detail_text
-                    
-                action["tool_call_id"] = payload.get("tool_call_id")
-                action["success"] = payload.get("success")
-                if payload.get("error"):
-                    action["error"] = payload.get("error")
-                if session_id:
-                    # Use descriptive label for SSE notification too
-                    notify_chat_progress(session_id, 'tool_result', label, {
-                        'tool_call_id': payload.get("tool_call_id"),
-                        'tool_name': tool_name,
-                        'success': payload.get("success")
-                    })
-
-            elif event_type == "error":
-                error_msg = payload.get("error") or payload.get("message") or "Unknown error"
-                error_type = payload.get("exception_type")
-
-                # Create more descriptive error label
-                if error_type:
-                    action["label"] = f"Error: {error_type}"
-                else:
-                    action["label"] = f"Error: {error_msg[:60]}{'...' if len(error_msg) > 60 else ''}"
-
-                action["detail"] = error_msg
-                action["error_type"] = error_type
-
-                if session_id:
-                    notify_chat_progress(session_id, 'error', action["label"], {
-                        'error_type': error_type
-                    })
-
-            elif event_type == "warning":
-                warning_msg = payload.get("message", "Agent warning")
-                action["label"] = warning_msg[:80] + "..." if len(warning_msg) > 80 else warning_msg
-                action["detail"] = json.dumps(payload) if payload else None
-                if session_id:
-                    notify_chat_progress(session_id, 'warning', action["label"], payload)
-
-            # Avoid adding empty labels
-            if action.get("label"):
-                agent_actions.append(action)
-
-        reply, full_conversation = orchestrator.execute_chat_with_tools(
-            normalized,
-            max_iterations=5,
-            on_agent_event=record_agent_event
-        )
-
-        # Include user/system messages and ALL assistant responses in chat
-        # Tool messages go only to agent actions
-        sanitized_conversation: List[Dict[str, Any]] = []
-        for message in full_conversation:
-            role = message.get('role')
-            
-            # Skip tool messages - they're in agent_actions
-            if role == 'tool':
-                continue
-            
-            # Include user, system, and assistant messages
-            if role in ('user', 'system', 'assistant'):
-                sanitized_conversation.append(dict(message))
-
-        tools_used_flag = any(action['type'] in {"tool_call", "tool_result"} for action in agent_actions)
-
-        return {
-            'reply': reply,
-            'model': client.model,
-            'finish_reason': 'stop',
-            'conversation': sanitized_conversation,
-            'raw_conversation': full_conversation,
-            'agent_actions': agent_actions,
-            'tools_used': tools_used_flag,
-            'provider_used': 'openai',
-            'backend': 'openai-orchestrator',
-            'session_id': session_id
-        }
-    except Exception as api_err:
-        logger.error(f"OpenAI tool chat error: {api_err}")
-        return JSONResponse({'error': f'Chat failed: {str(api_err)}'}, status_code=500)
-
-
-async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: str = None) -> Dict:
+async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) -> Dict:
     """Tool-based chat with Claude Agent SDK (automatic orchestration)."""
     import time
     import traceback
@@ -895,34 +584,66 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
 async def get_available_tools():
     """Get list of available tools and their schemas."""
     try:
+        # Claude built-in tools expressed in a schema compatible with the frontend expectations
+        tool_schemas = [
+            {
+                'type': 'function',
+                'function': {
+                    'name': 'Read',
+                    'description': 'Read the contents of a file within the workspace.'
+                }
+            },
+            {
+                'type': 'function',
+                'function': {
+                    'name': 'Write',
+                    'description': 'Write or overwrite file contents.'
+                }
+            },
+            {
+                'type': 'function',
+                'function': {
+                    'name': 'Bash',
+                    'description': 'Execute shell commands inside the workspace.'
+                }
+            },
+            {
+                'type': 'function',
+                'function': {
+                    'name': 'Grep',
+                    'description': 'Search files for matching text (powered by ripgrep).'
+                }
+            },
+            {
+                'type': 'function',
+                'function': {
+                    'name': 'Glob',
+                    'description': 'Match files using glob patterns.'
+                }
+            },
+            {
+                'type': 'function',
+                'function': {
+                    'name': 'Edit',
+                    'description': 'Apply structured edits to files.'
+                }
+            }
+        ]
+        tool_names = [schema['function']['name'] for schema in tool_schemas]
+
         tools_info = {
             'claude_available': CLAUDE_AVAILABLE,
-            'backends': []
+            'tools': tool_schemas,
+            'tool_names': tool_names,
+            'backends': [
+                {
+                    'name': 'claude-agent-sdk',
+                    'tools': tool_schemas,
+                    'tool_names': tool_names
+                }
+            ]
         }
-        
-        # OpenAI orchestrator tools
-        orchestrator = get_orchestrator()
-        tools_info['backends'].append({
-            'name': 'openai-orchestrator',
-            'tools': orchestrator.get_tool_schemas(),
-            'tool_names': list(orchestrator.tools.keys())
-        })
-        
-        # Claude built-in tools
-        if CLAUDE_AVAILABLE:
-            tools_info['backends'].append({
-                'name': 'claude-agent-sdk',
-                'tools': [
-                    'Read - Read file contents',
-                    'Write - Write to files',
-                    'Bash - Execute shell commands',
-                    'Grep - Search files',
-                    'Glob - File pattern matching',
-                    'Edit - Edit files'
-                ],
-                'tool_names': ['Read', 'Write', 'Bash', 'Grep', 'Glob', 'Edit']
-            })
-        
+
         return tools_info
     except Exception as e:
         logger.error(f"/api/chat/tools failed: {e}")

@@ -125,8 +125,6 @@ export default function Chat() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [provider, setProvider] = useState<'openai' | 'claude'>('claude')
-  const [enableFallback, setEnableFallback] = useState(false)
   const [currentModel, setCurrentModel] = useState<string>('')
   const [availableTools, setAvailableTools] = useState<ToolInfo[]>([])
   const [showSettings, setShowSettings] = useState(false)
@@ -209,11 +207,14 @@ export default function Chat() {
 Context: Obby tracks file changes in a local repository, stores content in SQLite (obby.db), and provides semantic search through AI-analyzed notes. The notes directory contains documentation and tracked files.
 
 Tools available:
-- notes_search: Search through notes and documentation with grep/ripgrep
+- Grep: Search through notes and documentation with ripgrep
+- Read: Inspect the contents of files under watch
+- Write: Apply requested edits to files when instructed
+- Bash: Run shell commands inside the project workspace
 
 Guidelines:
 - Be concise and direct in responses
-- Always begin by searching the notes directory with notes_search before considering any other tool or datasource.
+- Always begin by searching the notes directory with the Grep tool before considering any other data source.
 - Do not query SQLite or other databases unless the notes search clearly cannot answer the question.
 - When using tools, proceed without announcing your actions
 - Synthesize results rather than listing raw data
@@ -233,7 +234,7 @@ Guidelines:
 
   const loadAvailableTools = async () => {
     try {
-      const toolsInfo = await apiRequest<{ tool_names: string[]; tools?: ToolSchema[] }>('/api/chat/tools')
+      const toolsInfo = await apiRequest<{ tool_names: string[]; tools: ToolSchema[] }>('/api/chat/tools')
       const toolSchemas = toolsInfo.tools || []
       const parsedTools: ToolInfo[] = toolSchemas.map((schema) => {
         const toolName = schema.function?.name || 'Unknown tool'
@@ -256,11 +257,12 @@ Guidelines:
 
   const fetchCurrentModel = async () => {
     try {
-      const pingResponse = await apiRequest<{ model: string; claude_model: string }>('/api/chat/ping')
-      const model = provider === 'openai' ? pingResponse.model : pingResponse.claude_model
-      setCurrentModel(model || '')
+      const pingResponse = await apiRequest<{ model?: string; claude_model?: string }>('/api/chat/ping')
+      const model = pingResponse.claude_model || pingResponse.model || ''
+      setCurrentModel(model)
     } catch (e) {
       console.warn('Failed to get model from ping endpoint:', e)
+      setCurrentModel('')
     }
   }
 
@@ -270,31 +272,21 @@ Guidelines:
     }
   }, [messages, loading, streamingMessage])
 
-  // Refetch model when provider changes
-  useEffect(() => {
-    fetchCurrentModel()
-  }, [provider])
-
   // Get display model name
   const getDisplayModel = () => {
     if (!currentModel) return ''
     
-    if (provider === 'claude') {
-      // Map Claude model codes to display names
-      switch (currentModel.toLowerCase()) {
-        case 'sonnet':
-          return 'Sonnet'
-        case 'opus':
-          return 'Opus' 
-        case 'haiku':
-          return 'Haiku'
-        default:
-          return currentModel
-      }
+    // Map Claude model codes to display names
+    switch (currentModel.toLowerCase()) {
+      case 'sonnet':
+        return 'Sonnet'
+      case 'opus':
+        return 'Opus' 
+      case 'haiku':
+        return 'Haiku'
+      default:
+        return currentModel
     }
-    
-    // For OpenAI, return as-is
-    return currentModel
   }
 
   const appendAgentAction = useCallback((action: AgentAction) => {
@@ -679,7 +671,7 @@ Guidelines:
 
     // Show preview of the query being sent
     const queryPreview = content.length > 80 ? content.slice(0, 80) + '...' : content
-    recordAgentAction('progress', `Sending: "${queryPreview}"`, `Provider: ${provider}`, sessionId)
+    recordAgentAction('progress', `Sending: "${queryPreview}"`, 'Provider: Claude Agent SDK', sessionId)
 
     setProgressMessage(null)
     setProgressType(null)
@@ -687,14 +679,12 @@ Guidelines:
 
     try {
       const res = await apiRequest<ChatCompletionResponse>(
-        '/api/chat/complete',
+        '/api/chat/agent_query',
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             messages: next, // Send messages with context to AI
-            provider: provider,
-            enable_fallback: enableFallback,
             session_id: sessionId
           }),
         }
@@ -920,7 +910,7 @@ Guidelines:
                     <>
                       {' '}
                       <span className="text-xs text-gray-500 dark:text-gray-400">
-                        ({provider === 'openai' ? 'OpenAI' : 'Claude'} {getDisplayModel()})
+                        (Claude {getDisplayModel()})
                       </span>
                     </>
                   )}
@@ -1050,7 +1040,7 @@ Guidelines:
                 <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10">
                   <Wrench className="h-4 w-4" />
                   <span className="text-sm font-medium">
-                    {provider === 'openai' ? 'OpenAI' : 'Claude'}
+                    Claude
                     {currentModel && (
                       <>
                         {' '}
@@ -1158,44 +1148,8 @@ Guidelines:
               <div className="space-y-4">
                 <div>
                   <div className="text-sm font-medium mb-2">AI Provider</div>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="provider"
-                        value="openai"
-                        checked={provider === 'openai'}
-                        onChange={(e) => setProvider(e.target.value as 'openai' | 'claude')}
-                        className="text-blue-600"
-                      />
-                      <span className="text-sm">OpenAI</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="radio"
-                        name="provider"
-                        value="claude"
-                        checked={provider === 'claude'}
-                        onChange={(e) => setProvider(e.target.value as 'openai' | 'claude')}
-                        className="text-blue-600"
-                      />
-                      <span className="text-sm">Claude</span>
-                    </label>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={enableFallback}
-                      onChange={(e) => setEnableFallback(e.target.checked)}
-                      className="rounded text-blue-600"
-                    />
-                    <span className="text-sm">Enable fallback to other provider on failure</span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1 ml-6">
-                    If the selected provider fails, automatically try the other one
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                    Chat now runs exclusively on the Claude Agent SDK.
                   </p>
                 </div>
 
@@ -1203,7 +1157,7 @@ Guidelines:
                   <div className="pt-2 border-t border-gray-200">
                     <div className="text-sm font-medium mb-2">Available Tools</div>
                     <div className="text-xs text-gray-600 mb-2">
-                      Both providers have access to these tools for enhanced functionality
+                      Claude Agent SDK can use these tools for enhanced functionality
                     </div>
                     <ul className="space-y-1">
                       {availableTools.map((tool) => (

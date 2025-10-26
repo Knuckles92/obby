@@ -1,5 +1,7 @@
 # Hybrid Chat Strategy: OpenAI + Claude
 
+> **Legacy Warning:** Production now uses a Claude-only endpoint (`/api/chat/agent_query`). The notes below capture the original hybrid approach for archival purposes.
+
 ## Architecture Decision
 
 **Use OpenAI for simple chat, Claude for tool-based chat**
@@ -71,7 +73,7 @@ async def chat_with_history(request: Request):
             return await chat_with_openai(messages, data)
     
     except Exception as e:
-        logger.error(f"/api/chat/complete failed: {e}")
+        logger.error(f"/api/chat/agent_query failed: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
@@ -229,16 +231,16 @@ If cost is a concern, you can:
 ## Testing
 
 ```bash
-# Test simple chat (OpenAI)
-curl -X POST http://localhost:8000/api/chat/complete \
+# Legacy hybrid test - simple chat (OpenAI path removed in production)
+curl -X POST http://localhost:8000/api/chat/agent_query \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "Hello"}],
     "use_tools": false
   }'
 
-# Test tool chat (Claude)
-curl -X POST http://localhost:8000/api/chat/complete \
+# Legacy hybrid test - tool chat (Claude)
+curl -X POST http://localhost:8000/api/chat/agent_query \
   -H "Content-Type: application/json" \
   -d '{
     "messages": [{"role": "user", "content": "What files changed recently?"}],
