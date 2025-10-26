@@ -215,29 +215,64 @@ class NoteChangeHandler(FileSystemEventHandler):
         """Process a detected note change using file tracker with immediate AI processing."""
         try:
             logging.debug(f"[WATCHDOG] Processing {change_type} change in: {file_path.name}")
-            
+
             # Use file tracker to process the change
             if self.file_tracker:
                 version_id = self.file_tracker.track_file_change(str(file_path), change_type)
-                
+
                 # Enhanced logging for debugging
                 if version_id:
                     logging.info(f"[WATCHDOG] Successfully processed {change_type} change in {file_path.name} (version_id: {version_id})")
-                    
+
+                    # Broadcast file update to connected clients via SSE
+                    self._broadcast_file_update(file_path, change_type)
+
                     # Trigger immediate AI processing if AI client is available
                     if self.ai_client and change_type in ['created', 'modified']:
                         self._process_with_ai_immediate(str(file_path), version_id)
-                    
+
                 else:
                     logging.info(f"[WATCHDOG] File tracker returned None for {change_type} change in {file_path.name} - no content change detected")
-                
+
             else:
                 logging.warning("[WATCHDOG] File tracker not available, using legacy processing")
                 # Fallback to legacy processing if no file tracker
                 self._legacy_process_note_change(file_path)
-                
+
         except Exception as e:
             logging.error(f"[WATCHDOG] Error processing note change in {file_path.name}: {e}")
+
+    def _broadcast_file_update(self, file_path, change_type='modified'):
+        """Broadcast file update to SSE clients."""
+        try:
+            # Import here to avoid circular dependency
+            from routes.files import notify_file_update
+
+            # Calculate relative path from root folder for consistency with frontend
+            try:
+                from pathlib import Path
+                root_folder = Path(__file__).parent.parent
+                relative_path = Path(file_path).relative_to(root_folder)
+                path_str = str(relative_path).replace('\\', '/')
+            except ValueError:
+                # Fallback to full path if not within root
+                path_str = str(file_path).replace('\\', '/')
+
+            # Read file content if modified/created
+            content = None
+            if change_type in ['modified', 'created']:
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                except Exception as e:
+                    logging.warning(f"[WATCHDOG] Could not read file content for SSE broadcast: {e}")
+
+            # Notify SSE clients
+            notify_file_update(path_str, event_type=change_type, content=content)
+            logging.info(f"[WATCHDOG] Broadcasted {change_type} update for: {path_str}")
+
+        except Exception as e:
+            logging.error(f"[WATCHDOG] Failed to broadcast file update: {e}")
     
     def _process_with_ai_immediate(self, file_path: str, version_id: int):
         """Process file content immediately with AI for semantic analysis."""

@@ -24,12 +24,102 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
+  const [liveUpdateReceived, setLiveUpdateReceived] = useState(false)
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const eventSourceRef = useRef<EventSource | null>(null)
 
   // Derived state
   const isDirty = content !== originalContent
   const hasUnsavedChanges = isDirty && mode === 'edit'
+
+  // Connect to file update stream for live refresh
+  useEffect(() => {
+    const connectToFileUpdates = () => {
+      try {
+        const eventSource = new EventSource('/api/files/updates/stream')
+        eventSourceRef.current = eventSource
+
+        eventSource.onopen = () => {
+          console.log('Connected to file updates stream')
+        }
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            console.log('[File Updates] Received event:', data)
+
+            if (!data.type || data.type === 'keepalive' || data.type === 'connected') {
+              return
+            }
+
+            // Handle file update events
+            if (data.type === 'modified' && data.filePath && filePath) {
+              // Normalize paths for comparison (handle both relative and absolute paths)
+              const updatedPath = data.filePath.replace(/\\/g, '/').toLowerCase()
+              const currentPath = filePath.replace(/\\/g, '/').toLowerCase()
+
+              console.log('[File Updates] Path comparison:', {
+                updatedPath,
+                currentPath,
+                matches: updatedPath === currentPath || updatedPath.includes(currentPath) || currentPath.includes(updatedPath)
+              })
+
+              // Check if the updated file is the one currently being viewed
+              if (updatedPath === currentPath || updatedPath.includes(currentPath) || currentPath.includes(updatedPath)) {
+                // Only auto-refresh in preview mode to avoid disrupting editing
+                if (mode === 'preview') {
+                  console.log('[File Updates] Refreshing content for current file...')
+
+                  // Update content from the event if provided, otherwise refetch
+                  if (data.content !== undefined) {
+                    setContent(data.content)
+                    setOriginalContent(data.content)
+                    setLiveUpdateReceived(true)
+                    setTimeout(() => setLiveUpdateReceived(false), 2000)
+                  } else {
+                    // Refetch file content
+                    fetchFileContent(filePath).then((fileData) => {
+                      setContent(fileData.content)
+                      setOriginalContent(fileData.content)
+                      setLastModified(fileData.lastModified)
+                      setLiveUpdateReceived(true)
+                      setTimeout(() => setLiveUpdateReceived(false), 2000)
+                    }).catch((err) => {
+                      console.error('[File Updates] Failed to refresh file content:', err)
+                    })
+                  }
+                } else {
+                  console.log('[File Updates] File update received but in edit mode, skipping auto-refresh')
+                }
+              }
+            }
+          } catch (err) {
+            console.error('[File Updates] Error parsing file update event:', err)
+          }
+        }
+
+        eventSource.onerror = (error) => {
+          console.error('File updates SSE connection error:', error)
+          if (eventSourceRef.current?.readyState === EventSource.CLOSED) {
+            eventSourceRef.current = null
+          }
+        }
+      } catch (error) {
+        console.error('Failed to establish file updates SSE connection:', error)
+      }
+    }
+
+    connectToFileUpdates()
+
+    // Cleanup on unmount
+    return () => {
+      if (eventSourceRef.current) {
+        eventSourceRef.current.close()
+        eventSourceRef.current = null
+      }
+    }
+  }, [filePath, mode])
 
   // Load file content when filePath changes
   useEffect(() => {
@@ -184,12 +274,22 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
               )}
             </div>
 
-            {/* Unsaved indicator */}
-            {isDirty && (
-              <div className="ml-4 px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-medium rounded-full">
-                Unsaved changes
-              </div>
-            )}
+            <div className="ml-4 flex items-center gap-2">
+              {/* Live update indicator */}
+              {liveUpdateReceived && (
+                <div className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs font-medium rounded-full flex items-center gap-1.5 animate-pulse">
+                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                  Live update
+                </div>
+              )}
+
+              {/* Unsaved indicator */}
+              {isDirty && (
+                <div className="px-3 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100 text-xs font-medium rounded-full">
+                  Unsaved changes
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Toolbar */}
@@ -274,10 +374,12 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
             placeholder="Start writing..."
           />
         ) : (
-          <div className="prose prose-sm sm:prose lg:prose-lg dark:prose-invert max-w-none p-6">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-              {content || '*No content*'}
-            </ReactMarkdown>
+          <div className="w-full h-full overflow-auto p-6">
+            <div className="prose dark:prose-invert max-w-none w-full">
+              <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+                {content || '*No content*'}
+              </ReactMarkdown>
+            </div>
           </div>
         )}
       </div>

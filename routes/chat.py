@@ -684,6 +684,13 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
                                 text_preview = block.text[:100] + "..." if len(block.text) > 100 else block.text
                                 logger.info(f"   Text: {text_preview}")
                                 response_parts.append(block.text)
+
+                                # Stream text chunk to frontend via SSE
+                                if session_id and block.text:
+                                    notify_chat_progress(session_id, 'assistant_text_chunk', block.text, {
+                                        'chunk': block.text,
+                                        'is_complete': False
+                                    })
                     else:
                         logger.warning(f"   ⚠️  AssistantMessage has no content attribute")
                 
@@ -737,6 +744,13 @@ async def _chat_with_claude_tools(messages: List[Dict], data: Dict, session_id: 
 
         logger.info(f"✅ Claude completed successfully in {elapsed:.2f}s")
         logger.info(f"📊 Response stats: {message_count} messages, {len(response_parts)} text blocks, {len(reply)} chars")
+
+        # Send text completion marker
+        if session_id:
+            notify_chat_progress(session_id, 'assistant_text_chunk', '', {
+                'chunk': '',
+                'is_complete': True
+            })
 
         # Send completion progress update
         if session_id:

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X } from 'lucide-react'
+import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2 } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
@@ -131,11 +131,15 @@ export default function Chat() {
   const [, setProgressType] = useState<string | null>(null)
   const [agentActions, setAgentActions] = useState<AgentAction[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
+  const [headerMinimized, setHeaderMinimized] = useState(false)
+  const [streamingMessage, setStreamingMessage] = useState<string>('')
+  const [isStreaming, setIsStreaming] = useState(false)
 
   // File browser and note editor state
   const [fileBrowserOpen, setFileBrowserOpen] = useState(true)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [includeNoteContext, setIncludeNoteContext] = useState(true)
+  const [contextBeingUsed, setContextBeingUsed] = useState(false)
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
   const [pendingFileSelection, setPendingFileSelection] = useState<string | null>(null)
 
@@ -223,7 +227,7 @@ Guidelines:
     if (scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
-  }, [messages, loading])
+  }, [messages, loading, streamingMessage])
 
   const appendAgentAction = useCallback((action: AgentAction) => {
     setAgentActions((prev) => {
@@ -292,6 +296,22 @@ Guidelines:
 
           if (eventType === 'connected') {
             recordAgentAction('progress', data.message || 'Connected to agent telemetry', null, sessionId, undefined, data.timestamp)
+            return
+          }
+
+          // Handle streaming text chunks
+          if (eventType === 'assistant_text_chunk') {
+            const chunk = data.chunk || ''
+            const isComplete = data.is_complete || false
+
+            if (isComplete) {
+              // Streaming is complete
+              setIsStreaming(false)
+            } else if (chunk) {
+              // Append chunk to streaming message
+              setIsStreaming(true)
+              setStreamingMessage((prev) => prev + chunk)
+            }
             return
           }
 
@@ -386,17 +406,23 @@ Guidelines:
     if (!content || loading) return
     setError(null)
 
+    // Reset streaming state
+    setStreamingMessage('')
+    setIsStreaming(false)
+
     // Prepare messages with optional note context
     let messagesToSend = [...messages]
     let userMessage = content
+    let displayMessage = content
 
     // Include note context if enabled and file is selected
     if (selectedFile && includeNoteContext) {
+      setContextBeingUsed(true)
       try {
         const { fetchFileContent } = await import('../utils/fileOperations')
         const fileData = await fetchFileContent(selectedFile)
 
-        // Add note content as context before user message
+        // Add note content as context before user message (for AI only)
         const contextMessage = `[Context: User is currently viewing the file "${fileData.name}" at path "${selectedFile}"]\n\n\`\`\`markdown\n${fileData.content}\n\`\`\`\n\n---\n\nUser's question about this note:`
         userMessage = `${contextMessage}\n\n${content}`
 
@@ -408,7 +434,9 @@ Guidelines:
     }
 
     const next = [...messagesToSend, { role: 'user', content: userMessage }]
-    setMessages(next)
+    // Store display version separately
+    const displayMessages = [...messagesToSend, { role: 'user', content: displayMessage }]
+    setMessages(displayMessages)
     setInput('')
     setLoading(true)
 
@@ -432,7 +460,7 @@ Guidelines:
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            messages: next,
+            messages: next, // Send messages with context to AI
             provider: provider,
             enable_fallback: enableFallback,
             session_id: sessionId
@@ -461,14 +489,38 @@ Guidelines:
       }
 
       if (res.tools_used && Array.isArray(res.conversation) && res.conversation.length > 0) {
-        setMessages(res.conversation)
+        // Clean the conversation to remove context from user messages
+        const cleanConversation = res.conversation.map(msg =>
+          msg.role === 'user' && msg.content !== displayMessage ?
+            { ...msg, content: displayMessage } : msg
+        )
+        setMessages(cleanConversation)
       } else if (Array.isArray(res.conversation) && res.conversation.length > 0) {
-        setMessages(res.conversation)
+        // Clean the conversation to remove context from user messages
+        const cleanConversation = res.conversation.map(msg =>
+          msg.role === 'user' && msg.content !== displayMessage ?
+            { ...msg, content: displayMessage } : msg
+        )
+        setMessages(cleanConversation)
       } else {
         setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
       }
+
+      // Clear streaming state after final message is received
+      setStreamingMessage('')
+      setIsStreaming(false)
+
+      // Reset context being used indicator
+      setContextBeingUsed(false)
     } catch (e: any) {
       const errorMessage = e?.message || 'Chat failed'
+
+      // Clear streaming state on error
+      setStreamingMessage('')
+      setIsStreaming(false)
+
+      // Reset context being used indicator
+      setContextBeingUsed(false)
       setError(errorMessage)
       recordAgentAction('error', 'Chat request failed', errorMessage, sessionId)
     } finally {
@@ -576,57 +628,118 @@ Guidelines:
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Compact Header */}
-      <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-6 py-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
-              <MessageSquare className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Chat with AI</h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Claude or OpenAI with note context</p>
-            </div>
-          </div>
+    <div className="h-[94dvh] flex flex-col m-0 p-0">
+      {/* Header */}
+      <div className={`flex-shrink-0 transition-all duration-300 ${
+        headerMinimized 
+          ? 'border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' 
+          : ''
+      }`}>
+        {headerMinimized ? (
+          /* Compact Header */
+          <div className="px-4 py-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-lg">
+                  <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                </div>
+                <span className="font-medium text-gray-900 dark:text-gray-100">Chat</span>
+              </div>
 
-          <div className="flex items-center space-x-3">
-            {/* Note context indicator */}
-            {selectedFile && includeNoteContext && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-lg text-sm">
-                <FileText className="h-4 w-4" />
-                <span>Context: {selectedFile.split('/').pop()}</span>
+              <div className="flex items-center space-x-2">
+                {/* Compact note context indicator */}
+                {selectedFile && includeNoteContext && (
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg text-xs">
+                    <FileText className="h-3 w-3" />
+                    <span>{selectedFile.split('/').pop()}</span>
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" title="Context included in background"></div>
+                    <button
+                      onClick={() => setIncludeNoteContext(false)}
+                      className="hover:bg-blue-200 dark:hover:bg-blue-800 rounded p-0.5"
+                      title="Remove from context"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  </div>
+                )}
+                
                 <button
-                  onClick={() => setIncludeNoteContext(false)}
-                  className="ml-1 hover:bg-green-200 dark:hover:bg-green-800 rounded p-0.5"
-                  title="Remove from context"
+                  onClick={() => setHeaderMinimized(false)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                  title="Expand header"
                 >
-                  <X className="h-3 w-3" />
+                  <Maximize2 className="h-4 w-4" />
                 </button>
               </div>
-            )}
-            {selectedFile && !includeNoteContext && (
-              <button
-                onClick={() => setIncludeNoteContext(true)}
-                className="px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm hover:bg-gray-200 dark:hover:bg-gray-700"
-              >
-                Include note in context
-              </button>
-            )}
-
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-lg text-sm">
-              <Wrench className="h-4 w-4" />
-              {provider === 'openai' ? 'OpenAI' : 'Claude'}
             </div>
-            <button
-              onClick={() => setShowSettings(!showSettings)}
-              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300"
-              title="Chat Settings"
-            >
-              <Settings className="h-5 w-5" />
-            </button>
           </div>
-        </div>
+        ) : (
+          /* Modern Header */
+          <div className="relative overflow-hidden rounded-2xl mb-8 p-8 text-white shadow-2xl" style={{
+            background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
+          }}>
+            <div className="absolute inset-0 bg-black/10"></div>
+            <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+            <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+
+            <div className="relative z-10 flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                    <MessageSquare className="h-6 w-6" />
+                  </div>
+                  <h1 className="text-3xl font-bold tracking-tight">Chat with AI</h1>
+                </div>
+                <p className="text-blue-100 text-lg">Interactive AI conversation with note context and file operations</p>
+              </div>
+
+              <div className="flex items-center space-x-4">
+                {/* Note context indicator */}
+                {selectedFile && includeNoteContext && (
+                  <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10">
+                    <FileText className="h-4 w-4" />
+                    <span className="text-sm font-medium">Context: {selectedFile.split('/').pop()}</span>
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" title="Context included in background"></div>
+                    <button
+                      onClick={() => setIncludeNoteContext(false)}
+                      className="ml-1 hover:bg-white/20 rounded p-0.5 transition-colors"
+                      title="Remove from context"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                )}
+                {selectedFile && !includeNoteContext && (
+                  <button
+                    onClick={() => setIncludeNoteContext(true)}
+                    className="px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10 hover:bg-white/20 text-white font-medium text-sm transition-colors"
+                  >
+                    Include note in background context
+                  </button>
+                )}
+
+                <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10">
+                  <Wrench className="h-4 w-4" />
+                  <span className="text-sm font-medium">{provider === 'openai' ? 'OpenAI' : 'Claude'}</span>
+                </div>
+                <button
+                  onClick={() => setShowSettings(!showSettings)}
+                  className="p-2 rounded-xl backdrop-blur-sm border border-white/30 bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Chat Settings"
+                >
+                  <Settings className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={() => setHeaderMinimized(true)}
+                  className="p-2 rounded-xl backdrop-blur-sm border border-white/30 bg-white/10 hover:bg-white/20 text-white transition-colors"
+                  title="Minimize header"
+                >
+                  <Minimize2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Three-column layout */}
@@ -757,7 +870,9 @@ Guidelines:
                 <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>Start a conversation</p>
                 {selectedFile && includeNoteContext && (
-                  <p className="text-xs mt-2">Your selected note will be included as context</p>
+                  <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
+                    📄 Note context will be included in the background
+                  </p>
                 )}
               </div>
             )}
@@ -765,8 +880,13 @@ Guidelines:
               {messages.filter((m) => m.role !== 'system' && m.role !== 'tool').map((m, idx) => (
                 <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {m.role === 'user' ? (
-                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-blue-600 text-white">
+                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-blue-600 text-white relative">
                       {m.content}
+                      {contextBeingUsed && idx === messages.filter((msg) => msg.role !== 'system' && msg.role !== 'tool').length - 1 && (
+                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-blue-500 rounded-full animate-pulse" title="Context included in background">
+                          <FileText className="h-2.5 w-2.5 text-white mx-auto mt-0.5" />
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
@@ -779,7 +899,23 @@ Guidelines:
                   )}
                 </div>
               ))}
-              {loading && (
+              {isStreaming && streamingMessage && (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                        {streamingMessage}
+                      </ReactMarkdown>
+                    </div>
+                    <div className="flex items-center gap-1 mt-2">
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse"></div>
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.2s' }}></div>
+                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" style={{ animationDelay: '0.4s' }}></div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {loading && !isStreaming && (
                 <div className="text-gray-500 text-sm">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">

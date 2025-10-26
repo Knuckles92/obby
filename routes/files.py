@@ -4,9 +4,13 @@ Handles file events, diffs, history, file tree operations, and file content read
 """
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import os
+import json
+import queue
+import threading
+from datetime import datetime
 from pathlib import Path
 from database.queries import FileQueries, EventQueries
 from services.file_service import get_file_service
@@ -14,6 +18,86 @@ from services.file_service import get_file_service
 logger = logging.getLogger(__name__)
 
 files_bp = APIRouter(prefix='/api/files', tags=['files'])
+
+# SSE client management for file content updates
+file_update_clients = {}
+file_update_lock = threading.Lock()
+
+
+def notify_file_update(file_path: str, event_type: str = 'modified', content: str = None):
+    """Notify SSE clients of file content updates"""
+    try:
+        event = {
+            'type': event_type,
+            'filePath': file_path,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+        if content is not None:
+            event['content'] = content
+
+        logger.info(f"[File Updates] Broadcasting update for: {file_path} to {len(file_update_clients)} clients")
+
+        with file_update_lock:
+            disconnected_clients = []
+            for client_id, client_queue in file_update_clients.items():
+                try:
+                    client_queue.put_nowait(event)
+                    logger.debug(f"[File Updates] Sent to client {client_id}: {file_path}")
+                except queue.Full:
+                    logger.warning(f"[File Updates] Queue full for client {client_id}")
+                    disconnected_clients.append(client_id)
+                except Exception as e:
+                    logger.warning(f"[File Updates] Failed to notify client {client_id}: {e}")
+                    disconnected_clients.append(client_id)
+
+            # Remove disconnected clients
+            for client_id in disconnected_clients:
+                del file_update_clients[client_id]
+                logger.info(f"[File Updates] Removed disconnected client {client_id}")
+
+    except Exception as e:
+        logger.error(f"[File Updates] Failed to notify: {e}")
+
+
+@files_bp.get('/updates/stream')
+async def file_updates_stream():
+    """SSE endpoint for real-time file content updates"""
+    def event_stream():
+        client_id = f"client-{datetime.now().timestamp()}"
+        client_queue = queue.Queue(maxsize=100)
+
+        with file_update_lock:
+            file_update_clients[client_id] = client_queue
+
+        logger.info(f"[File Updates] New client connected: {client_id}")
+
+        try:
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connected', 'clientId': client_id, 'message': 'Connected to file updates'})}\n\n"
+
+            while True:
+                try:
+                    # Wait for events with timeout
+                    event = client_queue.get(timeout=30)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except queue.Empty:
+                    # Send keepalive
+                    yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+                except Exception as e:
+                    logger.error(f"File update SSE stream error: {e}")
+                    break
+        finally:
+            # Remove client from list when disconnected
+            with file_update_lock:
+                if client_id in file_update_clients:
+                    del file_update_clients[client_id]
+                    logger.info(f"File update client {client_id} disconnected")
+
+    return StreamingResponse(event_stream(), media_type='text/event-stream', headers={
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'Access-Control-Allow-Origin': '*'
+    })
 
 
 @files_bp.get('/events')
@@ -518,6 +602,13 @@ async def write_file_content(file_path: str, request: Request):
         file_service = get_file_service()
         result = file_service.write_file_content(file_path, content, create_backup)
         logger.info(f"Successfully wrote file: {file_path}")
+
+        # Notify connected clients about the file update using the relativePath
+        # This ensures consistency with frontend file paths
+        notification_path = result.get('relativePath', file_path)
+        logger.info(f"Sending file update notification for: {notification_path}")
+        notify_file_update(notification_path, event_type='modified', content=content)
+
         return result
     except ValueError as e:
         logger.warning(f"Invalid file path: {file_path} - {e}")
