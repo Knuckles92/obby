@@ -581,8 +581,8 @@ export default function SummaryNotes() {
       setBulkDeleteLoading(true)
       const filenames = Array.from(selectedItems)
       
-      const response = await apiFetch('/api/summary-notes/bulk', {
-        method: 'DELETE',
+      const response = await apiFetch('/api/summary-notes/bulk/delete', {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },

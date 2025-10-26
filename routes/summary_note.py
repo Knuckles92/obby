@@ -124,7 +124,7 @@ async def delete_summary_note(filename: str):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-@summary_note_bp.delete('/bulk')
+@summary_note_bp.post('/bulk/delete')
 async def delete_multiple_summary_notes(request: Request):
     """Delete multiple summary notes in bulk"""
     try:
