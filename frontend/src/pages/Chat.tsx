@@ -200,21 +200,6 @@ export default function Chat() {
     }
   }, [selectedFile])
 
-  // Monitor for modifications to context files and show notifications
-  useEffect(() => {
-    // Check which modified files are in our current context
-    const modifiedInContext = contextFiles.filter(file => modifiedContextFiles.has(file))
-
-    if (modifiedInContext.length > 0) {
-      // Show notification for each modified context file
-      modifiedInContext.forEach(file => {
-        const fileName = file.split('/').pop() || file
-        recordAgentAction('warning', `Context file updated: ${fileName}`,
-          'File was modified - will fetch fresh content on next message', undefined)
-      })
-    }
-  }, [modifiedContextFiles, contextFiles, recordAgentAction])
-
   useEffect(() => {
     setMessages([
       {
@@ -344,6 +329,21 @@ Guidelines:
     },
     [appendAgentAction, currentSessionId]
   )
+
+  // Monitor for modifications to context files and show notifications
+  useEffect(() => {
+    // Check which modified files are in our current context
+    const modifiedInContext = contextFiles.filter(file => modifiedContextFiles.has(file))
+
+    if (modifiedInContext.length > 0) {
+      // Show notification for each modified context file
+      modifiedInContext.forEach(file => {
+        const fileName = file.split('/').pop() || file
+        recordAgentAction('warning', `Context file updated: ${fileName}`,
+          'File was modified - will fetch fresh content on next message', undefined)
+      })
+    }
+  }, [modifiedContextFiles, contextFiles, recordAgentAction])
 
   const disconnectProgressSSE = useCallback(() => {
     if (eventSourceRef.current) {
