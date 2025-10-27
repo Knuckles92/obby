@@ -34,7 +34,11 @@
       "Bash(where:*)",
       "Read(//mnt/c/Users/Big D/Documents/ShareX/Screenshots/2025-10/**)",
       "Bash(python3:*)",
-      "Read(//dev/**)"
+      "Read(//dev/**)",
+      "Bash(mount:*)",
+      "Bash(./wsl_venv/bin/python:*)",
+      "Bash(journalctl:*)",
+      "Bash(dmesg:*)"
     ],
     "deny": []
   },

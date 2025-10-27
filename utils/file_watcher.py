@@ -6,9 +6,11 @@ Uses watchdog for instant, efficient file change detection.
 import time
 import logging
 import os
+import sys
 from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
+from watchdog.observers.polling import PollingObserver
 from .ignore_handler import IgnoreHandler
 from .watch_handler import WatchHandler
 from database.queries import EventQueries
@@ -289,11 +291,11 @@ class NoteChangeHandler(FileSystemEventHandler):
 
 class FileWatcher:
     """Main file watcher class for managing the observer."""
-    
+
     def __init__(self, notes_folder, session_summary_path, utils_folder=None, file_tracker=None):
         """
         Initialize the file watcher.
-        
+
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
             session_summary_path: Path to the session summary file
@@ -301,16 +303,48 @@ class FileWatcher:
             file_tracker: FileContentTracker instance for change tracking
         """
         self.notes_folder = Path(notes_folder)
-        
+
         # Set up utils folder path
         if utils_folder is None:
             self.utils_folder = self.notes_folder / "utils"
         else:
             self.utils_folder = Path(utils_folder)
-        
+
         self.handler = NoteChangeHandler(notes_folder, session_summary_path, self.utils_folder, file_tracker)
-        self.observer = Observer()
+
+        # Detect WSL + DrvFS environment and use appropriate observer
+        self.observer = self._create_observer()
         self.is_running = False
+
+    def _create_observer(self):
+        """
+        Create appropriate observer based on environment.
+
+        Uses PollingObserver for WSL+DrvFS (Windows filesystem) since inotify
+        doesn't work with DrvFS mounts. Uses regular Observer for native filesystems.
+
+        Returns:
+            Observer or PollingObserver instance
+        """
+        # Check if running on WSL
+        is_wsl = False
+        try:
+            if sys.platform == 'linux':
+                with open('/proc/version', 'r') as f:
+                    is_wsl = 'microsoft' in f.read().lower() or 'wsl' in f.read().lower()
+        except:
+            pass
+
+        # Check if path is on DrvFS (Windows filesystem mount)
+        is_drvfs = str(self.notes_folder.resolve()).startswith('/mnt/')
+
+        if is_wsl and is_drvfs:
+            logging.info("[WATCHDOG] Detected WSL + DrvFS environment - using PollingObserver for compatibility")
+            logging.info("[WATCHDOG] PollingObserver will check for file changes every 1 second")
+            return PollingObserver(timeout=1.0)  # Check every 1 second
+        else:
+            logging.info("[WATCHDOG] Using standard Observer with inotify for native filesystem")
+            return Observer()
         
     def start(self):
         """Start watching for file changes."""
