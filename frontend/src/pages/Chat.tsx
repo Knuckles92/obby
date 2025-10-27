@@ -99,17 +99,17 @@ const actionTypeLabel = (type: AgentActionType) => {
 const actionStyle = (type: AgentActionType) => {
   switch (type) {
     case 'tool_call':
-      return 'border-blue-200 bg-blue-50 text-blue-800'
+      return 'border-[var(--color-info)] bg-[color-mix(in_srgb,var(--color-info)_10%,transparent)] text-[var(--color-info)]'
     case 'tool_result':
-      return 'border-emerald-200 bg-emerald-50 text-emerald-800'
+      return 'border-[var(--color-success)] bg-[color-mix(in_srgb,var(--color-success)_10%,transparent)] text-[var(--color-success)]'
     case 'assistant_thinking':
-      return 'border-purple-200 bg-purple-50 text-purple-800'
+      return 'border-[var(--color-accent)] bg-[color-mix(in_srgb,var(--color-accent)_10%,transparent)] text-[var(--color-accent)]'
     case 'error':
-      return 'border-red-200 bg-red-50 text-red-800'
+      return 'border-[var(--color-error)] bg-[color-mix(in_srgb,var(--color-error)_10%,transparent)] text-[var(--color-error)]'
     case 'warning':
-      return 'border-amber-200 bg-amber-50 text-amber-800'
+      return 'border-[var(--color-warning)] bg-[color-mix(in_srgb,var(--color-warning)_10%,transparent)] text-[var(--color-warning)]'
     default:
-      return 'border-gray-200 bg-gray-50 text-gray-700'
+      return 'border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)]'
   }
 }
 
@@ -967,8 +967,8 @@ Guidelines:
                   <div
                     className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs cursor-pointer transition-colors ${
                       contextFiles.some(f => modifiedContextFiles.has(f))
-                        ? 'bg-amber-100 dark:bg-amber-900 text-amber-800 dark:text-amber-200 hover:bg-amber-200 dark:hover:bg-amber-800'
-                        : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 hover:bg-blue-200 dark:hover:bg-blue-800'
+                        ? 'bg-[color-mix(in_srgb,var(--color-warning)_20%,transparent)] text-[var(--color-warning)] hover:bg-[color-mix(in_srgb,var(--color-warning)_30%,transparent)]'
+                        : 'bg-[color-mix(in_srgb,var(--color-info)_20%,transparent)] text-[var(--color-info)] hover:bg-[color-mix(in_srgb,var(--color-info)_30%,transparent)]'
                     }`}
                     onClick={() => setShowContextModal(true)}
                     title={contextFiles.some(f => modifiedContextFiles.has(f))
@@ -980,9 +980,9 @@ Guidelines:
                       {contextFiles.length === 1 ? contextFiles[0].split('/').pop() : `${contextFiles.length} files`}
                     </span>
                     {contextFiles.some(f => modifiedContextFiles.has(f)) ? (
-                      <div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" title="Context files modified - fresh content will be fetched"></div>
+                      <div className="w-1.5 h-1.5 bg-[var(--color-warning)] rounded-full animate-pulse" title="Context files modified - fresh content will be fetched"></div>
                     ) : (
-                      <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-pulse" title="Context included in background"></div>
+                      <div className="w-1.5 h-1.5 bg-[var(--color-info)] rounded-full animate-pulse" title="Context included in background"></div>
                     )}
                     <button
                       onClick={(e) => {
@@ -998,7 +998,7 @@ Guidelines:
                 ) : (
                   <button
                     onClick={() => setShowContextModal(true)}
-                    className="px-2 py-1 bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-lg text-xs hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
+                    className="px-2 py-1 bg-[color-mix(in_srgb,var(--color-info)_20%,transparent)] text-[var(--color-info)] rounded-lg text-xs hover:bg-[color-mix(in_srgb,var(--color-info)_30%,transparent)] transition-colors"
                     title="Add context files"
                   >
                     + Add Context
@@ -1139,7 +1139,7 @@ Guidelines:
             {/* Left resize handle */}
             <div
               onMouseDown={handleMouseDownLeft}
-              className="w-1 flex-shrink-0 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors"
+              className="w-1 flex-shrink-0 bg-[var(--color-border)] hover:bg-[var(--color-primary)] cursor-col-resize transition-colors"
               style={{ userSelect: 'none' }}
             />
           </>
@@ -1177,7 +1177,7 @@ Guidelines:
         {/* Right resize handle */}
         <div
           onMouseDown={handleMouseDownRight}
-          className="w-1 flex-shrink-0 bg-gray-200 dark:bg-gray-700 hover:bg-blue-400 dark:hover:bg-blue-500 cursor-col-resize transition-colors"
+          className="w-1 flex-shrink-0 bg-[var(--color-border)] hover:bg-[var(--color-primary)] cursor-col-resize transition-colors"
           style={{ userSelect: 'none' }}
         />
 
@@ -1235,16 +1235,16 @@ Guidelines:
               {messages.filter((m) => m.role !== 'system' && m.role !== 'tool').map((m, idx) => (
                 <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                   {m.role === 'user' ? (
-                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-blue-600 text-white relative">
+                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-[var(--color-primary)] text-[var(--color-text-inverse)] relative">
                       {m.content}
                       {contextBeingUsed && idx === messages.filter((msg) => msg.role !== 'system' && msg.role !== 'tool').length - 1 && (
-                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-blue-500 rounded-full animate-pulse" title="Context included in background">
-                          <FileText className="h-2.5 w-2.5 text-white mx-auto mt-0.5" />
+                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-[var(--color-accent)] rounded-full animate-pulse" title="Context included in background">
+                          <FileText className="h-2.5 w-2.5 text-[var(--color-text-inverse)] mx-auto mt-0.5" />
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
                       <div className="prose prose-sm dark:prose-invert max-w-none">
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                           {m.content}
@@ -1257,7 +1257,7 @@ Guidelines:
               {/* Show current streaming turn if we have content */}
               {isStreaming && streamingMessage && (
                 <div className="flex justify-start">
-                  <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                  <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
                     <div className="prose prose-sm dark:prose-invert max-w-none">
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                         {streamingMessage}
@@ -1277,7 +1277,7 @@ Guidelines:
           <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
             <div className="flex flex-col gap-2">
               <input
-                className="w-full border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] text-sm"
                 placeholder="Type your message…"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
@@ -1288,7 +1288,7 @@ Guidelines:
                 <button
                   onClick={sendMessage}
                   disabled={loading || !input.trim()}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-text-inverse)] hover:bg-[color-mix(in_srgb,var(--color-primary)_80%,black)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
                 >
                   <Send className="h-4 w-4" />
                   {loading ? 'Sending...' : 'Send'}

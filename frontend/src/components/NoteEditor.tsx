@@ -25,6 +25,7 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   const [error, setError] = useState<string | null>(null)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [liveUpdateReceived, setLiveUpdateReceived] = useState(false)
+  const [fileNotFound, setFileNotFound] = useState(false) // Track 404 to prevent retries
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const eventSourceRef = useRef<EventSource | null>(null)
@@ -78,16 +79,23 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
                     setLiveUpdateReceived(true)
                     setTimeout(() => setLiveUpdateReceived(false), 2000)
                   } else {
-                    // Refetch file content
-                    fetchFileContent(filePath).then((fileData) => {
-                      setContent(fileData.content)
-                      setOriginalContent(fileData.content)
-                      setLastModified(fileData.lastModified)
-                      setLiveUpdateReceived(true)
-                      setTimeout(() => setLiveUpdateReceived(false), 2000)
-                    }).catch((err) => {
-                      console.error('[File Updates] Failed to refresh file content:', err)
-                    })
+                    // Refetch file content with error handling (only if not already marked as not found)
+                    if (!fileNotFound) {
+                      fetchFileContent(filePath).then((fileData) => {
+                        setContent(fileData.content)
+                        setOriginalContent(fileData.content)
+                        setLastModified(fileData.lastModified)
+                        setLiveUpdateReceived(true)
+                        setTimeout(() => setLiveUpdateReceived(false), 2000)
+                      }).catch((err) => {
+                        console.error('[File Updates] Failed to refresh file content:', err)
+                        // If file no longer exists, show error but don't keep retrying
+                        if (err.message && err.message.includes('File not found')) {
+                          setError('File was deleted or moved')
+                          setFileNotFound(true)
+                        }
+                      })
+                    }
                   }
                 } else {
                   console.log('[File Updates] File update received but in edit mode, skipping auto-refresh')
@@ -119,7 +127,7 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
         eventSourceRef.current = null
       }
     }
-  }, [filePath, mode])
+  }, [filePath, mode, fileNotFound])
 
   // Load file content when filePath changes
   useEffect(() => {
@@ -129,6 +137,12 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
       setFileName('')
       setLastModified(null)
       setError(null)
+      setFileNotFound(false)
+      return
+    }
+
+    // Skip loading if file was already marked as not found
+    if (fileNotFound) {
       return
     }
 
@@ -142,17 +156,27 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
         setOriginalContent(fileData.content)
         setFileName(fileData.name)
         setLastModified(fileData.lastModified)
+        setFileNotFound(false)
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load file')
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load file'
+        // If file not found, show specific error but don't keep content
+        if (errorMessage.includes('File not found')) {
+          setError('File not found: The file may have been deleted or moved')
+          setFileNotFound(true)
+        } else {
+          setError(errorMessage)
+        }
         setContent('')
         setOriginalContent('')
+        setFileName('')
+        setLastModified(null)
       } finally {
         setLoading(false)
       }
     }
 
     loadFile()
-  }, [filePath])
+  }, [filePath, fileNotFound])
 
   // Handle save
   const handleSave = useCallback(async () => {
@@ -237,20 +261,37 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   }
 
   // Error state
-  if (error && !content) {
+  if (error) {
     return (
       <div className="h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
         <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
         <p className="text-lg font-medium text-gray-900 dark:text-gray-100">Failed to load file</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{error}</p>
-        {onClose && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{error}</p>
+        <div className="flex gap-2">
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            >
+              Close
+            </button>
+          )}
           <button
-            onClick={onClose}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            onClick={() => {
+              setFileNotFound(false)
+              setError(null)
+            }}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
           >
-            Close
+            Retry
           </button>
-        )}
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+          >
+            Refresh Page
+          </button>
+        </div>
       </div>
     )
   }

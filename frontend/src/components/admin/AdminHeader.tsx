@@ -18,8 +18,8 @@ export default function AdminHeader({ systemOnline, loading, onRefresh }: AdminH
       <div className="relative z-10 flex items-center justify-between">
         <div className="space-y-2">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
-              <Shield className="h-6 w-6" />
+            <div className="p-2 bg-white/90 rounded-xl backdrop-blur-sm shadow-md">
+              <Shield className="h-6 w-6 text-gray-800" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight">Administration Panel</h1>
           </div>
@@ -27,8 +27,8 @@ export default function AdminHeader({ systemOnline, loading, onRefresh }: AdminH
         </div>
 
         <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/30 bg-white/10">
-            <div className={`w-2 h-2 rounded-full ${systemOnline ? 'bg-green-400 animate-pulse' : 'bg-yellow-400'}`}></div>
+          <div className="flex items-center space-x-2 px-4 py-2 rounded-full backdrop-blur-sm border border-white/40 bg-white/80 text-gray-700 shadow-md">
+            <div className={`w-2 h-2 rounded-full ${systemOnline ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'}`}></div>
             <span className="text-sm font-medium">
               {systemOnline ? 'System Online' : 'Loading Status'}
             </span>
@@ -37,13 +37,13 @@ export default function AdminHeader({ systemOnline, loading, onRefresh }: AdminH
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group bg-white/20 hover:bg-white/30 border border-white/30 text-white"
+            className="relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group bg-white/90 hover:bg-white border border-white/40 text-gray-800 shadow-lg backdrop-blur-sm"
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
             <div className="relative flex items-center space-x-2">
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-gray-800"></div>
                   <span>Refreshing...</span>
                 </>
               ) : (

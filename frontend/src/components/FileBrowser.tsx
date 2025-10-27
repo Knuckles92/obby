@@ -110,8 +110,8 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
               flex-1 flex items-center justify-center px-4 py-2.5 text-sm font-medium
               border-b-2 transition-colors duration-150
               ${mode === 'tree'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                ? 'border-[var(--color-primary)] text-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]'
+                : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-hover)]'
               }
             `}
           >
@@ -124,8 +124,8 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
               flex-1 flex items-center justify-center px-4 py-2.5 text-sm font-medium
               border-b-2 transition-colors duration-150
               ${mode === 'search'
-                ? 'border-blue-600 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20'
-                : 'border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'
+                ? 'border-[var(--color-primary)] text-[var(--color-primary)] bg-[color-mix(in_srgb,var(--color-primary)_10%,transparent)]'
+                : 'border-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-hover)]'
               }
             `}
           >
@@ -149,7 +149,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
               <p className="text-sm text-center mb-4">{error}</p>
               <button
                 onClick={loadFileTree}
-                className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] text-sm rounded-md hover:bg-[color-mix(in_srgb,var(--color-primary)_80%,black)]"
               >
                 Retry
               </button>

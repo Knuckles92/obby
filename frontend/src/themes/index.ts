@@ -227,7 +227,7 @@ const classicTheme: Theme = {
   preview: '/themes/classic-preview.jpg',
   colors: {
     primary: '#8b5a3c',
-    secondary: '#6b5b73',
+    secondary: '#e8d5b7',
     accent: '#c69c6d',
     background: '#faf7f2',
     surface: '#f5f1e8',

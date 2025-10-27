@@ -48,7 +48,17 @@ export const apiRequest = async <T = any>(
       const errorData = await response.json()
       // Try multiple possible error field names
       errorMessage = errorData.error || errorData.message || errorData.details || `HTTP ${response.status}: ${response.statusText}`
-    } catch {
+      
+      // For 404 errors, provide clearer messaging
+      if (response.status === 404) {
+        if (endpoint.includes('/files/content/')) {
+          throw new Error(`File not found: The file may have been deleted or moved`)
+        }
+        throw new Error(`Resource not found: ${errorMessage}`)
+      }
+      
+    } catch (parseError) {
+      if (parseError instanceof Error) throw parseError
       errorMessage = `HTTP ${response.status}: ${response.statusText}`
     }
     throw new Error(errorMessage)
