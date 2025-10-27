@@ -27,16 +27,6 @@ import os
 from pathlib import Path
 import uvicorn
 
-# Fix Windows subprocess encoding issues for Claude CLI
-if sys.platform == 'win32':
-    # Force UTF-8 encoding for subprocess communication
-    os.environ['PYTHONIOENCODING'] = 'utf-8'
-    # Set console code page to UTF-8 if possible
-    try:
-        import subprocess as _sp
-        _sp.run(['chcp', '65001'], shell=True, capture_output=True, check=False)
-    except Exception:
-        pass  # Silently fail if chcp doesn't work
 
 # Load environment variables from .env file
 from dotenv import load_dotenv
@@ -63,23 +53,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Ensure Windows event loop supports subprocesses required by Claude CLI
-# This is a backup check in case the initial policy setting was bypassed
-if sys.platform == 'win32':
-    try:
-        current_policy = asyncio.get_event_loop_policy()
-        if not isinstance(current_policy, asyncio.WindowsProactorEventLoopPolicy):
-            asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-            logger.info('Backup: Set Windows Proactor event loop policy for Claude CLI compatibility')
-        else:
-            logger.info('Windows Proactor event loop policy already configured')
-    except Exception as loop_err:
-        logger.warning(f'Could not set Windows Proactor event loop policy: {loop_err}')
-
-# Log encoding configuration for debugging Windows issues
-if sys.platform == 'win32':
-    logger.info(f"Windows platform detected - PYTHONIOENCODING: {os.environ.get('PYTHONIOENCODING', 'not set')}")
-    logger.info(f"Default encoding: {sys.getdefaultencoding()}, stdout encoding: {sys.stdout.encoding}")
 
 app = FastAPI(title='Obby API', version='1.0.0')
 app.add_middleware(
@@ -90,24 +63,9 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-# FastAPI startup event to ensure Windows event loop policy is set
 @app.on_event("startup")
 async def startup_event():
-    """Ensure Windows event loop policy is set on startup (handles uvicorn reloader)."""
-    if sys.platform == 'win32':
-        try:
-            current_policy = asyncio.get_event_loop_policy()
-            if not isinstance(current_policy, asyncio.WindowsProactorEventLoopPolicy):
-                asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-                logger.info('Startup: Set Windows Proactor event loop policy for Claude SDK')
-            else:
-                logger.info('Startup: Windows Proactor event loop policy already active')
-        except Exception as e:
-            logger.warning(f'Startup: Could not set Windows event loop policy: {e}')
-    
-    # Note: Claude Agent SDK client is initialized on-demand by services
-    # No warm-up needed as it uses subprocess calls to claude-code CLI
-    logger.info('Claude Agent SDK ready for on-demand usage')
+    logger.info('Application starting up')
 
 # Global monitoring state
 monitor_instance = None

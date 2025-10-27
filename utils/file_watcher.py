@@ -229,9 +229,7 @@ class NoteChangeHandler(FileSystemEventHandler):
                     logging.info(f"[WATCHDOG] File tracker returned None for {change_type} change in {file_path.name} - no content change detected")
 
             else:
-                logging.warning("[WATCHDOG] File tracker not available, using legacy processing")
-                # Fallback to legacy processing if no file tracker
-                self._legacy_process_note_change(file_path)
+                logging.warning("[WATCHDOG] File tracker not available - change not processed")
 
         except Exception as e:
             logging.error(f"[WATCHDOG] Error processing note change in {file_path.name}: {e}")
@@ -268,12 +266,6 @@ class NoteChangeHandler(FileSystemEventHandler):
         except Exception as e:
             logging.error(f"[WATCHDOG] Failed to broadcast file update: {e}")
     
-    
-    def _legacy_process_note_change(self, file_path):
-        """Legacy processing method for when file tracker is not available."""
-        # Note: AI processing has been decoupled from file monitoring
-        # Legacy method preserved for compatibility but without AI calls
-        logging.info(f"Legacy processing for {file_path.name} - AI analysis will be handled separately")
     
     def _process_tree_change(self, event_type, src_path, dest_path=None, is_directory=False):
         """Process a detected file tree change."""

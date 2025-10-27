@@ -132,14 +132,7 @@ def notify_chat_progress(session_id: str, event_type: str, message: str, data: D
         logger.error(f"Failed to notify chat progress: {e}")
 
 
-@chat_bp.post('/message')
-async def chat_single_message(request: Request):
-    """Stateless chat: send a single message and get a reply."""
-    logger.warning("Stateless chat endpoint is no longer supported.")
-    return JSONResponse(
-        {'error': 'Legacy chat provider has been disabled. Use /api/chat/agent_query with the Claude agent.'},
-        status_code=400
-    )
+
 
 
 @chat_bp.post('/agent_query')
@@ -496,7 +489,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
         elapsed = time.time() - start_time
         logger.error(f"❌ CLINotFoundError after {elapsed:.2f}s")
         logger.error(f"   Error: {str(e)}")
-        logger.error(f"   Install Claude CLI: npm install -g @anthropic-ai/claude-code")
+        logger.error(f"   Install Claude Agent SDK: pip install claude-agent-sdk")
         logger.error(f"   Traceback:\n{traceback.format_exc()}")
         
         # Send error progress update
@@ -515,17 +508,9 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
         logger.error(f"❌ CLIConnectionError after {elapsed:.2f}s")
         logger.error(f"   Error: {error_msg}")
 
-        # Check for specific error types
-        if 'NotImplementedError' in tb_str and sys.platform == 'win32':
-            logger.error("   ⚠️  Windows asyncio subprocess issue detected")
-            logger.error("   Root cause: uvicorn started without WindowsProactorEventLoopPolicy")
-            logger.error("   Solution: The backend.py should set this BEFORE any imports:")
-            logger.error("      if sys.platform == 'win32':")
-            logger.error("          asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())")
-            logger.error("   Then RESTART the backend server completely")
-            
-            # Send error progress update
-            if session_id:
+        # Send error progress update
+        if session_id:
+            if 'Windows' in error_msg or 'subprocess' in error_msg:
                 notify_chat_progress(session_id, 'error', 'Windows subprocess not supported. Restart backend to apply WindowsProactorEventLoopPolicy fix.', {
                     'error_type': 'CLIConnectionError',
                     'elapsed_time': elapsed,

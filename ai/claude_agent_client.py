@@ -52,8 +52,7 @@ class ClaudeAgentClient:
         """
         if not CLAUDE_SDK_AVAILABLE:
             raise ImportError(
-                "claude-agent-sdk is required. Install with: pip install claude-agent-sdk\n"
-                "Also requires: npm install -g @anthropic-ai/claude-code"
+                "claude-agent-sdk is required. Install with: pip install claude-agent-sdk"
             )
         
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
@@ -119,8 +118,8 @@ class ClaudeAgentClient:
             return "\n".join(result) if result else "No analysis generated."
         
         except CLINotFoundError:
-            logger.error("Claude Code CLI not found. Install: npm install -g @anthropic-ai/claude-code")
-            return "Error: Claude Code CLI not installed"
+            logger.error("Claude Agent SDK not available")
+            return "Error: Claude Agent SDK not available"
         except Exception as e:
             logger.error(f"Error analyzing diff: {e}", exc_info=True)
             return f"Error analyzing diff: {str(e)}"
@@ -360,32 +359,31 @@ class ClaudeAgentClient:
 
             # Build comprehensive prompt that encourages direct, structured output
             prompt = f"""You are a technical code analyst summarizing repository activity over the past {time_span}.
-You must rely solely on the provided context; you cannot run commands, inspect the repository, or use external tools.
-Return the final summary only—do not describe analysis steps or planned actions.
-Do not preface your response with phrases like \"I'll analyze\" or \"Let me check\"; respond with the finished summary immediately.
+Analyze the provided context and return a structured summary immediately.
+Do not describe analysis steps, planned actions, or use phrases like \"I'll analyze\" or \"Let me check\".
 
 	Follow this exact format:
-	**Summary**: {length_instruction} Focus on what changed and why it matters, using the highlights below.
+**Summary**: {length_instruction} Focus on what changed and why it matters, using the highlights below.
 **Key Topics**: comma-separated high-level themes (3-5 items)
 **Key Keywords**: comma-separated technical terms (up to 6 items)
 **Overall Impact**: one word (brief, moderate, or significant)
 
-Context to use:
-	Files overview ({len(file_summaries)} total):
-	{files_section}
+Context provided:
+Files overview ({len(file_summaries)} total):
+{files_section}
 
-	Diff excerpts:
-	{diff_context}
+Diff excerpts:
+{diff_context}
 
-	Use the highlights to describe the substantive modifications, naming new sections, behaviors, or documentation themes rather than just counting files.
+Analyze the highlights to describe substantive modifications, naming new sections, behaviors, or documentation themes rather than just counting files.
 	"""
 
             base_options = ClaudeAgentOptions(
                 cwd=str(self.working_dir),
-                allowed_tools=["Read", "Grep", "Glob"],
-                max_turns=10,
+                allowed_tools=[],  # No tools needed - all context is provided
+                max_turns=1,  # Direct response expected, no tool calls
                 model=self.model,
-                system_prompt="You are a technical code analyst who explores files to deliver concise, structured summaries. Use your tools (Read, Grep, Glob) to examine the files mentioned in the context. Always respond in the requested format without planning language."
+                system_prompt="You are a technical code analyst who delivers concise, structured summaries. Analyze the provided context and respond immediately in the requested format without planning language or describing your process."
             )
 
             response_text = await self._execute_summary_query(prompt, base_options)
@@ -400,7 +398,7 @@ Context to use:
         return CLAUDE_SDK_AVAILABLE and bool(self.api_key)
 
     # ========================================================================
-    # SESSION SUMMARY METHODS (Legacy Summaries)
+    # SESSION SUMMARY METHODS
     # ========================================================================
 
     async def summarize_session(
@@ -412,7 +410,6 @@ Context to use:
         """
         Generate a comprehensive session summary by autonomously exploring changed files.
 
-        Replacement for the legacy summarize_minimal() behavior. Instead of receiving diff content,
         Claude explores the files autonomously using Read, Grep, and Glob tools.
 
         Args:
@@ -509,7 +506,7 @@ Focus on substantive modifications and their implications. Explore the files to 
         """
         Generate a summary for a single file change by examining the file.
 
-        Replacement for the legacy summarize_diff() and summarize_tree_change() methods.
+        Claude autonomously analyzes the file using appropriate tools.
 
         Args:
             file_path: Path to the changed file
@@ -556,8 +553,8 @@ Use your tools to investigate the file and understand the change. Then provide t
 
             options = ClaudeAgentOptions(
                 cwd=str(working_dir or self.working_dir),
-                allowed_tools=["Read", "Grep", "Glob"],
-                max_turns=10,
+                allowed_tools=[],  # No tools needed - all context is provided
+                max_turns=1,  # Direct response expected, no tool calls
                 model=self.model,
                 system_prompt=system_prompt
             )
@@ -577,7 +574,7 @@ Use your tools to investigate the file and understand the change. Then provide t
         """
         Generate a concise, punchy title for a session.
 
-        Replacement for the legacy generate_session_title() method.
+        Claude generates an appropriate title based on the file changes.
 
         Args:
             changed_files: List of files that changed
@@ -647,7 +644,7 @@ FILES:
         """
         Generate 2-4 actionable follow-up questions about the changes.
 
-        Replacement for the legacy generate_proposed_questions() method.
+        Claude generates relevant questions based on the changes.
 
         Args:
             changed_files: List of files that changed
