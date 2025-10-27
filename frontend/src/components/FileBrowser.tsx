@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FolderTree, Search, ChevronLeft, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
+import { FolderTree, Search, ChevronLeft, ChevronRight, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import FileTree from './FileTree'
 import FuzzySearch from './FuzzySearch'
 import { getFileTree, FileTreeNode } from '../utils/fileOperations'
@@ -83,13 +83,23 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
           <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
             Files
           </h2>
-          <button
-            onClick={onToggle}
-            className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            title="Close sidebar (Cmd/Ctrl+B)"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={loadFileTree}
+              className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Refresh file tree"
+              disabled={loading}
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+            <button
+              onClick={onToggle}
+              className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              title="Close sidebar (Cmd/Ctrl+B)"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {/* Mode toggle tabs */}

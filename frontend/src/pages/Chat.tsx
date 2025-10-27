@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2 } from 'lucide-react'
+import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2 } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
@@ -147,6 +147,7 @@ export default function Chat() {
   const [pendingFileSelection, setPendingFileSelection] = useState<string | null>(null)
   const [modifiedContextFiles, setModifiedContextFiles] = useState<Set<string>>(new Set())
   const [contextFilesMetadata, setContextFilesMetadata] = useState<Map<string, { lastModified: number, size: number }>>(new Map())
+  const [showClearChatConfirmation, setShowClearChatConfirmation] = useState(false)
 
   // Resizable panel widths
   const [fileBrowserWidth, setFileBrowserWidth] = useState(280)
@@ -860,6 +861,49 @@ Guidelines:
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [handleFileBrowserToggle])
 
+  const clearChat = useCallback(() => {
+    // Reset to initial system message only
+    setMessages([
+      {
+        role: 'system',
+        content: `You are an AI assistant for Obby, a file monitoring and note management system.
+
+Context: Obby tracks file changes in a local repository, stores content in SQLite (obby.db), and provides semantic search through AI-analyzed notes. The notes directory contains documentation and tracked files.
+
+Tools available:
+- Grep: Search through notes and documentation with ripgrep
+- Read: Inspect the contents of files under watch
+- Write: Apply requested edits to files when instructed
+- Bash: Run shell commands inside the project workspace
+
+Guidelines:
+- Be concise and direct in responses
+- Always begin by searching the notes directory with the Grep tool before considering any other data source.
+- Do not query SQLite or other databases unless the notes search clearly cannot answer the question.
+- When using tools, proceed without announcing your actions
+- Synthesize results rather than listing raw data
+- Focus on answering the user's question efficiently`
+      }
+    ])
+
+    // Clear all chat-related state
+    setInput('')
+    setError(null)
+    setLoading(false)
+    setProgressMessage(null)
+    setProgressType(null)
+    setAgentActions([])
+    setCurrentSessionId(null)
+    setStreamingMessage('')
+    setIsStreaming(false)
+    setContextBeingUsed(false)
+
+    // Disconnect SSE connections
+    disconnectProgressSSE()
+
+    setShowClearChatConfirmation(false)
+  }, [disconnectProgressSSE])
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -1240,14 +1284,24 @@ Guidelines:
                 onKeyDown={onKeyDown}
                 disabled={loading}
               />
-              <button
-                onClick={sendMessage}
-                disabled={loading || !input.trim()}
-                className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-              >
-                <Send className="h-4 w-4" />
-                {loading ? 'Sending...' : 'Send'}
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={sendMessage}
+                  disabled={loading || !input.trim()}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                >
+                  <Send className="h-4 w-4" />
+                  {loading ? 'Sending...' : 'Send'}
+                </button>
+                <button
+                  onClick={() => setShowClearChatConfirmation(true)}
+                  disabled={loading || messages.filter((m) => m.role !== 'system').length === 0}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  title="Clear chat history"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1270,6 +1324,18 @@ Guidelines:
         title="Unsaved Changes"
         message="You have unsaved changes in the current file. Do you want to discard them and switch files?"
         confirmText="Discard Changes"
+        cancelText="Cancel"
+        danger={true}
+      />
+
+      {/* Clear chat confirmation dialog */}
+      <ConfirmationDialog
+        isOpen={showClearChatConfirmation}
+        onClose={() => setShowClearChatConfirmation(false)}
+        onConfirm={clearChat}
+        title="Clear Chat History"
+        message="Are you sure you want to clear the entire chat history? This action cannot be undone."
+        confirmText="Clear Chat"
         cancelText="Cancel"
         danger={true}
       />

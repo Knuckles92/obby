@@ -258,7 +258,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                 "Glob",      # File pattern matching
                 "Edit",      # Edit files
             ],
-            max_turns=10,
+            max_turns=25,
             model=claude_model,  # "sonnet", "opus", or "haiku"
             system_prompt=(
                 "You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure."
@@ -267,7 +267,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
             )
         )
 
-        logger.info(f"⚙️  Claude options: model={claude_model}, max_turns=10, tools={options.allowed_tools}, cwd={options.cwd}")
+        logger.info(f"⚙️  Claude options: model={claude_model}, max_turns=25, tools={options.allowed_tools}, cwd={options.cwd}")
 
         # Send progress update with tool list
         if session_id:
