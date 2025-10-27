@@ -17,19 +17,17 @@ from database.queries import EventQueries
 class NoteChangeHandler(FileSystemEventHandler):
     """Handles file system events for note changes."""
     
-    def __init__(self, notes_folder, ai_client, session_summary_path, utils_folder=None, file_tracker=None):
+    def __init__(self, notes_folder, session_summary_path, utils_folder=None, file_tracker=None):
         """
         Initialize the note change handler.
         
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
-            ai_client: OpenAIClient instance for generating summaries
             session_summary_path: Path to the session summary file
             utils_folder: Path to config folder containing .obbywatch/.obbyignore (defaults to project root)
             file_tracker: FileContentTracker instance for change tracking
         """
         self.notes_folder = Path(notes_folder)
-        self.ai_client = ai_client
         self.session_summary_path = session_summary_path
         self.file_tracker = file_tracker
         self.last_event_times = {}  # Track debounce per file
@@ -227,10 +225,6 @@ class NoteChangeHandler(FileSystemEventHandler):
                     # Broadcast file update to connected clients via SSE
                     self._broadcast_file_update(file_path, change_type)
 
-                    # Trigger immediate AI processing if AI client is available
-                    if self.ai_client and change_type in ['created', 'modified']:
-                        self._process_with_ai_immediate(str(file_path), version_id)
-
                 else:
                     logging.info(f"[WATCHDOG] File tracker returned None for {change_type} change in {file_path.name} - no content change detected")
 
@@ -274,73 +268,6 @@ class NoteChangeHandler(FileSystemEventHandler):
         except Exception as e:
             logging.error(f"[WATCHDOG] Failed to broadcast file update: {e}")
     
-    def _process_with_ai_immediate(self, file_path: str, version_id: int):
-        """Process file content immediately with AI for semantic analysis."""
-        try:
-            if not self.ai_client:
-                logging.debug(f"AI client not available for processing {file_path}")
-                return
-                
-            # Get file content from version
-            from database.models import FileVersionModel
-            version = FileVersionModel.get_by_id(version_id)
-            
-            if not version or not version.get('content'):
-                logging.debug(f"No content found for version {version_id} of {file_path}")
-                return
-                
-            content = version['content']
-            if len(content.strip()) < 50:  # Skip very short content
-                logging.debug(f"Skipping AI processing for {file_path} - content too short")
-                return
-                
-            logging.info(f"[AI] Processing {Path(file_path).name} with AI immediately...")
-            
-            # Generate AI summary
-            summary = self.ai_client.generate_summary(content)
-            if summary:
-                # Extract semantic metadata
-                metadata = self.ai_client.extract_semantic_metadata(summary)
-                
-                # Store in database immediately
-                from database.models import SemanticModel
-                semantic_id = SemanticModel.insert_entry(
-                    summary=metadata.get('summary', 'AI-generated summary'),
-                    entry_type='immediate_processing',
-                    impact=metadata.get('impact', 'brief'),
-                    topics=metadata.get('topics', []),
-                    keywords=metadata.get('keywords', []),
-                    file_path=file_path,
-                    version_id=version_id,
-                    source_type='session_summary_auto'
-                )
-                
-                logging.info(f"[AI] Created semantic entry {semantic_id} for {Path(file_path).name}")
-                
-                # Notify summary note service about new summary
-                self._notify_summary_created(file_path, semantic_id)
-                
-                return semantic_id
-            else:
-                logging.warning(f"[AI] No summary generated for {file_path}")
-                
-        except Exception as e:
-            logging.error(f"[AI] Error in immediate AI processing for {file_path}: {e}")
-    
-    def _notify_summary_created(self, file_path: str, semantic_id: int):
-        """Notify the summary note service about a newly created summary."""
-        try:
-            # Import here to avoid circular imports
-            from routes.summary_note import notify_summary_note_change
-            
-            # Create a filename based on the semantic entry
-            filename = f"Summary-{semantic_id}-{Path(file_path).stem}.md"
-            notify_summary_note_change('created', filename)
-            
-            logging.debug(f"[AI] Notified summary service about new summary: {filename}")
-            
-        except Exception as e:
-            logging.warning(f"[AI] Failed to notify summary service: {e}")
     
     def _legacy_process_note_change(self, file_path):
         """Legacy processing method for when file tracker is not available."""
@@ -371,13 +298,12 @@ class NoteChangeHandler(FileSystemEventHandler):
 class FileWatcher:
     """Main file watcher class for managing the observer."""
     
-    def __init__(self, notes_folder, ai_client, session_summary_path, utils_folder=None, file_tracker=None):
+    def __init__(self, notes_folder, session_summary_path, utils_folder=None, file_tracker=None):
         """
         Initialize the file watcher.
         
         Args:
             notes_folder: Path to the folder containing markdown files to monitor
-            ai_client: OpenAIClient instance
             session_summary_path: Path to the session summary file
             utils_folder: Path to the utils folder (defaults to notes_folder/utils)
             file_tracker: FileContentTracker instance for change tracking
@@ -390,7 +316,7 @@ class FileWatcher:
         else:
             self.utils_folder = Path(utils_folder)
         
-        self.handler = NoteChangeHandler(notes_folder, ai_client, session_summary_path, self.utils_folder, file_tracker)
+        self.handler = NoteChangeHandler(notes_folder, session_summary_path, self.utils_folder, file_tracker)
         self.observer = Observer()
         self.is_running = False
         

@@ -137,7 +137,7 @@ class TestClaudeAgentClientUnit:
         assert mock_claude_agent_client.is_available() is True
 
     # ==========================================================================
-    # NEW: Session Summary Methods Tests (Migration from OpenAI)
+    # Session Summary Methods Tests (Claude Agent SDK)
     # ==========================================================================
 
     @pytest.mark.unit
@@ -248,7 +248,7 @@ class TestClaudeAgentClientUnit:
     async def test_generate_follow_up_questions_mock(self, mock_claude_agent_client):
         """Test follow-up question generation."""
         changed_files = ["services/session_summary_service.py"]
-        summary_context = "Migrated from OpenAI to Claude Agent SDK"
+        summary_context = "Generated with Claude Agent SDK"
 
         result = await mock_claude_agent_client.generate_follow_up_questions(
             changed_files=changed_files,

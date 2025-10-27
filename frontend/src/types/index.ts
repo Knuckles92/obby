@@ -94,7 +94,6 @@ export interface MonitoringStatus {
 
 export interface ConfigSettings {
   checkInterval: number;
-  openaiApiKey: string;
   aiModel: string;
   ignorePatterns: string[];
   monitoringDirectory?: string; // base directory to monitor for changes

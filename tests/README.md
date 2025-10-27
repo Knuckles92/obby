@@ -55,7 +55,7 @@ Available in all tests via `conftest.py`:
 
 - `temp_dir` - Temporary directory for test files
 - `db_connection` - Isolated test database
-- `mock_openai_client` - Mocked AI client
+- `mock_claude_agent_client` - Mocked Claude Agent SDK client
 - `fastapi_client` - API test client
 - `sample_file_content` - Test file content
 - `sample_diff` - Test diff content

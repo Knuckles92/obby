@@ -5,7 +5,7 @@
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Obby** is a sophisticated, modern web-based note change tracker and AI-assisted memory builder that monitors your Markdown notes in real-time, maintains a high-performance SQLite database with full-text search, and uses OpenAI to create intelligent summaries of your work. Built with React, TypeScript, and a comprehensive theme system for a beautiful, accessible user experience.
+**Obby** is a sophisticated, modern web-based note change tracker and AI-assisted memory builder that monitors your Markdown notes in real-time, maintains a high-performance SQLite database with full-text search, and uses **Claude Agent SDK** to create intelligent summaries of your work. Built with React, TypeScript, and a comprehensive theme system for a beautiful, accessible user experience.
 
 ## 🎯 Core Features
 
@@ -45,12 +45,11 @@
 - **Performance Optimized**: Debounced events and efficient batch processing
 
 ### ✅ **AI-Enhanced Analysis**
-- **Multiple Model Support**: GPT-5, GPT-5-mini, GPT-5-nano, GPT-5-chat-latest
-- **Semantic Metadata**: Automatic extraction of topics, keywords, and impact levels
-- **Structured Summaries**: AI-generated content with configurable length and style
-- **Session Summary Generation**: Dynamic, evolving summaries of your work sessions
-- **Context-Aware Processing**: AI understands project context and development patterns
-- **Custom Prompting**: Configurable AI behavior through format templates
+- **Claude-Only Architecture**: Anthropic Claude Agent SDK powers summaries, monitoring, and interactive chat
+- **Claude Models**: haiku, sonnet, opus models for autonomous file exploration
+- **Autonomous Exploration**: Claude uses Read/Grep/Glob tools to analyze files independently
+- **Real-time Processing**: 30-second debounce window for responsive summaries
+- **Rich Metadata**: 9 structured fields including scope, complexity, risk, patterns, and sources
 
 ### ✅ **Modern Web Interface**
 - **React + TypeScript**: Type-safe, component-based architecture
@@ -73,7 +72,8 @@
 ### Prerequisites
 - **Python 3.8+** with pip
 - **Node.js 16+** with npm
-- **OpenAI API Key** (optional, for AI features)
+- **Claude Code CLI** (required for summary features)
+- **Anthropic API Key** (required for AI features)
 
 ### Installation & Setup
 
@@ -90,12 +90,15 @@
    pip install -r requirements.txt
    ```
 
-2. **Configure OpenAI API** (optional but recommended)
+2. **Install Claude Code CLI and Configure APIs** (required for AI features)
    ```bash
-   # Option 1: Environment variable
-   export OPENAI_API_KEY="your-api-key-here"
+   # Install Claude Code CLI for summary features
+   npm install -g @anthropic-ai/claude-code
    
-   # Option 2: Set via web interface after startup
+   # Configure API keys
+   export ANTHROPIC_API_KEY="your-anthropic-key-here"
+   
+   # Or set via web interface after startup
    ```
 
 3. **Install and Build Frontend**
@@ -155,12 +158,11 @@ obby/
 │   │   ├── monitor.py             # File monitoring orchestration
 │   │   └── file_tracker.py        # On-demand directory scanning
 │   ├── ai/
-│   │   ├── openai_client.py       # OpenAI integration
-│   │   └── batch_processor.py     # Batch AI processing
+│   │   └── claude_agent_client.py  # Claude Agent SDK integration (summaries & chat)
 │   ├── routes/
-│   │   ├── monitoring.py          # /api/monitor/* (control, status, batch AI)
+│   │   ├── monitoring.py          # /api/monitor/* (control, status, manual scans)
 │   │   ├── files.py               # /api/files/* (events, diffs, tree, scans)
-│   │   ├── session_summary.py         # /api/session-summary/* (content, settings, SSE)
+│   │   ├── session_summary.py     # /api/session-summary/* (content, settings, SSE)
 │   │   ├── search.py              # /api/search/* (semantic, topics, keywords)
 │   │   ├── config.py              # /api/config/* (settings, models)
 │   │   ├── data.py                # /api/data/* (clear data)
@@ -169,15 +171,21 @@ obby/
 │   │   ├── models.py              # SQLite models with FTS5
 │   │   ├── queries.py             # Optimized query layer
 │   │   ├── migration.py           # Data migration system
+│   │   ├── migration_claude_fields.py # Claude schema migration
 │   │   ├── schema.sql             # File-based database schema (current)
 │   │   └── archive/               # Archived schema files
-│   └── utils/
-│       ├── file_helpers.py        # File system utilities
-│       ├── file_watcher.py        # Real-time monitoring
-│       ├── ignore_handler.py      # .obbyignore pattern matching
-│       ├── watch_handler.py       # .obbywatch directory management
-│       ├── migrations.py          # One-off migration tasks
-│       └── session_summary_path.py    # Living note path resolution
+│   ├── services/
+│   │   ├── session_summary_service.py # Session summary business logic
+│   │   ├── summary_note_service.py     # Summary note generation
+│   │   └── comprehensive_summary_service.py # Batch summaries
+│   ├── utils/
+│   │   ├── claude_summary_parser.py # Parse Claude's structured output
+│   │   ├── file_helpers.py         # File system utilities
+│   │   ├── file_watcher.py         # Real-time monitoring
+│   │   ├── ignore_handler.py       # .obbyignore pattern matching
+│   │   ├── watch_handler.py        # .obbywatch directory management
+│   │   ├── migrations.py          # One-off migration tasks
+│   │   └── session_summary_path.py # Living note path resolution
 │
 ├── 🎨 Frontend (React + TypeScript)
 │   ├── src/
@@ -287,24 +295,39 @@ impact:significant date:2024-01-01     // Metadata filters
 
 ## ⚙️ AI Integration
 
-### **OpenAI Model Support**
-- **GPT-5**: The standard GPT-5 model, offering advanced reasoning capabilities and improved performance across various tasks
-- **GPT-5-mini**: A lighter version of GPT-5, designed for faster responses with slightly reduced computational requirements
-- **GPT-5-nano**: An even more efficient variant, optimized for minimal resource usage while maintaining core functionalities
-- **GPT-5-chat-latest**: The non-reasoning version of GPT-5, used in ChatGPT, accessible via the API
+### **Hybrid Architecture**
+Obby uses a sophisticated hybrid AI approach that combines the strengths of different AI systems:
 
-### **Advanced AI Features**
-- **Semantic Analysis**: Automatic topic and keyword extraction
-- **Impact Assessment**: AI-generated significance levels for changes
-- **Structured Prompting**: Configurable AI behavior through format templates
-- **Context Awareness**: AI understands project context and development patterns
-- **Session Summary Generation**: Dynamic, evolving summaries of work sessions
+- **Claude Agent SDK** 🎯 → Summary generation, monitoring insights, and interactive analysis
 
-### **Customization Options**
-- **Prompt Templates**: Custom AI instructions for different content types
-- **Response Formatting**: Structured output with JSON schema validation
-- **Focus Areas**: Configure AI attention for specific topics or technologies
-- **Update Frequency**: Control how often AI analysis runs
+### **Claude Agent SDK (Summary Features)**
+
+#### **Available Models**
+- **haiku**: Fast and efficient for quick summaries
+- **sonnet**: Balanced performance for detailed analysis  
+- **opus**: Maximum capability for complex projects
+
+#### **Key Features**
+- **Autonomous File Exploration**: Claude independently explores your codebase using Read/Grep/Glob tools
+- **Real-time Processing**: 30-second debounce window for responsive updates
+- **Structured Output**: Rich metadata with 9 fields (scope, complexity, risk, patterns, relationships, sources, etc.)
+- **Sources Section**: Shows exactly which files Claude examined and why
+- **Smart Context**: Understands project structure and development patterns
+
+### **AI Processing Workflow**
+
+1. **File Change Detected** → Triggers monitoring system
+2. **Claude Analysis** → Autonomous exploration and summary generation (30s debounce)
+3. **Interactive Chat** → Use Claude Agent SDK for conversational assistance
+4. **Rich Metadata** → Structured insights saved to the database
+
+### **Setup Requirements**
+
+```bash
+# Required for Claude summaries
+export ANTHROPIC_API_KEY="your-anthropic-key"
+npm install -g @anthropic-ai/claude-code
+```
 
 ## 🛠️ Configuration System
 
@@ -326,6 +349,19 @@ node_modules/
 **/archive/**
 ```
 
+### **AI Configuration**
+```json
+{
+  "claudeModel": "sonnet",
+  "debounceWindow": 30,
+  "enableFileExploration": true,
+  "maxFilesPerSession": 50,
+  "anthropicApiKey": "sk-ant-...",
+  "watchPaths": ["notes/", "documents/"],
+  "ignorePatterns": ["*.tmp", "*.bak"]
+}
+```
+
 ### **Session Summary Settings**
 ```json
 {
@@ -334,19 +370,9 @@ node_modules/
   "writingStyle": "technical",
   "includeMetrics": true,
   "maxSections": 10,
-  "focusAreas": ["algorithms", "architecture", "performance"]
-}
-```
-
-### **Database Configuration**
-```json
-{
-  "checkInterval": 20,
-  "periodicCheckEnabled": true,
-  "openaiApiKey": "sk-...",
-  "aiModel": "gpt-4.1-mini",
-  "watchPaths": ["notes/", "documents/"],
-  "ignorePatterns": ["*.tmp", "*.bak"]
+  "focusAreas": ["algorithms", "architecture", "performance"],
+  "enableSources": true,
+  "enableQuestions": true
 }
 ```
 
@@ -359,11 +385,6 @@ POST   /api/monitor/start          # Start file monitoring
 POST   /api/monitor/stop           # Stop monitoring
 POST   /api/monitor/scan           # Manually scan files for changes
 
-# Batch AI processing controls
-GET    /api/monitor/batch-ai/status # Get batch AI processing status
-POST   /api/monitor/batch-ai/trigger # Trigger batch AI processing (JSON: { force: boolean })
-GET    /api/monitor/batch-ai/config  # Get batch AI configuration
-PUT    /api/monitor/batch-ai/config  # Update batch AI configuration (enabled, interval, max_batch_size)
 ```
 
 ### **File Endpoints**
@@ -518,7 +539,7 @@ gunicorn -w 4 -b 0.0.0.0:8001 backend:app
 
 # Environment variables
 export FLASK_ENV=production
-export OPENAI_API_KEY="your-key"
+export ANTHROPIC_API_KEY="your-key"
 ```
 
 **System Service**
@@ -637,10 +658,10 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 **Built with modern technologies:**
-- **Backend**: Python, FastAPI, SQLite with FTS5, OpenAI
+- **Backend**: Python, FastAPI, SQLite with FTS5, Claude Agent SDK
 - **Frontend**: React 18, TypeScript 5, Tailwind CSS, Vite
 - **Architecture**: RESTful API, real-time updates, responsive design
-- **AI**: OpenAI GPT models for intelligent content analysis
+- **AI**: Anthropic Claude models for intelligent content analysis
 
 **Designed for developers who value:**
 - **Performance**: Optimized database queries and efficient frontend rendering

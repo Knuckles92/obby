@@ -7,7 +7,6 @@ from config.settings import (
 from utils.file_helpers import ensure_directories, setup_test_file
 from utils.file_watcher import FileWatcher
 from core.file_tracker import FileContentTracker
-from ai.openai_client import OpenAIClient
 import threading
 import time
 import logging
@@ -35,15 +34,6 @@ class ObbyMonitor:
         # Initialize file tracker with watch paths
         self.file_tracker = FileContentTracker(watch_paths=self.watch_dirs)
         
-        # Initialize AI client (optional)
-        self.ai_client = None
-        try:
-            self.ai_client = OpenAIClient()
-            logger.info("[MONITOR] AI client initialized successfully")
-        except Exception as e:
-            logger.warning(f"[MONITOR] AI client initialization failed: {e}")
-            logger.info("[MONITOR] Monitor will run without AI processing")
-
         # Monitoring state
         self.file_watcher = None
         self.is_running = False
@@ -72,9 +62,8 @@ class ObbyMonitor:
             utils_folder = notes_folder.parent
             from utils.session_summary_path import resolve_session_summary_path
             self.file_watcher = FileWatcher(
-                notes_folder, 
-                self.ai_client, 
-                resolve_session_summary_path(), 
+                notes_folder,
+                resolve_session_summary_path(),
                 utils_folder,
                 file_tracker=self.file_tracker  # Pass file tracker to watcher
             )
@@ -175,10 +164,6 @@ class ObbyMonitor:
             
             version_id = self.file_tracker.track_file_change(file_path, change_type)
             
-            if version_id and self.ai_client:
-                # Process with AI for semantic analysis
-                self._process_with_ai(file_path, version_id)
-                
             return version_id
             
         except Exception as e:
@@ -232,59 +217,4 @@ class ObbyMonitor:
         
         return stats
     
-    
-    
-    
-    def process_with_ai_immediate(self, file_path: str, version_id: int):
-        """
-        Process file content immediately with AI for semantic analysis.
-        This replaces the batch processing system with immediate processing.
-        """
-        try:
-            if not self.ai_client:
-                logger.warning(f"AI client not available for processing {file_path}")
-                return
-                
-            # Get file content from version
-            from database.models import FileVersionModel
-            version = FileVersionModel.get_by_id(version_id)
-            
-            if not version or not version.get('content'):
-                logger.debug(f"No content found for version {version_id} of {file_path}")
-                return
-                
-            content = version['content']
-            if len(content.strip()) < 50:  # Skip very short content
-                logger.debug(f"Skipping AI processing for {file_path} - content too short")
-                return
-                
-            logger.info(f"Processing {file_path} with AI immediately...")
-            
-            # Generate AI summary
-            summary = self.ai_client.generate_summary(content)
-            if summary:
-                # Extract semantic metadata
-                metadata = self.ai_client.extract_semantic_metadata(summary)
-                
-                # Store in database immediately
-                from database.models import SemanticModel
-                semantic_id = SemanticModel.insert_entry(
-                    summary=metadata.get('summary', 'AI-generated summary'),
-                    entry_type='immediate_processing',
-                    impact=metadata.get('impact', 'brief'),
-                    topics=metadata.get('topics', []),
-                    keywords=metadata.get('keywords', []),
-                    file_path=file_path,
-                    version_id=version_id,
-                    source_type='session_summary_auto'
-                )
-                
-                logger.info(f"✅ Created semantic entry {semantic_id} for {file_path}")
-                return semantic_id
-            else:
-                logger.warning(f"AI client returned no summary for {file_path}")
-                
-        except Exception as e:
-            logger.error(f"Error in immediate AI processing for {file_path}: {e}")
-
 logger.info("File-based monitoring system initialized")

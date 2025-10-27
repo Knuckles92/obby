@@ -1,3 +1,3 @@
-from .openai_client import OpenAIClient
+from .claude_agent_client import ClaudeAgentClient, CLAUDE_SDK_AVAILABLE
 
-__all__ = ['OpenAIClient']
+__all__ = ['ClaudeAgentClient', 'CLAUDE_SDK_AVAILABLE']

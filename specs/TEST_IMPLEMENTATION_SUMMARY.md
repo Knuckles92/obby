@@ -26,7 +26,7 @@ This document provides a comprehensive guide to the test suite implemented for t
   - `temp_dir`: Temporary directory for test files
   - `test_db_path`: Temporary database file path
   - `db_connection`: Test database with schema
-  - `mock_openai_client`: Mocked AI client for testing
+  - `mock_claude_agent_client`: Mocked Claude client for testing
   - `mock_file_watcher`: Mocked file monitoring
   - `fastapi_client`: FastAPI test client for API testing
   - Sample data fixtures for common test scenarios
@@ -99,7 +99,6 @@ tests/
 │   └── test_search.py              # Search API tests
 └── test_ai/
     ├── __init__.py
-    └── test_openai_client.py       # AI client tests (mocked)
 ```
 
 ### Frontend Tests (`frontend/src/`)
@@ -221,10 +220,10 @@ def test_api_endpoint(fastapi_client):
 #### 3. Mocking AI Calls
 ```python
 @pytest.mark.ai
-async def test_ai_feature(mock_openai_client):
+async def test_ai_feature(mock_claude_agent_client):
     """Test AI features without real API calls."""
-    result = await mock_openai_client.summarize("content")
-    assert result['summary'] is not None
+    result = await mock_claude_agent_client.summarize_changes([{"path": "file.md", "content": "delta"}])
+    assert result is not None
 ```
 
 ### Frontend Patterns
@@ -429,7 +428,7 @@ jobs:
 ### Backend-Specific
 
 1. **Isolate Database**: Always use test database fixtures, never production data
-2. **Mock External Services**: Mock OpenAI API, file system when appropriate
+2. **Mock External Services**: Mock Claude Agent SDK, file system when appropriate
 3. **Test Edge Cases**: Test error conditions, boundary values, empty inputs
 4. **Async Tests**: Use `@pytest.mark.asyncio` for async functions
 

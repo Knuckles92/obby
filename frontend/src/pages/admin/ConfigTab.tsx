@@ -246,7 +246,7 @@ export default function ConfigTab({ config, configLoading, models, currentModel 
       }}>
         <h3 style={{ fontSize: 'var(--font-size-lg)', fontWeight: 'var(--font-weight-semibold)', marginBottom: 'var(--spacing-sm)' }}>AI Processing</h3>
         <p style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)', marginBottom: 'var(--spacing-md)', lineHeight: '1.5' }}>
-          Settings for OpenAI integration, including batch processing and semantic analysis.
+          Settings for Claude-powered summaries and semantic analysis.
         </p>
         <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
           <div style={{
@@ -257,7 +257,7 @@ export default function ConfigTab({ config, configLoading, models, currentModel 
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-sm)', marginBottom: 'var(--spacing-xs)' }}>
               <Cpu style={{ width: '1rem', height: '1rem', color: 'rgb(59, 130, 246)' }} />
-              <span style={{ fontWeight: 'var(--font-weight-semibold)', fontSize: 'var(--font-size-sm)' }}>Batch Processing</span>
+              <span style={{ fontWeight: 'var(--font-weight-semibold)', fontSize: 'var(--font-size-sm)' }}>Session Summaries</span>
             </div>
             <p style={{
               color: 'var(--color-text-secondary)',
@@ -265,17 +265,12 @@ export default function ConfigTab({ config, configLoading, models, currentModel 
               margin: '0 0 var(--spacing-sm) 0',
               lineHeight: '1.5'
             }}>
-              Groups multiple file changes together for efficient AI analysis. Reduces API costs and improves performance by processing changes in scheduled batches rather than one-by-one. Managed by <code style={{
+              Generates rolling project summaries using the Claude Agent SDK. Changes are aggregated and summarized on a schedule to keep the session overview up to date. Configure cadence and automation in the Settings page. Requires <code style={{
                 backgroundColor: 'var(--color-surface)',
                 padding: '2px 6px',
                 borderRadius: '4px',
                 fontSize: 'var(--font-size-xs)'
-              }}>ai/batch_processor.py</code>. Configure batch size and interval in <code style={{
-                backgroundColor: 'var(--color-surface)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: 'var(--font-size-xs)'
-              }}>config.json</code> via Settings page.
+              }}>ANTHROPIC_API_KEY</code> in the environment.
             </p>
             {configLoading ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 'var(--spacing-sm)' }}>
@@ -327,7 +322,7 @@ export default function ConfigTab({ config, configLoading, models, currentModel 
               margin: '0 0 var(--spacing-sm) 0',
               lineHeight: '1.5'
             }}>
-              Extracts topics, keywords, and impact levels from file changes using OpenAI models. Enables powerful search and filtering by semantic content. Requires OPENAI_API_KEY environment variable. Results stored in <code style={{
+              Extracts topics, keywords, and impact levels from file changes using Claude models. Enables powerful search and filtering by semantic content. Results are stored in <code style={{
                 backgroundColor: 'var(--color-surface)',
                 padding: '2px 6px',
                 borderRadius: '4px',

@@ -6,12 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Status**: ✅ Core migration complete
 
-Obby now uses **Claude Agent SDK** exclusively for AI-powered summaries. The OpenAI integration has been removed. Key changes:
+Obby now uses **Claude Agent SDK** exclusively for AI-powered summaries. The legacy OpenAI integration has been removed. Key changes:
 
 - **AI Approach**: Claude autonomously explores files using Read/Grep/Glob tools (vs. receiving truncated diff text)
 - **Processing**: Real-time with 30s debounce (vs. 12-hour batch processing)
 - **Output**: Structured markdown with 9 metadata fields (vs. simple bullets with 3 fields)
-- **Configuration**: `ANTHROPIC_API_KEY` required, `OPENAI_API_KEY` deprecated
+- **Configuration**: `ANTHROPIC_API_KEY` is required for all AI features
 
 📖 See `MIGRATION_SUMMARY.md` for complete details, rollback plan, and troubleshooting.
 
@@ -45,7 +45,7 @@ Obby is a web-based note monitoring application:
 
 - **Primary mode**: Web application (`backend.py`) serving React frontend from `frontend/dist/`
 - **Real-time monitoring**: Dual approach using `watchdog` events + optional periodic scanning
-- **AI integration**: OpenAI client with batch processing for content summarization and semantic analysis
+- **AI integration**: Claude Agent SDK handles summaries, monitoring context, and interactive tooling
 - **Database**: SQLite with WAL mode, FTS5 search, connection pooling
 - **File tracking**: Pure file-based monitoring without git dependencies
 
@@ -61,7 +61,7 @@ Obby is a web-based note monitoring application:
 #### Core Monitoring (`core/monitor.py`)
 - `ObbyMonitor`: Main monitoring orchestrator
 - Handles both real-time (`watchdog`) and periodic file scanning
-- Integrates with AI client for content analysis
+- Sends file changes to content tracker for semantic processing
 - Manages `.obbywatch` and `.obbyignore` configuration files (located in project root)
 
 #### File Tracking (`core/file_tracker.py`)
@@ -82,16 +82,12 @@ Obby is a web-based note monitoring application:
 - File-based API integration replacing git-based diff endpoints
 
 #### AI Integration (`ai/`)
-- `openai_client.py`: OpenAI API integration for content summarization and semantic analysis
-  - Supported models: `gpt-4o`, `gpt-4.1`, `gpt-4.1-mini` (default), `o4-mini`, `gpt-4.1-nano`
-  - Automatic format configuration loading from `config/format.md`
-  - Structured JSON responses with topics, keywords, impact levels
-- `batch_processor.py`: Scheduled batch processing system for efficient AI analysis
-  - Replaces individual AI calls per file change with batch operations
-  - Configurable batch size and processing intervals
-  - Database-stored configuration for batch settings and last update tracking
-- Graceful degradation when API unavailable
-- Multiple processing modes: immediate processing and scheduled batch processing
+- `claude_agent_client.py`: Claude Agent SDK integration for intelligent summaries and chat tooling
+  - Autonomous file exploration using Read/Grep/Glob tools
+  - Real-time processing with 30s debounce window
+  - Rich metadata with 9 structured fields including Sources section
+  - Supported models: haiku, sonnet, opus
+  - Real-time processing with 30s debounce replacing legacy batch system
 
 ## Agent Prompting: Time Query “Sources” Pattern
 - Goal: Every query output includes a "Sources" section (model-rendered) listing files used and why.
@@ -120,8 +116,8 @@ Obby is a web-based note monitoring application:
 
 ### Session Summary
 - One AI call that returns both minimal bullets and a '### Sources' section.
-- Code: `OpenAIClient.summarize_minimal(...)` now accepts `files_used` and instructs the model to include Sources.
-- Called by `services/session_summary_service.py` using recent diffs as context.
+- Code: `ClaudeAgentClient.summarize_session(...)` provides autonomous exploration and includes Sources.
+- Called by `services/session_summary_service.py` using file paths as context (not diff text).
 
 ### Comprehensive/Batch Summaries
 - Batch prompt format now includes a required 'Sources' section.
@@ -152,7 +148,7 @@ Obby is a web-based note monitoring application:
 1. **File Change** → `watchdog` events or periodic scan
 2. **Event Processing** → Diff generation + content hashing via file tracker
 3. **Database Storage** → SQLite with FTS5 indexing (immediate)
-4. **Batch AI Analysis** → Scheduled OpenAI summarization + topic/keyword extraction
+4. **Claude Summaries** → Autonomous session digest + topic/keyword extraction
 5. **Real-time Updates** → SSE push to connected frontend clients
 
 ### Configuration Management
@@ -162,7 +158,7 @@ Obby is a web-based note monitoring application:
 - **Format templates**: `config/format.md` and `config/format_current_backup.md` (AI formatting templates)
 - **Watch paths**: `.obbywatch` (directories to monitor, located in project root)
 - **Ignore patterns**: `.obbyignore` (glob patterns to skip, located in project root)
-- **Environment**: `OPENAI_API_KEY` for AI features
+- **Environment**: `ANTHROPIC_API_KEY` for AI features
 
 #### Route Organization (`routes/`)
 - **Modular blueprint architecture** for clean API organization
@@ -217,11 +213,11 @@ Obby is a web-based note monitoring application:
 - All API endpoints are prefixed with `/api/`
 
 ### AI Processing
-- AI analysis is optional (requires `OPENAI_API_KEY`)
-- **Dual processing modes**: Immediate processing for real-time updates and scheduled batch processing for efficiency
-- **Model selection**: Supports latest OpenAI models including gpt-4o, gpt-4.1 series, and o4-mini
-- **Semantic analysis**: Structured prompts generate JSON with topics, keywords, summaries, and impact levels
-- **Format templating**: AI responses use configurable format templates from `config/format.md`
+- AI analysis uses the Claude Agent SDK (requires `ANTHROPIC_API_KEY`)
+- Real-time summaries generated with a 30s debounce window to batch rapid edits
+- Supported models: Claude haiku, sonnet, opus (configurable via `/api/config/models`)
+- Semantic analysis: Structured prompts capture topics, keywords, summaries, and impact levels
+- Format templating: AI responses use configurable format templates from `config/format.md`
 - **Batch optimization**: Configurable batch sizes and intervals reduce API costs and improve performance
 - Graceful fallback when AI services unavailable
 

@@ -8,8 +8,6 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database.queries import ConfigQueries
-from ai.openai_client import OpenAIClient
-from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
@@ -26,12 +24,17 @@ async def get_config_root():
     except Exception as e:
         logger.error(f"Error loading config from database: {e}")
         # Fallback to defaults
-        from config.settings import CHECK_INTERVAL, OPENAI_MODEL, get_configured_notes_folder, AI_UPDATE_INTERVAL, AI_AUTO_UPDATE_ENABLED
+        from config.settings import (
+            CHECK_INTERVAL,
+            CLAUDE_MODEL,
+            get_configured_notes_folder,
+            AI_UPDATE_INTERVAL,
+            AI_AUTO_UPDATE_ENABLED,
+        )
         notes_folder = get_configured_notes_folder()
         return {
             'checkInterval': CHECK_INTERVAL,
-            'openaiApiKey': os.getenv('OPENAI_API_KEY', ''),
-            'aiModel': OPENAI_MODEL,
+            'aiModel': os.getenv('OBBY_CLAUDE_MODEL', CLAUDE_MODEL),
             'watchPaths': [str(notes_folder)],
             'monitoringDirectory': str(notes_folder),
             'ignorePatterns': ['__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
@@ -49,7 +52,16 @@ async def update_config_root(request: Request):
     
     try:
         # Validate the configuration data
-        valid_fields = ['checkInterval', 'openaiApiKey', 'aiModel', 'ignorePatterns', 'periodicCheckEnabled', 'aiUpdateInterval', 'aiAutoUpdateEnabled', 'lastAiUpdateTimestamp', 'monitoringDirectory']
+        valid_fields = [
+            'checkInterval',
+            'aiModel',
+            'ignorePatterns',
+            'periodicCheckEnabled',
+            'aiUpdateInterval',
+            'aiAutoUpdateEnabled',
+            'lastAiUpdateTimestamp',
+            'monitoringDirectory',
+        ]
         config_data = {}
         
         for field in valid_fields:
@@ -109,10 +121,6 @@ async def update_config_root(request: Request):
         # Update configuration in database
         result = ConfigQueries.update_config(config_data)
         
-        # Update environment variable if API key is provided
-        if 'openaiApiKey' in config_data and config_data['openaiApiKey']:
-            os.environ['OPENAI_API_KEY'] = config_data['openaiApiKey']
-        
         # Update .obbywatch file if monitoring directory changed
         if 'monitoringDirectory' in config_data and result.get('success', False):
             try:
@@ -147,105 +155,26 @@ async def update_config_root(request: Request):
 
 @config_bp.get('/models')
 async def get_models():
-    """Get available OpenAI models (dynamically from API, filtered to GPT-5 family when available)."""
-    try:
-        # Initialize OpenAI client (api key comes from env or was set via settings update)
-        client = OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
+    """Return available Claude models."""
+    from config.settings import CLAUDE_MODEL
 
-        # List all models from OpenAI
-        api_models = client.models.list()
-        model_ids = [m.id for m in getattr(api_models, 'data', [])]
+    claude_models = {
+        'haiku': 'haiku',
+        'sonnet': 'sonnet',
+        'opus': 'opus',
+    }
 
-        # Prefer GPT-5 family if available
-        gpt5_models = [mid for mid in model_ids if isinstance(mid, str) and mid.startswith('gpt-5')]
+    current_model = os.getenv("OBBY_CLAUDE_MODEL", CLAUDE_MODEL).lower()
+    if current_model not in claude_models:
+        claude_models[current_model] = current_model
 
-        # Use GPT-5 models if present; otherwise fall back to all returned models
-        selected_models = gpt5_models if gpt5_models else model_ids
+    default_model = 'haiku'
 
-        # Build mapping of name->id for frontend selector
-        models_map = {mid: mid for mid in selected_models}
-
-        # Determine defaults
-        from config.settings import OPENAI_MODEL
-        default_model = selected_models[0] if selected_models else OPENAI_MODEL
-
-        return {
-            'models': models_map,
-            'defaultModel': default_model,
-            'currentModel': OPENAI_MODEL
-        }
-    except Exception as e:
-        # Improved fallback chain: user config first, then hardcoded list
-        try:
-            from config.settings import OPENAI_MODEL
-        except Exception:
-            OPENAI_MODEL = 'gpt-4.1-mini'  # Match the actual default from settings.py
-        
-        # Check for environment variable override
-        env_model = os.getenv("OBBY_OPENAI_MODEL")
-        current_model = env_model if env_model else OPENAI_MODEL
-        
-        # Build fallback models list starting with user's configured model
-        fallback_models = {}
-        
-        # Add user's configured model first (if it's valid)
-        if current_model and current_model in OpenAIClient.MODELS.values():
-            fallback_models[current_model] = current_model
-        
-        # Add remaining hardcoded models
-        for name, model_id in OpenAIClient.MODELS.items():
-            if model_id not in fallback_models:
-                fallback_models[name] = model_id
-        
-        # Default should be user's configured model, or first available
-        default_model = current_model if current_model in fallback_models.values() else next(iter(fallback_models.values()), 'gpt-4.1-mini')
-        
-        return JSONResponse({
-            'error': f'Failed to get models from API: {str(e)}',
-            'models': fallback_models,
-            'defaultModel': default_model,
-            'currentModel': current_model
-        }, status_code=500)
-
-
-@config_bp.get('/openai/ping')
-async def openai_ping():
-    """Quick connectivity + config check for OpenAI. Performs a tiny chat call.
-
-    Returns:
-      - available: bool
-      - model: configured model id (if available)
-      - reply: short reply from model (if successful)
-      - error: error details (if failed)
-    """
-    try:
-        client = OpenAIClient()
-        model = getattr(client, 'model', None)
-        if not client.is_available():
-            return JSONResponse({
-                'available': False,
-                'model': model,
-                'error': 'Client not available; check OPENAI_API_KEY'
-            }, status_code=200)
-
-        # Minimal, low-cost call
-        reply = client.get_completion(
-            "Reply with the single word: ready",
-            system_prompt="You are a health check. Reply exactly 'ready' only.",
-            max_tokens=10
-        )
-        return {
-            'available': True,
-            'model': model,
-            'reply': (reply or '').strip()
-        }
-    except Exception as e:
-        return JSONResponse({
-            'available': False,
-            'model': getattr(OpenAIClient(), 'model', None),
-            'error': str(e)
-        }, status_code=200)
-
+    return {
+        'models': claude_models,
+        'defaultModel': default_model,
+        'currentModel': current_model,
+    }
 
 @config_bp.api_route('/settings', methods=['GET', 'POST'])
 async def handle_config(request: Request):
@@ -277,16 +206,13 @@ async def update_config(request: Request):
             return JSONResponse({'error': 'No configuration data provided'}, status_code=400)
         
         # Validate required fields
-        required_fields = ['openai_api_key', 'model', 'check_interval']
+        required_fields = ['model', 'check_interval']
         for field in required_fields:
             if field not in data:
                 return JSONResponse({'error': f'Missing required field: {field}'}, status_code=400)
         
         # Validate model
-        valid_models = [
-            'gpt-4', 'gpt-4-turbo', 'gpt-4-turbo-preview', 
-            'gpt-3.5-turbo', 'gpt-3.5-turbo-16k'
-        ]
+        valid_models = ['haiku', 'sonnet', 'opus']
         if data['model'] not in valid_models:
             return JSONResponse({'error': f'Invalid model. Must be one of: {", ".join(valid_models)}'}, status_code=400)
         

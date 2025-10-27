@@ -58,35 +58,6 @@ export const apiRequest = async <T = any>(
 }
 
 /**
- * Manual summary generation API response type
- */
-export interface ManualSummaryGenerationResponse {
-  success: boolean
-  message: string
-  result?: {
-    processed: boolean
-    changes_count: number
-    processing_time: number
-    last_update: string
-    reason?: string
-    error?: string
-  }
-}
-
-/**
- * Manually trigger batch AI processing for summary generation
- */
-export const triggerManualSummaryGeneration = async (force: boolean = true): Promise<ManualSummaryGenerationResponse> => {
-  return apiRequest<ManualSummaryGenerationResponse>('/api/monitor/batch-ai/trigger', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ force })
-  })
-}
-
-/**
  * Session Summary update API response type
  */
 export interface SessionSummaryUpdateResponse {

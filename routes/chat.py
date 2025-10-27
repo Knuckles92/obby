@@ -39,7 +39,7 @@ except ImportError:
     class CLIConnectionError(Exception): pass
     class ProcessError(Exception): pass
     class ClaudeSDKError(Exception): pass
-    logger.warning("Claude Agent SDK not available. Tool-based chat will use OpenAI orchestrator.")
+    logger.warning("Claude Agent SDK not available. Tool-based chat features are disabled.")
 
 chat_bp = APIRouter(prefix='/api/chat', tags=['chat'])
 
@@ -135,9 +135,9 @@ def notify_chat_progress(session_id: str, event_type: str, message: str, data: D
 @chat_bp.post('/message')
 async def chat_single_message(request: Request):
     """Stateless chat: send a single message and get a reply."""
-    logger.warning("Stateless OpenAI chat endpoint is no longer supported.")
+    logger.warning("Stateless chat endpoint is no longer supported.")
     return JSONResponse(
-        {'error': 'OpenAI chat provider has been disabled. Use /api/chat/agent_query with the Claude agent.'},
+        {'error': 'Legacy chat provider has been disabled. Use /api/chat/agent_query with the Claude agent.'},
         status_code=400
     )
 

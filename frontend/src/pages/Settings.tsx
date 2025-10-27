@@ -7,8 +7,7 @@ import ThemeSwitcher from '../components/ThemeSwitcher'
 export default function Settings() {
   const [config, setConfig] = useState<ConfigSettings>({
     checkInterval: 5,
-    openaiApiKey: '',
-    aiModel: 'gpt-4.1-mini',
+    aiModel: 'haiku',
     ignorePatterns: [],
     monitoringDirectory: 'notes',
     periodicCheckEnabled: true,
@@ -42,8 +41,7 @@ export default function Settings() {
       const data = await response.json()
       setConfig({
         checkInterval: data.checkInterval || 5,
-        openaiApiKey: data.openaiApiKey || '',
-        aiModel: data.aiModel || 'gpt-4.1-mini',
+        aiModel: data.aiModel || 'haiku',
         ignorePatterns: data.ignorePatterns || [],
         monitoringDirectory: data.monitoringDirectory || 'notes',
         periodicCheckEnabled: data.periodicCheckEnabled ?? true,
@@ -68,11 +66,9 @@ export default function Settings() {
         console.error('Error from models API:', data.error)
         // Fallback to default models if API fails
         setModels({
-          'gpt-4o': 'gpt-4o',
-          'gpt-4.1': 'gpt-4.1',
-          'gpt-4.1-mini': 'gpt-4.1-mini',
-          'o4-mini': 'o4-mini',
-          'gpt-4.1-nano': 'gpt-4.1-nano'
+          haiku: 'haiku',
+          sonnet: 'sonnet',
+          opus: 'opus'
         })
       } else {
         setModels(data.models)
@@ -89,11 +85,9 @@ export default function Settings() {
       console.error('Error fetching models:', error)
       // Fallback to default models if fetch fails
       setModels({
-        'gpt-4o': 'gpt-4o', 
-        'gpt-4.1': 'gpt-4.1',
-        'gpt-4.1-mini': 'gpt-4.1-mini',
-        'o4-mini': 'o4-mini',
-        'gpt-4.1-nano': 'gpt-4.1-nano'
+        haiku: 'haiku',
+        sonnet: 'sonnet',
+        opus: 'opus'
       })
     } finally {
       setModelsLoading(false)
@@ -432,7 +426,7 @@ export default function Settings() {
                 AI Model
               </label>
               <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-                <strong>OpenAI model used for:</strong> Session summaries, diff analysis, batch processing, and non-interactive AI features.
+                <strong>Claude model used for:</strong> Session summaries, semantic analysis, and other AI-assisted features.
               </p>
               <select
                 value={config.aiModel}
@@ -450,17 +444,10 @@ export default function Settings() {
                   <option value="">Loading models...</option>
                 ) : (
                   Object.entries(models).map(([key, value]) => {
-                    // Create display names for better UX
-                    const displayName = key === 'gpt-4o' ? 'GPT-4o (Latest)' :
-                                       key === 'gpt-4.1' ? 'GPT-4.1' :
-                                       key === 'gpt-4.1-mini' ? 'GPT-4.1 Mini' :
-                                       key === 'o4-mini' ? 'O4 Mini' :
-                                       key === 'gpt-4.1-nano' ? 'GPT-4.1 Nano' :
-                                       key.charAt(0).toUpperCase() + key.slice(1)
-
+                    const displayName = key.charAt(0).toUpperCase() + key.slice(1)
                     return (
                       <option key={key} value={value}>
-                        {displayName}
+                        {`Claude ${displayName}`}
                       </option>
                     )
                   })
@@ -469,25 +456,6 @@ export default function Settings() {
               {modelsLoading && (
                 <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>Fetching latest models...</p>
               )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
-                OpenAI API Key
-              </label>
-              <input
-                type="password"
-                value={config.openaiApiKey}
-                onChange={(e) => setConfig({ ...config, openaiApiKey: e.target.value })}
-                placeholder="sk-..."
-                className="w-full px-3 py-2 rounded-md transition-colors"
-                style={{
-                  backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-border)',
-                  color: 'var(--color-text-primary)',
-                  border: '1px solid'
-                }}
-              />
             </div>
 
             <div className="rounded-xl p-4" style={{

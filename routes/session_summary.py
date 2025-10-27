@@ -186,7 +186,7 @@ async def trigger_session_summary_update(request: Request):
         logger.error(f"Failed to trigger session summary update: {e}", exc_info=True)
         # Provide more detailed error message
         error_message = str(e)
-        if "API" in error_message or "OpenAI" in error_message:
+        if "API" in error_message:
             error_message = f"AI service error: {error_message}. The service may need a moment to warm up. Please try again."
         elif "timeout" in error_message.lower():
             error_message = "Request timed out. The AI service may be experiencing delays. Please try again."

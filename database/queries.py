@@ -1587,7 +1587,7 @@ class AnalyticsQueries:
                 # Reset critical configuration values to defaults
                 try:
                     # Keep essential config but reset others
-                    essential_keys = ['dbVersion', 'openaiModel', 'checkInterval']
+                    essential_keys = ['dbVersion', 'aiModel', 'checkInterval']
                     placeholders = ','.join(['?' for _ in essential_keys])
                     reset_config_query = f"DELETE FROM config_values WHERE key NOT IN ({placeholders})"
                     config_deleted = db.execute_update(reset_config_query, essential_keys)

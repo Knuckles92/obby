@@ -123,26 +123,20 @@ class APIObbyMonitor(ObbyMonitor):
         try:
             # Use our custom API-aware handler
             from utils.file_watcher import FileWatcher
-            from ai.openai_client import OpenAIClient
             from utils.session_summary_path import resolve_session_summary_path
-            
-            # Initialize AI client
-            ai_client = OpenAIClient()
-            self.ai_client = ai_client
             
             # Create file watcher with correct parameters  
             utils_folder = self.notes_folder.parent  # Use root directory for config files
             self.file_watcher = FileWatcher(
                 notes_folder=self.notes_folder,
-                ai_client=ai_client,
                 session_summary_path=resolve_session_summary_path(),
-                utils_folder=utils_folder
+                utils_folder=utils_folder,
+                file_tracker=self.file_tracker
             )
             
             # Replace the default handler with our API-aware handler
             self.file_watcher.handler = APIAwareNoteChangeHandler(
                 notes_folder=self.notes_folder,
-                ai_client=ai_client,
                 session_summary_path=resolve_session_summary_path(),
                 utils_folder=utils_folder,
                 file_tracker=self.file_tracker  # Pass file_tracker for content diff generation

@@ -3,7 +3,6 @@ Claude Agent SDK Integration for Obby
 ======================================
 
 Provides agentic AI capabilities using Anthropic's Claude Agent SDK.
-Complements OpenAIClient with tool-calling and interactive conversation features.
 """
 
 import os
@@ -59,18 +58,27 @@ class ClaudeAgentClient:
         
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.working_dir = working_dir or Path.cwd()
-        
+
         if not self.api_key:
             logger.warning("No ANTHROPIC_API_KEY found. Set it via environment variable.")
-        
-        # Create default options
+
+        # Import model setting from config
+        try:
+            from config.settings import CLAUDE_MODEL
+            self.model = CLAUDE_MODEL.lower()  # "haiku", "sonnet", or "opus"
+        except ImportError:
+            logger.warning("CLAUDE_MODEL setting not found. Using default.")
+            self.model = None
+
+        # Create default options with specified model
         self.default_options = ClaudeAgentOptions(
             cwd=str(self.working_dir),
             allowed_tools=["Read"],  # Safe default: only allow reading files
             max_turns=10,
+            model=self.model,  # Use model from settings
         )
-        
-        logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir})")
+
+        logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir}, model={self.model or 'default'})")
     
     async def analyze_diff(self, diff_content: str, context: Optional[str] = None) -> str:
         """
@@ -93,6 +101,7 @@ class ClaudeAgentClient:
                 cwd=str(self.working_dir),
                 allowed_tools=["Read"],
                 max_turns=3,
+                model=self.model,
                 system_prompt="You are a code analysis assistant. Provide concise, technical summaries."
             )
             
@@ -158,6 +167,7 @@ class ClaudeAgentClient:
                 cwd=str(self.working_dir),
                 allowed_tools=["Read"],
                 max_turns=2,
+                model=self.model,
             )
             
             result = []
@@ -202,6 +212,7 @@ class ClaudeAgentClient:
                 allowed_tools=tools,
                 permission_mode='acceptEdits' if allow_file_edits else 'ask',
                 max_turns=20,
+                model=self.model,
             )
             
             async with ClaudeSDKClient(options=options) as client:
@@ -241,6 +252,7 @@ class ClaudeAgentClient:
                 cwd=str(self.working_dir),
                 allowed_tools=["Read"],
                 max_turns=3,
+                model=self.model,
             )
             
             result = []
@@ -259,83 +271,6 @@ class ClaudeAgentClient:
         except Exception as e:
             logger.error(f"Error asking question: {e}", exc_info=True)
             return f"Error: {str(e)}"
-
-    @staticmethod
-    def _is_structured_summary(text: str) -> bool:
-        """Check if Claude's response matches the structured summary format."""
-        if not text:
-            return False
-
-        required_markers = [
-            "**Summary**:",
-            "**Key Topics**:",
-            "**Key Keywords**:",
-            "**Overall Impact**:"
-        ]
-
-        if any(marker not in text for marker in required_markers):
-            return False
-
-        plan_indicators = [
-            "i'll analyze",
-            "i will analyze",
-            "let me check",
-            "let me start",
-            "first, i will",
-            "i'll start by",
-            "i'll begin"
-        ]
-
-        lowered = text.lower()
-        return not any(indicator in lowered for indicator in plan_indicators)
-
-    @staticmethod
-    def _build_fallback_summary(file_summaries: List[Dict], time_span: str) -> str:
-        """Construct a deterministic fallback summary if the model fails to comply."""
-        if not file_summaries:
-            summary_line = f"No tracked file changes were detected in the monitored window ({time_span})."
-            topics = "None"
-            keywords = "None"
-            impact = "brief"
-        else:
-            first_files = ", ".join(fs["file_path"] for fs in file_summaries[:3])
-            if len(file_summaries) > 3:
-                first_files += f", … {len(file_summaries) - 3} more"
-            summary_line = (
-                f"{len(file_summaries)} files changed during the {time_span} window. "
-                f"Notable files: {first_files}."
-            )
-
-            highlight_snippets = [
-                fs.get("highlights") for fs in file_summaries if fs.get("highlights")
-            ]
-            if highlight_snippets:
-                key_updates = "; ".join(highlight_snippets[:2])
-                summary_line += f" Key updates: {key_updates}."
-
-            inferred_topics = ["Code Changes"]
-            if highlight_snippets and any(
-                term in snippet.lower()
-                for snippet in highlight_snippets
-                for term in ("doc", "readme", "guide", "note")
-            ):
-                inferred_topics.insert(0, "Documentation")
-            topics = ", ".join(dict.fromkeys(inferred_topics)) if inferred_topics else "Code Changes"
-
-            def _trim_snippet(snippet: str) -> str:
-                snippet = snippet.strip().replace("\n", " ")
-                return snippet if len(snippet) <= 60 else snippet[:57] + "..."
-
-            keywords_list = [_trim_snippet(snippet) for snippet in highlight_snippets[:3]]
-            keywords = ", ".join(keywords_list) if keywords_list else "code-change"
-            impact = "moderate"
-
-        return (
-            f"**Summary**: {summary_line}\n\n"
-            f"**Key Topics**: {topics}\n\n"
-            f"**Key Keywords**: {keywords}\n\n"
-            f"**Overall Impact**: {impact}"
-        )
 
     async def _execute_summary_query(
         self,
@@ -449,62 +384,11 @@ Context to use:
                 cwd=str(self.working_dir),
                 allowed_tools=["Read", "Grep", "Glob"],
                 max_turns=10,
+                model=self.model,
                 system_prompt="You are a technical code analyst who explores files to deliver concise, structured summaries. Use your tools (Read, Grep, Glob) to examine the files mentioned in the context. Always respond in the requested format without planning language."
             )
 
             response_text = await self._execute_summary_query(prompt, base_options)
-
-            def _retry_prompt(base_prompt: str) -> str:
-                return (
-                    f"{base_prompt}\n\n"
-                    "IMPORTANT: Previous reply did not comply. Provide the final structured summary now.\n"
-                    "- Begin immediately with \"**Summary**:\" followed by the completed summary sentence(s).\n"
-                    "- Do not include phrases like \"I'll analyze\" or describe planned actions.\n"
-                    "- Fill in every required section.\n"
-                )
-
-            if not self._is_structured_summary(response_text):
-                logger.warning("Claude summary response missing structure; retrying with stricter instructions.")
-                strict_prompt = _retry_prompt(prompt)
-                strict_options = ClaudeAgentOptions(
-                    cwd=str(self.working_dir),
-                    allowed_tools=["Read"],
-                    max_turns=5,
-                    system_prompt="You must comply exactly with the requested output format. Explore files as needed using Read tool, then respond only with the summary fields. No planning language."
-                )
-                response_text = await self._execute_summary_query(strict_prompt, strict_options)
-
-            if not self._is_structured_summary(response_text):
-                logger.warning("Retry still missing structure; requesting final summary with direct template.")
-                # Provide context from previous prompt
-                final_prompt = f"""Based on these file changes from the past {time_span}:
-
-{files_section}
-
-Please provide a concise summary in exactly this format:
-
-**Summary**: [1-2 sentence description of what changed]
-
-**Key Topics**: [comma-separated topics, 3-5 items]
-
-**Key Keywords**: [comma-separated technical terms, 5-8 items]
-
-**Overall Impact**: [choose one: brief, moderate, or significant]
-
-Fill in the brackets with your analysis. Do not include any other text."""
-
-                final_options = ClaudeAgentOptions(
-                    cwd=str(self.working_dir),
-                    allowed_tools=[],
-                    max_turns=1,
-                    system_prompt="Respond exactly in the template format shown. No additional commentary."
-                )
-                response_text = await self._execute_summary_query(final_prompt, final_options)
-
-            if not self._is_structured_summary(response_text):
-                logger.error("Claude summary failed to comply after retry; using fallback summary.")
-                response_text = self._build_fallback_summary(file_summaries, time_span)
-
             return response_text
 
         except Exception as e:
@@ -516,7 +400,7 @@ Fill in the brackets with your analysis. Do not include any other text."""
         return CLAUDE_SDK_AVAILABLE and bool(self.api_key)
 
     # ========================================================================
-    # SESSION SUMMARY METHODS (Replacing OpenAI functionality)
+    # SESSION SUMMARY METHODS (Legacy Summaries)
     # ========================================================================
 
     async def summarize_session(
@@ -528,7 +412,7 @@ Fill in the brackets with your analysis. Do not include any other text."""
         """
         Generate a comprehensive session summary by autonomously exploring changed files.
 
-        This replaces OpenAI's summarize_minimal() method. Instead of receiving diff content,
+        Replacement for the legacy summarize_minimal() behavior. Instead of receiving diff content,
         Claude explores the files autonomously using Read, Grep, and Glob tools.
 
         Args:
@@ -604,42 +488,11 @@ Focus on substantive modifications and their implications. Explore the files to 
                 cwd=str(working_dir or self.working_dir),
                 allowed_tools=["Read", "Grep", "Glob"],  # Allow autonomous exploration
                 max_turns=15,  # Allow enough turns for exploration
+                model=self.model,  # Use configured model
                 system_prompt=system_prompt
             )
 
             result = await self._execute_summary_query(user_prompt, options)
-
-            # Validate that we got a properly formatted response
-            if not self._is_valid_session_summary(result):
-                logger.warning("Claude session summary missing expected structure; attempting retry with stricter prompt")
-
-                strict_prompt = f"""{user_prompt}
-
-IMPORTANT: Your previous response did not follow the required format. Please provide the summary now in EXACTLY the format specified, including:
-1. Session title as ## heading
-2. **Summary** field
-3. **Change Pattern** field
-4. **Impact Assessment** section with Scope, Complexity, and Risk Level
-5. **Topics** field
-6. **Technical Keywords** field
-7. ### Sources section
-8. ### Proposed Questions section
-
-Do NOT include planning language or descriptions of your process."""
-
-                strict_options = ClaudeAgentOptions(
-                    cwd=str(working_dir or self.working_dir),
-                    allowed_tools=["Read", "Grep", "Glob"],
-                    max_turns=15,
-                    system_prompt=system_prompt + "\n\nYou MUST respond in the exact format specified. Do not deviate."
-                )
-
-                result = await self._execute_summary_query(strict_prompt, strict_options)
-
-            # Final validation - if still not formatted correctly, use fallback
-            if not self._is_valid_session_summary(result):
-                logger.error("Claude session summary failed validation after retry; using fallback")
-                return self._build_session_summary_fallback(changed_files, time_range)
 
             return result
 
@@ -656,7 +509,7 @@ Do NOT include planning language or descriptions of your process."""
         """
         Generate a summary for a single file change by examining the file.
 
-        This replaces OpenAI's summarize_diff() and summarize_tree_change() methods.
+        Replacement for the legacy summarize_diff() and summarize_tree_change() methods.
 
         Args:
             file_path: Path to the changed file
@@ -705,6 +558,7 @@ Use your tools to investigate the file and understand the change. Then provide t
                 cwd=str(working_dir or self.working_dir),
                 allowed_tools=["Read", "Grep", "Glob"],
                 max_turns=10,
+                model=self.model,
                 system_prompt=system_prompt
             )
 
@@ -723,7 +577,7 @@ Use your tools to investigate the file and understand the change. Then provide t
         """
         Generate a concise, punchy title for a session.
 
-        Replaces OpenAI's generate_session_title() method.
+        Replacement for the legacy generate_session_title() method.
 
         Args:
             changed_files: List of files that changed
@@ -765,6 +619,7 @@ FILES:
                 cwd=str(self.working_dir),
                 allowed_tools=[],  # No tools needed for title generation
                 max_turns=1,
+                model=self.model,
                 system_prompt=system_prompt
             )
 
@@ -792,7 +647,7 @@ FILES:
         """
         Generate 2-4 actionable follow-up questions about the changes.
 
-        Replaces OpenAI's generate_proposed_questions() method.
+        Replacement for the legacy generate_proposed_questions() method.
 
         Args:
             changed_files: List of files that changed
@@ -834,6 +689,7 @@ Provide 2-4 specific, actionable questions (each starting with '- ')."""
                 cwd=str(working_dir or self.working_dir),
                 allowed_tools=[],  # No tools needed
                 max_turns=1,
+                model=self.model,
                 system_prompt=system_prompt
             )
 
@@ -867,51 +723,6 @@ Provide 2-4 specific, actionable questions (each starting with '- ')."""
             return file_path
         except (ValueError, Exception):
             return file_path
-
-    def _is_valid_session_summary(self, text: str) -> bool:
-        """Check if text matches the session summary format."""
-        if not text:
-            return False
-
-        required_markers = [
-            "**Summary**:",
-            "**Change Pattern**:",
-            "**Impact Assessment**:",
-            "**Scope**:",
-            "**Complexity**:",
-            "**Risk Level**:",
-            "**Topics**:",
-            "**Technical Keywords**:",
-            "### Sources"
-        ]
-
-        # Check that all required markers are present
-        for marker in required_markers:
-            if marker not in text:
-                return False
-
-        # Check that there's a title (starts with ##)
-        if not text.strip().startswith('##'):
-            return False
-
-        # Check for planning language that suggests Claude didn't follow format
-        planning_indicators = [
-            "i'll analyze",
-            "i will analyze",
-            "let me check",
-            "let me start",
-            "first, i will",
-            "i'll start by",
-            "i'll begin",
-            "i'll read",
-            "i'll examine"
-        ]
-
-        lowered = text.lower()
-        if any(indicator in lowered for indicator in planning_indicators):
-            return False
-
-        return True
 
     def _build_session_summary_fallback(
         self,

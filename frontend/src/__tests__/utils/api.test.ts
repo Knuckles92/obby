@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { apiFetch, apiRequest, triggerManualSummaryGeneration, triggerSessionSummaryUpdate } from '../../utils/api';
+import { apiFetch, apiRequest, triggerSessionSummaryUpdate } from '../../utils/api';
 
 describe('API Utilities', () => {
   beforeEach(() => {
@@ -87,40 +87,6 @@ describe('API Utilities', () => {
 
       expect(result.id).toBe(1);
       expect(result.name).toBe('test');
-    });
-  });
-
-  describe('triggerManualSummaryGeneration', () => {
-    it('should send POST request with force parameter', async () => {
-      const mockData = { success: true, message: 'Generated' };
-      const mockResponse = new Response(JSON.stringify(mockData), { status: 200 });
-      (global.fetch as any) = vi.fn().mockResolvedValue(mockResponse);
-
-      const result = await triggerManualSummaryGeneration(true);
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/monitor/batch-ai/trigger',
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({ force: true })
-        })
-      );
-      expect(result.success).toBe(true);
-    });
-
-    it('should default force to true', async () => {
-      const mockData = { success: true, message: 'Generated' };
-      const mockResponse = new Response(JSON.stringify(mockData), { status: 200 });
-      (global.fetch as any) = vi.fn().mockResolvedValue(mockResponse);
-
-      await triggerManualSummaryGeneration();
-
-      expect(global.fetch).toHaveBeenCalledWith(
-        '/api/monitor/batch-ai/trigger',
-        expect.objectContaining({
-          body: JSON.stringify({ force: true })
-        })
-      );
     });
   });
 

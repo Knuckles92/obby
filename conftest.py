@@ -195,50 +195,6 @@ def sample_diff() -> str:
  if __name__ == "__main__":
 """
 
-
-@pytest.fixture
-def mock_openai_client():
-    """
-    Mock OpenAI client for testing AI functionality.
-
-    Returns a mock that simulates OpenAI API responses without making real calls.
-    """
-    mock = MagicMock()
-
-    # Mock summarize method
-    async def mock_summarize(*args, **kwargs):
-        return {
-            "summary": "Test summary of code changes",
-            "topics": ["testing", "python"],
-            "keywords": ["function", "print", "test"],
-            "impact_level": "minor"
-        }
-
-    mock.summarize = AsyncMock(side_effect=mock_summarize)
-
-    # Mock summarize_minimal method
-    async def mock_summarize_minimal(*args, **kwargs):
-        return "• Test change\n• Updated function\n\n### Sources\n- test.py: Modified test function"
-
-    mock.summarize_minimal = AsyncMock(side_effect=mock_summarize_minimal)
-
-    # Mock batch processing
-    async def mock_process_batch(*args, **kwargs):
-        return [
-            {
-                "file_path": "test.py",
-                "summary": "Test summary",
-                "topics": ["testing"],
-                "keywords": ["test"],
-                "impact_level": "minor"
-            }
-        ]
-
-    mock.process_batch = AsyncMock(side_effect=mock_process_batch)
-
-    return mock
-
-
 @pytest.fixture
 def mock_claude_agent_client():
     """
