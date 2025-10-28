@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class DatabaseConnection:
     """Thread-safe SQLite connection manager with connection pooling."""
     
-    def __init__(self, db_path: str = "obby.db"):
+    def __init__(self, db_path: str = ".db/obby.db"):
         self.db_path = db_path
         self._local = threading.local()
         self.schema_path = Path(__file__).parent / "schema.sql"

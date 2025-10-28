@@ -23,7 +23,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
-def migrate(db_path: str = "obby.db") -> bool:
+def migrate(db_path: str = ".db/obby.db") -> bool:
     """
     Add Claude-specific metadata fields to semantic_entries table.
 
@@ -114,7 +114,7 @@ def migrate(db_path: str = "obby.db") -> bool:
         return False
 
 
-def rollback(db_path: str = "obby.db") -> bool:
+def rollback(db_path: str = ".db/obby.db") -> bool:
     """
     Rollback the Claude fields migration.
 

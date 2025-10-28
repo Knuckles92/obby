@@ -38,7 +38,13 @@
       "Bash(mount:*)",
       "Bash(./wsl_venv/bin/python:*)",
       "Bash(journalctl:*)",
-      "Bash(dmesg:*)"
+      "Bash(dmesg:*)",
+      "Bash(sqlite3:*)",
+      "Bash(fuser:*)",
+      "Bash(awk:*)",
+      "Bash(xargs:*)",
+      "Bash(source wsl_venv/bin/activate:*)",
+      "Bash(netstat:*)"
     ],
     "deny": []
   },

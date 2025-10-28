@@ -21,6 +21,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
+from contextlib import asynccontextmanager
 import threading
 import logging
 import os
@@ -43,6 +44,7 @@ from routes.data import data_bp
 from routes.admin import admin_bp
 from routes.watch_config import watch_config_bp
 from routes.chat import chat_bp
+from routes.insights import insights_bp
 
 from routes.api_monitor import APIObbyMonitor
 
@@ -54,7 +56,17 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-app = FastAPI(title='Obby API', version='1.0.0')
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan event handler for startup and shutdown."""
+    # Startup
+    logger.info('Application starting up')
+    yield
+    # Shutdown (if needed in future)
+    logger.info('Application shutting down')
+
+
+app = FastAPI(title='Obby API', version='1.0.0', lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=['*'],
@@ -62,10 +74,6 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
-
-@app.on_event("startup")
-async def startup_event():
-    logger.info('Application starting up')
 
 # Global monitoring state
 monitor_instance = None
@@ -83,6 +91,7 @@ app.include_router(data_bp)
 app.include_router(admin_bp)
 app.include_router(watch_config_bp)
 app.include_router(chat_bp)
+app.include_router(insights_bp)
 
 
 def run_monitor():

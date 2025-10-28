@@ -7,7 +7,8 @@ import {
   Menu,
   Activity,
   Shield,
-  MessageSquare
+  MessageSquare,
+  Lightbulb
 } from 'lucide-react'
 import { useTheme, useThemeClasses, useThemeFeature } from '../contexts/ThemeContext'
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: Home },
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
+  { name: 'Insights', href: '/insights', icon: Lightbulb },
   { name: 'Summary', href: '/summary-notes', icon: FileText },
   { name: 'Administration', href: '/admin', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
