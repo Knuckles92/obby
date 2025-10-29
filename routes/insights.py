@@ -16,12 +16,12 @@ insights_bp = APIRouter(prefix="/api/insights", tags=["insights"])
 insights_service = InsightsService()
 
 
-@insights_bp.get("/", response_model=List[Dict[str, Any]])
+@insights_bp.get("/")
 async def get_insights(
     time_range_days: int = Query(default=7, ge=1, le=30, description="Time range in days"),
     max_insights: int = Query(default=12, ge=1, le=50, description="Maximum insights to generate"),
     include_dismissed: bool = Query(default=False, description="Include dismissed insights")
-):
+) -> Dict[str, Any]:
     """
     Generate and retrieve AI-powered contextual insights
     

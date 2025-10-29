@@ -197,7 +197,7 @@ describe('Insights Page', () => {
     fireEvent.change(timeRangeSelect, { target: { value: '14' } })
 
     // API should be called with new time range
-    expect(mockedApi.get).toHaveBeenCalledWith('/api/insights?time_range_days=14&max_insights=20')
+    expect(mockedApi.get).toHaveBeenCalledWith('/api/insights/?time_range_days=14&max_insights=20')
   })
 
   test('refresh button works', async () => {

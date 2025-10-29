@@ -202,3 +202,58 @@ export const deleteComprehensiveSummary = async (summaryId: number): Promise<{su
     method: 'DELETE'
   })
 }
+
+/**
+ * Convenience API object with REST-style methods
+ */
+export const api = {
+  get: async <T = any>(endpoint: string, options?: RequestInit): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'GET'
+    })
+  },
+
+  post: async <T = any>(endpoint: string, body?: any, options?: RequestInit): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      },
+      body: body ? JSON.stringify(body) : undefined
+    })
+  },
+
+  put: async <T = any>(endpoint: string, body?: any, options?: RequestInit): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      },
+      body: body ? JSON.stringify(body) : undefined
+    })
+  },
+
+  delete: async <T = any>(endpoint: string, options?: RequestInit): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'DELETE'
+    })
+  },
+
+  patch: async <T = any>(endpoint: string, body?: any, options?: RequestInit): Promise<T> => {
+    return apiRequest<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+      },
+      body: body ? JSON.stringify(body) : undefined
+    })
+  }
+}

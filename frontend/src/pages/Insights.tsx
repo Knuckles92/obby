@@ -90,7 +90,7 @@ const Insights: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await api.get<InsightsResponse>(`/api/insights?time_range_days=${timeRange}&max_insights=20`);
+      const response = await api.get<InsightsResponse>(`/api/insights/?time_range_days=${timeRange}&max_insights=20`);
       
       if (response.success) {
         setInsights(response.data);
