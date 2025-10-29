@@ -658,9 +658,9 @@ Guidelines:
       }
     }
 
-    const next = [...messagesToSend, { role: 'user', content: userMessage }]
+    const next = [...messagesToSend, { role: 'user' as Role, content: userMessage }]
     // Store display version separately
-    const displayMessages = [...messagesToSend, { role: 'user', content: displayMessage }]
+    const displayMessages = [...messagesToSend, { role: 'user' as Role, content: displayMessage }]
     setMessages(displayMessages)
     setInput('')
     setLoading(true)
@@ -716,20 +716,21 @@ Guidelines:
         setMessages((prevMessages) => {
           const existingMessageIds = prevMessages.map((m, idx) => `${m.role}:${m.content.substring(0, 50)}`)
           
-          const newMessages = res.conversation.filter(msg => {
+          const newMessages = (res.conversation || []).filter(msg => {
             const messageId = `${msg.role}:${msg.content.substring(0, 50)}`
             return !existingMessageIds.includes(messageId)
           })
 
           // Clean user messages to match displayMessage
+          const currentDisplayMessage = displayMessage // Capture current value to avoid stale closure
           const cleanNewMessages = newMessages.map(msg =>
-            msg.role === 'user' && msg.content !== displayMessage ?
-              { ...msg, content: displayMessage } : msg
+            msg.role === 'user' && msg.content !== currentDisplayMessage ?
+              { ...msg, content: currentDisplayMessage } : msg
           )
           
           return [...prevMessages, ...cleanNewMessages]
         })
-      } 
+      }
       // Handle single reply responses
       else if (reply) {
         setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
