@@ -1,261 +1,342 @@
-"""
-Test suite for Insights Service
-"""
-
 import pytest
-import asyncio
+from unittest.mock import Mock, patch, AsyncMock
 from datetime import datetime, timedelta
-from unittest.mock import Mock, AsyncMock, patch
+import json
 
-from services.insights_service import InsightsService, InsightsGenerator, Insight, InsightCategory
-
-
-class TestInsight:
-    """Test Insight model"""
-    
-    def test_insight_creation(self):
-        """Test creating an Insight object"""
-        insight = Insight(
-            category=InsightCategory.ACTION,
-            priority="high",
-            title="Test Insight",
-            content="This is a test insight",
-            related_files=["file1.py", "file2.py"],
-            evidence={"reasoning": "test reasoning"}
-        )
-        
-        assert insight.category == InsightCategory.ACTION
-        assert insight.priority == "high"
-        assert insight.title == "Test Insight"
-        assert insight.dismissed is False
-        assert insight.archived is False
-        assert insight.id is not None
-    
-    def test_insight_to_dict(self):
-        """Test converting Insight to dictionary"""
-        insight = Insight(
-            category=InsightCategory.PATTERN,
-            priority="medium",
-            title="Pattern Test",
-            content="Pattern detected",
-            related_files=["file1.py"],
-            evidence={"data_points": [1, 2, 3]}
-        )
-        
-        result = insight.to_dict()
-        
-        assert result['category'] == InsightCategory.PATTERN
-        assert result['priority'] == "medium"
-        assert result['title'] == "Pattern Test"
-        assert result['relatedFiles'] == ["file1.py"]
-        assert result['evidence']['data_points'] == [1, 2, 3]
-        assert 'timestamp' in result
-
-
-class TestInsightsGenerator:
-    """Test InsightsGenerator class"""
-    
-    @pytest.fixture
-    def generator(self):
-        """Create InsightsGenerator instance with mocked dependencies"""
-        with patch('services.insights_service.FileQueries'), \
-             patch('services.insights_service.ClaudeAgentClient'), \
-             patch('services.insights_service.WatchHandler'), \
-             patch('services.insights_service.NotesSearchTool'):
-            return InsightsGenerator()
-    
-    @pytest.mark.asyncio
-    async def test_generate_insights_success(self, generator):
-        """Test successful insight generation"""
-        # Mock the context gathering
-        mock_context = {
-            'time_range': {'days': 7},
-            'total_files': 5,
-            'total_changes': 10
-        }
-        generator._gather_context_data = AsyncMock(return_value=mock_context)
-        
-        # Mock Claude analysis
-        mock_insights_data = [
-            {
-                'category': 'action',
-                'priority': 'high',
-                'title': 'Test Action',
-                'content': 'This is an action item',
-                'related_files': ['file1.py'],
-                'evidence': {'reasoning': 'test'},
-                'id': 'test_insight_1'
-            }
-        ]
-        generator._analyze_with_claude = AsyncMock(return_value=mock_insights_data)
-        
-        # Generate insights
-        insights = await generator.generate_insights(time_range_days=7, max_insights=1)
-        
-        assert len(insights) == 1
-        assert insights[0].category == 'action'
-        assert insights[0].title == 'Test Action'
-        assert insights[0].related_files == ['file1.py']
-    
-    @pytest.mark.asyncio
-    async def test_generate_insights_failure(self, generator):
-        """Test insight generation with error"""
-        generator._gather_context_data = AsyncMock(side_effect=Exception("Test error"))
-        
-        insights = await generator.generate_insights()
-        
-        assert insights == []
-    
-    def test_analyze_topic_patterns(self, generator):
-        """Test topic pattern analysis"""
-        # Mock semantic data
-        mock_semantic_data = [
-            Mock(topics=['python', 'testing'], keywords=['pytest', 'mock']),
-            Mock(topics=['python', 'api'], keywords=['fastapi', 'endpoint']),
-            Mock(topics=['javascript'], keywords=['react', 'component'])
-        ]
-        
-        result = generator._analyze_topic_patterns(mock_semantic_data)
-        
-        assert 'python' in result
-        assert 'javascript' in result
-        assert 'Top topics:' in result
-        assert 'Top keywords:' in result
-    
-    def test_parse_insights_response_valid_json(self, generator):
-        """Test parsing valid JSON response"""
-        mock_response = Mock()
-        mock_response.content = '''
-        {
-            "insights": [
-                {
-                    "category": "action",
-                    "priority": "high",
-                    "title": "Test",
-                    "content": "Test content",
-                    "related_files": ["file.py"]
-                }
-            ]
-        }
-        '''
-        
-        result = generator._parse_insights_response(mock_response)
-        
-        assert len(result) == 1
-        assert result[0]['category'] == 'action'
-        assert result[0]['title'] == 'Test'
-    
-    def test_parse_insights_response_invalid_json(self, generator):
-        """Test parsing invalid JSON response"""
-        mock_response = Mock()
-        mock_response.content = 'Invalid JSON response'
-        
-        result = generator._parse_insights_response(mock_response)
-        
-        assert result == []
+from services.insights_service import InsightsService
+from services.insights_aggregator import InsightsAggregator
+from database.models import InsightModel
+from utils.watch_handler import WatchHandler
 
 
 class TestInsightsService:
-    """Test InsightsService class"""
-    
+    """Test suite for InsightsService"""
+
     @pytest.fixture
-    def service(self):
-        """Create InsightsService instance with mocked generator"""
-        with patch('services.insights_service.InsightsGenerator') as mock_generator_class, \
-             patch('services.insights_service.FileQueries'):
-            mock_generator = AsyncMock()
-            mock_generator_class.return_value = mock_generator
-            service = InsightsService()
-            service.generator = mock_generator
-            return service
-    
-    @pytest.mark.asyncio
-    async def test_get_insights_success(self, service):
-        """Test successful insights retrieval"""
-        # Mock insight
-        mock_insight = Insight(
-            category=InsightCategory.OPPORTUNITY,
-            priority="medium",
-            title="Test Opportunity",
-            content="Opportunity detected",
-            related_files=["file1.py"],
-            evidence={}
+    def mock_watch_handler(self):
+        """Mock watch handler"""
+        handler = Mock(spec=WatchHandler)
+        handler.is_watched.return_value = True
+        return handler
+
+    @pytest.fixture
+    def mock_aggregator(self):
+        """Mock insights aggregator"""
+        aggregator = Mock(spec=InsightsAggregator)
+        aggregator.aggregate_insights = AsyncMock()
+        return aggregator
+
+    @pytest.fixture
+    def insights_service(self, mock_watch_handler, mock_aggregator):
+        """Create insights service with mocked dependencies"""
+        return InsightsService(
+            watch_handler=mock_watch_handler,
+            aggregator=mock_aggregator
         )
-        
-        service.generator.generate_insights.return_value = [mock_insight]
-        
-        result = await service.get_insights(time_range_days=7, max_insights=5)
-        
-        assert len(result) == 1
-        assert result[0]['category'] == InsightCategory.OPPORTUNITY
-        assert result[0]['title'] == "Test Opportunity"
-        assert service.generator.generate_insights.call_count == 1
-    
-    @pytest.mark.asyncio
-    async def test_get_insights_failure(self, service):
-        """Test insights retrieval with error"""
-        service.generator.generate_insights.side_effect = Exception("Test error")
-        
-        result = await service.get_insights()
-        
-        assert result == []
-    
-    @pytest.mark.asyncio
-    async def test_dismiss_insight(self, service):
-        """Test dismissing an insight"""
-        # Note: This is a placeholder since we haven't implemented persistence yet
-        result = await service.dismiss_insight("test_insight_id")
-        assert result is True
-    
-    @pytest.mark.asyncio
-    async def test_archive_insight(self, service):
-        """Test archiving an insight"""
-        # Note: This is a placeholder since we haven't implemented persistence yet
-        result = await service.archive_insight("test_insight_id")
-        assert result is True
 
-
-class TestInsightsIntegration:
-    """Integration tests for Insights service"""
-    
     @pytest.mark.asyncio
-    async def test_insight_categories(self):
-        """Test all insight categories are valid"""
-        valid_categories = [
-            InsightCategory.ACTION,
-            InsightCategory.PATTERN,
-            InsightCategory.RELATIONSHIP,
-            InsightCategory.TEMPORAL,
-            InsightCategory.OPPORTUNITY
+    async def test_get_insights_success(self, insights_service, mock_aggregator):
+        """Test successful insights retrieval"""
+        # Mock aggregator response
+        mock_insights = [
+            {
+                'id': 'insight_1',
+                'category': 'quality',
+                'priority': 'high',
+                'title': 'Code Quality Issue',
+                'content': 'Potential code duplication detected',
+                'related_files': ['src/utils.py', 'src/helpers.py'],
+                'evidence': {
+                    'reasoning': 'Similar code patterns found across multiple files',
+                    'data_points': ['Duplicate function in utils.py and helpers.py'],
+                    'generated_by_agent': 'claude-sonnet'
+                },
+                'timestamp': datetime.now().isoformat(),
+                'dismissed': False,
+                'archived': False,
+                'source_section': 'semantic'
+            }
         ]
-        
-        for category in valid_categories:
-            insight = Insight(
-                category=category,
-                priority="medium",
-                title=f"Test {category}",
-                content=f"Test {category} content",
-                related_files=["file.py"],
-                evidence={}
-            )
-            
-            assert insight.category == category
-            assert category in InsightCategory.__dict__.values()
-    
+        mock_aggregator.aggregate_insights.return_value = mock_insights
+
+        # Test the service method
+        result = await insights_service.get_insights(
+            time_range_days=7,
+            max_insights=10,
+            category='quality',
+            include_dismissed=False
+        )
+
+        # Verify aggregator was called with correct parameters
+        mock_aggregator.aggregate_insights.assert_called_once_with(
+            time_range_days=7,
+            max_insights=10,
+            category='quality',
+            include_dismissed=False
+        )
+
+        # Verify result structure
+        assert result['success'] is True
+        assert 'data' in result
+        assert 'metadata' in result
+        assert len(result['data']) == 1
+        assert result['data'][0]['id'] == 'insight_1'
+        assert result['data'][0]['category'] == 'quality'
+
     @pytest.mark.asyncio
-    async def test_insight_priorities(self):
-        """Test all insight priorities are valid"""
-        valid_priorities = ["low", "medium", "high", "critical"]
-        
-        for priority in valid_priorities:
-            insight = Insight(
-                category=InsightCategory.ACTION,
-                priority=priority,
-                title=f"Test {priority}",
-                content=f"Test {priority} content",
-                related_files=["file.py"],
-                evidence={}
-            )
+    async def test_get_insights_with_filters(self, insights_service, mock_aggregator):
+        """Test insights retrieval with various filters"""
+        mock_insights = [
+            {
+                'id': 'insight_1',
+                'category': 'quality',
+                'priority': 'high',
+                'title': 'Quality Issue',
+                'content': 'Test content',
+                'related_files': [],
+                'timestamp': datetime.now().isoformat(),
+                'dismissed': False,
+                'archived': False
+            },
+            {
+                'id': 'insight_2',
+                'category': 'velocity',
+                'priority': 'medium',
+                'title': 'Velocity Issue',
+                'content': 'Test content',
+                'related_files': [],
+                'timestamp': datetime.now().isoformat(),
+                'dismissed': True,
+                'archived': False
+            }
+        ]
+        mock_aggregator.aggregate_insights.return_value = mock_insights
+
+        # Test with priority filter
+        result = await insights_service.get_insights(
+            time_range_days=7,
+            max_insights=10,
+            priority='high'
+        )
+
+        assert result['success'] is True
+        assert len(result['data']) == 1
+        assert result['data'][0]['priority'] == 'high'
+
+    @pytest.mark.asyncio
+    async def test_get_insight_by_id_success(self, insights_service):
+        """Test successful insight retrieval by ID"""
+        # Mock database query
+        mock_insight = InsightModel(
+            id='insight_1',
+            category='quality',
+            priority='high',
+            title='Test Insight',
+            content='Test content',
+            related_files='["test.py"]',
+            evidence='{"reasoning": "test"}',
+            timestamp=datetime.now(),
+            dismissed=False,
+            archived=False
+        )
+
+        with patch.object(insights_service, '_get_insight_from_db') as mock_get:
+            mock_get.return_value = mock_insight
+
+            result = await insights_service.get_insight_by_id('insight_1')
+
+            assert result['success'] is True
+            assert result['data']['id'] == 'insight_1'
+            assert result['data']['category'] == 'quality'
+
+    @pytest.mark.asyncio
+    async def test_get_insight_by_id_not_found(self, insights_service):
+        """Test insight retrieval when ID not found"""
+        with patch.object(insights_service, '_get_insight_from_db') as mock_get:
+            mock_get.return_value = None
+
+            result = await insights_service.get_insight_by_id('nonexistent')
+
+            assert result['success'] is False
+            assert 'Insight not found' in result['error']
+
+    @pytest.mark.asyncio
+    async def test_dismiss_insight_success(self, insights_service):
+        """Test successful insight dismissal"""
+        mock_insight = InsightModel(
+            id='insight_1',
+            category='quality',
+            priority='high',
+            title='Test Insight',
+            content='Test content',
+            related_files='[]',
+            evidence='{}',
+            timestamp=datetime.now(),
+            dismissed=False,
+            archived=False
+        )
+
+        with patch.object(insights_service, '_get_insight_from_db') as mock_get, \
+             patch.object(insights_service, '_update_insight_in_db') as mock_update:
             
-            assert insight.priority == priority
-            assert priority in valid_priorities
+            mock_get.return_value = mock_insight
+            mock_update.return_value = True
+
+            result = await insights_service.dismiss_insight('insight_1')
+
+            assert result['success'] is True
+            mock_update.assert_called_once_with('insight_1', dismissed=True)
+
+    @pytest.mark.asyncio
+    async def test_archive_insight_success(self, insights_service):
+        """Test successful insight archival"""
+        mock_insight = InsightModel(
+            id='insight_1',
+            category='quality',
+            priority='high',
+            title='Test Insight',
+            content='Test content',
+            related_files='[]',
+            evidence='{}',
+            timestamp=datetime.now(),
+            dismissed=False,
+            archived=False
+        )
+
+        with patch.object(insights_service, '_get_insight_from_db') as mock_get, \
+             patch.object(insights_service, '_update_insight_in_db') as mock_update:
+            
+            mock_get.return_value = mock_insight
+            mock_update.return_value = True
+
+            result = await insights_service.archive_insight('insight_1')
+
+            assert result['success'] is True
+            mock_update.assert_called_once_with('insight_1', archived=True)
+
+    @pytest.mark.asyncio
+    async def test_refresh_insights_success(self, insights_service, mock_aggregator):
+        """Test successful insights refresh"""
+        mock_insights = [
+            {
+                'id': 'new_insight_1',
+                'category': 'quality',
+                'priority': 'high',
+                'title': 'New Insight',
+                'content': 'Fresh analysis',
+                'related_files': ['test.py'],
+                'timestamp': datetime.now().isoformat(),
+                'dismissed': False,
+                'archived': False
+            }
+        ]
+        mock_aggregator.aggregate_insights.return_value = mock_insights
+
+        result = await insights_service.refresh_insights(
+            time_range_days=7,
+            max_insights=10,
+            force_refresh=True
+        )
+
+        assert result['success'] is True
+        assert len(result['data']) == 1
+        assert result['data'][0]['id'] == 'new_insight_1'
+
+    @pytest.mark.asyncio
+    async def test_get_insights_stats(self, insights_service):
+        """Test insights statistics retrieval"""
+        with patch.object(insights_service, '_get_insights_stats_from_db') as mock_stats:
+            mock_stats.return_value = {
+                'total_insights': 25,
+                'by_category': {
+                    'quality': 8,
+                    'velocity': 6,
+                    'risk': 4,
+                    'documentation': 3,
+                    'follow-ups': 4
+                },
+                'by_priority': {
+                    'critical': 3,
+                    'high': 8,
+                    'medium': 10,
+                    'low': 4
+                },
+                'dismissed_count': 5,
+                'archived_count': 3
+            }
+
+            result = await insights_service.get_insights_stats()
+
+            assert result['success'] is True
+            assert result['data']['total_insights'] == 25
+            assert result['data']['by_category']['quality'] == 8
+            assert result['data']['by_priority']['critical'] == 3
+
+    def test_parse_insight_filters(self, insights_service):
+        """Test insight filter parsing"""
+        # Test no filters
+        filters = insights_service._parse_insight_filters({})
+        assert filters['category'] is None
+        assert filters['priority'] is None
+        assert filters['include_dismissed'] is False
+
+        # Test with filters
+        filters = insights_service._parse_insight_filters({
+            'category': 'quality',
+            'priority': 'high',
+            'include_dismissed': 'true'
+        })
+        assert filters['category'] == 'quality'
+        assert filters['priority'] == 'high'
+        assert filters['include_dismissed'] is True
+
+    def test_validate_insight_data(self, insights_service):
+        """Test insight data validation"""
+        # Valid insight
+        valid_insight = {
+            'category': 'quality',
+            'priority': 'high',
+            'title': 'Test Insight',
+            'content': 'Test content'
+        }
+        assert insights_service._validate_insight_data(valid_insight) is True
+
+        # Invalid category
+        invalid_insight = {
+            'category': 'invalid',
+            'priority': 'high',
+            'title': 'Test Insight',
+            'content': 'Test content'
+        }
+        assert insights_service._validate_insight_data(invalid_insight) is False
+
+        # Missing required field
+        invalid_insight = {
+            'category': 'quality',
+            'priority': 'high',
+            'content': 'Test content'
+        }
+        assert insights_service._validate_insight_data(invalid_insight) is False
+
+    @pytest.mark.asyncio
+    async def test_error_handling_in_aggregator(self, insights_service, mock_aggregator):
+        """Test error handling when aggregator fails"""
+        mock_aggregator.aggregate_insights.side_effect = Exception("Aggregator error")
+
+        result = await insights_service.get_insights()
+
+        assert result['success'] is False
+        assert 'error' in result
+        assert 'Aggregator error' in result['error']
+
+    @pytest.mark.asyncio
+    async def test_watch_filtering(self, insights_service, mock_watch_handler):
+        """Test that watch filtering is applied"""
+        # Mock unwatched file
+        mock_watch_handler.is_watched.return_value = False
+
+        result = await insights_service.get_insights()
+
+        # Should return empty result when files are not watched
+        assert result['success'] is True
+        assert len(result['data']) == 0

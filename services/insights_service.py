@@ -17,6 +17,11 @@ class InsightCategory:
     RELATIONSHIP = "relationship"
     TEMPORAL = "temporal"
     OPPORTUNITY = "opportunity"
+    QUALITY = "quality"
+    VELOCITY = "velocity"
+    RISK = "risk"
+    DOCUMENTATION = "documentation"
+    FOLLOW_UPS = "follow-ups"
 
 
 class Insight:
@@ -29,7 +34,12 @@ class Insight:
         related_files: List[str],
         evidence: Dict[str, Any],
         timestamp: datetime = None,
-        insight_id: str = None
+        insight_id: str = None,
+        source_section: str = None,
+        source_pointers: List[str] = None,
+        generated_by_agent: str = None,
+        dismissed: bool = False,
+        archived: bool = False
     ):
         self.id = insight_id or f"{category}_{datetime.utcnow().timestamp()}"
         self.category = category
@@ -39,8 +49,11 @@ class Insight:
         self.related_files = related_files
         self.evidence = evidence  # AI reasoning and source data
         self.timestamp = timestamp or datetime.utcnow()
-        self.dismissed = False
-        self.archived = False
+        self.dismissed = dismissed
+        self.archived = archived
+        self.source_section = source_section
+        self.source_pointers = source_pointers or []
+        self.generated_by_agent = generated_by_agent
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -53,7 +66,10 @@ class Insight:
             'evidence': self.evidence,
             'timestamp': self.timestamp.isoformat(),
             'dismissed': self.dismissed,
-            'archived': self.archived
+            'archived': self.archived,
+            'sourceSection': self.source_section,
+            'sourcePointers': self.source_pointers,
+            'generatedByAgent': self.generated_by_agent
         }
 
 
@@ -61,83 +77,44 @@ class InsightsGenerator:
     """Generates contextual insights using Claude Agent SDK"""
     
     def __init__(self):
-        # Skip database dependencies for now
-        self._has_database = False
+        # Initialize aggregator for real implementation
+        from .insights_aggregator import InsightsAggregator
+        self.aggregator = InsightsAggregator()
         
     async def generate_insights(self, 
                                time_range_days: int = 7,
                                max_insights: int = 12) -> List[Insight]:
         """Generate insights for the specified time range"""
         try:
-            # For demo purposes, generate mock insights
-            mock_insights = self._generate_mock_insights(max_insights)
-            return mock_insights
+            # Collect signals from all sources
+            insights = await self.aggregator.collect_all_signals_and_generate_insights(
+                time_range_days=time_range_days,
+                max_insights=max_insights
+            )
+            
+            # Convert to Insight objects
+            insight_objects = []
+            for insight_data in insights:
+                insight = Insight(
+                    category=insight_data['category'],
+                    priority=insight_data['priority'],
+                    title=insight_data['title'],
+                    content=insight_data['content'],
+                    related_files=insight_data.get('related_files', []),
+                    evidence=insight_data.get('evidence', {}),
+                    timestamp=datetime.fromisoformat(insight_data['timestamp']) if insight_data.get('timestamp') else None,
+                    source_section=insight_data.get('source_section', 'aggregated'),
+                    source_pointers=insight_data.get('source_pointers', []),
+                    generated_by_agent=insight_data.get('generated_by_agent', 'claude-sdk')
+                )
+                insight_objects.append(insight)
+            
+            logger.info(f"Generated {len(insight_objects)} insights")
+            return insight_objects
             
         except Exception as e:
             logger.error(f"Error generating insights: {e}")
             return []
-    
-    def _generate_mock_insights(self, max_insights: int) -> List[Insight]:
-        """Generate mock insights for demonstration"""
-        mock_data = [
-            Insight(
-                category=InsightCategory.ACTION,
-                priority="high",
-                title="Follow up with team about Q4 roadmap",
-                content="You mentioned discussing the Q4 roadmap with the team 5 days ago. Consider following up with the team to ensure alignment on goals and timelines.",
-                related_files=["notes/team-meeting.md", "docs/roadmap.md"],
-                evidence={
-                    "reasoning": "Detected todo item about Q4 discussion with timestamp from 5 days ago",
-                    "data_points": ["todo item found in notes/team-meeting.md", "5 days since last mention"]
-                }
-            ),
-            Insight(
-                category=InsightCategory.PATTERN,
-                priority="medium",
-                title="Repetitive configuration changes detected",
-                content="You have been editing config.py multiple times daily for the past week. This might indicate ongoing debugging or optimization efforts that could be consolidated.",
-                related_files=["config.py"],
-                evidence={
-                    "reasoning": "Pattern detected in file change frequency",
-                    "data_points": ["4 changes per day average", "7 consecutive days of activity"]
-                }
-            ),
-            Insight(
-                category=InsightCategory.OPPORTUNITY,
-                priority="medium",
-                title="Documentation gaps detected",
-                content="Found 3 new API endpoints that lack corresponding test coverage documentation. Consider adding tests and documentation to maintain code quality.",
-                related_files=["routes/api.py", "routes/endpoints.py"],
-                evidence={
-                    "reasoning": "New API endpoints found without corresponding test files",
-                    "data_points": ["3 undocumented endpoints", "missing test coverage patterns"]
-                }
-            ),
-            Insight(
-                category=InsightCategory.TEMPORAL,
-                priority="low",
-                title="Admin module activity decline",
-                content="No activity on admin.py in 12 days after intense development period. Feature might be complete or require attention if development was unexpectedly halted.",
-                related_files=["routes/admin.py"],
-                evidence={
-                    "reasoning": "Gap detected in development pattern",
-                    "data_points": ["12 days since last change", "prior intense activity for 2 weeks"]
-                }
-            ),
-            Insight(
-                category=InsightCategory.RELATIONSHIP,
-                priority="medium",
-                title="Related authentication patterns across modules",
-                content="Found similar authentication handling patterns across 6 different files. Consider extracting into shared utility to reduce duplication.",
-                related_files=["auth/auth.py", "routes/api.py", "middleware/auth.py"],
-                evidence={
-                    "reasoning": "Code duplication detected across authentication implementation",
-                    "data_points": ["6 files with similar auth patterns", "potential for consolidation"]
-                }
-            )
-        ]
-        
-        return mock_data[:max_insights]
 
 
 class InsightsService:
@@ -145,32 +122,171 @@ class InsightsService:
     
     def __init__(self):
         self.generator = InsightsGenerator()
-    
-    async def get_insights(self, 
+        
+    async def get_insights(self,
                           time_range_days: int = 7,
                           max_insights: int = 12,
-                          include_dismissed: bool = False) -> List[Dict[str, Any]]:
+                          include_dismissed: bool = False,
+                          category: str = None,
+                          priority: str = None,
+                          source_section: str = None) -> List[Dict[str, Any]]:
         """Get insights for the specified time range"""
         try:
-            # Generate fresh insights
-            insights = await self.generator.generate_insights(
-                time_range_days=time_range_days,
-                max_insights=max_insights
+            from database.models import InsightModel
+
+            # Fetch insights from database with filters
+            insights = InsightModel.get_insights(
+                limit=max_insights,
+                category=category,
+                priority=priority,
+                source_section=source_section,
+                include_dismissed=include_dismissed,
+                include_archived=False,  # Don't include archived by default
+                max_age_days=time_range_days
             )
-            
-            # Convert to dict format for frontend
-            return [insight.to_dict() for insight in insights]
-            
+
+            # If no insights in database, generate fresh ones
+            if not insights:
+                logger.info("No insights in database, generating fresh insights")
+                generated_insights = await self.generator.generate_insights(
+                    time_range_days=time_range_days,
+                    max_insights=max_insights
+                )
+                # Convert to dict format
+                insights = [
+                    insight.to_dict() if hasattr(insight, 'to_dict') else insight
+                    for insight in generated_insights
+                ]
+
+            return insights
+
         except Exception as e:
             logger.error(f"Error getting insights: {e}")
             return []
     
     async def dismiss_insight(self, insight_id: str) -> bool:
         """Mark an insight as dismissed"""
-        # TODO: Implement persistence of dismissed insights
-        return True
+        try:
+            from database.models import InsightModel
+            success = InsightModel.dismiss_insight(int(insight_id))
+            
+            if success:
+                logger.info(f"Dismissed insight {insight_id}")
+            else:
+                logger.warning(f"Insight {insight_id} not found for dismissal")
+                
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to dismiss insight {insight_id}: {e}")
+            return False
     
     async def archive_insight(self, insight_id: str) -> bool:
         """Archive an insight"""
-        # TODO: Implement persistence of archived insights
-        return True
+        try:
+            from database.models import InsightModel
+            success = InsightModel.archive_insight(int(insight_id))
+            
+            if success:
+                logger.info(f"Archived insight {insight_id}")
+            else:
+                logger.warning(f"Insight {insight_id} not found for archiving")
+                
+            return success
+            
+        except Exception as e:
+            logger.error(f"Failed to archive insight {insight_id}: {e}")
+            return False
+    
+    async def refresh_insights(self, time_range_days: int = 7, max_insights: int = 12,
+                         force_refresh: bool = False) -> Dict[str, Any]:
+        """Force refresh of insights generation"""
+        try:
+            from database.models import ConfigModel, InsightModel
+            
+            # Check if refresh is needed
+            if not force_refresh:
+                last_refresh = ConfigModel.get('insights_last_refresh', None)
+                if last_refresh:
+                    last_refresh_time = datetime.fromisoformat(last_refresh)
+                    time_since_refresh = datetime.now() - last_refresh_time
+                    refresh_interval = ConfigModel.get('insights_refresh_interval', 3600)  # 1 hour default
+                    
+                    if time_since_refresh.total_seconds() < refresh_interval:
+                        return {
+                            'success': True,
+                            'message': 'Insights refresh not needed yet',
+                            'last_refresh': last_refresh
+                        }
+            
+            # Clean up old insights
+            max_age_days = ConfigModel.get('insights_max_age_days', 30)
+            InsightModel.cleanup_old_insights(max_age_days)
+            
+            # Generate new insights
+            insights = await self.generator.generate_insights(
+                time_range_days=time_range_days,
+                max_insights=max_insights
+            )
+            
+            # Store generated insights
+            for insight_data in insights:
+                try:
+                    # Parse timestamp with error handling
+                    timestamp = None
+                    if insight_data.get('timestamp'):
+                        try:
+                            timestamp = datetime.fromisoformat(insight_data['timestamp'])
+                        except (ValueError, TypeError) as e:
+                            logger.warning(f"Invalid timestamp format: {insight_data.get('timestamp')}, using current time")
+                            timestamp = datetime.now()
+
+                    insight_id = InsightModel.create(
+                        category=insight_data['category'],
+                        priority=insight_data['priority'],
+                        title=insight_data['title'],
+                        content=insight_data['content'],
+                        evidence_payload=insight_data.get('evidence_payload'),
+                        related_entities=','.join(insight_data.get('related_files', [])),
+                        source_section=insight_data.get('source_section', 'aggregated'),
+                        source_pointers=','.join(insight_data.get('source_pointers', [])),
+                        generated_by_agent=insight_data.get('generated_by_agent', 'claude-sdk'),
+                        timestamp=timestamp
+                    )
+                    
+                    if insight_id:
+                        insight_data['id'] = str(insight_id)
+                        logger.debug(f"Stored insight {insight_id}: {insight_data['title']}")
+                        
+                except Exception as e:
+                    logger.error(f"Failed to store insight: {e}")
+            
+            # Update last refresh timestamp
+            ConfigModel.set('insights_last_refresh', datetime.now().isoformat(), 'Last insights refresh timestamp')
+            
+            return {
+                'success': True,
+                'message': f'Refreshed insights with {len(insights)} items',
+                'insights': [
+                    insight.to_dict() if hasattr(insight, 'to_dict') else insight
+                    for insight in insights
+                ],
+                'last_refresh': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to refresh insights: {e}")
+            return {
+                'success': False,
+                'message': f'Failed to refresh insights: {str(e)}'
+            }
+    
+    async def get_insights_stats(self) -> Dict[str, Any]:
+        """Get statistics about insights"""
+        try:
+            from database.models import InsightModel
+            return InsightModel.get_insights_stats()
+            
+        except Exception as e:
+            logger.error(f"Failed to get insights stats: {e}")
+            return {}

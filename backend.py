@@ -220,6 +220,20 @@ if __name__ == '__main__':
             logger.info('Claude metadata fields migration completed')
     except Exception as e:
         logger.warning(f'Claude fields migration skipped/failed: {e}')
+    
+    try:
+        from database.migration_comprehensive_summaries import apply_migration
+        if apply_migration():
+            logger.info('Comprehensive summaries migration completed')
+    except Exception as e:
+        logger.warning(f'Comprehensive summaries migration skipped/failed: {e}')
+    
+    try:
+        from database.migration_insights import apply_migration
+        if apply_migration():
+            logger.info('Insights migration completed')
+    except Exception as e:
+        logger.warning(f'Insights migration skipped/failed: {e}')
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:

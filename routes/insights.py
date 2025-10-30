@@ -20,21 +20,44 @@ insights_service = InsightsService()
 async def get_insights(
     time_range_days: int = Query(default=7, ge=1, le=30, description="Time range in days"),
     max_insights: int = Query(default=12, ge=1, le=50, description="Maximum insights to generate"),
-    include_dismissed: bool = Query(default=False, description="Include dismissed insights")
+    include_dismissed: bool = Query(default=False, description="Include dismissed insights"),
+    category: Optional[str] = Query(default=None, description="Filter by category"),
+    priority: Optional[str] = Query(default=None, description="Filter by priority")
 ) -> Dict[str, Any]:
     """
     Generate and retrieve AI-powered contextual insights
-    
+
     Parameters:
     - time_range_days: Number of days to analyze (1-30)
     - max_insights: Maximum number of insights to generate (1-50)
     - include_dismissed: Whether to include insights marked as dismissed
+    - category: Filter by category (optional)
+    - priority: Filter by priority (optional)
     """
     try:
+        # Validate category if provided
+        valid_categories = ['action', 'pattern', 'relationship', 'temporal', 'opportunity',
+                           'quality', 'velocity', 'risk', 'documentation', 'follow-ups']
+        if category and category not in valid_categories:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {', '.join(valid_categories)}"
+            )
+
+        # Validate priority if provided
+        valid_priorities = ['low', 'medium', 'high', 'critical']
+        if priority and priority not in valid_priorities:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid priority. Must be one of: {', '.join(valid_priorities)}"
+            )
+
         insights = await insights_service.get_insights(
             time_range_days=time_range_days,
             max_insights=max_insights,
-            include_dismissed=include_dismissed
+            include_dismissed=include_dismissed,
+            category=category,
+            priority=priority
         )
         
         return {
@@ -57,12 +80,18 @@ async def get_insights(
 async def dismiss_insight(insight_id: str):
     """Mark an insight as dismissed"""
     try:
-        success = await insights_service.dismiss_insight(insight_id)
+        # Validate and convert insight_id to integer
+        try:
+            insight_id_int = int(insight_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid insight ID format")
+
+        success = await insights_service.dismiss_insight(insight_id_int)
         if success:
             return {"success": True, "message": "Insight dismissed"}
         else:
             raise HTTPException(status_code=404, detail="Insight not found")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -74,12 +103,18 @@ async def dismiss_insight(insight_id: str):
 async def archive_insight(insight_id: str):
     """Archive an insight"""
     try:
-        success = await insights_service.archive_insight(insight_id)
+        # Validate and convert insight_id to integer
+        try:
+            insight_id_int = int(insight_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid insight ID format")
+
+        success = await insights_service.archive_insight(insight_id_int)
         if success:
             return {"success": True, "message": "Insight archived"}
         else:
             raise HTTPException(status_code=404, detail="Insight not found")
-            
+
     except HTTPException:
         raise
     except Exception as e:
@@ -91,28 +126,12 @@ async def archive_insight(insight_id: str):
 async def get_insights_stats():
     """Get overview statistics about insights generation"""
     try:
-        # This would be enhanced with actual analytics data
+        stats = await insights_service.get_insights_stats()
         return {
             "success": True,
-            "data": {
-                "categories": {
-                    "action": {"count": 0, "description": "Action items and follow-ups"},
-                    "pattern": {"count": 0, "description": "Behavioral patterns and routines"},
-                    "relationship": {"count": 0, "description": "Connections between content"},
-                    "temporal": {"count": 0, "description": "Time-based insights"},
-                    "opportunity": {"count": 0, "description": "Opportunities for improvement"}
-                },
-                "priorities": {
-                    "critical": {"count": 0, "color": "#ef4444"},
-                    "high": {"count": 0, "color": "#f97316"}, 
-                    "medium": {"count": 0, "color": "#eab308"},
-                    "low": {"count": 0, "color": "#22c55e"}
-                },
-                "last_generated": None,
-                "total_generated": 0
-            }
+            "data": stats
         }
-        
+
     except Exception as e:
         logger.error(f"Error getting insights stats: {e}")
         raise HTTPException(status_code=500, detail="Failed to get insights stats")

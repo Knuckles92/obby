@@ -1,22 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import { api } from '../utils/api';
+import InsightFilters from '../components/insights/InsightFilters';
+import InsightEvidence from '../components/insights/InsightEvidence';
 
 // Types for insights
 interface Insight {
   id: string;
-  category: 'action' | 'pattern' | 'relationship' | 'temporal' | 'opportunity';
+  category: 'action' | 'pattern' | 'relationship' | 'temporal' | 'opportunity' | 'quality' | 'velocity' | 'risk' | 'documentation' | 'follow-ups';
   priority: 'low' | 'medium' | 'high' | 'critical';
   title: string;
   content: string;
   relatedFiles: string[];
-  evidence: {
+  evidence?: {
     reasoning?: string;
     data_points?: any[];
+    source_pointers?: string[];
+    generated_by_agent?: string;
+    semantic_entries_count?: number;
+    file_changes_count?: number;
+    comprehensive_summaries_count?: number;
+    session_summaries_count?: number;
+    most_active_files?: string[];
   };
   timestamp: string;
   dismissed: boolean;
   archived: boolean;
+  sourceSection?: string;
+  sourcePointers?: string[];
+  generatedByAgent?: string;
 }
 
 interface InsightsResponse {
@@ -27,6 +39,12 @@ interface InsightsResponse {
     max_insights: number;
     generated_at: string;
     total_insights: number;
+    filters?: {
+      category?: string;
+      priority?: string;
+      sourceSection?: string;
+      include_dismissed?: boolean;
+    };
   };
 }
 
@@ -61,6 +79,36 @@ const CATEGORY_CONFIG = {
     icon: '💡',
     color: '#10b981',
     bgColor: '#d1fae5'
+  },
+  quality: {
+    label: 'Quality',
+    icon: '🔍',
+    color: '#ef4444',
+    bgColor: '#fecaca'
+  },
+  velocity: {
+    label: 'Velocity',
+    icon: '🚀',
+    color: '#f97316',
+    bgColor: '#fef3c7'
+  },
+  risk: {
+    label: 'Risk',
+    icon: '⚠️',
+    color: '#ef4444',
+    bgColor: '#fecaca'
+  },
+  documentation: {
+    label: 'Documentation',
+    icon: '📚',
+    color: '#06b6d4',
+    bgColor: '#e0e7f5'
+  },
+  'follow-ups': {
+    label: 'Follow-ups',
+    icon: '📋',
+    color: '#8b5cf6',
+    bgColor: '#dbeafe'
   }
 };
 
@@ -73,26 +121,41 @@ const PRIORITY_CONFIG = {
 };
 
 const Insights: React.FC = () => {
-  const { currentTheme, isDark } = useTheme();
+  const { currentTheme } = useTheme();
+  const isDark = currentTheme.name.toLowerCase().includes('dark');
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<number>(7);
+  const [includeDismissed, setIncludeDismissed] = useState(false);
+  const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
 
   // Load insights
   useEffect(() => {
     loadInsights();
-  }, [timeRange]);
+  }, [timeRange, filter, includeDismissed]);
 
   const loadInsights = async () => {
     try {
       setLoading(true);
       setError(null);
       
-      const response = await api.get<InsightsResponse>(`/api/insights/?time_range_days=${timeRange}&max_insights=20`);
+      const params = new URLSearchParams({
+        time_range_days: timeRange.toString(),
+        max_insights: '20',
+        include_dismissed: includeDismissed.toString()
+      });
       
-      if (response.success) {
+      if (filter !== 'all') {
+        params.set('category', filter);
+      }
+      
+      const response = await api.get<InsightsResponse>(
+        `/api/insights/?${params.toString()}`
+      );
+      
+      if (response.success && response.data) {
         setInsights(response.data);
       } else {
         setError('Failed to load insights');
@@ -109,6 +172,9 @@ const Insights: React.FC = () => {
     try {
       await api.post(`/api/insights/${insightId}/dismiss`);
       setInsights(insights.filter(i => i.id !== insightId));
+      if (selectedInsight?.id === insightId) {
+        setSelectedInsight(null);
+      }
     } catch (err) {
       console.error('Error dismissing insight:', err);
     }
@@ -118,15 +184,28 @@ const Insights: React.FC = () => {
     try {
       await api.post(`/api/insights/${insightId}/archive`);
       setInsights(insights.filter(i => i.id !== insightId));
+      if (selectedInsight?.id === insightId) {
+        setSelectedInsight(null);
+      }
     } catch (err) {
       console.error('Error archiving insight:', err);
     }
   };
 
   const filteredInsights = insights.filter(insight => {
-    if (filter === 'all') return true;
+    // Filter by dismissal/archive status
     if (filter === 'dismissed') return insight.dismissed;
-    return insight.category === filter;
+    if (filter === 'archived') return insight.archived;
+
+    // Exclude dismissed insights unless explicitly included
+    if (!includeDismissed && insight.dismissed) return false;
+
+    // Filter by category if not 'all'
+    if (filter !== 'all' && filter !== 'dismissed' && filter !== 'archived') {
+      if (insight.category !== filter) return false;
+    }
+
+    return true;
   });
 
   const InsightCard: React.FC<{ insight: Insight }> = ({ insight }) => {
@@ -137,10 +216,16 @@ const Insights: React.FC = () => {
     return (
       <div
         className={`relative p-4 rounded-lg border-2 transition-all duration-200 hover:shadow-lg cursor-pointer
-          ${priority.borderColor} bg-white dark:bg-gray-800
+          bg-white dark:bg-gray-800
           ${expanded ? 'col-span-2 row-span-2' : ''}
         `}
-        onClick={() => setExpanded(!expanded)}
+        style={{ borderColor: priority.borderColor }}
+        onClick={() => {
+          setExpanded(!expanded);
+          if (!expanded) {
+            setSelectedInsight(insight);
+          }
+        }}
       >
         {/* Priority indicator */}
         <div className={`absolute top-2 right-2 w-3 h-3 rounded-full ${priority.color}`} />
@@ -174,7 +259,7 @@ const Insights: React.FC = () => {
               <p>{insight.content}</p>
               
               {/* Related files */}
-              {insight.relatedFiles.length > 0 && (
+              {insight.relatedFiles && insight.relatedFiles.length > 0 && (
                 <div className="mt-3">
                   <h4 className="font-medium text-xs text-gray-700 dark:text-gray-400 mb-1">
                     Related Files:
@@ -234,6 +319,7 @@ const Insights: React.FC = () => {
         {/* Timestamp */}
         <div className="text-xs text-gray-400 dark:text-gray-500 mt-2">
           {new Date(insight.timestamp).toLocaleString()}
+          {insight.generatedByAgent && ` • Generated by ${insight.generatedByAgent}`}
         </div>
       </div>
     );
@@ -286,50 +372,25 @@ const Insights: React.FC = () => {
         </button>
       </div>
 
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-center">
-        {/* Filter */}
-        <div className="flex gap-2">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1 rounded-full text-sm transition-colors ${
-              filter === 'all' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            All ({insights.length})
-          </button>
-          {Object.entries(CATEGORY_CONFIG).map(([key, config]) => {
-            const count = insights.filter(i => i.category === key).length;
-            return (
-              <button
-                key={key}
-                onClick={() => setFilter(key)}
-                className={`px-3 py-1 rounded-full text-sm transition-colors flex items-center gap-1 ${
-                  filter === key 
-                    ? 'bg-blue-600 text-white' 
-                    : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                {config.icon} {config.label} ({count})
-              </button>
-            );
-          })}
-        </div>
+      {/* Filters Component */}
+      <InsightFilters
+        filter={filter}
+        setFilter={setFilter}
+        timeRange={timeRange}
+        setTimeRange={setTimeRange}
+        includeDismissed={includeDismissed}
+        setIncludeDismissed={setIncludeDismissed}
+        insights={insights}
+        categoryConfig={CATEGORY_CONFIG}
+      />
 
-        {/* Time range */}
-        <select
-          value={timeRange}
-          onChange={(e) => setTimeRange(Number(e.target.value))}
-          className="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-800"
-        >
-          <option value={3}>Last 3 days</option>
-          <option value={7}>Last 7 days</option>
-          <option value={14}>Last 14 days</option>
-          <option value={30}>Last 30 days</option>
-        </select>
-      </div>
+      {/* Selected Insight Evidence */}
+      {selectedInsight && (
+        <InsightEvidence
+          evidence={selectedInsight.evidence || {}}
+          onClose={() => setSelectedInsight(null)}
+        />
+      )}
 
       {/* Insights Grid */}
       {filteredInsights.length === 0 ? (

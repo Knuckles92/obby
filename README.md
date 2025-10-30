@@ -50,6 +50,10 @@
 - **Autonomous Exploration**: Claude uses Read/Grep/Glob tools to analyze files independently
 - **Real-time Processing**: 30-second debounce window for responsive summaries
 - **Rich Metadata**: 9 structured fields including scope, complexity, risk, patterns, and sources
+- **Aggregated Insights**: AI-powered analysis of code quality, velocity, risks, and development patterns
+- **Multi-Source Analysis**: Combines semantic entries, file activity, comprehensive summaries, and session data
+- **Smart Filtering**: Category-based insights (quality, velocity, risk, documentation, follow-ups)
+- **Evidence Tracking**: Complete provenance with source pointers and reasoning
 
 ### ✅ **Modern Web Interface**
 - **React + TypeScript**: Type-safe, component-based architecture
@@ -58,6 +62,7 @@
 - **Responsive Design**: Mobile-first design that works on all devices
 - **Accessibility**: Screen reader support, keyboard navigation, focus management
 - **Performance**: Optimized rendering with React hooks and efficient state management
+- **Insights Dashboard**: Interactive UI for viewing AI-generated project insights
 
 ### ✅ **Production-Ready Architecture**
 - **FastAPI Server**: RESTful API with automatic docs (OpenAPI/Swagger)
@@ -164,6 +169,7 @@ obby/
 │   │   ├── files.py               # /api/files/* (events, diffs, tree, scans)
 │   │   ├── session_summary.py     # /api/session-summary/* (content, settings, SSE)
 │   │   ├── search.py              # /api/search/* (semantic, topics, keywords)
+│   │   ├── insights.py           # /api/insights/* (AI-generated insights)
 │   │   ├── config.py              # /api/config/* (settings, models)
 │   │   ├── data.py                # /api/data/* (clear data)
 │   │   └── admin.py               # /api/admin/* (system/db stats)
@@ -177,7 +183,9 @@ obby/
 │   ├── services/
 │   │   ├── session_summary_service.py # Session summary business logic
 │   │   ├── summary_note_service.py     # Summary note generation
-│   │   └── comprehensive_summary_service.py # Batch summaries
+│   │   ├── comprehensive_summary_service.py # Batch summaries
+│   │   ├── insights_service.py       # Insights management and API
+│   │   └── insights_aggregator.py    # AI-powered insights generation
 │   ├── utils/
 │   │   ├── claude_summary_parser.py # Parse Claude's structured output
 │   │   ├── file_helpers.py         # File system utilities
@@ -195,12 +203,16 @@ obby/
 │   │   │   ├── FilterPanel.tsx    # Search filters (360 lines)
 │   │   │   ├── ThemeSwitcher.tsx  # Theme selection (366 lines)
 │   │   │   ├── ThemeEffects.tsx   # Visual theme effects (374 lines)
+│   │   │   ├── insights/          # Insights-specific components
+│   │   │   │   ├── InsightFilters.tsx  # Insight filtering controls
+│   │   │   │   └── InsightEvidence.tsx # Detailed evidence display
 │   │   │   └── Sidebar.tsx        # Navigation sidebar (185 lines)
 │   │   ├── pages/                 # Main application pages
 │   │   │   ├── Dashboard.tsx      # Real-time monitoring dashboard
 │   │   │   ├── SearchPage.tsx     # Semantic search interface (148 lines)
 │   │   │   ├── DiffViewer.tsx     # Change history viewer
 │   │   │   ├── SessionSummary.tsx     # AI-generated summaries
+│   │   │   ├── Insights.tsx       # AI-powered insights dashboard
 │   │   │   └── Settings.tsx       # Configuration management
 │   │   ├── contexts/
 │   │   │   └── ThemeContext.tsx   # Theme state management (292 lines)
@@ -434,6 +446,16 @@ POST   /api/session-summary/update     # Update/regenerate from AI (JSON: { forc
 GET    /api/session-summary/events     # Server-Sent Events stream for updates
 GET    /api/session-summary/settings   # Get session summary settings
 POST   /api/session-summary/settings   # Save session summary settings
+```
+
+### **Insights Endpoints**
+```http
+GET    /api/insights/               # List insights with filters
+GET    /api/insights/{insight_id}   # Get specific insight details
+POST   /api/insights/{insight_id}/dismiss # Mark insight as dismissed
+POST   /api/insights/{insight_id}/archive # Archive insight
+POST   /api/insights/refresh        # Force insights regeneration
+GET    /api/insights/stats          # Get insights statistics
 ```
 
 ### **Configuration Endpoints**

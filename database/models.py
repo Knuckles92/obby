@@ -21,6 +21,12 @@ import time
 
 logger = logging.getLogger(__name__)
 
+# Migration cache to prevent repeated migration checks
+_MIGRATION_CACHE = {
+    'insights_table': False,
+    'insights_categories': False
+}
+
 class DatabaseConnection:
     """Thread-safe SQLite connection manager with connection pooling."""
     
@@ -999,5 +1005,282 @@ class ComprehensiveSummaryModel:
         except Exception as e:
             logger.error(f"Failed to delete comprehensive summary {summary_id}: {e}")
             return False
+
+class InsightModel:
+    """Insight storage and management for AI-generated contextual insights."""
+    
+    @classmethod
+    def create(cls, category: str, priority: str, title: str, content: str,
+                evidence_payload: str = None, related_entities: str = None,
+                source_section: str = None, source_pointers: str = None,
+                generated_by_agent: str = None, timestamp: datetime = None) -> Optional[int]:
+        """Create a new insight record."""
+        if timestamp is None:
+            timestamp = datetime.now()
+            
+        try:
+            # Apply migrations only once using cache
+            global _MIGRATION_CACHE
+            if not _MIGRATION_CACHE['insights_table']:
+                from .migration_insights import apply_migration
+                if apply_migration():
+                    _MIGRATION_CACHE['insights_table'] = True
+                    logger.info("Insights table migration completed and cached")
+
+            if not _MIGRATION_CACHE['insights_categories']:
+                from .migration_insights_categories import apply_migration as apply_category_migration
+                if apply_category_migration():
+                    _MIGRATION_CACHE['insights_categories'] = True
+                    logger.info("Insights categories migration completed and cached")
+
+            query = """
+                INSERT INTO insights
+                (category, priority, title, content, evidence_payload, related_entities,
+                 source_section, source_pointers, generated_by_agent, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            params = (
+                category, priority, title, content, evidence_payload, related_entities,
+                source_section, source_pointers, generated_by_agent, timestamp
+            )
+            
+            db.execute_update(query, params)
+            
+            # Get the inserted ID
+            result = db.execute_query("SELECT last_insert_rowid() as id")
+            insight_id = result[0]['id']
+            logger.info(f"Created insight {insight_id} for category {category}")
+            return insight_id
+            
+        except Exception as e:
+            logger.error(f"Failed to create insight: {e}")
+            return None
+    
+    @classmethod
+    def get_insights(cls, limit: int = 50, category: str = None, priority: str = None,
+                   source_section: str = None, include_dismissed: bool = False,
+                   include_archived: bool = False, max_age_days: int = None) -> List[Dict[str, Any]]:
+        """Get insights with optional filtering."""
+        try:
+            # Apply migrations only once using cache
+            global _MIGRATION_CACHE
+            if not _MIGRATION_CACHE['insights_table']:
+                from .migration_insights import apply_migration
+                if apply_migration():
+                    _MIGRATION_CACHE['insights_table'] = True
+
+            if not _MIGRATION_CACHE['insights_categories']:
+                from .migration_insights_categories import apply_migration as apply_category_migration
+                if apply_category_migration():
+                    _MIGRATION_CACHE['insights_categories'] = True
+
+            # Build query with optional filters
+            query = "SELECT * FROM insights WHERE 1=1"
+            params = []
+            
+            if category:
+                query += " AND category = ?"
+                params.append(category)
+                
+            if priority:
+                query += " AND priority = ?"
+                params.append(priority)
+                
+            if source_section:
+                query += " AND source_section = ?"
+                params.append(source_section)
+                
+            if not include_dismissed:
+                query += " AND dismissal_flag = FALSE"
+                
+            if not include_archived:
+                query += " AND archive_flag = FALSE"
+
+            if max_age_days:
+                query += " AND timestamp >= datetime('now', '-' || ? || ' days')"
+                params.append(max_age_days)
+
+            query += " ORDER BY priority DESC, timestamp DESC LIMIT ?"
+            params.append(limit)
+            
+            rows = db.execute_query(query, tuple(params))
+            insights = []
+            
+            for row in rows:
+                insight = dict(row)
+                # Parse JSON fields if needed
+                if insight.get('evidence_payload'):
+                    try:
+                        import json
+                        insight['evidence_payload'] = json.loads(insight['evidence_payload'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                        
+                insights.append(insight)
+            
+            logger.info(f"Retrieved {len(insights)} insights with filters")
+            return insights
+            
+        except Exception as e:
+            logger.error(f"Failed to get insights: {e}")
+            return []
+    
+    @classmethod
+    def get_insight_by_id(cls, insight_id: int) -> Optional[Dict[str, Any]]:
+        """Get a specific insight by ID."""
+        try:
+            # Migrations already applied via cache in other methods
+            query = "SELECT * FROM insights WHERE id = ?"
+            rows = db.execute_query(query, (insight_id,))
+            
+            if rows:
+                insight = dict(rows[0])
+                # Parse JSON fields if needed
+                if insight.get('evidence_payload'):
+                    try:
+                        import json
+                        insight['evidence_payload'] = json.loads(insight['evidence_payload'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+                        
+                logger.debug(f"Retrieved insight {insight_id}")
+                return insight
+                
+            logger.warning(f"Insight {insight_id} not found")
+            return None
+            
+        except Exception as e:
+            logger.error(f"Failed to get insight {insight_id}: {e}")
+            return None
+    
+    @classmethod
+    def dismiss_insight(cls, insight_id: int) -> bool:
+        """Mark an insight as dismissed."""
+        try:
+            query = "UPDATE insights SET dismissal_flag = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+            affected = db.execute_update(query, (insight_id,))
+            
+            if affected > 0:
+                logger.info(f"Dismissed insight {insight_id}")
+                return True
+            else:
+                logger.warning(f"Insight {insight_id} not found for dismissal")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to dismiss insight {insight_id}: {e}")
+            return False
+    
+    @classmethod
+    def archive_insight(cls, insight_id: int) -> bool:
+        """Archive an insight."""
+        try:
+            query = "UPDATE insights SET archive_flag = TRUE, updated_at = CURRENT_TIMESTAMP WHERE id = ?"
+            affected = db.execute_update(query, (insight_id,))
+            
+            if affected > 0:
+                logger.info(f"Archived insight {insight_id}")
+                return True
+            else:
+                logger.warning(f"Insight {insight_id} not found for archiving")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to archive insight {insight_id}: {e}")
+            return False
+    
+    @classmethod
+    def get_insights_stats(cls) -> Dict[str, Any]:
+        """Get statistics about insights."""
+        try:
+            # Migrations already applied via cache in other methods
+            # Category counts
+            category_query = """
+                SELECT category, COUNT(*) as count
+                FROM insights
+                WHERE dismissal_flag = FALSE AND archive_flag = FALSE
+                GROUP BY category
+            """
+            category_rows = db.execute_query(category_query)
+            categories = {}
+            for row in category_rows:
+                categories[row['category']] = row['count']
+            
+            # Priority counts
+            priority_query = """
+                SELECT priority, COUNT(*) as count
+                FROM insights
+                WHERE dismissal_flag = FALSE AND archive_flag = FALSE
+                GROUP BY priority
+            """
+            priority_rows = db.execute_query(priority_query)
+            priorities = {}
+            for row in priority_rows:
+                priorities[row['priority']] = row['count']
+            
+            # Source section counts
+            source_query = """
+                SELECT source_section, COUNT(*) as count
+                FROM insights
+                WHERE dismissal_flag = FALSE AND archive_flag = FALSE
+                GROUP BY source_section
+            """
+            source_rows = db.execute_query(source_query)
+            sources = {}
+            for row in source_rows:
+                sources[row['source_section']] = row['count']
+            
+            # Total counts
+            total_query = """
+                SELECT
+                    COUNT(*) as total,
+                    COUNT(CASE WHEN dismissal_flag = TRUE THEN 1 END) as dismissed,
+                    COUNT(CASE WHEN archive_flag = TRUE THEN 1 END) as archived,
+                    COUNT(CASE WHEN dismissal_flag = FALSE AND archive_flag = FALSE THEN 1 END) as active
+                FROM insights
+            """
+            total_rows = db.execute_query(total_query)
+            totals = total_rows[0] if total_rows else {}
+            
+            # Last generated
+            last_query = """
+                SELECT timestamp, generated_by_agent
+                FROM insights
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """
+            last_rows = db.execute_query(last_query)
+            last_generated = last_rows[0] if last_rows else None
+            
+            return {
+                'categories': categories,
+                'priorities': priorities,
+                'sources': sources,
+                'totals': totals,
+                'last_generated': last_generated
+            }
+            
+        except Exception as e:
+            logger.error(f"Failed to get insights stats: {e}")
+            return {}
+    
+    @classmethod
+    def cleanup_old_insights(cls, max_age_days: int = 30) -> int:
+        """Clean up old insights based on age."""
+        try:
+            query = """
+                DELETE FROM insights
+                WHERE timestamp < datetime('now', '-' || ? || ' days')
+            """
+
+            deleted = db.execute_update(query, (max_age_days,))
+            logger.info(f"Cleaned up {deleted} old insights (older than {max_age_days} days)")
+            return deleted
+            
+        except Exception as e:
+            logger.error(f"Failed to cleanup old insights: {e}")
+            return 0
+
 
 logger.info("File-based database models initialized successfully")
