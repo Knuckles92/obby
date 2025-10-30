@@ -34,6 +34,15 @@ interface ToolInfo {
   description?: string
 }
 
+interface WatchedContextNode {
+  path: string
+  name: string
+  type: 'file' | 'directory'
+  size?: number
+  lastModified?: number
+  children?: WatchedContextNode[]
+}
+
 type AgentActionType = 'progress' | 'tool_call' | 'tool_result' | 'warning' | 'error' | 'assistant_thinking'
 
 interface AgentAction {
@@ -141,7 +150,8 @@ export default function Chat() {
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
   const [contextFiles, setContextFiles] = useState<string[]>([])
   const [showContextModal, setShowContextModal] = useState(false)
-  const [watchedFiles, setWatchedFiles] = useState<any[]>([])
+  const [watchedFiles, setWatchedFiles] = useState<WatchedContextNode[]>([])
+  const [recentlyViewedFiles, setRecentlyViewedFiles] = useState<string[]>([])
   const [contextBeingUsed, setContextBeingUsed] = useState(false)
   const [showUnsavedWarning, setShowUnsavedWarning] = useState(false)
   const [pendingFileSelection, setPendingFileSelection] = useState<string | null>(null)
@@ -184,7 +194,30 @@ export default function Chat() {
     const loadWatchedFiles = async () => {
       try {
         const response = await apiRequest('/api/files/watched')
-        setWatchedFiles(response.files || [])
+        const directories = Array.isArray(response.directories) ? response.directories : []
+
+        const formatted: WatchedContextNode[] = directories.map((directory: any) => {
+          const dirChildren: WatchedContextNode[] = Array.isArray(directory.files)
+            ? directory.files.map((file: any) => ({
+                path: file?.relativePath || file?.path || '',
+                name: file?.name || file?.relativePath || file?.path || 'Unknown file',
+                type: 'file' as const,
+                size: typeof file?.size === 'number' ? file.size : undefined,
+                lastModified: typeof file?.lastModified === 'number' ? file.lastModified : undefined
+              })).filter((child: WatchedContextNode) => Boolean(child.path))
+            : []
+
+          return {
+            path: typeof directory?.path === 'string' && directory.path.length > 0
+              ? directory.path
+              : directory?.name || 'notes',
+            name: directory?.name || directory?.path || 'notes',
+            type: 'directory' as const,
+            children: dirChildren
+          }
+        }).filter((node: any) => node.children && node.children.length > 0)
+
+        setWatchedFiles(formatted as WatchedContextNode[])
       } catch (err) {
         console.error('Failed to load watched files:', err)
       }
@@ -762,6 +795,10 @@ Guidelines:
   const handleFileSelect = useCallback((filePath: string) => {
     setSelectedFile(filePath)
     setPendingFileSelection(null)
+    setRecentlyViewedFiles(prev => {
+      const updated = [filePath, ...prev.filter((f) => f !== filePath)]
+      return updated.slice(0, 8)
+    })
   }, [])
 
   const handleFileBrowserToggle = useCallback(() => {
@@ -1351,6 +1388,7 @@ Guidelines:
         currentViewedFile={selectedFile || undefined}
         modifiedFiles={modifiedContextFiles}
         filesMetadata={contextFilesMetadata}
+        recentlyViewedFiles={recentlyViewedFiles}
         onRefreshContext={refreshContextMetadata}
       />
     </div>

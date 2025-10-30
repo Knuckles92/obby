@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react'
-import { X, Search, Plus, Minus, FileText, Folder, RefreshCw } from 'lucide-react'
+import { X, Search, Plus, Minus, FileText, RefreshCw } from 'lucide-react'
 import { fuzzyMatch, fuzzyFilterPaths, getHighlightedSegments } from '../utils/fuzzyMatch'
 
 interface ContextFile {
@@ -21,6 +21,7 @@ interface ContextModalProps {
   modifiedFiles?: Set<string>
   filesMetadata?: Map<string, { lastModified: number, size: number }>
   onRefreshContext?: () => Promise<void>
+  recentlyViewedFiles?: string[]
 }
 
 export function ContextModal({
@@ -32,7 +33,8 @@ export function ContextModal({
   currentViewedFile,
   modifiedFiles = new Set(),
   filesMetadata = new Map(),
-  onRefreshContext
+  onRefreshContext,
+  recentlyViewedFiles = []
 }: ContextModalProps) {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFiles, setSelectedFiles] = useState<string[]>([])
@@ -60,6 +62,26 @@ export function ContextModal({
 
   const allFiles = useMemo(() => flattenFiles(watchedFiles), [watchedFiles])
 
+  const fileMap = useMemo(() => {
+    const map = new Map<string, ContextFile>()
+    for (const file of allFiles) {
+      map.set(file.path, file)
+    }
+    return map
+  }, [allFiles])
+
+  const recentFileEntries = useMemo(() => {
+    return recentlyViewedFiles
+      .map((path) => {
+        if (!path) return null
+        const existing = fileMap.get(path)
+        if (existing) return existing
+        const name = path.split('/').pop() || path
+        return { path, name, type: 'file' as const }
+      })
+      .filter((entry): entry is ContextFile => Boolean(entry && entry.path))
+  }, [recentlyViewedFiles, fileMap])
+
   const filteredFiles = useMemo(() => {
     if (!searchQuery) return allFiles
     return fuzzyFilterPaths(allFiles.map(f => f.path), searchQuery)
@@ -73,6 +95,28 @@ export function ContextModal({
         ? prev.filter(f => f !== filePath)
         : [...prev, filePath]
     )
+  }
+
+  const addFileToContext = (filePath: string) => {
+    if (!filePath) return
+
+    if (!currentContextFiles.includes(filePath)) {
+      onContextChange([...currentContextFiles, filePath])
+    }
+
+    setSelectedFiles(prev =>
+      prev.includes(filePath) ? prev : [...prev, filePath]
+    )
+  }
+
+  const removeFileFromContext = (filePath: string) => {
+    if (!filePath) return
+
+    if (currentContextFiles.includes(filePath)) {
+      onContextChange(currentContextFiles.filter(f => f !== filePath))
+    }
+
+    setSelectedFiles(prev => prev.filter(f => f !== filePath))
   }
 
   const addSelectedToContext = () => {
@@ -94,6 +138,7 @@ export function ContextModal({
 
   const clearAllContext = () => {
     onContextChange([])
+    setSelectedFiles([])
     onClose()
   }
 
@@ -169,6 +214,59 @@ export function ContextModal({
               autoFocus
             />
           </div>
+
+          {recentFileEntries.length > 0 && (
+            <div className="mt-5">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-medium text-gray-700">Recently Viewed</h3>
+                <span className="text-xs text-gray-500">{recentFileEntries.length} file{recentFileEntries.length !== 1 ? 's' : ''}</span>
+              </div>
+              <div className="mt-2 space-y-2 max-h-40 overflow-y-auto pr-1">
+                {recentFileEntries.map((file) => {
+                  const isInContext = currentContextFiles.includes(file.path)
+                  const isModified = modifiedFiles.has(file.path)
+
+                  return (
+                    <div
+                      key={`recent-${file.path}`}
+                      className={`flex items-center gap-2 p-2 rounded border transition-colors ${
+                        isInContext ? 'border-blue-200 bg-blue-50' : 'border-gray-200 bg-white hover:bg-gray-50'
+                      }`}
+                    >
+                      {getFileIcon(file)}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-gray-800 truncate">{file.name}</div>
+                        <div className="text-xs text-gray-500 truncate">{file.path}</div>
+                      </div>
+                      {isModified && (
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">Modified</span>
+                      )}
+                      <button
+                        onClick={() => (isInContext ? removeFileFromContext(file.path) : addFileToContext(file.path))}
+                        className={`flex items-center gap-1 px-2 py-1 text-xs font-medium rounded ${
+                          isInContext
+                            ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                            : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                        }`}
+                      >
+                        {isInContext ? (
+                          <>
+                            <Minus className="w-3 h-3" />
+                            Remove
+                          </>
+                        ) : (
+                          <>
+                            <Plus className="w-3 h-3" />
+                            Add
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Current Context */}
@@ -233,43 +331,49 @@ export function ContextModal({
         {/* File List */}
         <div className="flex-1 overflow-y-auto p-6">
           <div className="space-y-2">
-            {filteredFiles.map((file) => {
-              const isSelected = selectedFiles.includes(file.path)
-              const isInContext = currentContextFiles.includes(file.path)
-              const isPrimary = currentViewedFile === file.path
+            {filteredFiles.length === 0 ? (
+              <div className="text-sm text-gray-500 text-center py-8 border border-dashed border-gray-200 rounded-lg">
+                No files match your search or watch filters.
+              </div>
+            ) : (
+              filteredFiles.map((file) => {
+                const isSelected = selectedFiles.includes(file.path)
+                const isInContext = currentContextFiles.includes(file.path)
+                const isPrimary = currentViewedFile === file.path
 
-              return (
-                <div
-                  key={file.path}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50 border-gray-200'
-                  } ${isInContext ? 'ring-2 ring-blue-500' : ''}`}
-                  onClick={() => toggleFileSelection(file.path)}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => toggleFileSelection(file.path)}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  {getFileIcon(file)}
-                  <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium text-gray-900 truncate">
-                      {highlightMatch(file.name)}
+                return (
+                  <div
+                    key={file.path}
+                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                      isSelected ? 'bg-blue-50 border-blue-200' : 'hover:bg-gray-50 border-gray-200'
+                    } ${isInContext ? 'ring-2 ring-blue-500' : ''}`}
+                    onClick={() => toggleFileSelection(file.path)}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => toggleFileSelection(file.path)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    {getFileIcon(file)}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900 truncate">
+                        {highlightMatch(file.name)}
+                      </div>
+                      <div className="text-xs text-gray-500 truncate">
+                        {highlightMatch(file.path)}
+                      </div>
                     </div>
-                    <div className="text-xs text-gray-500 truncate">
-                      {highlightMatch(file.path)}
-                    </div>
+                    {isPrimary && (
+                      <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Current</span>
+                    )}
+                    {isInContext && !isPrimary && (
+                      <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">In Context</span>
+                    )}
                   </div>
-                  {isPrimary && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Current</span>
-                  )}
-                  {isInContext && !isPrimary && (
-                    <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">In Context</span>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })
+            )}
           </div>
         </div>
 
