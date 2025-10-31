@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import { useState } from 'react'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Sidebar from './components/Sidebar'
@@ -7,7 +7,6 @@ import Dashboard from './pages/Dashboard'
 import DiffViewer from './pages/DiffViewer'
 import SessionSummary from './pages/SessionSummary'
 import SummaryNotes from './pages/SummaryNotes'
-import Administration from './pages/Administration'
 import Settings from './pages/Settings'
 import Insights from './pages/Insights'
 import NotFound from './pages/NotFound'
@@ -42,7 +41,7 @@ function App() {
                 <Route path="/insights" element={<Insights />} />
                 <Route path="/session-summary" element={<SessionSummary />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
-                <Route path="/admin" element={<Administration />} />
+                <Route path="/admin" element={<Navigate to="/settings" replace />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>

@@ -344,6 +344,123 @@ export ANTHROPIC_API_KEY="your-anthropic-key"
 npm install -g @anthropic-ai/claude-code
 ```
 
+## 🧠 AI Insights System
+
+Obby features a sophisticated AI-powered insights system that analyzes your development patterns, code quality, risks, and productivity trends using Claude Agent SDK. The system provides contextual observations to help you understand your workflow and identify opportunities for improvement.
+
+### **How Insights Work**
+
+The insights system collects signals from multiple data sources and uses AI to generate actionable observations:
+
+#### **Data Sources Analyzed**
+- **Semantic Summaries**: AI-generated summaries of your notes and changes
+- **File Activity**: Recent file modifications, additions, and deletions
+- **Comprehensive Summaries**: Batch analysis of your codebase over time
+- **Session Summaries**: Real-time development session observations
+- **Code Patterns**: Detected patterns in your codebase structure and changes
+
+#### **Insight Categories**
+```javascript
+// 10 categories of insights
+{
+  quality: "Code quality issues, technical debt, refactoring opportunities",
+  velocity: "Development pace, productivity patterns, bottlenecks",
+  risk: "Security issues, breaking changes, dependency problems",
+  documentation: "Missing or outdated documentation, knowledge gaps",
+  'follow-ups': "Action items, TODOs, pending decisions",
+  action: "Specific actionable recommendations",
+  pattern: "Recurring patterns in code or workflow",
+  relationship: "Connections between different parts of codebase",
+  temporal: "Time-based patterns and trends",
+  opportunity: "Potential improvements or optimizations"
+}
+```
+
+#### **Priority Levels**
+- **Critical**: Immediate attention required, blocking issues
+- **High**: Important but not blocking, should address soon
+- **Medium**: Worth addressing but not urgent
+- **Low**: Nice to have, minor improvements
+
+### **AI Analysis Process**
+
+1. **Signal Collection**: Gathers data from all monitored sources within the specified time range (default: 7 days)
+2. **Pattern Recognition**: Claude Agent SDK analyzes relationships and patterns across different data sources
+3. **Insight Generation**: AI generates 3-5 contextual insights with evidence and recommendations
+4. **Evidence Tracking**: Each insight includes specific data points, source files, and reasoning
+5. **Actionable Output**: Insights are presented with clear titles, detailed explanations, and related files
+
+### **Using Insights**
+
+#### **Viewing Insights**
+- Access the Insights dashboard from the main navigation
+- Insights are organized by category with color-coded priority indicators
+- Each insight shows related files, evidence, and timestamps
+- Click on insights to expand for full details and evidence
+
+#### **Managing Insights**
+```http
+# Get insights with filters
+GET /api/insights/?category=quality&time_range_days=7&include_dismissed=false
+
+# Generate new insights
+POST /api/insights/refresh?time_range_days=7&max_insights=12
+
+# Dismiss or archive insights
+POST /api/insights/{insight_id}/dismiss
+POST /api/insights/{insight_id}/archive
+```
+
+#### **Filtering & Organization**
+- **Category Filters**: Focus on specific types of insights (quality, velocity, risk, etc.)
+- **Time Range**: Analyze insights over different periods (1-30 days)
+- **Status Management**: Dismiss completed items, archive resolved issues
+- **Priority Sorting**: Focus on critical and high-priority insights first
+
+### **Example Insights**
+
+**Quality Insight:**
+- **Title**: "API Error Handling Inconsistent"
+- **Priority**: High
+- **Content**: "Multiple API endpoints lack proper error handling patterns. Consider implementing a standardized error response format."
+- **Evidence**: Found in 8 files across 3 services, error rates increased by 15% this week
+- **Related Files**: `api/users.py`, `api/auth.py`, `api/payments.py`
+
+**Velocity Insight:**
+- **Title**: "Documentation Velocity Declining"
+- **Priority**: Medium
+- **Content**: "README updates have decreased by 40% over the past 2 weeks. Consider prioritizing documentation alongside feature development."
+- **Evidence**: Only 2 documentation changes vs 15 code changes this week
+- **Related Files**: `README.md`, `docs/api.md`
+
+**Risk Insight:**
+- **Title**: "Untracked Dependencies Detected"
+- **Priority**: Critical
+- **Content**: "New dependencies added without security audit. Package `new-lib@2.1.0` has 3 known vulnerabilities."
+- **Evidence**: Added in commit #abc123, affects production deployment
+- **Related Files**: `package.json`, `requirements.txt`
+
+### **Configuration Options**
+
+```json
+{
+  "insights_refresh_interval": 3600,        // Auto-refresh every hour
+  "insights_max_age_days": 30,             // Keep insights for 30 days
+  "insights_default_time_range": 7,        // Default analysis period
+  "insights_max_per_generation": 12        // Maximum insights per run
+}
+```
+
+### **Benefits for Development Teams**
+
+- **Proactive Issue Detection**: Catch problems before they become critical
+- **Workflow Optimization**: Identify bottlenecks and improvement opportunities
+- **Knowledge Sharing**: Surface patterns that team members should know
+- **Quality Assurance**: Monitor code quality trends over time
+- **Decision Support**: Data-driven insights for planning and prioritization
+
+The insights system transforms raw development data into actionable intelligence, helping you maintain high-quality code while optimizing your development workflow.
+
 ## 🛠️ Configuration System
 
 ### **Watch Configuration**

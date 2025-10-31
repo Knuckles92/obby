@@ -6,7 +6,6 @@ import {
   Settings,
   Menu,
   Activity,
-  Shield,
   MessageSquare,
   Lightbulb
 } from 'lucide-react'
@@ -23,7 +22,6 @@ const navigation = [
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Insights', href: '/insights', icon: Lightbulb },
   { name: 'Summary', href: '/summary-notes', icon: FileText },
-  { name: 'Administration', href: '/admin', icon: Shield },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 
