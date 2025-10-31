@@ -48,6 +48,7 @@ async def update_config_root(request: Request):
             'aiModel',
             'ignorePatterns',
             'monitoringDirectory',
+            'periodicCheckEnabled',
         ]
         config_data = {}
         
@@ -81,6 +82,10 @@ async def update_config_root(request: Request):
             except Exception as e:
                 return JSONResponse({'error': f'Invalid directory path: {str(e)}'}, status_code=400)
         
+        if 'periodicCheckEnabled' in config_data:
+            if not isinstance(config_data['periodicCheckEnabled'], bool):
+                return JSONResponse({'error': 'periodicCheckEnabled must be a boolean'}, status_code=400)
+        
         # Update configuration in database
         result = ConfigQueries.update_config(config_data)
         
@@ -109,6 +114,18 @@ async def update_config_root(request: Request):
             except Exception as e:
                 logger.error(f"Failed to update .obbywatch file: {e}")
                 # Don't fail the config update just because .obbywatch update failed
+        
+        # Update periodic monitoring if enabled setting changed
+        if 'periodicCheckEnabled' in config_data and result.get('success', False):
+            try:
+                # Get the global monitor instance
+                from backend import global_monitor
+                if global_monitor:
+                    global_monitor.set_periodic_check_enabled(config_data['periodicCheckEnabled'])
+                    logger.info(f"Updated periodic check enabled to: {config_data['periodicCheckEnabled']}")
+            except Exception as e:
+                logger.error(f"Failed to update periodic monitoring: {e}")
+                # Don't fail the config update just because monitoring update failed
         
         return result
     

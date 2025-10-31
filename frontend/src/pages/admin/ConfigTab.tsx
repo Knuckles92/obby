@@ -28,64 +28,6 @@ export default function ConfigTab({ config, configLoading, models, currentModel 
         </p>
         <div style={{ display: 'grid', gap: 'var(--spacing-md)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) 0' }}>
-            <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Auto-monitoring</span>
-            {configLoading ? (
-              <div style={{
-                width: '1rem',
-                height: '1rem',
-                border: '2px solid var(--color-border)',
-                borderTopColor: 'var(--color-primary)',
-                borderRadius: '50%',
-                animation: 'spin 1s linear infinite'
-              }} />
-            ) : (
-              <div style={{
-                width: '3rem',
-                height: '1.5rem',
-                backgroundColor: config?.periodicCheckEnabled ? 'var(--color-primary)' : 'var(--color-border)',
-                borderRadius: '0.75rem',
-                position: 'relative'
-              }}>
-                <div style={{
-                  width: '1.25rem',
-                  height: '1.25rem',
-                  backgroundColor: 'white',
-                  borderRadius: '50%',
-                  position: 'absolute',
-                  top: '0.125rem',
-                  right: config?.periodicCheckEnabled ? '0.125rem' : 'auto',
-                  left: config?.periodicCheckEnabled ? 'auto' : '0.125rem',
-                  transition: 'all 0.2s ease'
-                }} />
-              </div>
-            )}
-          </div>
-          <div style={{
-            paddingLeft: 'var(--spacing-md)',
-            paddingBottom: 'var(--spacing-sm)',
-            borderBottom: '1px solid var(--color-border)'
-          }}>
-            <p style={{
-              color: 'var(--color-text-secondary)',
-              fontSize: 'var(--font-size-sm)',
-              margin: 0,
-              lineHeight: '1.5'
-            }}>
-              When enabled, Obby automatically starts monitoring files in directories specified in <code style={{
-                backgroundColor: 'var(--color-border)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: 'var(--font-size-xs)'
-              }}>.obbywatch</code>. Uses watchdog library for real-time file change detection with zero latency. Excludes patterns from <code style={{
-                backgroundColor: 'var(--color-border)',
-                padding: '2px 6px',
-                borderRadius: '4px',
-                fontSize: 'var(--font-size-xs)'
-              }}>.obbyignore</code>. Recommended: Keep enabled for active development.
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: 'var(--spacing-sm) 0' }}>
             <span style={{ fontWeight: 'var(--font-weight-medium)' }}>Real-time updates</span>
             {configLoading ? (
               <div style={{
