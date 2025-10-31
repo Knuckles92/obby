@@ -25,23 +25,15 @@ async def get_config_root():
         logger.error(f"Error loading config from database: {e}")
         # Fallback to defaults
         from config.settings import (
-            CHECK_INTERVAL,
             CLAUDE_MODEL,
             get_configured_notes_folder,
-            AI_UPDATE_INTERVAL,
-            AI_AUTO_UPDATE_ENABLED,
         )
         notes_folder = get_configured_notes_folder()
         return {
-            'checkInterval': CHECK_INTERVAL,
             'aiModel': os.getenv('OBBY_CLAUDE_MODEL', CLAUDE_MODEL),
             'watchPaths': [str(notes_folder)],
             'monitoringDirectory': str(notes_folder),
             'ignorePatterns': ['__pycache__/', '*.pyc', '*.tmp', '.DS_Store'],
-            'periodicCheckEnabled': True,
-            'aiUpdateInterval': AI_UPDATE_INTERVAL,
-            'aiAutoUpdateEnabled': AI_AUTO_UPDATE_ENABLED,
-            'lastAiUpdateTimestamp': None
         }
 
 
@@ -53,13 +45,8 @@ async def update_config_root(request: Request):
     try:
         # Validate the configuration data
         valid_fields = [
-            'checkInterval',
             'aiModel',
             'ignorePatterns',
-            'periodicCheckEnabled',
-            'aiUpdateInterval',
-            'aiAutoUpdateEnabled',
-            'lastAiUpdateTimestamp',
             'monitoringDirectory',
         ]
         config_data = {}
@@ -69,33 +56,9 @@ async def update_config_root(request: Request):
                 config_data[field] = data[field]
         
         # Validate specific fields
-        if 'checkInterval' in config_data:
-            try:
-                config_data['checkInterval'] = int(config_data['checkInterval'])
-                if config_data['checkInterval'] < 1:
-                    return JSONResponse({'error': 'Check interval must be at least 1 second'}, status_code=400)
-            except (ValueError, TypeError):
-                return JSONResponse({'error': 'Invalid check interval value'}, status_code=400)
-        
         if 'ignorePatterns' in config_data:
             if not isinstance(config_data['ignorePatterns'], list):
                 return JSONResponse({'error': 'Ignore patterns must be a list'}, status_code=400)
-        
-        if 'periodicCheckEnabled' in config_data:
-            if not isinstance(config_data['periodicCheckEnabled'], bool):
-                return JSONResponse({'error': 'periodicCheckEnabled must be a boolean'}, status_code=400)
-        
-        if 'aiUpdateInterval' in config_data:
-            try:
-                config_data['aiUpdateInterval'] = int(config_data['aiUpdateInterval'])
-                if config_data['aiUpdateInterval'] < 1 or config_data['aiUpdateInterval'] > 168:  # 1 hour to 1 week
-                    return JSONResponse({'error': 'AI update interval must be between 1 and 168 hours'}, status_code=400)
-            except (ValueError, TypeError):
-                return JSONResponse({'error': 'Invalid AI update interval value'}, status_code=400)
-        
-        if 'aiAutoUpdateEnabled' in config_data:
-            if not isinstance(config_data['aiAutoUpdateEnabled'], bool):
-                return JSONResponse({'error': 'aiAutoUpdateEnabled must be a boolean'}, status_code=400)
         
         if 'monitoringDirectory' in config_data:
             if not isinstance(config_data['monitoringDirectory'], str):

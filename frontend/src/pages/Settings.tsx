@@ -6,14 +6,9 @@ import ThemeSwitcher from '../components/ThemeSwitcher'
 
 export default function Settings() {
   const [config, setConfig] = useState<ConfigSettings>({
-    checkInterval: 5,
     aiModel: 'haiku',
     ignorePatterns: [],
-    monitoringDirectory: 'notes',
-    periodicCheckEnabled: true,
-    aiUpdateInterval: 12,
-    aiAutoUpdateEnabled: true,
-    lastAiUpdateTimestamp: null
+    monitoringDirectory: 'notes'
   })
   const [models, setModels] = useState<Record<string, string>>({})
   const [modelsLoading, setModelsLoading] = useState(true)
@@ -40,14 +35,9 @@ export default function Settings() {
       const response = await apiFetch('/api/config/')
       const data = await response.json()
       setConfig({
-        checkInterval: data.checkInterval || 5,
         aiModel: data.aiModel || 'haiku',
         ignorePatterns: data.ignorePatterns || [],
-        monitoringDirectory: data.monitoringDirectory || 'notes',
-        periodicCheckEnabled: data.periodicCheckEnabled ?? true,
-        aiUpdateInterval: data.aiUpdateInterval || 12,
-        aiAutoUpdateEnabled: data.aiAutoUpdateEnabled ?? true,
-        lastAiUpdateTimestamp: data.lastAiUpdateTimestamp || null
+        monitoringDirectory: data.monitoringDirectory || 'notes'
       })
     } catch (error) {
       console.error('Error fetching config:', error)
@@ -352,48 +342,7 @@ export default function Settings() {
           <h3 className="text-lg font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>General Settings</h3>
           
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
-                Periodic Check Interval (seconds)
-              </label>
-              <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                In addition to real-time monitoring, Obby can also periodically scan all files for changes.
-              </p>
-              <input
-                type="number"
-                min="1"
-                max="3600"
-                value={config.checkInterval}
-                onChange={(e) => setConfig({ ...config, checkInterval: parseInt(e.target.value) || 5 })}
-                disabled={!config.periodicCheckEnabled}
-                className="w-full px-3 py-2 rounded-md disabled:opacity-50 transition-colors"
-                style={{
-                  backgroundColor: 'var(--color-background)',
-                  borderColor: 'var(--color-border)',
-                  color: 'var(--color-text-primary)',
-                  border: '1px solid'
-                }}
-              />
-            </div>
 
-            <div>
-              <label className="flex items-center space-x-3">
-                <input
-                  type="checkbox"
-                  checked={config.periodicCheckEnabled}
-                  onChange={(e) => setConfig({ ...config, periodicCheckEnabled: e.target.checked })}
-                  className="h-4 w-4 rounded"
-                  style={{ accentColor: 'var(--color-primary)' }}
-                />
-                <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                  Enable Periodic Checking
-                </span>
-              </label>
-              <p className="text-sm mt-1 ml-7" style={{ color: 'var(--color-text-secondary)' }}>
-                When enabled, Obby will check all watched files at the specified interval,
-                in addition to real-time change detection.
-              </p>
-            </div>
 
             <div>
               <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
@@ -472,68 +421,7 @@ export default function Settings() {
               </p>
             </div>
 
-            {/* AI Update Frequency Section */}
-            <div className="pt-4" style={{ borderTop: '1px solid var(--color-divider)' }}>
-              <h4 className="text-md font-medium mb-4" style={{ color: 'var(--color-text-primary)' }}>AI Update Frequency</h4>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={config.aiAutoUpdateEnabled || false}
-                      onChange={(e) => setConfig({ ...config, aiAutoUpdateEnabled: e.target.checked })}
-                      className="h-4 w-4 rounded"
-                      style={{ accentColor: 'var(--color-primary)' }}
-                    />
-                    <span className="text-sm font-medium" style={{ color: 'var(--color-text-primary)' }}>
-                      Enable Automatic AI Updates
-                    </span>
-                  </label>
-                  <p className="text-sm mt-1 ml-7" style={{ color: 'var(--color-text-secondary)' }}>
-                    When enabled, AI analysis will run automatically at the specified interval.
-                  </p>
-                </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
-                    AI Update Interval (hours)
-                  </label>
-                  <p className="text-sm mb-2" style={{ color: 'var(--color-text-secondary)' }}>
-                    How often AI processing runs (separate from file monitoring). Default is 12 hours (twice daily).
-                  </p>
-                  <input
-                    type="number"
-                    min="1"
-                    max="168"
-                    value={config.aiUpdateInterval || 12}
-                    onChange={(e) => setConfig({ ...config, aiUpdateInterval: parseInt(e.target.value) || 12 })}
-                    disabled={!config.aiAutoUpdateEnabled}
-                    className="w-full px-3 py-2 rounded-md disabled:opacity-50 transition-colors"
-                    style={{
-                      backgroundColor: 'var(--color-background)',
-                      borderColor: 'var(--color-border)',
-                      color: 'var(--color-text-primary)',
-                      border: '1px solid'
-                    }}
-                  />
-                  <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                    Range: 1 hour to 168 hours (1 week)
-                  </p>
-                </div>
-
-                {config.lastAiUpdateTimestamp && (
-                  <div>
-                    <label className="block text-sm font-medium mb-1" style={{ color: 'var(--color-text-primary)' }}>
-                      Last AI Update
-                    </label>
-                    <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                      {new Date(config.lastAiUpdateTimestamp).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
 
