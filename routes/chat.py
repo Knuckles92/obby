@@ -11,6 +11,7 @@ import json
 import queue
 import threading
 import uuid
+import asyncio
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
@@ -46,6 +47,9 @@ chat_bp = APIRouter(prefix='/api/chat', tags=['chat'])
 # SSE client management for chat progress updates
 chat_sse_clients = {}
 chat_sse_lock = threading.Lock()
+
+# Active agent task tracking for cancellation
+active_agent_tasks = {}
 
 
 @chat_bp.get('/ping')
@@ -172,10 +176,37 @@ async def chat_with_history(request: Request):
             )
 
         logger.info("Using Claude Agent SDK for chat")
-        return await _chat_with_claude_tools(messages, session_id)
+        
+        # Create task for agent execution to allow cancellation
+        task = asyncio.create_task(_chat_with_claude_tools(messages, session_id))
+        
+        # Store task for cancellation capability
+        with chat_sse_lock:
+            active_agent_tasks[session_id] = task
+        
+        try:
+            result = await task
+            return result
+        except asyncio.CancelledError:
+            logger.info(f"Agent task cancelled for session {session_id}")
+            if session_id:
+                notify_chat_progress(session_id, 'cancelled', 'Agent operation cancelled by user')
+            return JSONResponse({
+                'error': 'Agent operation cancelled',
+                'cancelled': True
+            }, status_code=499)  # 499 Client Closed Request
+        finally:
+            # Clean up task tracking
+            with chat_sse_lock:
+                if session_id in active_agent_tasks:
+                    del active_agent_tasks[session_id]
 
     except Exception as e:
         logger.error(f"/api/chat/agent_query failed: {e}")
+        # Clean up task tracking on error
+        with chat_sse_lock:
+            if session_id in active_agent_tasks:
+                del active_agent_tasks[session_id]
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
@@ -298,6 +329,16 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                 notify_chat_progress(session_id, 'processing', 'Claude is processing your request...')
 
             async for message in client.receive_response():
+                # Check for cancellation before processing each message
+                try:
+                    # This will raise CancelledError if task was cancelled
+                    await asyncio.sleep(0)  # Yield to event loop to check cancellation
+                except asyncio.CancelledError:
+                    logger.info(f"Agent operation cancelled during message processing for session {session_id}")
+                    if session_id:
+                        notify_chat_progress(session_id, 'cancelled', 'Agent operation cancelled by user')
+                    raise
+                
                 message_count += 1
                 message_type = message.__class__.__name__
                 logger.info(f"📨 Received message #{message_count}: {message_type}")
@@ -485,6 +526,9 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
             'session_id': session_id
         }
     
+    except asyncio.CancelledError:
+        # Re-raise cancellation to be handled by caller
+        raise
     except CLINotFoundError as e:
         elapsed = time.time() - start_time
         logger.error(f"❌ CLINotFoundError after {elapsed:.2f}s")
@@ -563,6 +607,38 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
             })
 
         return JSONResponse({'error': f'Unexpected Claude error: {type(e).__name__}: {str(e)}'}, status_code=500)
+
+
+@chat_bp.post('/cancel/{session_id}')
+async def cancel_agent(session_id: str):
+    """Cancel an active agent operation."""
+    try:
+        with chat_sse_lock:
+            task = active_agent_tasks.get(session_id)
+            
+            if not task:
+                return JSONResponse({
+                    'success': False,
+                    'message': f'No active agent task found for session {session_id}'
+                }, status_code=404)
+            
+            # Cancel the task
+            task.cancel()
+            logger.info(f"Cancelling agent task for session {session_id}")
+            
+            # Send cancellation notification via SSE
+            notify_chat_progress(session_id, 'cancelled', 'Agent operation cancelled by user')
+            
+            return {
+                'success': True,
+                'message': f'Agent operation cancelled for session {session_id}'
+            }
+    except Exception as e:
+        logger.error(f"Failed to cancel agent for session {session_id}: {e}")
+        return JSONResponse({
+            'success': False,
+            'error': str(e)
+        }, status_code=500)
 
 
 @chat_bp.get('/tools')

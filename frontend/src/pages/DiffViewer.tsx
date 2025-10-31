@@ -375,50 +375,64 @@ export default function DiffViewer() {
       const netChangePrefix = netChange >= 0 ? '+' : ''
       const netChangeColor = netChange >= 0 ? 'text-emerald-600' : 'text-rose-600'
       const diffIdentifier = String(selectedDiff.id)
+      
+      // Extract filename from path (handle both Unix and Windows paths)
+      const fileName = selectedDiff.filePath.split(/[/\\]/).pop() || selectedDiff.filePath
+      const filePath = selectedDiff.filePath
 
       return (
         <div className="flex flex-col gap-6">
           <section className="rounded-2xl border border-slate-200 bg-slate-50/80 px-6 py-6 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-3">
-                  <span className={`inline-flex items-center rounded-full border border-transparent px-3 py-1 text-xs font-semibold capitalize ${getChangeTypeColor(selectedDiff.changeType)}`}>
+            <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <span className={`inline-flex items-center rounded-full border border-transparent px-2.5 py-1 text-xs font-semibold capitalize ${getChangeTypeColor(selectedDiff.changeType)}`}>
                     {selectedDiff.changeType}
                   </span>
-                  <code className="inline-flex items-center rounded-full bg-slate-900/90 px-3 py-1 text-xs font-mono text-white shadow-sm">
+                  <code className="inline-flex items-center rounded-full bg-slate-900/90 px-2.5 py-1 text-xs font-mono text-white shadow-sm">
                     #{diffIdentifier.length > 10 ? `${diffIdentifier.slice(0, 10)}…` : diffIdentifier}
                   </code>
                 </div>
-                <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-500">File</p>
-                  <h2 className="mt-2 text-2xl font-semibold leading-snug text-slate-900 break-words">
-                    {selectedDiff.filePath}
+                <div className="relative group">
+                  <h2 className="text-xl font-semibold leading-snug text-slate-900 break-words pr-2 cursor-help">
+                    {fileName}
                   </h2>
+                  {/* Hover tooltip with full path */}
+                  <div className="absolute left-0 top-full mt-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+                    <div className="bg-slate-900 text-white text-xs rounded-lg px-3 py-2 shadow-xl max-w-md break-words whitespace-normal relative">
+                      {/* Arrow pointing up */}
+                      <div className="absolute -top-1 left-4 w-2 h-2 bg-slate-900 rotate-45"></div>
+                      <div className="font-semibold mb-1">Full Path:</div>
+                      <div className="font-mono text-slate-300 break-all">{filePath}</div>
+                      <div className="mt-2 pt-2 border-t border-slate-700">
+                        <div className="text-slate-400">Recorded: {formatTimeAgo(selectedDiff.timestamp)}</div>
+                        <div className="text-slate-400 text-xs mt-1">{formattedTimestamp}</div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="flex flex-col gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-right shadow-sm">
-                <span className="text-xs uppercase tracking-wide text-slate-500">Recorded</span>
-                <span className="text-sm font-semibold text-slate-900">{formatTimeAgo(selectedDiff.timestamp)}</span>
-                <span className="text-xs text-slate-500">{formattedTimestamp}</span>
+              <div className="flex items-center gap-4 text-sm">
+                <span className="text-slate-500">{formatTimeAgo(selectedDiff.timestamp)}</span>
               </div>
             </div>
 
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border border-white/80 bg-white px-4 py-3 shadow-sm">
                 <span className="text-xs uppercase tracking-wide text-slate-500">Lines Added</span>
-                <span className="mt-2 block text-lg font-semibold text-emerald-600">
+                <span className="mt-1 block text-lg font-semibold text-emerald-600">
                   +{selectedDiff.linesAdded}
                 </span>
               </div>
-              <div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+              <div className="rounded-xl border border-white/80 bg-white px-4 py-3 shadow-sm">
                 <span className="text-xs uppercase tracking-wide text-slate-500">Lines Removed</span>
-                <span className="mt-2 block text-lg font-semibold text-rose-600">
+                <span className="mt-1 block text-lg font-semibold text-rose-600">
                   -{selectedDiff.linesRemoved}
                 </span>
               </div>
-              <div className="rounded-2xl border border-white/80 bg-white px-4 py-3 shadow-sm">
+              <div className="rounded-xl border border-white/80 bg-white px-4 py-3 shadow-sm">
                 <span className="text-xs uppercase tracking-wide text-slate-500">Net Change</span>
-                <span className={`mt-2 block text-lg font-semibold ${netChangeColor}`}>
+                <span className={`mt-1 block text-lg font-semibold ${netChangeColor}`}>
                   {netChangePrefix}{netChange}
                 </span>
               </div>

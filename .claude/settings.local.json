@@ -48,5 +48,5 @@
     ],
     "deny": []
   },
-  "outputStyle": "Explanatory"
+  "outputStyle": "default"
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2 } from 'lucide-react'
+import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2, XCircle } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
@@ -519,6 +519,15 @@ Guidelines:
             actionType = 'error'
           } else if (eventType === 'warning') {
             actionType = 'warning'
+          } else if (eventType === 'cancelled') {
+            actionType = 'warning'
+            // Handle cancellation
+            setLoading(false)
+            setIsStreaming(false)
+            setStreamingMessage('')
+            setProgressMessage(null)
+            setProgressType(null)
+            recordAgentAction('warning', 'Agent operation cancelled', 'Operation was stopped by user', sessionId)
           } else if (eventType === 'validating' || eventType === 'configuring' || eventType === 'connecting' || eventType === 'sending') {
             actionType = 'progress'
           }
@@ -584,6 +593,25 @@ Guidelines:
       recordAgentAction('error', 'Unable to establish agent telemetry', String(error), sessionId)
     }
   }, [recordAgentAction, disconnectProgressSSE])
+
+  const cancelAgent = useCallback(async () => {
+    if (!currentSessionId || !loading) return
+    
+    try {
+      const response = await apiRequest(`/api/chat/cancel/${currentSessionId}`, {
+        method: 'POST'
+      })
+      
+      if (response.success) {
+        recordAgentAction('warning', 'Agent cancellation requested', 'Waiting for operation to stop...', currentSessionId)
+      } else {
+        recordAgentAction('error', 'Failed to cancel agent', response.message || 'Unknown error', currentSessionId)
+      }
+    } catch (error: any) {
+      console.error('Failed to cancel agent:', error)
+      recordAgentAction('error', 'Failed to cancel agent', error?.message || 'Unknown error', currentSessionId)
+    }
+  }, [currentSessionId, loading, recordAgentAction])
 
   const sendMessage = async () => {
     const content = input.trim()
@@ -777,6 +805,18 @@ Guidelines:
       setContextBeingUsed(false)
     } catch (e: any) {
       const errorMessage = e?.message || 'Chat failed'
+      
+      // Handle cancellation response
+      if (e?.cancelled || e?.status === 499 || errorMessage.includes('cancelled')) {
+        setLoading(false)
+        setIsStreaming(false)
+        setStreamingMessage('')
+        setProgressMessage(null)
+        setProgressType(null)
+        setContextBeingUsed(false)
+        recordAgentAction('warning', 'Agent operation cancelled', 'Operation was stopped', sessionId)
+        return
+      }
 
       // Clear streaming state on error
       setStreamingMessage('')
@@ -1323,14 +1363,25 @@ Guidelines:
                 disabled={loading}
               />
               <div className="flex gap-2">
-                <button
-                  onClick={sendMessage}
-                  disabled={loading || !input.trim()}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-text-inverse)] hover:bg-[color-mix(in_srgb,var(--color-primary)_80%,black)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                >
-                  <Send className="h-4 w-4" />
-                  {loading ? 'Sending...' : 'Send'}
-                </button>
+                {loading ? (
+                  <button
+                    onClick={cancelAgent}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                    title="Stop agent operation"
+                  >
+                    <XCircle className="h-4 w-4" />
+                    Stop Agent
+                  </button>
+                ) : (
+                  <button
+                    onClick={sendMessage}
+                    disabled={loading || !input.trim()}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-[var(--color-primary)] text-[var(--color-text-inverse)] hover:bg-[color-mix(in_srgb,var(--color-primary)_80%,black)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  >
+                    <Send className="h-4 w-4" />
+                    Send
+                  </button>
+                )}
                 <button
                   onClick={() => setShowClearChatConfirmation(true)}
                   disabled={loading || messages.filter((m) => m.role !== 'system').length === 0}
