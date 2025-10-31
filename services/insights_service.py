@@ -145,19 +145,6 @@ class InsightsService:
                 max_age_days=time_range_days
             )
 
-            # If no insights in database, generate fresh ones
-            if not insights:
-                logger.info("No insights in database, generating fresh insights")
-                generated_insights = await self.generator.generate_insights(
-                    time_range_days=time_range_days,
-                    max_insights=max_insights
-                )
-                # Convert to dict format
-                insights = [
-                    insight.to_dict() if hasattr(insight, 'to_dict') else insight
-                    for insight in generated_insights
-                ]
-
             return insights
 
         except Exception as e:

@@ -25,11 +25,14 @@ async def get_insights(
     priority: Optional[str] = Query(default=None, description="Filter by priority")
 ) -> Dict[str, Any]:
     """
-    Generate and retrieve AI-powered contextual insights
+    Retrieve AI-powered contextual insights from the database
+    
+    This endpoint only returns existing insights from the database.
+    To generate new insights, use POST /api/insights/refresh
 
     Parameters:
     - time_range_days: Number of days to analyze (1-30)
-    - max_insights: Maximum number of insights to generate (1-50)
+    - max_insights: Maximum number of insights to return (1-50)
     - include_dismissed: Whether to include insights marked as dismissed
     - category: Filter by category (optional)
     - priority: Filter by priority (optional)
@@ -120,6 +123,51 @@ async def archive_insight(insight_id: str):
     except Exception as e:
         logger.error(f"Error archiving insight {insight_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to archive insight")
+
+
+@insights_bp.post("/refresh")
+async def refresh_insights(
+    time_range_days: int = Query(default=7, ge=1, le=30, description="Time range in days"),
+    max_insights: int = Query(default=12, ge=1, le=50, description="Maximum insights to generate")
+) -> Dict[str, Any]:
+    """
+    Force refresh and generate new AI-powered insights
+    
+    This endpoint triggers an agent call to generate fresh insights.
+    Use this when you want to generate new insights manually.
+    
+    Parameters:
+    - time_range_days: Number of days to analyze (1-30)
+    - max_insights: Maximum number of insights to generate (1-50)
+    """
+    try:
+        result = await insights_service.refresh_insights(
+            time_range_days=time_range_days,
+            max_insights=max_insights,
+            force_refresh=True
+        )
+        
+        if result.get('success'):
+            return {
+                "success": True,
+                "data": result.get('insights', []),
+                "message": result.get('message', 'Insights refreshed successfully'),
+                "metadata": {
+                    "time_range_days": time_range_days,
+                    "max_insights": max_insights,
+                    "generated_at": datetime.utcnow().isoformat(),
+                    "total_insights": len(result.get('insights', [])),
+                    "last_refresh": result.get('last_refresh')
+                }
+            }
+        else:
+            raise HTTPException(status_code=500, detail=result.get('message', 'Failed to refresh insights'))
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing insights: {e}")
+        raise HTTPException(status_code=500, detail="Failed to refresh insights")
 
 
 @insights_bp.get("/stats/overview")

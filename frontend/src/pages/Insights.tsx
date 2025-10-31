@@ -125,6 +125,7 @@ const Insights: React.FC = () => {
   const isDark = currentTheme.name.toLowerCase().includes('dark');
   const [insights, setInsights] = useState<Insight[]>([]);
   const [loading, setLoading] = useState(true);
+  const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<number>(7);
@@ -165,6 +166,35 @@ const Insights: React.FC = () => {
       setError('Failed to load insights');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateInsights = async () => {
+    try {
+      setGenerating(true);
+      setError(null);
+      
+      const params = new URLSearchParams({
+        time_range_days: timeRange.toString(),
+        max_insights: '20'
+      });
+      
+      const response = await api.post<InsightsResponse>(
+        `/api/insights/refresh?${params.toString()}`
+      );
+      
+      if (response.success && response.data) {
+        setInsights(response.data);
+      } else {
+        setError('Failed to generate insights');
+      }
+    } catch (err) {
+      console.error('Error generating insights:', err);
+      setError('Failed to generate insights');
+    } finally {
+      setGenerating(false);
+      // Reload insights to ensure we have the latest data
+      await loadInsights();
     }
   };
 
@@ -365,10 +395,18 @@ const Insights: React.FC = () => {
           </p>
         </div>
         <button
-          onClick={loadInsights}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          onClick={generateInsights}
+          disabled={generating || loading}
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
         >
-          Refresh Insights
+          {generating ? (
+            <>
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+              <span>Generating...</span>
+            </>
+          ) : (
+            <span>Generate Insights</span>
+          )}
         </button>
       </div>
 
@@ -399,12 +437,28 @@ const Insights: React.FC = () => {
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
             No insights found
           </h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">
+          <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
             {filter === 'all' 
-              ? 'Try adjusting the time range or generating new insights.'
+              ? 'No insights found. Click "Generate Insights" to create new insights using AI analysis.'
               : `No ${CATEGORY_CONFIG[filter as keyof typeof CATEGORY_CONFIG]?.label.toLowerCase()} insights in this time range.`
             }
           </p>
+          {filter === 'all' && (
+            <button
+              onClick={generateInsights}
+              disabled={generating || loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 mx-auto"
+            >
+              {generating ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <span>Generate Insights</span>
+              )}
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 auto-rows-auto">
