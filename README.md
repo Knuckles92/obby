@@ -13,7 +13,7 @@
 - **SQLite with FTS5**: High-performance full-text search engine for semantic content discovery
 - **Normalized Schema**: Optimized database design with foreign keys and proper indexing
 - **Connection Pooling**: Thread-safe database access with automatic cleanup and WAL mode
-- **Migration System**: Automatic database versioning and schema updates
+- **Migration System**: Database versioning with migration scripts for schema updates
 - **Content Deduplication**: SHA-256 hash-based duplicate detection for efficient storage
 - **Performance Monitoring**: Database optimization tools with vacuum and analyze capabilities
 
@@ -144,11 +144,11 @@ npm run dev
 
 ### First Run Experience
 Obby automatically sets up your environment:
-- Creates `notes/` and `diffs/` directories
-- Generates `notes/test.md` with sample content
-- Creates `.obbyignore` and `.obbywatch` configuration files
-- Initializes SQLite database with optimized schema
-- Starts monitoring for file changes immediately
+- Creates `notes/` directory for your Markdown files
+- Creates `output/` directory for generated summaries
+- Initializes SQLite database with optimized schema and FTS5 search
+- Starts with default watch patterns (can be configured via web interface)
+- Monitoring begins automatically once watch patterns are set
 
 ## 📁 Project Architecture
 
@@ -176,10 +176,9 @@ obby/
 │   ├── database/
 │   │   ├── models.py              # SQLite models with FTS5
 │   │   ├── queries.py             # Optimized query layer
-│   │   ├── migration.py           # Data migration system
-│   │   ├── migration_claude_fields.py # Claude schema migration
-│   │   ├── schema.sql             # File-based database schema (current)
-│   │   └── archive/               # Archived schema files
+│   │   ├── schema.sql             # Database schema with FTS5
+│   │   ├── migration_*.py         # Migration scripts for schema updates
+│   │   └── migrations.py          # Migration utilities
 │   ├── services/
 │   │   ├── session_summary_service.py # Session summary business logic
 │   │   ├── summary_note_service.py     # Summary note generation
@@ -190,10 +189,19 @@ obby/
 │   │   ├── claude_summary_parser.py # Parse Claude's structured output
 │   │   ├── file_helpers.py         # File system utilities
 │   │   ├── file_watcher.py         # Real-time monitoring
-│   │   ├── ignore_handler.py       # .obbyignore pattern matching
-│   │   ├── watch_handler.py        # .obbywatch directory management
-│   │   ├── migrations.py          # One-off migration tasks
+│   │   ├── ignore_handler.py       # Pattern matching utilities
+│   │   ├── watch_handler.py        # Directory management utilities
+│   │   ├── migrations.py          # Migration utilities
 │   │   └── session_summary_path.py # Living note path resolution
+│   ├── scripts/
+│   │   └── dev_insights_server.py # Development utilities
+│   ├── specs/
+│   │   ├── CLAUDE_OUTPUT_FORMAT.md # Claude output specifications
+│   │   └── TEST_IMPLEMENTATION_SUMMARY.md # Testing documentation
+│   └── docs/
+│       ├── examples/               # Claude SDK examples
+│       ├── INSIGHTS_IMPLEMENTATION.md # Insights system docs
+│       └── WATCH_FILTERING.md      # Watch filtering documentation
 │
 ├── 🎨 Frontend (React + TypeScript)
 │   ├── src/
@@ -227,24 +235,19 @@ obby/
 │   └── dist/                      # Built frontend assets
 │
 ├── 🗄️ Data Storage
-│   ├── database/
-│   │   └── obby.db               # Main SQLite database
+│   ├── obby.db                   # Main SQLite database with FTS5
 │   ├── notes/                    # Watched markdown files
-│   │   ├── test.md               # Sample note
-│   │   └── daily/                # Daily Session Summaries (default)
+│   │   └── daily/                # Daily Session Summaries (auto-generated)
 │   │       └── Session Summary - YYYY-MM-DD.md
-│   └── diffs/                   # Legacy file-based diffs (migrated to DB)
+│   └── output/
+│       ├── daily/                # Daily summary exports
+│       └── summaries/            # Comprehensive summary exports
 │
 ├── ⚙️ Configuration
-│   ├── .obbyignore              # File ignore patterns
-│   ├── .obbywatch               # Directory watch configuration
-│   └── config.json              # Runtime settings (migrated to DB)
+│   ├── config/settings.py       # Core configuration
+│   ├── config/session_summary_settings.json # AI behavior configuration
+│   └── database/config_values   # Runtime settings (stored in DB)
 │
-└── 🎭 Theme Previews
-    └── mocks/                   # HTML theme previews (11 themes)
-        ├── theme2_midnight_blue.html
-        ├── theme8_cyberpunk.html
-        └── ...
 ```
 
 ## 🌐 Advanced Web Interface
@@ -343,36 +346,17 @@ npm install -g @anthropic-ai/claude-code
 
 ## 🛠️ Configuration System
 
-### **Watch Configuration (`.obbywatch`)**
-```plaintext
-# Directories to monitor (supports glob patterns)
-notes/
-documents/projects/
-src/**/*.md
-```
-
-### **Ignore Patterns (`.obbyignore`)**
-```plaintext
-# Git-style patterns
-*.tmp
-*.bak
-.DS_Store
-node_modules/
-**/archive/**
-```
+### **Watch Configuration**
+Watch patterns are configured via the web interface or API endpoints:
+- **Watch Patterns**: Define which directories to monitor (`/api/watch-config/watch-patterns`)
+- **Ignore Patterns**: Define which files/patterns to exclude (`/api/watch-config/ignore-patterns`)
 
 ### **AI Configuration**
-```json
-{
-  "claudeModel": "sonnet",
-  "debounceWindow": 30,
-  "enableFileExploration": true,
-  "maxFilesPerSession": 50,
-  "anthropicApiKey": "sk-ant-...",
-  "watchPaths": ["notes/", "documents/"],
-  "ignorePatterns": ["*.tmp", "*.bak"]
-}
-```
+AI settings are managed through the web interface:
+- **Claude Model Selection**: Choose between haiku, sonnet, or opus models
+- **Debounce Window**: Configure real-time processing delay (default: 30 seconds)
+- **API Keys**: Set Anthropic API key through the settings interface
+- **Processing Limits**: Configure maximum files per session and exploration depth
 
 ### **Session Summary Settings**
 ```json
@@ -488,7 +472,7 @@ npm install
 npm run dev
 
 # Database development
-# Note: Current system uses automatic migrations; legacy git migrations removed
+# Schema defined in database/schema.sql with migration scripts in database/migration_*.py
 ```
 
 ### **Testing**
