@@ -225,8 +225,10 @@ if __name__ == '__main__':
         from database.migration_comprehensive_summaries import apply_migration
         if apply_migration():
             logger.info('Comprehensive summaries migration completed')
+        else:
+            logger.error('Comprehensive summaries migration returned False - table may not exist')
     except Exception as e:
-        logger.warning(f'Comprehensive summaries migration skipped/failed: {e}')
+        logger.error(f'Comprehensive summaries migration failed: {e}', exc_info=True)
     
     try:
         from database.migration_insights import apply_migration

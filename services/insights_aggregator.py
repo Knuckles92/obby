@@ -180,6 +180,27 @@ class InsightsAggregator:
         try:
             from database.models import ComprehensiveSummaryModel, db
             
+            # Ensure migration is applied before querying
+            migration_success = False
+            try:
+                from database.migration_comprehensive_summaries import apply_migration
+                migration_success = apply_migration()
+                if not migration_success:
+                    logger.warning("Comprehensive summaries migration returned False")
+            except Exception as migration_error:
+                logger.error(f"Failed to ensure comprehensive_summaries migration: {migration_error}", exc_info=True)
+            
+            # Check if table exists before querying
+            table_check_query = """
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='comprehensive_summaries'
+            """
+            table_exists = db.execute_query(table_check_query)
+            
+            if not table_exists:
+                logger.warning("comprehensive_summaries table does not exist, returning empty signals")
+                return {'summaries': [], 'impact_distribution': {}, 'total_summaries': 0}
+            
             # Calculate time window
             since = datetime.now() - timedelta(days=time_range_days)
             

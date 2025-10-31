@@ -866,6 +866,29 @@ class ComprehensiveSummaryModel:
     """Comprehensive summary storage and management."""
     
     @classmethod
+    def _ensure_migration(cls):
+        """Ensure comprehensive_summaries table migration is applied."""
+        try:
+            from .migration_comprehensive_summaries import apply_migration
+            apply_migration()
+        except Exception as e:
+            logger.warning(f"Failed to ensure comprehensive_summaries migration: {e}")
+    
+    @classmethod
+    def _table_exists(cls) -> bool:
+        """Check if comprehensive_summaries table exists."""
+        try:
+            check_query = """
+                SELECT name FROM sqlite_master 
+                WHERE type='table' AND name='comprehensive_summaries'
+            """
+            result = db.execute_query(check_query)
+            return bool(result)
+        except Exception as e:
+            logger.error(f"Failed to check comprehensive_summaries table existence: {e}")
+            return False
+    
+    @classmethod
     def create_summary(cls, time_range_start: datetime, time_range_end: datetime,
                       summary_content: str, key_topics: List[str] = None, 
                       key_keywords: List[str] = None, overall_impact: str = 'moderate',
@@ -873,9 +896,13 @@ class ComprehensiveSummaryModel:
                       time_span: str = None) -> Optional[int]:
         """Create a new comprehensive summary."""
         try:
-            # Apply migration if table doesn't exist
-            from .migration_comprehensive_summaries import apply_migration
-            apply_migration()
+            # Ensure migration is applied
+            cls._ensure_migration()
+            
+            # Check if table exists
+            if not cls._table_exists():
+                logger.error("Cannot create comprehensive summary: table does not exist")
+                return None
             
             timestamp = datetime.now()
             
@@ -916,6 +943,14 @@ class ComprehensiveSummaryModel:
     def get_latest_summary(cls) -> Optional[Dict[str, Any]]:
         """Get the most recent comprehensive summary."""
         try:
+            # Ensure migration is applied
+            cls._ensure_migration()
+            
+            # Check if table exists
+            if not cls._table_exists():
+                logger.warning("comprehensive_summaries table does not exist")
+                return None
+            
             query = """
                 SELECT * FROM comprehensive_summaries 
                 ORDER BY timestamp DESC 
@@ -956,6 +991,22 @@ class ComprehensiveSummaryModel:
     def get_summaries_paginated(cls, page: int = 1, page_size: int = 10) -> Dict[str, Any]:
         """Get comprehensive summaries with pagination."""
         try:
+            # Ensure migration is applied
+            cls._ensure_migration()
+            
+            # Check if table exists
+            if not cls._table_exists():
+                logger.warning("comprehensive_summaries table does not exist")
+                return {
+                    'summaries': [],
+                    'pagination': {
+                        'page': page,
+                        'page_size': page_size,
+                        'total_count': 0,
+                        'total_pages': 0
+                    }
+                }
+            
             offset = (page - 1) * page_size
             
             # Get total count
@@ -1000,6 +1051,14 @@ class ComprehensiveSummaryModel:
     def delete_summary(cls, summary_id: int) -> bool:
         """Delete a comprehensive summary."""
         try:
+            # Ensure migration is applied
+            cls._ensure_migration()
+            
+            # Check if table exists
+            if not cls._table_exists():
+                logger.warning("Cannot delete comprehensive summary: table does not exist")
+                return False
+            
             result = db.execute_update("DELETE FROM comprehensive_summaries WHERE id = ?", (summary_id,))
             return result > 0
         except Exception as e:

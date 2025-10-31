@@ -337,6 +337,24 @@ async def get_comprehensive_summary(summary_id: int):
     """Get details of a specific comprehensive summary"""
     try:
         from database.models import ComprehensiveSummaryModel, db
+        
+        # Ensure migration is applied before querying
+        migration_success = False
+        try:
+            from database.migration_comprehensive_summaries import apply_migration
+            migration_success = apply_migration()
+        except Exception as migration_error:
+            logger.error(f"Failed to ensure comprehensive_summaries migration: {migration_error}", exc_info=True)
+        
+        # Check if table exists
+        table_check_query = """
+            SELECT name FROM sqlite_master 
+            WHERE type='table' AND name='comprehensive_summaries'
+        """
+        table_exists = db.execute_query(table_check_query)
+        
+        if not table_exists:
+            return JSONResponse({'error': 'Comprehensive summaries table not available'}, status_code=503)
 
         query = """
             SELECT * FROM comprehensive_summaries WHERE id = ?
