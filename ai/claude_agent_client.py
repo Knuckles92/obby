@@ -8,6 +8,7 @@ Provides agentic AI capabilities using Anthropic's Claude Agent SDK.
 import os
 import logging
 import asyncio
+import uuid
 from typing import Optional, List, Dict, Any, AsyncIterator, Callable
 from pathlib import Path
 from datetime import datetime
@@ -46,7 +47,8 @@ class ClaudeAgentClient:
     """
 
     def __init__(self, api_key: Optional[str] = None, working_dir: Optional[Path] = None,
-                 progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
+                 progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
+                 session_id: Optional[str] = None):
         """
         Initialize Claude Agent Client.
 
@@ -54,6 +56,7 @@ class ClaudeAgentClient:
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
             working_dir: Working directory for file operations (defaults to current dir)
             progress_callback: Optional callback for progress events during AI operations
+            session_id: Optional session ID for tracking agent actions (auto-generated if not provided)
         """
         if not CLAUDE_SDK_AVAILABLE:
             raise ImportError(
@@ -63,6 +66,10 @@ class ClaudeAgentClient:
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.working_dir = working_dir or Path.cwd()
         self.progress_callback = progress_callback
+
+        # Generate session ID for agent transparency tracking
+        self.session_id = session_id or (str(uuid.uuid4()) if progress_callback else None)
+        self.store_agent_logs = bool(progress_callback)  # Only store logs if progress callback is provided
 
         if not self.api_key:
             logger.warning("No ANTHROPIC_API_KEY found. Set it via environment variable.")
@@ -83,7 +90,7 @@ class ClaudeAgentClient:
             model=self.model,  # Use model from settings
         )
 
-        logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir}, model={self.model or 'default'})")
+        logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir}, model={self.model or 'default'}, session_id={self.session_id})")
 
     def _emit_progress_event(self, phase: str, operation: str, details: Dict[str, Any] = None,
                            files_processed: int = 0, total_files: int = None,
@@ -100,10 +107,12 @@ class ClaudeAgentClient:
             'files_processed': files_processed,
             'total_files': total_files,
             'current_file': current_file,
-            'timing': timing or {}
+            'timing': timing or {},
+            'session_id': self.session_id  # Include session ID in event
         }
 
         try:
+            # Emit to callback for real-time updates
             self.progress_callback(event)
         except Exception as e:
             logger.error(f"Error emitting progress event: {e}")

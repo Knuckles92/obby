@@ -8,6 +8,7 @@ import os
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 from database.queries import ConfigQueries
+from database.models import ConfigModel
 
 logger = logging.getLogger(__name__)
 
@@ -255,4 +256,103 @@ def _write_watch_patterns_from_config(watch_handler):
         raise
 
 
-# Duplicate get_models function removed
+@config_bp.get('/transparency-preferences')
+async def get_transparency_preferences():
+    """Get transparency preferences configuration"""
+    try:
+        # Get stored preferences from ConfigModel
+        preferences = ConfigModel.get('transparency_preferences', None)
+        
+        # If no preferences exist, return defaults
+        if preferences is None:
+            preferences = {
+                'progress_display_mode': 'standard',
+                'show_file_exploration': True,
+                'show_ai_reasoning': True,
+                'show_performance_metrics': True,
+                'show_data_sources': True,
+                'real_time_updates': True,
+                'auto_open_progress': False,
+                'store_agent_logs': True,
+                'log_retention_days': 7,
+                'notification_preferences': {
+                    'generation_complete': True,
+                    'error_occurred': True,
+                    'long_running_analysis': False
+                },
+                'ui_preferences': {
+                    'compact_mode': False,
+                    'show_timestamps': True,
+                    'show_tool_usage': True,
+                    'color_code_phases': True
+                }
+            }
+        
+        return {
+            'success': True,
+            'data': preferences
+        }
+    except Exception as e:
+        logger.error(f"Failed to get transparency preferences: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@config_bp.post('/transparency-preferences')
+async def save_transparency_preferences(request: Request):
+    """Save transparency preferences configuration"""
+    try:
+        data = await request.json()
+        
+        # Validate required fields
+        required_fields = [
+            'progress_display_mode', 'show_file_exploration', 'show_ai_reasoning',
+            'show_performance_metrics', 'show_data_sources', 'real_time_updates',
+            'auto_open_progress', 'store_agent_logs', 'log_retention_days',
+            'notification_preferences', 'ui_preferences'
+        ]
+        
+        for field in required_fields:
+            if field not in data:
+                return JSONResponse({'error': f'Missing required field: {field}'}, status_code=400)
+        
+        # Validate progress_display_mode
+        valid_modes = ['minimal', 'standard', 'detailed']
+        if data['progress_display_mode'] not in valid_modes:
+            return JSONResponse({
+                'error': f'Invalid progress_display_mode. Must be one of: {", ".join(valid_modes)}'
+            }, status_code=400)
+        
+        # Validate log_retention_days
+        try:
+            log_retention_days = int(data['log_retention_days'])
+            if log_retention_days < 1 or log_retention_days > 365:
+                return JSONResponse({
+                    'error': 'log_retention_days must be between 1 and 365'
+                }, status_code=400)
+        except (ValueError, TypeError):
+            return JSONResponse({'error': 'log_retention_days must be a valid integer'}, status_code=400)
+        
+        # Validate notification_preferences structure
+        if not isinstance(data['notification_preferences'], dict):
+            return JSONResponse({'error': 'notification_preferences must be an object'}, status_code=400)
+        
+        # Validate ui_preferences structure
+        if not isinstance(data['ui_preferences'], dict):
+            return JSONResponse({'error': 'ui_preferences must be an object'}, status_code=400)
+        
+        # Store preferences in ConfigModel
+        ConfigModel.set(
+            'transparency_preferences',
+            data,
+            'Transparency preferences configuration'
+        )
+        
+        logger.info("Transparency preferences saved successfully")
+        return {
+            'success': True,
+            'message': 'Transparency preferences saved successfully'
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to save transparency preferences: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)

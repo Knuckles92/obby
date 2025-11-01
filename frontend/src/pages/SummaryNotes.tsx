@@ -972,7 +972,7 @@ export default function SummaryNotes() {
                 </div>
                 <h1 className="text-3xl font-bold tracking-tight">Summary Notes</h1>
               </div>
-              <p className="text-blue-100 text-lg">AI-powered insights from your file changes</p>
+              <p className="text-blue-100 text-lg">AI-powered summaries of your file changes</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-3">

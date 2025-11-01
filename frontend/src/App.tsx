@@ -8,7 +8,6 @@ import DiffViewer from './pages/DiffViewer'
 import SessionSummary from './pages/SessionSummary'
 import SummaryNotes from './pages/SummaryNotes'
 import Settings from './pages/Settings'
-import Insights from './pages/Insights'
 import NotFound from './pages/NotFound'
 import Chat from './pages/Chat'
 
@@ -38,7 +37,6 @@ function App() {
                 <Route path="/" element={<Dashboard />} />
                 <Route path="/diffs" element={<DiffViewer />} />
                 <Route path="/chat" element={<Chat />} />
-                <Route path="/insights" element={<Insights />} />
                 <Route path="/session-summary" element={<SessionSummary />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
                 <Route path="/admin" element={<Navigate to="/settings" replace />} />

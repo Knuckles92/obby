@@ -172,7 +172,7 @@ export default function Dashboard() {
               </div>
               <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
             </div>
-            <p className="text-blue-100 text-lg">Monitor your note changes in real-time with intelligent insights</p>
+            <p className="text-blue-100 text-lg">Monitor your note changes in real-time with intelligent analysis</p>
           </div>
 
           <div className="flex items-center space-x-4">

@@ -44,7 +44,6 @@ from routes.data import data_bp
 from routes.admin import admin_bp
 from routes.watch_config import watch_config_bp
 from routes.chat import chat_bp
-from routes.insights import insights_bp
 
 from routes.api_monitor import APIObbyMonitor
 
@@ -91,7 +90,6 @@ app.include_router(data_bp)
 app.include_router(admin_bp)
 app.include_router(watch_config_bp)
 app.include_router(chat_bp)
-app.include_router(insights_bp)
 
 
 def run_monitor():
@@ -230,12 +228,6 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'Comprehensive summaries migration failed: {e}', exc_info=True)
     
-    try:
-        from database.migration_insights import apply_migration
-        if apply_migration():
-            logger.info('Insights migration completed')
-    except Exception as e:
-        logger.warning(f'Insights migration skipped/failed: {e}')
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:

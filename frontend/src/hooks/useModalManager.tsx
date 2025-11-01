@@ -1,8 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 
 interface ModalData {
-  insight?: any;
-  logs?: any[];
   [key: string]: any;
 }
 
@@ -11,11 +9,6 @@ interface ModalManagerReturn {
   modalData: ModalData | null;
   openModal: (modalType: string, data?: ModalData) => void;
   closeModal: () => void;
-  openEnhancedEvidence: (insight: any) => void;
-  openAgentTimeline: (insight: any, logs?: any[]) => void;
-  openProvenanceDisplay: (insight: any) => void;
-  openTransparencyPreferences: () => void;
-  openProgressDashboard: () => void;
 }
 
 export const useModalManager = (): ModalManagerReturn => {
@@ -32,26 +25,6 @@ export const useModalManager = (): ModalManagerReturn => {
     setModalData(null);
   }, []);
 
-  // Specific modal openers for better type safety
-  const openEnhancedEvidence = useCallback((insight: any) => {
-    openModal('enhanced-evidence', { insight });
-  }, [openModal]);
-
-  const openAgentTimeline = useCallback((insight: any, logs?: any[]) => {
-    openModal('agent-timeline', { insight, logs: logs || [] });
-  }, [openModal]);
-
-  const openProvenanceDisplay = useCallback((insight: any) => {
-    openModal('provenance-display', { insight });
-  }, [openModal]);
-
-  const openTransparencyPreferences = useCallback(() => {
-    openModal('transparency-preferences');
-  }, [openModal]);
-
-  const openProgressDashboard = useCallback(() => {
-    openModal('progress-dashboard');
-  }, [openModal]);
 
   // Global keyboard handler
   useEffect(() => {
@@ -84,11 +57,6 @@ export const useModalManager = (): ModalManagerReturn => {
     activeModal,
     modalData,
     openModal,
-    closeModal,
-    openEnhancedEvidence,
-    openAgentTimeline,
-    openProvenanceDisplay,
-    openTransparencyPreferences,
-    openProgressDashboard
+    closeModal
   };
 };

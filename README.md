@@ -50,10 +50,6 @@
 - **Autonomous Exploration**: Claude uses Read/Grep/Glob tools to analyze files independently
 - **Real-time Processing**: 30-second debounce window for responsive summaries
 - **Rich Metadata**: 9 structured fields including scope, complexity, risk, patterns, and sources
-- **Aggregated Insights**: AI-powered analysis of code quality, velocity, risks, and development patterns
-- **Multi-Source Analysis**: Combines semantic entries, file activity, comprehensive summaries, and session data
-- **Smart Filtering**: Category-based insights (quality, velocity, risk, documentation, follow-ups)
-- **Evidence Tracking**: Complete provenance with source pointers and reasoning
 
 ### ✅ **Modern Web Interface**
 - **React + TypeScript**: Type-safe, component-based architecture
@@ -62,7 +58,6 @@
 - **Responsive Design**: Mobile-first design that works on all devices
 - **Accessibility**: Screen reader support, keyboard navigation, focus management
 - **Performance**: Optimized rendering with React hooks and efficient state management
-- **Insights Dashboard**: Interactive UI for viewing AI-generated project insights
 
 ### ✅ **Production-Ready Architecture**
 - **FastAPI Server**: RESTful API with automatic docs (OpenAPI/Swagger)
@@ -169,7 +164,6 @@ obby/
 │   │   ├── files.py               # /api/files/* (events, diffs, tree, scans)
 │   │   ├── session_summary.py     # /api/session-summary/* (content, settings, SSE)
 │   │   ├── search.py              # /api/search/* (semantic, topics, keywords)
-│   │   ├── insights.py           # /api/insights/* (AI-generated insights)
 │   │   ├── config.py              # /api/config/* (settings, models)
 │   │   ├── data.py                # /api/data/* (clear data)
 │   │   └── admin.py               # /api/admin/* (system/db stats)
@@ -182,9 +176,7 @@ obby/
 │   ├── services/
 │   │   ├── session_summary_service.py # Session summary business logic
 │   │   ├── summary_note_service.py     # Summary note generation
-│   │   ├── comprehensive_summary_service.py # Batch summaries
-│   │   ├── insights_service.py       # Insights management and API
-│   │   └── insights_aggregator.py    # AI-powered insights generation
+│   │   └── comprehensive_summary_service.py # Batch summaries
 │   ├── utils/
 │   │   ├── claude_summary_parser.py # Parse Claude's structured output
 │   │   ├── file_helpers.py         # File system utilities
@@ -193,14 +185,11 @@ obby/
 │   │   ├── watch_handler.py        # Directory management utilities
 │   │   ├── migrations.py          # Migration utilities
 │   │   └── session_summary_path.py # Living note path resolution
-│   ├── scripts/
-│   │   └── dev_insights_server.py # Development utilities
 │   ├── specs/
 │   │   ├── CLAUDE_OUTPUT_FORMAT.md # Claude output specifications
 │   │   └── TEST_IMPLEMENTATION_SUMMARY.md # Testing documentation
 │   └── docs/
 │       ├── examples/               # Claude SDK examples
-│       ├── INSIGHTS_IMPLEMENTATION.md # Insights system docs
 │       └── WATCH_FILTERING.md      # Watch filtering documentation
 │
 ├── 🎨 Frontend (React + TypeScript)
@@ -211,16 +200,12 @@ obby/
 │   │   │   ├── FilterPanel.tsx    # Search filters (360 lines)
 │   │   │   ├── ThemeSwitcher.tsx  # Theme selection (366 lines)
 │   │   │   ├── ThemeEffects.tsx   # Visual theme effects (374 lines)
-│   │   │   ├── insights/          # Insights-specific components
-│   │   │   │   ├── InsightFilters.tsx  # Insight filtering controls
-│   │   │   │   └── InsightEvidence.tsx # Detailed evidence display
 │   │   │   └── Sidebar.tsx        # Navigation sidebar (185 lines)
 │   │   ├── pages/                 # Main application pages
 │   │   │   ├── Dashboard.tsx      # Real-time monitoring dashboard
 │   │   │   ├── SearchPage.tsx     # Semantic search interface (148 lines)
 │   │   │   ├── DiffViewer.tsx     # Change history viewer
 │   │   │   ├── SessionSummary.tsx     # AI-generated summaries
-│   │   │   ├── Insights.tsx       # AI-powered insights dashboard
 │   │   │   └── Settings.tsx       # Configuration management
 │   │   ├── contexts/
 │   │   │   └── ThemeContext.tsx   # Theme state management (292 lines)
@@ -313,7 +298,7 @@ impact:significant date:2024-01-01     // Metadata filters
 ### **Hybrid Architecture**
 Obby uses a sophisticated hybrid AI approach that combines the strengths of different AI systems:
 
-- **Claude Agent SDK** 🎯 → Summary generation, monitoring insights, and interactive analysis
+- **Claude Agent SDK** 🎯 → Summary generation, monitoring analysis, and interactive chat
 
 ### **Claude Agent SDK (Summary Features)**
 
@@ -334,7 +319,7 @@ Obby uses a sophisticated hybrid AI approach that combines the strengths of diff
 1. **File Change Detected** → Triggers monitoring system
 2. **Claude Analysis** → Autonomous exploration and summary generation (30s debounce)
 3. **Interactive Chat** → Use Claude Agent SDK for conversational assistance
-4. **Rich Metadata** → Structured insights saved to the database
+4. **Rich Metadata** → Structured metadata saved to the database
 
 ### **Setup Requirements**
 
@@ -343,123 +328,6 @@ Obby uses a sophisticated hybrid AI approach that combines the strengths of diff
 export ANTHROPIC_API_KEY="your-anthropic-key"
 npm install -g @anthropic-ai/claude-code
 ```
-
-## 🧠 AI Insights System
-
-Obby features a sophisticated AI-powered insights system that analyzes your development patterns, code quality, risks, and productivity trends using Claude Agent SDK. The system provides contextual observations to help you understand your workflow and identify opportunities for improvement.
-
-### **How Insights Work**
-
-The insights system collects signals from multiple data sources and uses AI to generate actionable observations:
-
-#### **Data Sources Analyzed**
-- **Semantic Summaries**: AI-generated summaries of your notes and changes
-- **File Activity**: Recent file modifications, additions, and deletions
-- **Comprehensive Summaries**: Batch analysis of your codebase over time
-- **Session Summaries**: Real-time development session observations
-- **Code Patterns**: Detected patterns in your codebase structure and changes
-
-#### **Insight Categories**
-```javascript
-// 10 categories of insights
-{
-  quality: "Code quality issues, technical debt, refactoring opportunities",
-  velocity: "Development pace, productivity patterns, bottlenecks",
-  risk: "Security issues, breaking changes, dependency problems",
-  documentation: "Missing or outdated documentation, knowledge gaps",
-  'follow-ups': "Action items, TODOs, pending decisions",
-  action: "Specific actionable recommendations",
-  pattern: "Recurring patterns in code or workflow",
-  relationship: "Connections between different parts of codebase",
-  temporal: "Time-based patterns and trends",
-  opportunity: "Potential improvements or optimizations"
-}
-```
-
-#### **Priority Levels**
-- **Critical**: Immediate attention required, blocking issues
-- **High**: Important but not blocking, should address soon
-- **Medium**: Worth addressing but not urgent
-- **Low**: Nice to have, minor improvements
-
-### **AI Analysis Process**
-
-1. **Signal Collection**: Gathers data from all monitored sources within the specified time range (default: 7 days)
-2. **Pattern Recognition**: Claude Agent SDK analyzes relationships and patterns across different data sources
-3. **Insight Generation**: AI generates 3-5 contextual insights with evidence and recommendations
-4. **Evidence Tracking**: Each insight includes specific data points, source files, and reasoning
-5. **Actionable Output**: Insights are presented with clear titles, detailed explanations, and related files
-
-### **Using Insights**
-
-#### **Viewing Insights**
-- Access the Insights dashboard from the main navigation
-- Insights are organized by category with color-coded priority indicators
-- Each insight shows related files, evidence, and timestamps
-- Click on insights to expand for full details and evidence
-
-#### **Managing Insights**
-```http
-# Get insights with filters
-GET /api/insights/?category=quality&time_range_days=7&include_dismissed=false
-
-# Generate new insights
-POST /api/insights/refresh?time_range_days=7&max_insights=12
-
-# Dismiss or archive insights
-POST /api/insights/{insight_id}/dismiss
-POST /api/insights/{insight_id}/archive
-```
-
-#### **Filtering & Organization**
-- **Category Filters**: Focus on specific types of insights (quality, velocity, risk, etc.)
-- **Time Range**: Analyze insights over different periods (1-30 days)
-- **Status Management**: Dismiss completed items, archive resolved issues
-- **Priority Sorting**: Focus on critical and high-priority insights first
-
-### **Example Insights**
-
-**Quality Insight:**
-- **Title**: "API Error Handling Inconsistent"
-- **Priority**: High
-- **Content**: "Multiple API endpoints lack proper error handling patterns. Consider implementing a standardized error response format."
-- **Evidence**: Found in 8 files across 3 services, error rates increased by 15% this week
-- **Related Files**: `api/users.py`, `api/auth.py`, `api/payments.py`
-
-**Velocity Insight:**
-- **Title**: "Documentation Velocity Declining"
-- **Priority**: Medium
-- **Content**: "README updates have decreased by 40% over the past 2 weeks. Consider prioritizing documentation alongside feature development."
-- **Evidence**: Only 2 documentation changes vs 15 code changes this week
-- **Related Files**: `README.md`, `docs/api.md`
-
-**Risk Insight:**
-- **Title**: "Untracked Dependencies Detected"
-- **Priority**: Critical
-- **Content**: "New dependencies added without security audit. Package `new-lib@2.1.0` has 3 known vulnerabilities."
-- **Evidence**: Added in commit #abc123, affects production deployment
-- **Related Files**: `package.json`, `requirements.txt`
-
-### **Configuration Options**
-
-```json
-{
-  "insights_refresh_interval": 3600,        // Auto-refresh every hour
-  "insights_max_age_days": 30,             // Keep insights for 30 days
-  "insights_default_time_range": 7,        // Default analysis period
-  "insights_max_per_generation": 12        // Maximum insights per run
-}
-```
-
-### **Benefits for Development Teams**
-
-- **Proactive Issue Detection**: Catch problems before they become critical
-- **Workflow Optimization**: Identify bottlenecks and improvement opportunities
-- **Knowledge Sharing**: Surface patterns that team members should know
-- **Quality Assurance**: Monitor code quality trends over time
-- **Decision Support**: Data-driven insights for planning and prioritization
-
-The insights system transforms raw development data into actionable intelligence, helping you maintain high-quality code while optimizing your development workflow.
 
 ## 🛠️ Configuration System
 
@@ -547,16 +415,6 @@ POST   /api/session-summary/update     # Update/regenerate from AI (JSON: { forc
 GET    /api/session-summary/events     # Server-Sent Events stream for updates
 GET    /api/session-summary/settings   # Get session summary settings
 POST   /api/session-summary/settings   # Save session summary settings
-```
-
-### **Insights Endpoints**
-```http
-GET    /api/insights/               # List insights with filters
-GET    /api/insights/{insight_id}   # Get specific insight details
-POST   /api/insights/{insight_id}/dismiss # Mark insight as dismissed
-POST   /api/insights/{insight_id}/archive # Archive insight
-POST   /api/insights/refresh        # Force insights regeneration
-GET    /api/insights/stats          # Get insights statistics
 ```
 
 ### **Configuration Endpoints**
@@ -794,4 +652,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Transform your note-taking workflow with intelligent monitoring and AI-powered insights! 📝✨**
+**Transform your note-taking workflow with intelligent monitoring and AI-powered analysis! 📝✨**

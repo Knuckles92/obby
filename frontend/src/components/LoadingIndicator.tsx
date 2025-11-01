@@ -11,7 +11,7 @@ const LOADING_MESSAGES = [
   "Formulating response...",
   "Exploring connections...",
   "Evaluating options...",
-  "Synthesizing insights...",
+  "Synthesizing information...",
   "Reviewing file context...",
   "Computing results...",
   "Building answer...",
@@ -27,7 +27,7 @@ const LOADING_MESSAGES = [
   "Refining answer...",
   "Piecing together details...",
   "Finalizing response...",
-  "Preparing insights...",
+  "Preparing analysis...",
   "Working on it..."
 ]
 

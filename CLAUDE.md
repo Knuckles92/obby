@@ -89,7 +89,7 @@ Obby is a web-based note monitoring application:
   - Supported models: haiku, sonnet, opus
   - Real-time processing with 30s debounce replacing legacy batch system
 
-## Agent Prompting: Time Query “Sources” Pattern
+## Agent Prompting: Time Query "Sources" Pattern
 - Goal: Every query output includes a "Sources" section (model-rendered) listing files used and why.
 - Backend responsibilities:
   - Build prompt with: time range, stats, change types, top topics/keywords.

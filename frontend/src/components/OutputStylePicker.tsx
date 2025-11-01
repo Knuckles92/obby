@@ -27,7 +27,7 @@ const OUTPUT_FORMATS: OutputFormat[] = [
   {
     id: 'summary',
     name: 'Summary',
-    description: 'Comprehensive overview with insights and analysis',
+    description: 'Comprehensive overview with analysis and recommendations',
     icon: FileText,
     preview: '• Executive Summary\n• Key Highlights\n• File Activity\n• Next Steps',
     color: 'info'
