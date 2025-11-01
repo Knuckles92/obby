@@ -7,6 +7,7 @@ import {
   Menu,
   Activity,
   MessageSquare,
+  Sparkles,
 } from 'lucide-react'
 import { useTheme, useThemeClasses, useThemeFeature } from '../contexts/ThemeContext'
 
@@ -20,6 +21,7 @@ const navigation = [
   { name: 'Diff Viewer', href: '/diffs', icon: GitBranch },
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Summary', href: '/summary-notes', icon: FileText },
+  { name: 'Insights', href: '/insights', icon: Sparkles },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

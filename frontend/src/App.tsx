@@ -10,6 +10,7 @@ import SummaryNotes from './pages/SummaryNotes'
 import Settings from './pages/Settings'
 import NotFound from './pages/NotFound'
 import Chat from './pages/Chat'
+import Insights from './pages/Insights'
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
@@ -39,6 +40,7 @@ function App() {
                 <Route path="/chat" element={<Chat />} />
                 <Route path="/session-summary" element={<SessionSummary />} />
                 <Route path="/summary-notes" element={<SummaryNotes />} />
+                <Route path="/insights" element={<Insights />} />
                 <Route path="/admin" element={<Navigate to="/settings" replace />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
