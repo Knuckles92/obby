@@ -8,8 +8,10 @@ Provides agentic AI capabilities using Anthropic's Claude Agent SDK.
 import os
 import logging
 import asyncio
-from typing import Optional, List, Dict, Any, AsyncIterator
+from typing import Optional, List, Dict, Any, AsyncIterator, Callable
 from pathlib import Path
+from datetime import datetime
+import json
 
 try:
     from claude_agent_sdk import (
@@ -34,29 +36,33 @@ logger = logging.getLogger(__name__)
 class ClaudeAgentClient:
     """
     Wrapper for Claude Agent SDK tailored for Obby's code analysis needs.
-    
+
     Features:
     - Simple queries for code analysis
     - Custom tools for file operations
     - Interactive conversations for complex tasks
     - Hooks for validation and security
+    - Progress tracking and real-time event emission
     """
-    
-    def __init__(self, api_key: Optional[str] = None, working_dir: Optional[Path] = None):
+
+    def __init__(self, api_key: Optional[str] = None, working_dir: Optional[Path] = None,
+                 progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None):
         """
         Initialize Claude Agent Client.
-        
+
         Args:
             api_key: Anthropic API key (defaults to ANTHROPIC_API_KEY env var)
             working_dir: Working directory for file operations (defaults to current dir)
+            progress_callback: Optional callback for progress events during AI operations
         """
         if not CLAUDE_SDK_AVAILABLE:
             raise ImportError(
                 "claude-agent-sdk is required. Install with: pip install claude-agent-sdk"
             )
-        
+
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.working_dir = working_dir or Path.cwd()
+        self.progress_callback = progress_callback
 
         if not self.api_key:
             logger.warning("No ANTHROPIC_API_KEY found. Set it via environment variable.")
@@ -78,6 +84,67 @@ class ClaudeAgentClient:
         )
 
         logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir}, model={self.model or 'default'})")
+
+    def _emit_progress_event(self, phase: str, operation: str, details: Dict[str, Any] = None,
+                           files_processed: int = 0, total_files: int = None,
+                           current_file: str = None, timing: Dict[str, Any] = None):
+        """Emit a progress event during AI operations."""
+        if not self.progress_callback:
+            return
+
+        event = {
+            'timestamp': datetime.utcnow().isoformat(),
+            'phase': phase,  # 'data_collection', 'file_exploration', 'analysis', 'generation'
+            'operation': operation,  # Current specific operation
+            'details': details or {},
+            'files_processed': files_processed,
+            'total_files': total_files,
+            'current_file': current_file,
+            'timing': timing or {}
+        }
+
+        try:
+            self.progress_callback(event)
+        except Exception as e:
+            logger.error(f"Error emitting progress event: {e}")
+
+    def _track_operation_start(self, operation_name: str, details: Dict[str, Any] = None):
+        """Track the start of an AI operation."""
+        self._emit_progress_event(
+            phase='analysis',
+            operation=f"Starting {operation_name}",
+            details=details,
+            timing={'start_time': datetime.utcnow().isoformat()}
+        )
+
+    def _track_file_exploration(self, file_path: str, operation: str,
+                              files_processed: int = 0, total_files: int = None):
+        """Track file exploration activities."""
+        self._emit_progress_event(
+            phase='file_exploration',
+            operation=operation,
+            current_file=file_path,
+            files_processed=files_processed,
+            total_files=total_files,
+            details={'file_path': file_path, 'operation': operation}
+        )
+
+    def _track_analysis_phase(self, phase_name: str, details: Dict[str, Any] = None):
+        """Track different phases of analysis."""
+        self._emit_progress_event(
+            phase='analysis',
+            operation=phase_name,
+            details=details
+        )
+
+    def _track_generation_complete(self, results_summary: Dict[str, Any]):
+        """Track completion of generation with results summary."""
+        self._emit_progress_event(
+            phase='generation',
+            operation='Generation complete',
+            details=results_summary,
+            timing={'end_time': datetime.utcnow().isoformat()}
+        )
     
     async def analyze_diff(self, diff_content: str, context: Optional[str] = None) -> str:
         """
@@ -294,6 +361,86 @@ class ClaudeAgentClient:
 
         return "\n".join(result).strip()
 
+    async def _execute_summary_query_with_progress(
+        self,
+        prompt: str,
+        options: ClaudeAgentOptions,
+        expected_files: List[str]
+    ) -> str:
+        """Execute a Claude query with detailed progress tracking."""
+        result: List[str] = []
+        turn_count = 0
+        files_examined = set()
+        tool_calls_made = []
+
+        self._track_analysis_phase(
+            "Initializing AI Conversation",
+            details={'expected_files_count': len(expected_files)}
+        )
+
+        async for message in query(prompt=prompt, options=options):
+            turn_count += 1
+            message_type = message.__class__.__name__
+            logger.debug("Claude session summary stream with progress: %s (turn %d)", message_type, turn_count)
+
+            # Track progress for each turn
+            if turn_count % 2 == 1:  # Every other turn is typically a user/tool interaction
+                self._track_analysis_phase(
+                    f"AI Analysis Turn {turn_count}",
+                    details={
+                        'files_examined': len(files_examined),
+                        'tool_calls': len(tool_calls_made),
+                        'expected_files': len(expected_files)
+                    }
+                )
+
+            content = getattr(message, "content", None)
+            if not content:
+                continue
+
+            for block in content:
+                block_text = getattr(block, "text", None)
+                if block_text:
+                    result.append(block_text)
+
+                # Track tool usage for transparency
+                block_type = getattr(block, "__class__.__name__", "Unknown")
+                if block_type in ["ToolUse", "ToolResult"]:
+                    tool_name = getattr(block, "name", "unknown")
+                    tool_calls_made.append({
+                        'turn': turn_count,
+                        'tool': tool_name,
+                        'type': block_type
+                    })
+
+                    # Track file exploration specifically
+                    if tool_name in ["Read", "Grep", "Glob"]:
+                        tool_input = getattr(block, "input", {})
+                        file_path = tool_input.get("path") or tool_input.get("pattern")
+
+                        if file_path:
+                            files_examined.add(str(file_path))
+                            self._track_file_exploration(
+                                file_path=str(file_path),
+                                operation=f"Using {tool_name} tool",
+                                files_processed=len(files_examined),
+                                total_files=len(expected_files)
+                            )
+
+        # Final progress update
+        self._track_analysis_phase(
+            "AI Analysis Complete",
+            details={
+                'total_turns': turn_count,
+                'files_examined': len(files_examined),
+                'tool_calls_made': len(tool_calls_made),
+                'files_list': list(files_examined)[:10],  # First 10 for display
+                'tools_used': list(set([call['tool'] for call in tool_calls_made]))
+            }
+        )
+
+        return "\n".join(result).strip()
+
     async def generate_comprehensive_summary(
         self,
         changes_context: str,
@@ -411,6 +558,7 @@ Analyze the highlights to describe substantive modifications, naming new section
         Generate a comprehensive session summary by autonomously exploring changed files.
 
         Claude explores the files autonomously using Read, Grep, and Glob tools.
+        Progress events are emitted to show real-time status of the analysis.
 
         Args:
             changed_files: List of file paths that changed
@@ -424,9 +572,37 @@ Analyze the highlights to describe substantive modifications, naming new section
             if not changed_files:
                 return "## No Changes\n\n**Summary**: No file changes detected in this session.\n\n### Sources\n\n- None"
 
+            # Track operation start
+            self._track_operation_start(
+                "Session Summary Generation",
+                details={
+                    'files_count': len(changed_files),
+                    'time_range': time_range,
+                    'model': self.model or 'default'
+                }
+            )
+
+            # Track data collection phase
+            self._track_analysis_phase(
+                "Data Collection",
+                details={
+                    'total_files': len(changed_files),
+                    'files': changed_files[:10]  # First 10 files for display
+                }
+            )
+
             # Convert absolute paths to relative paths for readability
             relative_files = [self._make_relative(f, working_dir) for f in changed_files]
             files_list = "\n".join([f"- `{f}`" for f in relative_files])
+
+            # Track file exploration setup
+            self._track_analysis_phase(
+                "Preparing File Exploration",
+                details={
+                    'files_to_examine': len(relative_files),
+                    'working_directory': str(working_dir or self.working_dir)
+                }
+            )
 
             system_prompt = """You are a technical code analyst for the Obby file monitoring system. Your role is to investigate file changes and produce structured summaries.
 
@@ -481,6 +657,16 @@ TASK: Investigate these files using your Read, Grep, and Glob tools to understan
 
 Focus on substantive modifications and their implications. Explore the files to build understanding, then provide the structured summary."""
 
+            # Track starting AI analysis
+            self._track_analysis_phase(
+                "AI Analysis Starting",
+                details={
+                    'model': self.model or 'default',
+                    'max_turns': 15,
+                    'tools_allowed': ['Read', 'Grep', 'Glob']
+                }
+            )
+
             options = ClaudeAgentOptions(
                 cwd=str(working_dir or self.working_dir),
                 allowed_tools=["Read", "Grep", "Glob"],  # Allow autonomous exploration
@@ -489,12 +675,34 @@ Focus on substantive modifications and their implications. Explore the files to 
                 system_prompt=system_prompt
             )
 
-            result = await self._execute_summary_query(user_prompt, options)
+            # Execute with progress tracking
+            self._track_analysis_phase("Executing AI Analysis")
+            result = await self._execute_summary_query_with_progress(user_prompt, options, changed_files)
+
+            # Track completion
+            self._track_generation_complete({
+                'analysis_type': 'session_summary',
+                'files_analyzed': len(changed_files),
+                'result_length': len(result) if result else 0,
+                'model_used': self.model or 'default'
+            })
 
             return result
 
         except Exception as e:
             logger.error(f"Error in summarize_session: {e}", exc_info=True)
+
+            # Track error occurrence
+            self._emit_progress_event(
+                phase='error',
+                operation='Session Summary Failed',
+                details={
+                    'error': str(e),
+                    'files_count': len(changed_files),
+                    'time_range': time_range
+                }
+            )
+
             return self._build_session_summary_fallback(changed_files, time_range, error=str(e))
 
     async def summarize_file_change(

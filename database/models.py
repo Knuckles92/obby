@@ -1067,16 +1067,19 @@ class ComprehensiveSummaryModel:
 
 class InsightModel:
     """Insight storage and management for AI-generated contextual insights."""
-    
+
     @classmethod
     def create(cls, category: str, priority: str, title: str, content: str,
                 evidence_payload: str = None, related_entities: str = None,
                 source_section: str = None, source_pointers: str = None,
-                generated_by_agent: str = None, timestamp: datetime = None) -> Optional[int]:
+                generated_by_agent: str = None, timestamp: datetime = None,
+                agent_session_id: str = None, agent_files_explored: str = None,
+                agent_tools_used: str = None, agent_turns_taken: int = None,
+                agent_duration_ms: int = None) -> Optional[int]:
         """Create a new insight record."""
         if timestamp is None:
             timestamp = datetime.now()
-            
+
         try:
             # Apply migrations only once using cache
             global _MIGRATION_CACHE
@@ -1092,26 +1095,50 @@ class InsightModel:
                     _MIGRATION_CACHE['insights_categories'] = True
                     logger.info("Insights categories migration completed and cached")
 
-            query = """
-                INSERT INTO insights
-                (category, priority, title, content, evidence_payload, related_entities,
-                 source_section, source_pointers, generated_by_agent, timestamp)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """
-            
-            params = (
+            # Apply agent transparency migration
+            from .migration_agent_transparency import apply_migration as apply_transparency_migration
+            apply_transparency_migration()
+
+            # Build dynamic query based on available columns
+            columns = [
+                'category', 'priority', 'title', 'content', 'evidence_payload', 'related_entities',
+                'source_section', 'source_pointers', 'generated_by_agent', 'timestamp'
+            ]
+            placeholders = ['?'] * len(columns)
+            params = [
                 category, priority, title, content, evidence_payload, related_entities,
                 source_section, source_pointers, generated_by_agent, timestamp
-            )
-            
-            db.execute_update(query, params)
-            
+            ]
+
+            # Add enhanced agent transparency fields if provided
+            optional_fields = [
+                ('agent_session_id', agent_session_id),
+                ('agent_files_explored', agent_files_explored),
+                ('agent_tools_used', agent_tools_used),
+                ('agent_turns_taken', agent_turns_taken),
+                ('agent_duration_ms', agent_duration_ms)
+            ]
+
+            for field_name, value in optional_fields:
+                if value is not None:
+                    columns.append(field_name)
+                    placeholders.append('?')
+                    params.append(value)
+
+            query = f"""
+                INSERT INTO insights
+                ({', '.join(columns)})
+                VALUES ({', '.join(placeholders)})
+            """
+
+            db.execute_update(query, tuple(params))
+
             # Get the inserted ID
             result = db.execute_query("SELECT last_insert_rowid() as id")
             insight_id = result[0]['id']
-            logger.info(f"Created insight {insight_id} for category {category}")
+            logger.info(f"Created insight {insight_id} for category {category} with session {agent_session_id}")
             return insight_id
-            
+
         except Exception as e:
             logger.error(f"Failed to create insight: {e}")
             return None
@@ -1336,9 +1363,139 @@ class InsightModel:
             deleted = db.execute_update(query, (max_age_days,))
             logger.info(f"Cleaned up {deleted} old insights (older than {max_age_days} days)")
             return deleted
-            
+
         except Exception as e:
             logger.error(f"Failed to cleanup old insights: {e}")
+            return 0
+
+    @classmethod
+    def log_agent_action(cls, session_id: str, phase: str, operation: str,
+                        details: Dict[str, Any] = None, files_processed: int = 0,
+                        total_files: int = None, current_file: str = None,
+                        timing: Dict[str, Any] = None, insight_id: int = None) -> Optional[int]:
+        """Log an agent action for transparency tracking."""
+        try:
+            # Apply agent transparency migration
+            from .migration_agent_transparency import apply_migration
+            apply_migration()
+
+            query = """
+                INSERT INTO agent_action_logs
+                (session_id, insight_id, phase, operation, details, files_processed,
+                 total_files, current_file, timing, timestamp)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+
+            params = (
+                session_id, insight_id, phase, operation,
+                json.dumps(details) if details else None,
+                files_processed, total_files, current_file,
+                json.dumps(timing) if timing else None,
+                datetime.now()
+            )
+
+            db.execute_update(query, params)
+
+            # Get the inserted ID
+            result = db.execute_query("SELECT last_insert_rowid() as id")
+            log_id = result[0]['id']
+            logger.debug(f"Logged agent action {log_id} for session {session_id}")
+            return log_id
+
+        except Exception as e:
+            logger.error(f"Failed to log agent action: {e}")
+            return None
+
+    @classmethod
+    def get_agent_action_logs(cls, session_id: str = None, insight_id: int = None,
+                             limit: int = 100) -> List[Dict[str, Any]]:
+        """Get agent action logs with optional filtering."""
+        try:
+            # Apply migration to ensure table exists
+            from .migration_agent_transparency import apply_migration
+            apply_migration()
+
+            query = "SELECT * FROM agent_action_logs WHERE 1=1"
+            params = []
+
+            if session_id:
+                query += " AND session_id = ?"
+                params.append(session_id)
+
+            if insight_id:
+                query += " AND insight_id = ?"
+                params.append(insight_id)
+
+            query += " ORDER BY timestamp ASC LIMIT ?"
+            params.append(limit)
+
+            rows = db.execute_query(query, tuple(params))
+            logs = []
+
+            for row in rows:
+                log = dict(row)
+                # Parse JSON fields
+                if log.get('details'):
+                    try:
+                        log['details'] = json.loads(log['details'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                if log.get('timing'):
+                    try:
+                        log['timing'] = json.loads(log['timing'])
+                    except (json.JSONDecodeError, TypeError):
+                        pass
+
+                logs.append(log)
+
+            logger.debug(f"Retrieved {len(logs)} agent action logs")
+            return logs
+
+        except Exception as e:
+            logger.error(f"Failed to get agent action logs: {e}")
+            return []
+
+    @classmethod
+    def get_insight_with_agent_logs(cls, insight_id: int) -> Optional[Dict[str, Any]]:
+        """Get an insight with its associated agent action logs."""
+        try:
+            # Get the insight
+            insight = cls.get_insight_by_id(insight_id)
+            if not insight:
+                return None
+
+            # Get associated agent logs
+            if insight.get('agent_session_id'):
+                agent_logs = cls.get_agent_action_logs(
+                    session_id=insight['agent_session_id'],
+                    limit=50
+                )
+                insight['agent_action_logs'] = agent_logs
+            else:
+                insight['agent_action_logs'] = []
+
+            return insight
+
+        except Exception as e:
+            logger.error(f"Failed to get insight with agent logs: {e}")
+            return None
+
+    @classmethod
+    def cleanup_old_agent_logs(cls, max_age_days: int = 7) -> int:
+        """Clean up old agent action logs based on age."""
+        try:
+            query = """
+                DELETE FROM agent_action_logs
+                WHERE timestamp < datetime('now', '-' || ? || ' days')
+            """
+
+            deleted = db.execute_update(query, (max_age_days,))
+            logger.info(f"Cleaned up {deleted} old agent logs (older than {max_age_days} days)")
+            return deleted
+
+        except Exception as e:
+            logger.error(f"Failed to cleanup old agent logs: {e}")
             return 0
 
 

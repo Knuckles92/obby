@@ -3,6 +3,14 @@ import { useTheme } from '../contexts/ThemeContext';
 import { api } from '../utils/api';
 import InsightFilters from '../components/insights/InsightFilters';
 import InsightEvidence from '../components/insights/InsightEvidence';
+import InsightsProgressDashboard from '../components/insights/InsightsProgressDashboard';
+import EnhancedInsightEvidence from '../components/insights/EnhancedInsightEvidence';
+import EnhancedInsightEvidenceWithLoading from '../components/insights/EnhancedInsightEvidenceWithLoading';
+import AgentActionTimeline from '../components/insights/AgentActionTimeline';
+import EnhancedProvenanceDisplay from '../components/insights/EnhancedProvenanceDisplay';
+import TransparencyPreferences from '../components/insights/TransparencyPreferences';
+import BaseModal from '../components/BaseModal';
+import { useModalManager } from '../hooks/useModalManager';
 
 // Types for insights
 interface Insight {
@@ -22,6 +30,19 @@ interface Insight {
     comprehensive_summaries_count?: number;
     session_summaries_count?: number;
     most_active_files?: string[];
+    // Enhanced transparency fields
+    agent_session_id?: string;
+    agent_files_explored?: string[];
+    agent_tools_used?: string[];
+    agent_turns_taken?: number;
+    agent_duration_ms?: number;
+    analysis_duration?: string;
+    search_patterns?: string[];
+    analysis_boundaries?: {
+      watch_patterns: string[];
+      ignore_patterns: string[];
+      scope_description: string;
+    };
   };
   timestamp: string;
   dismissed: boolean;
@@ -29,6 +50,12 @@ interface Insight {
   sourceSection?: string;
   sourcePointers?: string[];
   generatedByAgent?: string;
+  // Enhanced agent transparency fields
+  agentSessionId?: string;
+  agentFilesExplored?: string[];
+  agentToolsUsed?: string[];
+  agentTurnsTaken?: number;
+  agentDurationMs?: number;
 }
 
 interface InsightsResponse {
@@ -130,7 +157,25 @@ const Insights: React.FC = () => {
   const [filter, setFilter] = useState<string>('all');
   const [timeRange, setTimeRange] = useState<number>(7);
   const [includeDismissed, setIncludeDismissed] = useState(false);
-  const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
+  const [transparencySettings, setTransparencySettings] = useState({
+    progress_display_mode: 'standard',
+    show_file_exploration: true,
+    show_ai_reasoning: true,
+    real_time_updates: true,
+    auto_open_progress: false
+  });
+
+  // Unified modal management
+  const {
+    activeModal,
+    modalData,
+    closeModal,
+    openEnhancedEvidence,
+    openAgentTimeline,
+    openProvenanceDisplay,
+    openTransparencyPreferences,
+    openProgressDashboard
+  } = useModalManager();
 
   // Load insights
   useEffect(() => {
@@ -173,16 +218,21 @@ const Insights: React.FC = () => {
     try {
       setGenerating(true);
       setError(null);
-      
+
+      // Auto-open progress dashboard if enabled
+      if (transparencySettings.auto_open_progress || transparencySettings.real_time_updates) {
+        openProgressDashboard();
+      }
+
       const params = new URLSearchParams({
         time_range_days: timeRange.toString(),
         max_insights: '20'
       });
-      
+
       const response = await api.post<InsightsResponse>(
         `/api/insights/refresh?${params.toString()}`
       );
-      
+
       if (response.success && response.data) {
         setInsights(response.data);
       } else {
@@ -252,9 +302,7 @@ const Insights: React.FC = () => {
         style={{ borderColor: priority.borderColor }}
         onClick={() => {
           setExpanded(!expanded);
-          if (!expanded) {
-            setSelectedInsight(insight);
-          }
+          // Don't automatically open modal on click - let user choose which modal they want
         }}
       >
         {/* Priority indicator */}
@@ -320,7 +368,7 @@ const Insights: React.FC = () => {
               )}
 
               {/* Actions */}
-              <div className="flex gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -339,6 +387,41 @@ const Insights: React.FC = () => {
                 >
                   Archive
                 </button>
+
+                {/* Enhanced transparency features */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openEnhancedEvidence(insight);
+                  }}
+                  className="text-xs px-3 py-1 bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 rounded hover:bg-purple-200 dark:hover:bg-purple-800"
+                >
+                  🔍 Enhanced Evidence
+                </button>
+
+                {(insight.evidence?.agent_session_id || insight.agentSessionId) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openAgentTimeline(insight);
+                    }}
+                    className="text-xs px-3 py-1 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 rounded hover:bg-green-200 dark:hover:bg-green-800"
+                  >
+                    📋 Agent Timeline
+                  </button>
+                )}
+
+                {(insight.evidence?.agent_files_explored?.length || insight.agentFilesExplored?.length) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openProvenanceDisplay(insight);
+                    }}
+                    className="text-xs px-3 py-1 bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300 rounded hover:bg-orange-200 dark:hover:bg-orange-800"
+                  >
+                    🎯 Provenance
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -394,20 +477,47 @@ const Insights: React.FC = () => {
             Contextual observations powered by Claude Agent SDK
           </p>
         </div>
-        <button
-          onClick={generateInsights}
-          disabled={generating || loading}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {generating ? (
-            <>
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-              <span>Generating...</span>
-            </>
-          ) : (
-            <span>Generate Insights</span>
-          )}
-        </button>
+        <div className="flex items-center gap-3">
+          {/* Transparency features */}
+          <button
+            onClick={openProgressDashboard}
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              isDark
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+            }`}
+            title="Show real-time AI progress"
+          >
+            📊 Progress
+          </button>
+
+          <button
+            onClick={openTransparencyPreferences}
+            className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+              isDark
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+            }`}
+            title="Configure transparency settings"
+          >
+            ⚙️ Transparency
+          </button>
+
+          <button
+            onClick={generateInsights}
+            disabled={generating || loading}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {generating ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                <span>Generating...</span>
+              </>
+            ) : (
+              <span>Generate Insights</span>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Filters Component */}
@@ -422,14 +532,7 @@ const Insights: React.FC = () => {
         categoryConfig={CATEGORY_CONFIG}
       />
 
-      {/* Selected Insight Evidence */}
-      {selectedInsight && (
-        <InsightEvidence
-          evidence={selectedInsight.evidence || {}}
-          onClose={() => setSelectedInsight(null)}
-        />
-      )}
-
+      
       {/* Insights Grid */}
       {filteredInsights.length === 0 ? (
         <div className="text-center py-12">
@@ -467,6 +570,94 @@ const Insights: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* Unified Modal System */}
+
+      {/* Progress Dashboard Modal */}
+      <BaseModal
+        isOpen={activeModal === 'progress-dashboard'}
+        onClose={closeModal}
+        title="📊 AI Insights Progress"
+        maxWidth="max-w-4xl"
+      >
+        <InsightsProgressDashboard
+          isVisible={true}
+          onClose={closeModal}
+        />
+      </BaseModal>
+
+      {/* Enhanced Evidence Modal */}
+      <BaseModal
+        isOpen={activeModal === 'enhanced-evidence'}
+        onClose={closeModal}
+        title="🔍 Enhanced Evidence & Reasoning"
+        maxWidth="max-w-5xl"
+      >
+        <EnhancedInsightEvidenceWithLoading
+          insight={modalData?.insight}
+          onClose={closeModal}
+        />
+      </BaseModal>
+
+      {/* Agent Timeline Modal */}
+      <BaseModal
+        isOpen={activeModal === 'agent-timeline'}
+        onClose={closeModal}
+        title="📋 Agent Action Timeline"
+        maxWidth="max-w-6xl"
+      >
+        <AgentActionTimeline
+          logs={modalData?.logs || []}
+          sessionId={modalData?.insight?.evidence?.agent_session_id || modalData?.insight?.agentSessionId}
+          compact={false}
+          showFilters={true}
+        />
+      </BaseModal>
+
+      {/* Provenance Display Modal */}
+      <BaseModal
+        isOpen={activeModal === 'provenance-display'}
+        onClose={closeModal}
+        title="🎯 Enhanced Provenance Display"
+        maxWidth="max-w-5xl"
+      >
+        <EnhancedProvenanceDisplay
+          provenance={
+            modalData?.insight ? {
+              insight_id: modalData.insight.id,
+              agent_session_id: modalData.insight.evidence?.agent_session_id || modalData.insight.agentSessionId || '',
+              generated_by_agent: modalData.insight.generatedByAgent || modalData.insight.evidence?.generated_by_agent || '',
+              agent_files_explored: modalData.insight.evidence?.agent_files_explored || modalData.insight.agentFilesExplored || [],
+              agent_tools_used: modalData.insight.evidence?.agent_tools_used || modalData.insight.agentToolsUsed || [],
+              agent_turns_taken: modalData.insight.evidence?.agent_turns_taken || modalData.insight.agentTurnsTaken || 0,
+              agent_duration_ms: modalData.insight.evidence?.agent_duration_ms || modalData.insight.agentDurationMs || 0,
+              analysis_timestamp: modalData.insight.timestamp,
+              evidence_payload: {
+                ...modalData.insight.evidence,
+                analysis_boundaries: modalData.insight.evidence?.analysis_boundaries
+              }
+            } : {} as any
+          }
+          compact={false}
+          showFullAnalysis={true}
+        />
+      </BaseModal>
+
+      {/* Transparency Preferences Modal */}
+      <BaseModal
+        isOpen={activeModal === 'transparency-preferences'}
+        onClose={closeModal}
+        title="⚙️ AI Transparency Preferences"
+        maxWidth="max-w-4xl"
+      >
+        <TransparencyPreferences
+          isVisible={true}
+          onClose={closeModal}
+          onSave={(settings) => {
+            setTransparencySettings(settings);
+          }}
+        />
+      </BaseModal>
     </div>
   );
 };

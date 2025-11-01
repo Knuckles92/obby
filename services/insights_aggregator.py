@@ -33,19 +33,22 @@ class InsightsAggregator:
         self.claude_client = None
         self.watch_handler = None
         
-    def _initialize_dependencies(self):
+    def _initialize_dependencies(self, progress_callback=None):
         """Lazy initialization of dependencies."""
         try:
-            # Initialize Claude Agent client
+            # Initialize Claude Agent client with progress callback
             if not self.claude_client:
                 from ai.claude_agent_client import ClaudeAgentClient
-                self.claude_client = ClaudeAgentClient(working_dir=Path.cwd())
-                
+                self.claude_client = ClaudeAgentClient(
+                    working_dir=Path.cwd(),
+                    progress_callback=progress_callback
+                )
+
             # Initialize watch handler for filtering
             if not self.watch_handler:
                 from utils.watch_handler import WatchHandler
                 self.watch_handler = WatchHandler(Path.cwd())
-                
+
         except Exception as e:
             logger.error(f"Failed to initialize aggregator dependencies: {e}")
             
@@ -335,12 +338,13 @@ class InsightsAggregator:
                 'session_summaries': []
             }
     
-    async def generate_insights_with_agent(self, normalized_signals: Dict[str, Any], 
-                                      agent_model: str = 'sonnet') -> List[Dict[str, Any]]:
+    async def generate_insights_with_agent(self, normalized_signals: Dict[str, Any],
+                                      agent_model: str = 'sonnet',
+                                      progress_callback=None) -> List[Dict[str, Any]]:
         """Generate insights using Claude Agent SDK."""
         try:
-            self._initialize_dependencies()
-            
+            self._initialize_dependencies(progress_callback=progress_callback)
+
             if not self.claude_client or not self.claude_client.is_available():
                 logger.warning("Claude Agent SDK not available for insights generation")
                 return []
@@ -579,28 +583,80 @@ Generate 3-5 actionable insights following the specified format."""
     
     async def collect_all_signals_and_generate_insights(self, time_range_days: int = 7,
                                                    max_insights: int = 12,
-                                                   agent_model: str = 'sonnet') -> List[Dict[str, Any]]:
+                                                   agent_model: str = 'sonnet',
+                                                   progress_callback=None) -> List[Dict[str, Any]]:
         """Main method to collect all signals and generate insights."""
         try:
             logger.info(f"Starting insights aggregation for last {time_range_days} days")
-            
+
+            # Emit initial progress event
+            if progress_callback:
+                progress_callback({
+                    'phase': 'data_collection',
+                    'operation': 'Starting signals collection',
+                    'details': {
+                        'time_range_days': time_range_days,
+                        'max_insights': max_insights,
+                        'agent_model': agent_model
+                    }
+                })
+
             # Collect signals from all sources
             semantic_signals = self.collect_semantic_signals(time_range_days)
+            if progress_callback:
+                progress_callback({
+                    'phase': 'data_collection',
+                    'operation': 'Collected semantic signals',
+                    'details': {'total_entries': semantic_signals.get('total_entries', 0)}
+                })
+
             file_activity_signals = self.collect_file_activity_signals(time_range_days)
+            if progress_callback:
+                progress_callback({
+                    'phase': 'data_collection',
+                    'operation': 'Collected file activity signals',
+                    'details': {'total_changes': file_activity_signals.get('total_changes', 0)}
+                })
+
             comprehensive_signals = self.collect_comprehensive_summary_signals(time_range_days)
+            if progress_callback:
+                progress_callback({
+                    'phase': 'data_collection',
+                    'operation': 'Collected comprehensive summary signals',
+                    'details': {'total_summaries': comprehensive_signals.get('total_summaries', 0)}
+                })
+
             session_signals = self.collect_session_summary_signals(time_range_days)
-            
+            if progress_callback:
+                progress_callback({
+                    'phase': 'data_collection',
+                    'operation': 'Collected session summary signals',
+                    'details': {'total_summaries': session_signals.get('total_summaries', 0)}
+                })
+
             # Normalize signals for agent
             normalized_signals = self.normalize_signals_for_agent(
                 semantic_signals, file_activity_signals, comprehensive_signals, session_signals
             )
-            
+
+            if progress_callback:
+                progress_callback({
+                    'phase': 'analysis',
+                    'operation': 'Data normalization complete',
+                    'details': {
+                        'source_files_count': len(normalized_signals.get('source_files', [])),
+                        'semantic_entries_count': len(normalized_signals.get('semantic_entries', []))
+                    }
+                })
+
             # Generate insights using Claude
-            insights = await self.generate_insights_with_agent(normalized_signals, agent_model)
-            
+            insights = await self.generate_insights_with_agent(
+                normalized_signals, agent_model, progress_callback
+            )
+
             # Limit to requested max
             insights = insights[:max_insights]
-            
+
             # Add metadata to each insight
             for insight in insights:
                 insight['timestamp'] = datetime.now().isoformat()
@@ -612,10 +668,10 @@ Generate 3-5 actionable insights following the specified format."""
                     'session_summaries_count': session_signals.get('total_summaries', 0),
                     'most_active_files': file_activity_signals.get('most_active_files', [])[:5]
                 })
-            
+
             logger.info(f"Generated {len(insights)} insights from aggregated signals")
             return insights
-            
+
         except Exception as e:
             logger.error(f"Failed to collect signals and generate insights: {e}")
             return []

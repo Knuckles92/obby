@@ -81,15 +81,17 @@ class InsightsGenerator:
         from .insights_aggregator import InsightsAggregator
         self.aggregator = InsightsAggregator()
         
-    async def generate_insights(self, 
+    async def generate_insights(self,
                                time_range_days: int = 7,
-                               max_insights: int = 12) -> List[Insight]:
+                               max_insights: int = 12,
+                               progress_callback=None) -> List[Insight]:
         """Generate insights for the specified time range"""
         try:
             # Collect signals from all sources
             insights = await self.aggregator.collect_all_signals_and_generate_insights(
                 time_range_days=time_range_days,
-                max_insights=max_insights
+                max_insights=max_insights,
+                progress_callback=progress_callback
             )
             
             # Convert to Insight objects
@@ -186,11 +188,11 @@ class InsightsService:
             return False
     
     async def refresh_insights(self, time_range_days: int = 7, max_insights: int = 12,
-                         force_refresh: bool = False) -> Dict[str, Any]:
+                         force_refresh: bool = False, progress_callback=None) -> Dict[str, Any]:
         """Force refresh of insights generation"""
         try:
             from database.models import ConfigModel, InsightModel
-            
+
             # Check if refresh is needed
             if not force_refresh:
                 last_refresh = ConfigModel.get('insights_last_refresh', None)
@@ -198,22 +200,23 @@ class InsightsService:
                     last_refresh_time = datetime.fromisoformat(last_refresh)
                     time_since_refresh = datetime.now() - last_refresh_time
                     refresh_interval = ConfigModel.get('insights_refresh_interval', 3600)  # 1 hour default
-                    
+
                     if time_since_refresh.total_seconds() < refresh_interval:
                         return {
                             'success': True,
                             'message': 'Insights refresh not needed yet',
                             'last_refresh': last_refresh
                         }
-            
+
             # Clean up old insights
             max_age_days = ConfigModel.get('insights_max_age_days', 30)
             InsightModel.cleanup_old_insights(max_age_days)
-            
-            # Generate new insights
+
+            # Generate new insights with progress callback
             insights = await self.generator.generate_insights(
                 time_range_days=time_range_days,
-                max_insights=max_insights
+                max_insights=max_insights,
+                progress_callback=progress_callback
             )
             
             # Store generated insights

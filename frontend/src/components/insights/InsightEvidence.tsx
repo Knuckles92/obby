@@ -30,20 +30,7 @@ const InsightEvidence: React.FC<InsightEvidenceProps> = ({ evidence, onClose }) 
   };
 
   return (
-    <div className={`border rounded-lg p-4 ${isDark ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-      <div className="flex items-center justify-between mb-3">
-        <h3 className={`text-lg font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
-          Evidence & Reasoning
-        </h3>
-        {onClose && (
-          <button
-            onClick={onClose}
-            className={`text-sm ${isDark ? 'text-gray-400 hover:text-gray-200' : 'text-gray-600 hover:text-gray-800'}`}
-          >
-            ✕
-          </button>
-        )}
-      </div>
+    <div className={`${isDark ? 'text-white' : 'text-gray-900'}`}>
       
       {evidence.reasoning && (
         <div className="mb-3">
