@@ -130,3 +130,4 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
     </div>
   );
 }
+
