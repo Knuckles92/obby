@@ -44,6 +44,7 @@ from routes.data import data_bp
 from routes.admin import admin_bp
 from routes.watch_config import watch_config_bp
 from routes.chat import chat_bp
+from routes.insights import insights_bp
 
 from routes.api_monitor import APIObbyMonitor
 
@@ -90,6 +91,7 @@ app.include_router(data_bp)
 app.include_router(admin_bp)
 app.include_router(watch_config_bp)
 app.include_router(chat_bp)
+app.include_router(insights_bp)
 
 
 def run_monitor():
@@ -227,7 +229,16 @@ if __name__ == '__main__':
             logger.error('Comprehensive summaries migration returned False - table may not exist')
     except Exception as e:
         logger.error(f'Comprehensive summaries migration failed: {e}', exc_info=True)
-    
+
+    try:
+        from database.migration_insights_layout import apply_migration as apply_insights_migration
+        if apply_insights_migration():
+            logger.info('Insights layout configuration migration completed')
+        else:
+            logger.error('Insights layout migration returned False')
+    except Exception as e:
+        logger.error(f'Insights layout migration failed: {e}', exc_info=True)
+
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:
@@ -245,11 +256,23 @@ if __name__ == '__main__':
     try:
         # On Windows, disable reload to avoid event loop policy issues with Claude SDK
         # The reload feature can interfere with the event loop policy on Windows
+        reload_enabled = sys.platform != 'win32'
+        
+        # Pass app object directly when reload is disabled to avoid module name conflict
+        # with backend/ directory. When reload is enabled, uvicorn needs string reference.
+        if reload_enabled:
+            # For reload mode, use string reference but use __main__ to avoid conflict
+            # Note: This only works when running via 'python backend.py'
+            app_ref = '__main__:app'
+        else:
+            # Pass app object directly when reload is disabled
+            app_ref = app
+        
         uvicorn_config = {
-            'app': 'backend:app',
+            'app': app_ref,
             'host': '0.0.0.0',
             'port': 8001,
-            'reload': sys.platform != 'win32',  # Disable reload on Windows
+            'reload': reload_enabled,
         }
         
         # On Windows, explicitly specify loop implementation for subprocess support
