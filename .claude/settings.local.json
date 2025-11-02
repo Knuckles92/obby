@@ -45,7 +45,8 @@
       "Bash(xargs:*)",
       "Bash(source wsl_venv/bin/activate:*)",
       "Bash(netstat:*)",
-      "Bash(git log:*)"
+      "Bash(git log:*)",
+      "Bash(cd:*)"
     ],
     "deny": []
   },
