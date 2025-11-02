@@ -140,7 +140,7 @@ export default function FocusLayout() {
               // local CSS variables so we can use the theme vars directly inside the gradient
               ['--focus-start']: current.color,
               ['--focus-end']: 'var(--color-overlay)',
-              background: 'linear-gradient(135deg, var(--focus-start) 0%, var(--focus-end) 100%)',
+              background: 'linear-gradient(135deg, var(--focus-start) 0%, var(--focus-start) 80%, color-mix(in srgb, var(--focus-start) 60%, black) 100%)',
               minHeight: 'auto',
               display: 'flex',
               flexDirection: 'column',
