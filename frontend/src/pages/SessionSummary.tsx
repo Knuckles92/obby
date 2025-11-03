@@ -1,12 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
-import { FileText, Clock, BarChart3, Trash2, RefreshCw } from 'lucide-react'
+import { FileText, Clock, BarChart3, Trash2, RefreshCw, Eye } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
-import { SessionSummary as SessionSummaryType } from '../types'
+import { SessionSummary as SessionSummaryType, SummaryGenerationPlan } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import { apiFetch } from '../utils/api'
+import SummaryContextControls, { SummaryContextConfig } from '../components/summary/SummaryContextControls'
+import GenerationPreview from '../components/summary/GenerationPreview'
+import GenerationProgress from '../components/summary/GenerationProgress'
 
 // TypeScript interface for ReactMarkdown code component props
 interface CodeComponentProps {
@@ -33,6 +36,14 @@ export default function SessionSummary() {
   const [updateLoading, setUpdateLoading] = useState(false)
   const eventSourceRef = useRef<EventSource | null>(null)
   const fallbackTimeoutRef = useRef<number | null>(null)
+
+  // New state for control components
+  const [showControls, setShowControls] = useState(true)
+  const [contextConfig, setContextConfig] = useState<SummaryContextConfig | null>(null)
+  const [previewData, setPreviewData] = useState<SummaryGenerationPlan | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   useEffect(() => {
     try {
@@ -142,6 +153,102 @@ export default function SessionSummary() {
     }
   }
 
+  // Handler for context config changes
+  const handleConfigChange = (config: SummaryContextConfig) => {
+    setContextConfig(config)
+    // Clear preview when config changes
+    setPreviewData(null)
+  }
+
+  // Handler to generate preview
+  const handlePreviewGeneration = async () => {
+    if (!contextConfig) {
+      alert('Please configure the context filters first.')
+      return
+    }
+
+    setPreviewLoading(true)
+    setGenerationError(null)
+
+    try {
+      const response = await apiFetch('/api/session-summary/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(contextConfig)
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate preview')
+      }
+
+      const data = await response.json()
+      setPreviewData(data)
+    } catch (error) {
+      console.error('Error generating preview:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate preview'
+      setGenerationError(errorMessage)
+      alert(errorMessage)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  // Handler to generate summary with preview context
+  const handleGenerateWithContext = async () => {
+    setIsGenerating(true)
+    setGenerationError(null)
+
+    try {
+      const response = await apiFetch('/api/session-summary/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          force: false,
+          context: contextConfig
+        })
+      })
+
+      if (!response.ok) {
+        const error = await response.json()
+        throw new Error(error.error || 'Failed to generate summary')
+      }
+
+      console.log('Generation started successfully')
+      // Progress component will handle updates via SSE
+
+    } catch (error) {
+      console.error('Error generating summary:', error)
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate summary'
+      setGenerationError(errorMessage)
+      setIsGenerating(false)
+    }
+  }
+
+  // Handler when generation completes
+  const handleGenerationComplete = () => {
+    console.log('Generation completed')
+    setIsGenerating(false)
+    setPreviewData(null) // Clear preview
+    fetchSessionSummary() // Refresh summary content
+  }
+
+  // Handler when generation encounters an error
+  const handleGenerationError = (error: string) => {
+    console.error('Generation error:', error)
+    setGenerationError(error)
+    setIsGenerating(false)
+  }
+
+  // Handler to adjust filters (closes preview, shows controls)
+  const handleAdjustFilters = () => {
+    setPreviewData(null)
+    setShowControls(true)
+  }
 
   const triggerUpdate = async () => {
     setUpdateLoading(true)
@@ -305,8 +412,70 @@ export default function SessionSummary() {
         </div>
       </div>
 
+      {/* Context Controls Panel */}
+      {showControls && (
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-medium text-gray-900">Summary Context Controls</h3>
+            <button
+              onClick={() => setShowControls(false)}
+              className="text-sm text-gray-500 hover:text-gray-700"
+            >
+              Hide Controls
+            </button>
+          </div>
+          <SummaryContextControls onConfigChange={handleConfigChange} />
+          <div className="mt-4 flex justify-end space-x-3">
+            <button
+              onClick={handlePreviewGeneration}
+              disabled={!contextConfig || previewLoading}
+              className="btn-secondary flex items-center"
+            >
+              {previewLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600 mr-2"></div>
+                  Generating Preview...
+                </>
+              ) : (
+                <>
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
 
-      
+      {/* Generation Preview */}
+      {previewData && (
+        <GenerationPreview
+          previewData={previewData}
+          onGenerate={handleGenerateWithContext}
+          onAdjustFilters={handleAdjustFilters}
+          isLoading={isGenerating}
+        />
+      )}
+
+      {/* Generation Progress Modal */}
+      <GenerationProgress
+        isOpen={isGenerating}
+        summaryType="session"
+        onComplete={handleGenerationComplete}
+        onError={handleGenerationError}
+      />
+
+      {/* Show Controls Toggle (when hidden) */}
+      {!showControls && (
+        <div className="flex justify-start">
+          <button
+            onClick={() => setShowControls(true)}
+            className="btn-secondary text-sm"
+          >
+            Show Context Controls
+          </button>
+        </div>
+      )}
 
       {/* Stats */}
       <div className={`grid grid-cols-1 md:grid-cols-3 gap-6`}>

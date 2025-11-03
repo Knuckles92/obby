@@ -40,6 +40,7 @@ export default function Settings() {
   const [dbResetSuccess, setDbResetSuccess] = useState<any>(null)
   const [dbResetError, setDbResetError] = useState<string | null>(null)
 
+
   const tabs = [
     { id: 'general', label: 'General', icon: SettingsIcon },
     { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -289,6 +290,7 @@ export default function Settings() {
       console.error('Error fetching admin data:', error)
     }
   }
+
 
   const optimizeDatabase = async () => {
     setAdminLoading(true)
@@ -1264,6 +1266,7 @@ export default function Settings() {
                 </div>
               </div>
             </div>
+
           </div>
         )
 

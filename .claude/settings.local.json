@@ -46,7 +46,8 @@
       "Bash(source wsl_venv/bin/activate:*)",
       "Bash(netstat:*)",
       "Bash(git log:*)",
-      "Bash(cd:*)"
+      "Bash(cd:*)",
+      "Bash(npm run lint:*)"
     ],
     "deny": []
   },

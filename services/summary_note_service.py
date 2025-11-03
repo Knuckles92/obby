@@ -7,6 +7,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from database.models import db
+from utils.summary_context import SummaryContextConfig
+from database.queries import FileQueries
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,25 @@ class SummaryNoteService:
     def __init__(self, summaries_dir: str = "output/summaries"):
         self.summaries_dir = Path(summaries_dir)
         self.summaries_dir.mkdir(parents=True, exist_ok=True)
-        
+
+    def generate_preview(self, context_config: SummaryContextConfig) -> Dict:
+        """Generate preview data for summary generation with the given context.
+
+        Args:
+            context_config: SummaryContextConfig object defining filters and scope
+
+        Returns:
+            Dict containing preview data with matched files, stats, and warnings
+        """
+        try:
+            logger.info("Generating summary preview with context configuration")
+            preview_data = FileQueries.get_preview_data(context_config)
+            logger.info(f"Preview generated: {preview_data.get('total_files', 0)} files matched")
+            return preview_data
+        except Exception as e:
+            logger.error(f"Failed to generate preview: {e}")
+            raise
+
     def _parse_filename_timestamp(self, filename: str) -> Optional[datetime]:
         """Parse timestamp from summary filename.
         
@@ -566,36 +586,82 @@ class SummaryNoteService:
         timestamp_str = timestamp.strftime('%Y-%m-%d-%H%M%S')
         return f"Summary-{timestamp_str}.md"
     
-    def create_summary(self, content: str, timestamp: datetime = None) -> Dict:
+    def create_summary(
+        self,
+        content: str,
+        timestamp: datetime = None,
+        context_config: Optional[SummaryContextConfig] = None,
+        summary_metadata: Optional[Dict] = None
+    ) -> Dict:
         """Create a new summary file with the given content.
-        
+
         Args:
             content: Markdown content for the summary
             timestamp: Optional timestamp, defaults to current time
-            
+            context_config: Optional SummaryContextConfig for storing context metadata
+            summary_metadata: Optional dict with summary, impact, topics, keywords for semantic entry
+
         Returns:
-            Dict containing filename and success status
+            Dict containing filename, success status, and optional semantic_id
         """
         try:
             if timestamp is None:
                 timestamp = datetime.now()
-            
+
             filename = self.create_summary_filename(timestamp)
             file_path = self.summaries_dir / filename
-            
+
             # Ensure directory exists
             self.summaries_dir.mkdir(parents=True, exist_ok=True)
-            
+
             # Write content to file
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(content)
-            
-            return {
+
+            result = {
                 'success': True,
                 'filename': filename,
                 'message': f'Summary created successfully: {filename}'
             }
-            
+
+            # If summary_metadata provided, create semantic entry with context
+            if summary_metadata:
+                try:
+                    from database.models import SemanticModel
+
+                    # Prepare context metadata JSON if context_config provided
+                    context_metadata_json = None
+                    if context_config:
+                        context_metadata_json = context_config.to_json()
+
+                    # Create semantic entry
+                    semantic_id = SemanticModel.insert_entry(
+                        summary=summary_metadata.get('summary', 'Generated summary'),
+                        entry_type=summary_metadata.get('entry_type', 'comprehensive'),
+                        impact=summary_metadata.get('impact', 'moderate'),
+                        topics=summary_metadata.get('topics', []),
+                        keywords=summary_metadata.get('keywords', []),
+                        file_path=summary_metadata.get('file_path', f'summary/{filename}'),
+                        version_id=None,
+                        timestamp=timestamp,
+                        source_type=summary_metadata.get('source_type', 'comprehensive'),
+                        context_metadata=context_metadata_json
+                    )
+
+                    # Update semantic entry with markdown file path
+                    markdown_path_normalized = str(file_path).replace('\\', '/')
+                    update_query = "UPDATE semantic_entries SET markdown_file_path = ? WHERE id = ?"
+                    db.execute_update(update_query, (markdown_path_normalized, semantic_id))
+
+                    result['semantic_id'] = semantic_id
+                    logger.info(f"Created semantic entry {semantic_id} with context metadata for {filename}")
+
+                except Exception as e:
+                    logger.warning(f"Failed to create semantic entry for summary: {e}")
+                    # Don't fail the whole operation if semantic entry fails
+
+            return result
+
         except Exception as e:
             logger.error(f"Failed to create summary: {e}")
             raise

@@ -561,7 +561,9 @@ Analyze the highlights to describe substantive modifications, naming new section
         self,
         changed_files: List[str],
         time_range: str,
-        working_dir: Optional[Path] = None
+        working_dir: Optional[Path] = None,
+        context_metadata: Optional[Dict] = None,
+        previous_summaries: Optional[str] = None
     ) -> str:
         """
         Generate a comprehensive session summary by autonomously exploring changed files.
@@ -573,6 +575,12 @@ Analyze the highlights to describe substantive modifications, naming new section
             changed_files: List of file paths that changed
             time_range: Human-readable time range (e.g., "last 4 hours", "since 2pm")
             working_dir: Optional working directory override
+            context_metadata: Optional dict with generation context information:
+                - time_window_description: Human-readable time window (e.g., "last 6 hours")
+                - filters_applied: List of active filters (e.g., ["*.md", "exclude test files"])
+                - scope_controls: Dict with max_files, detail_level, focus_areas
+                - change_stats: Optional dict with file counts, line changes, etc.
+            previous_summaries: Optional string containing previous summary content to provide context
 
         Returns:
             Structured markdown summary following CLAUDE_OUTPUT_FORMAT.md specification
@@ -613,58 +621,143 @@ Analyze the highlights to describe substantive modifications, naming new section
                 }
             )
 
-            system_prompt = """You are a technical code analyst for the Obby file monitoring system. Your role is to investigate file changes and produce structured summaries.
+            # Build system prompt with optional context metadata section
+            system_prompt_parts = [
+                "You are a technical code analyst for the Obby file monitoring system. Your role is to investigate file changes and produce structured summaries.",
+                "",
+                "IMPORTANT INSTRUCTIONS:",
+                "1. Use the Read, Grep, and Glob tools to explore files autonomously",
+                "2. Focus on understanding WHAT changed and WHY it matters",
+                "3. Always follow the exact output format specified below",
+                "4. Include a Sources section listing every file you examined",
+                "5. Be concise but insightful in your analysis"
+            ]
 
-IMPORTANT INSTRUCTIONS:
-1. Use the Read, Grep, and Glob tools to explore files autonomously
-2. Focus on understanding WHAT changed and WHY it matters
-3. Always follow the exact output format specified below
-4. Include a Sources section listing every file you examined
-5. Be concise but insightful in your analysis
+            # Add context metadata instructions if provided
+            if context_metadata:
+                system_prompt_parts.extend([
+                    "6. Reference the Generation Context in your Sources section to explain what filters/scope were applied",
+                    ""
+                ])
 
-OUTPUT FORMAT:
-## [Session Title]
+            system_prompt_parts.extend([
+                "",
+                "OUTPUT FORMAT:",
+                "## [Session Title]",
+                "",
+                "**Summary**: [1-3 concise sentences describing the key changes and their significance]",
+                "",
+                "**Change Pattern**: [Pattern description - e.g., \"Incremental feature development\", \"Refactoring\", \"Bug fixes\"]",
+                "",
+                "**Impact Assessment**:",
+                "- **Scope**: [local | moderate | widespread]",
+                "- **Complexity**: [simple | moderate | complex]",
+                "- **Risk Level**: [low | medium | high]",
+                "",
+                "**Topics**: [comma-separated high-level themes, 3-7 items]",
+                "",
+                "**Technical Keywords**: [comma-separated technical terms, 5-10 items]",
+                "",
+                "**Relationships**: [Brief description of how changed files relate to each other, if applicable]"
+            ])
 
-**Summary**: [1-3 concise sentences describing the key changes and their significance]
+            # Add Generation Context section if metadata provided
+            if context_metadata:
+                system_prompt_parts.extend([
+                    "",
+                    "### Generation Context",
+                    "",
+                    "[Brief note about what time window/filters were applied - reference the context provided in the user prompt]"
+                ])
 
-**Change Pattern**: [Pattern description - e.g., "Incremental feature development", "Refactoring", "Bug fixes"]
+            system_prompt_parts.extend([
+                "",
+                "### Sources",
+                "",
+                "- `path/to/file.ext` — [One sentence explaining why this file was examined and what role it played]",
+                "",
+                "### Proposed Questions",
+                "",
+                "- [Specific, actionable question about the changes]",
+                "- [Another question helping user explore implications]",
+                "",
+                "CRITICAL:",
+                "- Do not describe your analysis process (no \"I'll analyze\", \"Let me check\", etc.)",
+                "- Respond directly with the formatted summary",
+                "- Always include the Sources section",
+                "- Only list files you actually examined in Sources"
+            ])
 
-**Impact Assessment**:
-- **Scope**: [local | moderate | widespread]
-- **Complexity**: [simple | moderate | complex]
-- **Risk Level**: [low | medium | high]
+            system_prompt = "\n".join(system_prompt_parts)
 
-**Topics**: [comma-separated high-level themes, 3-7 items]
+            # Build user prompt with optional context metadata
+            user_prompt_parts = [
+                f"Analyze the following file changes from the past {time_range}:",
+                "",
+                "CHANGED FILES:",
+                files_list,
+                "",
+                f"TIME PERIOD: {time_range}"
+            ]
 
-**Technical Keywords**: [comma-separated technical terms, 5-10 items]
+            # Add context metadata if provided
+            if context_metadata:
+                user_prompt_parts.extend(["", "GENERATION CONTEXT:"])
 
-**Relationships**: [Brief description of how changed files relate to each other, if applicable]
+                # Time window description
+                time_desc = context_metadata.get('time_window_description')
+                if time_desc:
+                    user_prompt_parts.append(f"- Time window: {time_desc}")
 
-### Sources
+                # Filters applied
+                filters = context_metadata.get('filters_applied', [])
+                if filters:
+                    filters_str = ', '.join(filters)
+                    user_prompt_parts.append(f"- Filters applied: {filters_str}")
 
-- `path/to/file.ext` — [One sentence explaining why this file was examined and what role it played]
+                # Scope controls
+                scope = context_metadata.get('scope_controls', {})
+                if scope:
+                    if 'max_files' in scope:
+                        user_prompt_parts.append(f"- Maximum files analyzed: {scope['max_files']}")
+                    if 'detail_level' in scope:
+                        user_prompt_parts.append(f"- Detail level: {scope['detail_level']}")
+                    if 'focus_areas' in scope and scope['focus_areas']:
+                        focus = ', '.join(scope['focus_areas'])
+                        user_prompt_parts.append(f"- Focus areas: {focus}")
 
-### Proposed Questions
+                # Change statistics (if provided)
+                stats = context_metadata.get('change_stats', {})
+                if stats:
+                    if 'total_files' in stats:
+                        user_prompt_parts.append(f"- Total files in scope: {stats['total_files']}")
+                    if 'files_analyzed' in stats:
+                        user_prompt_parts.append(f"- Files analyzed: {stats['files_analyzed']}")
 
-- [Specific, actionable question about the changes]
-- [Another question helping user explore implications]
+            # Add previous summaries if provided
+            if previous_summaries:
+                user_prompt_parts.extend([
+                    "",
+                    "PREVIOUS SUMMARIES:",
+                    "The following are previous summaries from earlier sessions. Use these to understand the context and evolution of the project. Build upon the insights from these summaries when analyzing the current changes.",
+                    "",
+                    "---",
+                    "",
+                    previous_summaries,
+                    "",
+                    "---",
+                    "",
+                    "IMPORTANT: When writing your summary, reference relevant points from previous summaries where appropriate, but focus primarily on the current changes. Show how the current changes relate to or build upon previous work."
+                ])
 
-CRITICAL:
-- Do not describe your analysis process (no "I'll analyze", "Let me check", etc.)
-- Respond directly with the formatted summary
-- Always include the Sources section
-- Only list files you actually examined in Sources"""
+            user_prompt_parts.extend([
+                "",
+                "TASK: Investigate these files using your Read, Grep, and Glob tools to understand what changed and why. Then produce a session summary following the exact format specified in your system prompt.",
+                "",
+                "Focus on substantive modifications and their implications. Explore the files to build understanding, then provide the structured summary."
+            ])
 
-            user_prompt = f"""Analyze the following file changes from the past {time_range}:
-
-CHANGED FILES:
-{files_list}
-
-TIME PERIOD: {time_range}
-
-TASK: Investigate these files using your Read, Grep, and Glob tools to understand what changed and why. Then produce a session summary following the exact format specified in your system prompt.
-
-Focus on substantive modifications and their implications. Explore the files to build understanding, then provide the structured summary."""
+            user_prompt = "\n".join(user_prompt_parts)
 
             # Track starting AI analysis
             self._track_analysis_phase(

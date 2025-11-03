@@ -8,6 +8,7 @@ import time
 
 from ai.claude_agent_client import ClaudeAgentClient
 from utils.claude_summary_parser import ClaudeSummaryParser
+from utils.summary_context import SummaryContextConfig
 
 
 logger = logging.getLogger(__name__)
@@ -203,9 +204,48 @@ class SessionSummaryService:
             logger.error(f"Failed to save session summary settings: {e}")
             raise
 
+    # ---------- Preview ----------
+    def generate_preview(self, context_config: SummaryContextConfig = None):
+        """Generate a preview of what will be included in the summary.
+
+        Args:
+            context_config: Summary context configuration (uses default if None)
+
+        Returns:
+            Preview data dict with matched files, stats, and warnings
+        """
+        try:
+            # Use default config if not provided
+            if context_config is None:
+                context_config = SummaryContextConfig.default()
+
+            # Initialize watch handler
+            watch_handler = None
+            try:
+                from utils.watch_handler import WatchHandler
+                root_folder = Path(__file__).parent.parent
+                watch_handler = WatchHandler(root_folder)
+            except Exception as e:
+                logger.debug(f"Watch patterns unavailable: {e}")
+
+            # Get preview data from FileQueries
+            from database.queries import FileQueries
+            preview_data = FileQueries.get_preview_data(context_config, watch_handler)
+
+            logger.info(f"Generated preview: {preview_data.get('total_files', 0)} files matched")
+            return preview_data
+
+        except Exception as e:
+            logger.error(f"Failed to generate preview: {e}")
+            raise
+
     # ---------- Update ----------
-    def update(self, force: bool = False):
+    def update(self, force: bool = False, context_config: SummaryContextConfig = None):
         """Update the session summary by having Claude explore changed files.
+
+        Args:
+            force: Force update even if no changes detected
+            context_config: Optional context configuration for custom time/file filtering
 
         Returns dict with success, updated, message, and summary when applicable.
 
@@ -218,17 +258,21 @@ class SessionSummaryService:
                 # If we're already in an async context, create a new task
                 import concurrent.futures
                 with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(asyncio.run, self._update_async(force))
+                    future = executor.submit(asyncio.run, self._update_async(force, context_config))
                     return future.result()
             else:
                 # Run in the current event loop
-                return loop.run_until_complete(self._update_async(force))
+                return loop.run_until_complete(self._update_async(force, context_config))
         except Exception as e:
             logger.error(f"Failed to update session summary: {e}")
             raise
 
-    async def _update_async(self, force: bool = False):
+    async def _update_async(self, force: bool = False, context_config: SummaryContextConfig = None):
         """Async implementation of session summary update using Claude Agent SDK.
+
+        Args:
+            force: Force update even if no changes detected
+            context_config: Optional context configuration for custom time/file filtering
 
         Returns dict with success, updated, message, and summary when applicable.
         """
@@ -249,13 +293,67 @@ class SessionSummaryService:
             # Resolve target path (daily or single)
             target_path = self._resolve_session_summary_path()
 
-            # Cursor window
+            # Determine time window based on context_config or cursor
             from database.models import ConfigModel
-            last_ts_str = ConfigModel.get('session_summary_last_update', None)
-            window_start = datetime.fromisoformat(last_ts_str) if last_ts_str else datetime.now() - timedelta(hours=4)
+
+            if context_config is not None:
+                # Use custom context configuration
+                logger.info("Using custom context configuration for summary")
+                use_custom_context = True
+
+                # Parse time window from context_config
+                time_window = context_config.time_window
+                if time_window.preset and time_window.preset != "custom" and time_window.preset != "auto":
+                    # Parse preset (e.g., "1h", "6h", "24h", "7d")
+                    preset = time_window.preset
+                    if preset.endswith('h'):
+                        hours = int(preset[:-1])
+                        window_start = datetime.now() - timedelta(hours=hours)
+                    elif preset.endswith('d'):
+                        days = int(preset[:-1])
+                        window_start = datetime.now() - timedelta(days=days)
+                    else:
+                        window_start = datetime.now() - timedelta(hours=4)  # Default
+                    window_end = datetime.now()
+
+                    # If include_previously_covered is False (default), restrict to changes since last summary
+                    if not time_window.include_previously_covered:
+                        last_ts_str = ConfigModel.get('session_summary_last_update', None)
+                        if last_ts_str:
+                            last_summary_time = datetime.fromisoformat(last_ts_str)
+                            # Use the more restrictive (later) of the two timestamps
+                            if last_summary_time > window_start:
+                                logger.info(f"Restricting time window to changes since last summary: {last_summary_time}")
+                                window_start = last_summary_time
+                elif time_window.preset == "auto":
+                    # Auto = since last update (cursor-based)
+                    last_ts_str = ConfigModel.get('session_summary_last_update', None)
+                    window_start = datetime.fromisoformat(last_ts_str) if last_ts_str else datetime.now() - timedelta(hours=4)
+                    window_end = datetime.now()
+                else:
+                    # Custom date range
+                    window_start = time_window.start_date or (datetime.now() - timedelta(hours=4))
+                    window_end = time_window.end_date or datetime.now()
+
+                    # If include_previously_covered is False, restrict to changes since last summary
+                    if not time_window.include_previously_covered:
+                        last_ts_str = ConfigModel.get('session_summary_last_update', None)
+                        if last_ts_str:
+                            last_summary_time = datetime.fromisoformat(last_ts_str)
+                            # Use the more restrictive (later) of the two timestamps
+                            if last_summary_time > window_start:
+                                logger.info(f"Restricting custom time window to changes since last summary: {last_summary_time}")
+                                window_start = last_summary_time
+            else:
+                # Use default cursor-based window (backward compatibility)
+                logger.info("Using cursor-based window (default behavior)")
+                use_custom_context = False
+                last_ts_str = ConfigModel.get('session_summary_last_update', None)
+                window_start = datetime.fromisoformat(last_ts_str) if last_ts_str else datetime.now() - timedelta(hours=4)
+                window_end = datetime.now()
 
             # Calculate time range for Claude
-            time_elapsed = datetime.now() - window_start
+            time_elapsed = window_end - window_start
             if time_elapsed.days > 0:
                 time_range = f"last {time_elapsed.days} days"
             elif time_elapsed.seconds > 3600:
@@ -276,12 +374,28 @@ class SessionSummaryService:
             except Exception as e:
                 logger.debug(f"Watch patterns unavailable, proceeding without filter: {e}")
 
-            # Fetch changed files (not full diffs - Claude will explore them)
+            # Fetch changed files using appropriate method based on context_config
             from database.queries import FileQueries
             t_query_start = time.perf_counter()
-            all_diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
+
+            if use_custom_context:
+                # Use get_diffs_in_range with custom filters
+                logger.info(f"Session summary: using get_diffs_in_range with custom context")
+                all_diffs = FileQueries.get_diffs_in_range(
+                    start_time=window_start,
+                    end_time=window_end,
+                    file_filters=context_config.file_filters,
+                    content_type_filters=context_config.content_types,
+                    max_files=context_config.scope_controls.max_files,
+                    watch_handler=watch_handler
+                )
+            else:
+                # Use get_diffs_since for cursor-based approach (backward compatibility)
+                logger.info(f"Session summary: using get_diffs_since (cursor-based)")
+                all_diffs = FileQueries.get_diffs_since(window_start, limit=200, watch_handler=watch_handler)
+
             t_query = time.perf_counter() - t_query_start
-            logger.info(f"Session summary timing: get_diffs_since took {t_query:.3f}s (window_start={window_start.isoformat()})")
+            logger.info(f"Session summary timing: query took {t_query:.3f}s (window_start={window_start.isoformat()}, window_end={window_end.isoformat()})")
 
             # Extract unique file paths, excluding session summary and internal files
             target_path = self._resolve_session_summary_path().resolve()
@@ -383,6 +497,82 @@ class SessionSummaryService:
             lines_removed = sum(int(d.get('linesRemoved') or 0) for d in meaningful_diffs)
             notes_added_count = len({d.get('filePath') for d in all_diffs if (str(d.get('changeType')).lower() == 'created' and str(d.get('filePath') or '').lower().endswith('.md'))})
 
+            # Build context metadata for Claude if custom context is used
+            context_metadata = None
+            if use_custom_context and context_config is not None:
+                # Build human-readable filter descriptions
+                filters_applied = []
+
+                if context_config.file_filters.include_patterns:
+                    patterns = ', '.join(context_config.file_filters.include_patterns)
+                    filters_applied.append(f"Include: {patterns}")
+
+                if context_config.file_filters.exclude_patterns:
+                    patterns = ', '.join(context_config.file_filters.exclude_patterns)
+                    filters_applied.append(f"Exclude: {patterns}")
+
+                content_types_list = []
+                if context_config.content_types.include_code_files:
+                    content_types_list.append("code files")
+                if context_config.content_types.include_documentation:
+                    content_types_list.append("documentation")
+                if context_config.content_types.include_deleted:
+                    content_types_list.append("deleted files")
+
+                if content_types_list:
+                    filters_applied.append(f"Content types: {', '.join(content_types_list)}")
+
+                # Build context metadata dict
+                context_metadata = {
+                    'time_window_description': time_range,
+                    'filters_applied': filters_applied,
+                    'scope_controls': {
+                        'max_files': context_config.scope_controls.max_files,
+                        'detail_level': context_config.scope_controls.detail_level,
+                        'focus_areas': context_config.scope_controls.focus_areas or []
+                    },
+                    'change_stats': {
+                        'total_files': len(all_diffs),
+                        'files_analyzed': len(changed_files)
+                    }
+                }
+                logger.info(f"Session summary: prepared context metadata with {len(filters_applied)} filters")
+
+            # Check if we should include previous summaries (from context_config or settings)
+            previous_summaries = None
+            include_previous = False
+            
+            # Check context_config first (preferred), then fall back to settings
+            if context_config is not None:
+                include_previous = getattr(context_config, 'include_previous_summaries', False)
+            else:
+                try:
+                    settings = self.get_settings()
+                    include_previous = settings.get('settings', {}).get('includePreviousSummaries', False)
+                except Exception as e:
+                    logger.debug(f"Session summary: failed to check settings for includePreviousSummaries: {e}")
+            
+            if include_previous:
+                # Read existing summary file content (excluding the header)
+                target_path = self._resolve_session_summary_path()
+                if target_path.exists():
+                    existing_content = target_path.read_text(encoding='utf-8')
+                    # Extract summaries (everything after the initial header/description)
+                    # Split by "---" separators to get individual summary blocks
+                    parts = existing_content.split('\n---\n')
+                    if len(parts) > 1:
+                        # Skip the first part (header) and get all previous summaries
+                        previous_summaries = '\n---\n'.join(parts[1:]).strip()
+                        if previous_summaries:
+                            logger.info(f"Session summary: including {len(parts) - 1} previous summary sections")
+                        else:
+                            previous_summaries = None
+                            logger.info("Session summary: includePreviousSummaries enabled but no previous summaries found")
+                    else:
+                        logger.info("Session summary: includePreviousSummaries enabled but file contains only header")
+                else:
+                    logger.info("Session summary: includePreviousSummaries enabled but summary file doesn't exist yet")
+
             # Call Claude to generate session summary by exploring files
             t_claude_start = time.perf_counter()
             claude_summary_md = ""
@@ -390,11 +580,17 @@ class SessionSummaryService:
             try:
                 logger.info(f"Session summary: calling Claude to explore {len(changed_files)} files...")
                 logger.info(f"Session summary: time range = '{time_range}'")
+                if context_metadata:
+                    logger.info(f"Session summary: passing context metadata with {len(context_metadata.get('filters_applied', []))} filters")
+                if previous_summaries:
+                    logger.info(f"Session summary: including previous summaries ({len(previous_summaries)} characters)")
 
                 claude_summary_md = await self.claude_client.summarize_session(
                     changed_files=changed_files,
                     time_range=time_range,
-                    working_dir=Path.cwd()
+                    working_dir=Path.cwd(),
+                    context_metadata=context_metadata,
+                    previous_summaries=previous_summaries
                 )
 
                 logger.info("Session summary: Claude summary generated successfully")
@@ -496,7 +692,8 @@ class SessionSummaryService:
             t_individual_start = time.perf_counter()
             individual_summary_created = self._create_individual_summary(
                 summary_block,
-                parsed_metadata=parsed_summary
+                parsed_metadata=parsed_summary,
+                context_config=context_config
             )
             t_individual = time.perf_counter() - t_individual_start
             logger.info(f"Session summary timing: _create_individual_summary took {t_individual:.3f}s (created={bool(individual_summary_created)})")
@@ -531,12 +728,13 @@ class SessionSummaryService:
             logger.error(f"Failed to update session summary: {e}", exc_info=True)
             raise
 
-    def _create_individual_summary(self, summary_block: str, parsed_metadata: dict = None) -> bool:
+    def _create_individual_summary(self, summary_block: str, parsed_metadata: dict = None, context_config: SummaryContextConfig = None) -> bool:
         """Create an individual summary with dual-write: markdown file + database entry.
 
         Args:
             summary_block: The summary content to save
             parsed_metadata: Optional parsed summary metadata from Claude
+            context_config: Optional context configuration used for generation
 
         Returns:
             bool: True if successful, False otherwise
@@ -547,9 +745,9 @@ class SessionSummaryService:
             
             # Create timestamp and formatted content
             now = datetime.now()
-            
+
             # Format content with header and footer
-            formatted_content = self._format_individual_summary(summary_block, now)
+            formatted_content = self._format_individual_summary(summary_block, now, context_config)
             
             # Create the markdown summary file (existing functionality)
             summary_service = SummaryNoteService()
@@ -595,20 +793,29 @@ class SessionSummaryService:
             # Get the markdown file path
             markdown_filename = file_result.get('filename', '')
             markdown_file_path = f"output/summaries/{markdown_filename}"
-            
+
+            # Convert context_config to JSON if provided
+            context_metadata_json = None
+            if context_config is not None:
+                try:
+                    context_metadata_json = context_config.to_json()
+                    logger.info("Stored context_metadata in summary")
+                except Exception as e:
+                    logger.warning(f"Failed to serialize context_config: {e}")
+
             # Create database entry with semantic metadata
             try:
                 # Insert semantic entry (connection manager handles transactions)
                 semantic_query = """
-                    INSERT INTO semantic_entries 
-                    (timestamp, date, time, type, summary, impact, file_path, searchable_text, 
-                     markdown_file_path, source_type, version_id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO semantic_entries
+                    (timestamp, date, time, type, summary, impact, file_path, searchable_text,
+                     markdown_file_path, source_type, version_id, context_metadata)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """
-                
+
                 # Create searchable text
                 searchable_text = f"{metadata.get('summary', '')} {' '.join(metadata.get('topics', []))} {' '.join(metadata.get('keywords', []))} {metadata.get('impact', '')}".lower()
-                
+
                 params = (
                     now.isoformat(),
                     now.strftime('%Y-%m-%d'),
@@ -620,9 +827,10 @@ class SessionSummaryService:
                     searchable_text,
                     markdown_file_path,  # This is the key linking field
                     'session_summary',
-                    None  # version_id not applicable for session summaries
+                    None,  # version_id not applicable for session summaries
+                    context_metadata_json  # Store context configuration as JSON
                 )
-                
+
                 db.execute_update(semantic_query, params)
                 
                 # Get the inserted entry ID
@@ -672,13 +880,14 @@ class SessionSummaryService:
             logger.error(f"Failed to create individual summary: {e}")
             return False
     
-    def _format_individual_summary(self, summary_block: str, timestamp: datetime) -> str:
+    def _format_individual_summary(self, summary_block: str, timestamp: datetime, context_config: SummaryContextConfig = None) -> str:
         """Format the summary content for individual file storage.
-        
+
         Args:
             summary_block: Raw summary content
             timestamp: Creation timestamp
-            
+            context_config: Optional context configuration used for generation
+
         Returns:
             str: Formatted markdown content
         """
@@ -686,24 +895,71 @@ class SessionSummaryService:
             # Format timestamp for display
             date_str = timestamp.strftime('%Y-%m-%d %H:%M')
             day_name = timestamp.strftime('%A, %B %d, %Y at %I:%M %p')
-            
-            # Create formatted content
+
+            # Build content parts
             content_parts = [
                 f"# Summary - {date_str}",
                 "",
                 f"*Created: {day_name}*",
-                "",
-                "---",
-                "",
+                ""
+            ]
+
+            # Add generation context section if context_config provided
+            if context_config is not None:
+                content_parts.extend([
+                    "## Generation Context",
+                    ""
+                ])
+
+                # Time window info
+                time_desc = context_config.time_window.get_description()
+                content_parts.append(f"**Time Range**: {time_desc}")
+
+                # File filters
+                if context_config.file_filters.include_patterns:
+                    patterns = ', '.join(f"`{p}`" for p in context_config.file_filters.include_patterns)
+                    content_parts.append(f"**Include Patterns**: {patterns}")
+
+                if context_config.file_filters.exclude_patterns:
+                    patterns = ', '.join(f"`{p}`" for p in context_config.file_filters.exclude_patterns)
+                    content_parts.append(f"**Exclude Patterns**: {patterns}")
+
+                # Content type filters
+                content_types = []
+                if context_config.content_types.include_code_files:
+                    content_types.append("code")
+                if context_config.content_types.include_documentation:
+                    content_types.append("documentation")
+                if context_config.content_types.include_deleted:
+                    content_types.append("deleted files")
+                if content_types:
+                    content_parts.append(f"**Content Types**: {', '.join(content_types)}")
+
+                # Scope controls
+                content_parts.append(f"**Max Files**: {context_config.scope_controls.max_files}")
+                content_parts.append(f"**Detail Level**: {context_config.scope_controls.detail_level}")
+
+                if context_config.scope_controls.focus_areas:
+                    focus = ', '.join(f"`{a}`" for a in context_config.scope_controls.focus_areas)
+                    content_parts.append(f"**Focus Areas**: {focus}")
+
+                content_parts.extend(["", "---", ""])
+
+            else:
+                # Default separator if no context config
+                content_parts.extend(["---", ""])
+
+            # Add summary content
+            content_parts.extend([
                 summary_block,
                 "",
                 "---",
                 "",
                 "*Generated automatically by Obby*"
-            ]
-            
+            ])
+
             return "\n".join(content_parts)
-            
+
         except Exception as e:
             logger.error(f"Failed to format individual summary: {e}")
             return summary_block  # Fallback to original content

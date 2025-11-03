@@ -239,7 +239,7 @@ def mock_claude_agent_client():
     mock.generate_comprehensive_summary = AsyncMock(side_effect=mock_generate_comprehensive_summary)
 
     # Mock summarize_session method (NEW - for session summary migration)
-    async def mock_summarize_session(changed_files, time_range, working_dir=None):
+    async def mock_summarize_session(changed_files, time_range, working_dir=None, context_metadata=None):
         return """## Test Session Summary
 
 **Summary**: Updated core monitoring functionality and test infrastructure over the past 2 hours.

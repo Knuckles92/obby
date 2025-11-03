@@ -104,7 +104,7 @@ async def save_session_summary_settings(request: Request):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
-def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
+def _run_update_worker(force: bool, lock_timeout: float, result_box: dict, context_config=None):
     """Background worker to perform the session summary update with locking.
 
     Writes the result dict into result_box['result'] when done.
@@ -120,7 +120,7 @@ def _run_update_worker(force: bool, lock_timeout: float, result_box: dict):
         return
     try:
         logger.info(f"Session summary update: starting (force={force})")
-        res = session_summary_service.update(force=force)
+        res = session_summary_service.update(force=force, context_config=context_config)
         result_box['result'] = res
         # Small delay to ensure FS timestamps are visible
         time.sleep(0.2)
@@ -149,6 +149,7 @@ async def trigger_session_summary_update(request: Request):
       - async (bool): when true, start in background and return 202 immediately
       - lock_timeout (float): seconds to wait for acquiring update lock (default 1.0)
       - max_duration_secs (float): ceiling for synchronous wait before returning 202 (default 15.0)
+      - context (dict): Optional context configuration for custom time/file filtering
     """
     try:
         data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
@@ -156,10 +157,20 @@ async def trigger_session_summary_update(request: Request):
         run_async = bool(data.get('async', False))
         lock_timeout = float(data.get('lock_timeout', 1.0))
         max_duration = float(data.get('max_duration_secs', 15.0))
+        
+        # Parse context config if provided
+        context_config = None
+        if 'context' in data and data['context']:
+            from utils.summary_context import SummaryContextConfig
+            try:
+                context_config = SummaryContextConfig.from_dict(data['context'])
+                logger.info("Session summary update: using provided context configuration")
+            except Exception as e:
+                logger.warning(f"Failed to parse context config: {e}, proceeding without it")
 
         # Always run the update in a worker thread to allow early return if needed
         result_box = {'result': None}
-        worker = threading.Thread(target=_run_update_worker, args=(force_update, lock_timeout, result_box), daemon=True)
+        worker = threading.Thread(target=_run_update_worker, args=(force_update, lock_timeout, result_box, context_config), daemon=True)
         worker.start()
 
         if run_async:

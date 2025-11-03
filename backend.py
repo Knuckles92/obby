@@ -239,6 +239,15 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'Insights layout migration failed: {e}', exc_info=True)
 
+    try:
+        from database.migration_context_metadata import apply_migration as apply_context_metadata_migration
+        if apply_context_metadata_migration():
+            logger.info('Context metadata migration completed')
+        else:
+            logger.error('Context metadata migration returned False')
+    except Exception as e:
+        logger.error(f'Context metadata migration failed: {e}', exc_info=True)
+
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:
@@ -281,7 +290,11 @@ if __name__ == '__main__':
             logger.info('Windows: Using asyncio loop with WindowsProactorEventLoopPolicy for Claude SDK support')
             logger.info('Windows: Reload disabled to prevent event loop policy conflicts')
         else:
+            # For WSL/Linux: Add timeout to prevent reloader from hanging on SSE connections
+            # This forces shutdown after 5 seconds if connections don't close gracefully
+            uvicorn_config['timeout_graceful_shutdown'] = 5.0
             logger.info('Non-Windows: Using default uvicorn configuration with reload enabled')
+            logger.info('Non-Windows: Graceful shutdown timeout set to 5 seconds to prevent reloader hangs')
         
         uvicorn.run(**uvicorn_config)
     finally:

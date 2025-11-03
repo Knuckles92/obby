@@ -895,10 +895,337 @@ class FileQueries:
             
             logger.info(f"Found {len(changes)} recent changes without AI summaries")
             return changes
-            
+
         except Exception as e:
             logger.error(f"Error getting recent changes without AI summaries: {e}")
             return []
+
+    @staticmethod
+    def get_diffs_in_range(
+        start_time: Optional[datetime],
+        end_time: Optional[datetime],
+        file_filters: Optional['FileFilters'] = None,
+        content_type_filters: Optional['ContentTypeFilters'] = None,
+        max_files: int = 200,
+        watch_handler = None
+    ) -> List[Dict[str, Any]]:
+        """Get diffs within a flexible time range with context filtering.
+
+        Args:
+            start_time: Range start (None = all time)
+            end_time: Range end (None = now)
+            file_filters: File pattern filters from SummaryContextConfig
+            content_type_filters: Content type filters from SummaryContextConfig
+            max_files: Maximum number of files to return
+            watch_handler: Watch filter - if None, will be initialized
+
+        Returns:
+            List of formatted diffs matching the criteria
+        """
+        from pathlib import Path
+        from fnmatch import fnmatch
+
+        try:
+            # STRICT: Always initialize watch_handler if not provided
+            if watch_handler is None:
+                from utils.watch_handler import WatchHandler
+                root_folder = Path.cwd()
+                watch_handler = WatchHandler(root_folder)
+                logger.debug("Initialized watch_handler for strict filtering in get_diffs_in_range")
+
+            # Build time range query
+            if start_time and end_time:
+                time_condition = "cd.timestamp BETWEEN ? AND ?"
+                time_params = (start_time, end_time)
+            elif start_time:
+                time_condition = "cd.timestamp > ?"
+                time_params = (start_time,)
+            elif end_time:
+                time_condition = "cd.timestamp <= ?"
+                time_params = (end_time,)
+            else:
+                time_condition = "1=1"
+                time_params = ()
+
+            query = f"""
+                SELECT cd.*, fv_old.content_hash as old_hash, fv_old.timestamp as old_timestamp,
+                       fv_new.content_hash as new_hash, fv_new.timestamp as new_timestamp
+                FROM content_diffs cd
+                LEFT JOIN file_versions fv_old ON cd.old_version_id = fv_old.id
+                LEFT JOIN file_versions fv_new ON cd.new_version_id = fv_new.id
+                WHERE {time_condition}
+                ORDER BY cd.timestamp ASC
+            """
+
+            rows = db.execute_query(query, time_params)
+            diffs = [dict(row) for row in rows]
+
+            # Apply filters
+            formatted_diffs = []
+            file_count = 0
+            unique_files = set()
+
+            for diff in diffs:
+                file_path = diff['file_path']
+
+                # Exclude internal semantic index artifact
+                if str(file_path).lower().endswith('semantic_index.json'):
+                    continue
+
+                # Apply watch filtering (respects .obbywatch if enabled)
+                if watch_handler is not None:
+                    use_obbywatch = not file_filters or file_filters.use_obbywatch_defaults
+                    if use_obbywatch and not watch_handler.should_watch(Path(file_path)):
+                        continue
+
+                # Apply file pattern filters
+                if file_filters:
+                    # Include patterns
+                    if file_filters.include_patterns:
+                        matches_include = any(
+                            fnmatch(file_path, pattern)
+                            for pattern in file_filters.include_patterns
+                        )
+                        if not matches_include:
+                            continue
+
+                    # Exclude patterns
+                    if file_filters.exclude_patterns:
+                        matches_exclude = any(
+                            fnmatch(file_path, pattern)
+                            for pattern in file_filters.exclude_patterns
+                        )
+                        if matches_exclude:
+                            continue
+
+                    # Specific paths
+                    if file_filters.specific_paths and file_path not in file_filters.specific_paths:
+                        continue
+
+                # Apply content type filters
+                if content_type_filters:
+                    # File type filtering
+                    is_code = any(file_path.endswith(ext) for ext in ['.py', '.ts', '.tsx', '.js', '.jsx', '.java', '.cpp', '.c', '.go', '.rs'])
+                    is_doc = file_path.endswith('.md')
+
+                    if not content_type_filters.include_code_files and is_code:
+                        continue
+                    if not content_type_filters.include_documentation and is_doc:
+                        continue
+
+                    # Deleted files filter
+                    if not content_type_filters.include_deleted and diff['change_type'] == 'deleted':
+                        continue
+
+                # Track unique files and enforce max_files limit
+                if file_path not in unique_files:
+                    unique_files.add(file_path)
+                    file_count = len(unique_files)
+
+                    if file_count > max_files:
+                        logger.info(f"Reached max_files limit ({max_files}), truncating results")
+                        break
+
+                formatted_diffs.append({
+                    'id': str(diff['id']),
+                    'filePath': file_path,
+                    'changeType': diff['change_type'],
+                    'diffContent': diff['diff_content'],
+                    'linesAdded': diff['lines_added'],
+                    'linesRemoved': diff['lines_removed'],
+                    'timestamp': diff['timestamp'],
+                    'oldVersionId': diff['old_version_id'],
+                    'newVersionId': diff['new_version_id']
+                })
+
+            logger.info(f"get_diffs_in_range: {len(formatted_diffs)} diffs from {len(unique_files)} unique files")
+            return formatted_diffs
+
+        except Exception as e:
+            logger.error(f"Error in get_diffs_in_range: {e}")
+            return []
+
+    @staticmethod
+    def get_preview_data(
+        context_config: 'SummaryContextConfig',
+        watch_handler = None
+    ) -> Dict[str, Any]:
+        """Generate preview data for summary generation without full diff content.
+
+        Args:
+            context_config: Complete context configuration
+            watch_handler: Watch filter - if None, will be initialized
+
+        Returns:
+            Preview data with matched files, stats, and warnings
+        """
+        from pathlib import Path
+        from utils.summary_context import MatchedFile
+
+        try:
+            # STRICT: Always initialize watch_handler if not provided
+            if watch_handler is None:
+                from utils.watch_handler import WatchHandler
+                root_folder = Path.cwd()
+                watch_handler = WatchHandler(root_folder)
+                logger.debug("Initialized watch_handler for strict filtering in get_preview_data")
+
+            # Parse time window
+            time_window = context_config.time_window
+            if time_window.preset and time_window.preset != "custom" and time_window.preset != "auto":
+                # Parse preset (e.g., "1h", "6h", "24h", "7d")
+                preset = time_window.preset
+                if preset.endswith('h'):
+                    hours = int(preset[:-1])
+                    start_time = datetime.now() - timedelta(hours=hours)
+                elif preset.endswith('d'):
+                    days = int(preset[:-1])
+                    start_time = datetime.now() - timedelta(days=days)
+                else:
+                    start_time = datetime.now() - timedelta(hours=4)  # Default
+                end_time = datetime.now()
+
+                # If include_previously_covered is False (default), restrict to changes since last summary
+                if not time_window.include_previously_covered:
+                    last_update = ConfigModel.get('session_summary_last_update')
+                    if last_update:
+                        last_summary_time = datetime.fromisoformat(last_update)
+                        # Use the more restrictive (later) of the two timestamps
+                        if last_summary_time > start_time:
+                            logger.info(f"Preview: Restricting time window to changes since last summary: {last_summary_time}")
+                            start_time = last_summary_time
+            elif time_window.preset == "auto":
+                # Auto = since last update (cursor-based)
+                last_update = ConfigModel.get('session_summary_last_update')
+                if last_update:
+                    start_time = datetime.fromisoformat(last_update)
+                else:
+                    start_time = datetime.now() - timedelta(hours=4)
+                end_time = datetime.now()
+            else:
+                start_time = time_window.start_date
+                end_time = time_window.end_date or datetime.now()
+
+                # If include_previously_covered is False, restrict to changes since last summary
+                if not time_window.include_previously_covered:
+                    last_update = ConfigModel.get('session_summary_last_update')
+                    if last_update:
+                        last_summary_time = datetime.fromisoformat(last_update)
+                        # Use the more restrictive (later) of the two timestamps
+                        if last_summary_time > start_time:
+                            logger.info(f"Preview: Restricting custom time window to changes since last summary: {last_summary_time}")
+                            start_time = last_summary_time
+
+            # Get diffs in range
+            diffs = FileQueries.get_diffs_in_range(
+                start_time=start_time,
+                end_time=end_time,
+                file_filters=context_config.file_filters,
+                content_type_filters=context_config.content_types,
+                max_files=context_config.scope_controls.max_files,
+                watch_handler=watch_handler
+            )
+
+            # Build matched files list
+            matched_files = []
+            file_stats = {}
+
+            for diff in diffs:
+                file_path = diff['filePath']
+
+                if file_path not in file_stats:
+                    file_stats[file_path] = {
+                        'lines_added': 0,
+                        'lines_removed': 0,
+                        'changes': 0,
+                        'last_modified': diff['timestamp']
+                    }
+
+                file_stats[file_path]['lines_added'] += diff['linesAdded'] or 0
+                file_stats[file_path]['lines_removed'] += diff['linesRemoved'] or 0
+                file_stats[file_path]['changes'] += 1
+
+                if diff['timestamp'] > file_stats[file_path]['last_modified']:
+                    file_stats[file_path]['last_modified'] = diff['timestamp']
+
+            # Convert to MatchedFile objects
+            for file_path, stats in file_stats.items():
+                change_summary = f"{stats['changes']} change(s), +{stats['lines_added']}/-{stats['lines_removed']} lines"
+
+                # Get file size if exists
+                size_bytes = None
+                try:
+                    p = Path(file_path)
+                    if p.exists():
+                        size_bytes = p.stat().st_size
+                except Exception:
+                    pass
+
+                matched_files.append(MatchedFile(
+                    path=file_path,
+                    change_summary=change_summary,
+                    last_modified=datetime.fromisoformat(stats['last_modified']) if isinstance(stats['last_modified'], str) else stats['last_modified'],
+                    size_bytes=size_bytes,
+                    is_deleted=not Path(file_path).exists()
+                ))
+
+            # Calculate totals
+            total_files = len(matched_files)
+            total_changes = len(diffs)
+            total_lines_added = sum(stats['lines_added'] for stats in file_stats.values())
+            total_lines_removed = sum(stats['lines_removed'] for stats in file_stats.values())
+
+            # Build filters applied list
+            filters_applied = []
+            if time_window.preset:
+                filters_applied.append(f"Time window: {time_window.get_description()}")
+            if context_config.file_filters.include_patterns:
+                filters_applied.append(f"Include patterns: {', '.join(context_config.file_filters.include_patterns)}")
+            if context_config.file_filters.exclude_patterns:
+                filters_applied.append(f"Exclude patterns: {', '.join(context_config.file_filters.exclude_patterns)}")
+            if context_config.scope_controls.max_files:
+                filters_applied.append(f"Max files: {context_config.scope_controls.max_files}")
+            if context_config.scope_controls.detail_level != "standard":
+                filters_applied.append(f"Detail level: {context_config.scope_controls.detail_level}")
+            if context_config.scope_controls.focus_areas:
+                filters_applied.append(f"Focus areas: {', '.join(context_config.scope_controls.focus_areas)}")
+
+            # Generate warnings
+            warnings = []
+            if total_files == 0:
+                warnings.append("No files matched the specified criteria")
+            elif total_files >= context_config.scope_controls.max_files:
+                warnings.append(f"File limit reached ({context_config.scope_controls.max_files}). Consider narrowing your filters.")
+
+            if total_changes == 0:
+                warnings.append("No changes found in the specified time window")
+
+            preview_data = {
+                'matched_files': [f.to_dict() for f in matched_files],
+                'time_range_description': time_window.get_description(),
+                'total_files': total_files,
+                'total_changes': total_changes,
+                'total_lines_added': total_lines_added,
+                'total_lines_removed': total_lines_removed,
+                'filters_applied': filters_applied,
+                'warnings': warnings
+            }
+
+            logger.info(f"Preview generated: {total_files} files, {total_changes} changes")
+            return preview_data
+
+        except Exception as e:
+            logger.error(f"Error generating preview data: {e}")
+            return {
+                'matched_files': [],
+                'time_range_description': 'Error',
+                'total_files': 0,
+                'total_changes': 0,
+                'total_lines_added': 0,
+                'total_lines_removed': 0,
+                'filters_applied': [],
+                'warnings': [f"Error generating preview: {str(e)}"]
+            }
 
 class EventQueries:
     """Event-focused queries for real-time updates and API endpoints."""

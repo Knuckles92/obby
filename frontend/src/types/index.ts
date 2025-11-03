@@ -117,6 +117,7 @@ export interface SessionSummarySettings {
   summaryLength: 'brief' | 'moderate' | 'detailed';
   writingStyle: 'technical' | 'casual' | 'formal' | 'bullet-points';
   includeMetrics: boolean;
+  includePreviousSummaries: boolean;
   autoUpdate: boolean;
   maxSections: number;
   focusAreas: string[];
@@ -422,6 +423,27 @@ export interface BulkDeleteResponse {
 
 export interface BulkDeleteRequest {
   filenames: string[];
+}
+
+// Summary Generation Preview interfaces
+export interface MatchedFile {
+  path: string;
+  change_summary: string;
+  last_modified: string;
+  size_bytes?: number;
+  is_deleted?: boolean;
+}
+
+export interface SummaryGenerationPlan {
+  context_config: any;
+  matched_files: MatchedFile[];
+  time_range_description: string;
+  total_files: number;
+  total_changes: number;
+  total_lines_added: number;
+  total_lines_removed: number;
+  filters_applied: string[];
+  warnings: string[];
 }
 
 // Search Results Popup interfaces

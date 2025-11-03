@@ -169,6 +169,40 @@ async def delete_multiple_summary_notes(request: Request):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
+@summary_note_bp.post('/preview')
+async def preview_summary_note_generation(request: Request):
+    """Preview what will be included in summary note generation without executing.
+
+    Request body supports:
+      - context (dict): SummaryContextConfig serialized to dict with:
+          - time_window (dict): preset or custom range
+          - file_filters (dict): include/exclude patterns
+          - content_types (dict): what types of content to include
+          - scope_controls (dict): max files, detail level, focus areas
+    """
+    try:
+        data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
+        context_dict = data.get('context')
+
+        if context_dict:
+            from utils.summary_context import SummaryContextConfig
+            context_config = SummaryContextConfig.from_dict(context_dict)
+        else:
+            # Use default configuration
+            from utils.summary_context import SummaryContextConfig
+            context_config = SummaryContextConfig.default()
+
+        # Generate preview using service
+        preview_data = summary_note_service.generate_preview(context_config)
+
+        logger.info(f"Generated preview: {preview_data.get('total_files')} files, {preview_data.get('total_changes')} changes")
+        return JSONResponse(preview_data)
+
+    except Exception as e:
+        logger.error(f"Failed to generate preview: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
 @summary_note_bp.post('/')
 async def create_summary_note(request: Request):
     """Create a new summary note"""

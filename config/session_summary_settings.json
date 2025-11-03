@@ -2,6 +2,7 @@
   "autoUpdate": true,
   "focusAreas": [],
   "includeMetrics": true,
+  "includePreviousSummaries": false,
   "maxSections": 10,
   "summaryLength": "moderate",
   "updateFrequency": "manual",

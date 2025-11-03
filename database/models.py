@@ -474,39 +474,75 @@ class SemanticModel:
     """Advanced semantic search for file content analysis."""
     
     @classmethod
-    def insert_entry(cls, summary: str, entry_type: str, impact: str, 
-                    topics: List[str], keywords: List[str], 
+    def insert_entry(cls, summary: str, entry_type: str, impact: str,
+                    topics: List[str], keywords: List[str],
                     file_path: str = "", version_id: int = None,
-                    timestamp: datetime = None, source_type: str = 'session_summary_auto') -> int:
-        """Insert semantic entry for file content analysis."""
-        # Apply migration if table constraint needs updating
+                    timestamp: datetime = None, source_type: str = 'session_summary_auto',
+                    context_metadata: Optional[str] = None) -> int:
+        """Insert semantic entry for file content analysis.
+
+        Args:
+            summary: Summary text
+            entry_type: Type of entry
+            impact: Impact level (brief, moderate, significant)
+            topics: List of topics
+            keywords: List of keywords
+            file_path: File path
+            version_id: Version ID reference
+            timestamp: Entry timestamp
+            source_type: Source type identifier
+            context_metadata: Optional JSON string with context configuration
+        """
+        # Apply migrations
         from .migration_semantic_impact import apply_migration
         apply_migration()
-        
+        from .migration_context_metadata import apply_migration as apply_context_migration
+        apply_context_migration()
+
         if timestamp is None:
             timestamp = datetime.now()
-        
+
         # Create searchable text
         searchable_text = f"{summary} {' '.join(topics)} {' '.join(keywords)} {impact}".lower()
-        
-        # Insert main entry
-        query = """
-            INSERT INTO semantic_entries 
-            (timestamp, date, time, type, summary, impact, file_path, searchable_text, version_id, source_type)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        params = (
-            timestamp,
-            timestamp.strftime('%Y-%m-%d'),
-            timestamp.strftime('%H:%M:%S'),
-            entry_type,
-            summary,
-            impact,
-            file_path,
-            searchable_text,
-            version_id,
-            source_type
-        )
+
+        # Insert main entry with context_metadata if available
+        if context_metadata is not None:
+            query = """
+                INSERT INTO semantic_entries
+                (timestamp, date, time, type, summary, impact, file_path, searchable_text, version_id, source_type, context_metadata)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            params = (
+                timestamp,
+                timestamp.strftime('%Y-%m-%d'),
+                timestamp.strftime('%H:%M:%S'),
+                entry_type,
+                summary,
+                impact,
+                file_path,
+                searchable_text,
+                version_id,
+                source_type,
+                context_metadata
+            )
+        else:
+            query = """
+                INSERT INTO semantic_entries
+                (timestamp, date, time, type, summary, impact, file_path, searchable_text, version_id, source_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            params = (
+                timestamp,
+                timestamp.strftime('%Y-%m-%d'),
+                timestamp.strftime('%H:%M:%S'),
+                entry_type,
+                summary,
+                impact,
+                file_path,
+                searchable_text,
+                version_id,
+                source_type
+            )
         
         db.execute_update(query, params)
         

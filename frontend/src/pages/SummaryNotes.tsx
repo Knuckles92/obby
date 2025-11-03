@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
-import { FileText, Trash2, ChevronLeft, ChevronRight, Grid, Square, Search, Zap, Clock, CheckCircle, AlertCircle } from 'lucide-react'
+import { FileText, Trash2, ChevronLeft, ChevronRight, Grid, Square, Search, Zap, Clock, CheckCircle, AlertCircle, Filter as FilterIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -8,20 +8,24 @@ import ConfirmationDialog from '../components/ConfirmationDialog'
 import SummaryGrid from '../components/SummaryGrid'
 import SearchFilters from '../components/SearchFilters'
 import SearchResultsPopup from '../components/SearchResultsPopup'
-import { 
-  apiFetch, 
-  triggerComprehensiveSummaryGeneration, 
+import SummaryContextControls, { SummaryContextConfig } from '../components/summary/SummaryContextControls'
+import GenerationPreview from '../components/summary/GenerationPreview'
+import GenerationProgress from '../components/summary/GenerationProgress'
+import {
+  apiFetch,
+  triggerComprehensiveSummaryGeneration,
   getComprehensiveSummaryStatus,
   type ComprehensiveStatusResponse
 } from '../utils/api'
-import { 
-  SummaryNote, 
-  SummaryPaginationInfo, 
-  SummaryContentResponse, 
-  SummaryViewMode, 
+import {
+  SummaryNote,
+  SummaryPaginationInfo,
+  SummaryContentResponse,
+  SummaryViewMode,
   SummarySearchFilters,
   BulkDeleteResponse,
-  BulkDeleteRequest
+  BulkDeleteRequest,
+  SummaryGenerationPlan
 } from '../types'
 
 // Local props for the code renderer to avoid implicit any
@@ -122,7 +126,16 @@ export default function SummaryNotes() {
   const [searchPopupOpen, setSearchPopupOpen] = useState(false)
   const [allSearchResults, setAllSearchResults] = useState<SummaryNote[]>([])
   const [searchResultsLoading, setSearchResultsLoading] = useState(false)
-  
+
+  // Context controls state
+  const [showContextControls, setShowContextControls] = useState(false)
+  const [contextConfig, setContextConfig] = useState<SummaryContextConfig | null>(null)
+  const [previewData, setPreviewData] = useState<SummaryGenerationPlan | null>(null)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [generationError, setGenerationError] = useState<string | null>(null)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [showGenerationProgress, setShowGenerationProgress] = useState(false)
+
   const eventSourceRef = useRef<EventSource | null>(null)
   const pollIntervalRef = useRef<number | null>(null)
   const statusStepCounterRef = useRef(0)
@@ -580,7 +593,7 @@ export default function SummaryNotes() {
     try {
       setBulkDeleteLoading(true)
       const filenames = Array.from(selectedItems)
-      
+
       const response = await apiFetch('/api/summary-notes/bulk/delete', {
         method: 'POST',
         headers: {
@@ -590,31 +603,31 @@ export default function SummaryNotes() {
       })
 
       const result: BulkDeleteResponse = await response.json()
-      
+
       if (response.ok || response.status === 207) { // 207 = Multi-Status (partial success)
         console.log('Bulk delete completed:', result)
-        
+
         // Show summary of results
         if (result.summary.failed > 0) {
           alert(`Bulk delete completed: ${result.summary.succeeded} succeeded, ${result.summary.failed} failed`)
         } else {
           console.log(`Successfully deleted ${result.summary.succeeded} files`)
         }
-        
+
         // Clear selection and refresh
         setSelectedItems(new Set())
         setIsSelectMode(false)
-        
+
         // Refresh the current page or go to previous page if current page is empty
         const remainingOnPage = summaries.length - result.summary.succeeded
         const shouldGoToPrevious = pagination.current_page > 1 && remainingOnPage === 0
-        
+
         if (shouldGoToPrevious) {
           await fetchSummaries(pagination.current_page - 1)
         } else {
           await fetchSummaries()
         }
-        
+
         setBulkDeleteDialogOpen(false)
       } else {
         console.error('Bulk delete failed:', result.message)
@@ -626,6 +639,106 @@ export default function SummaryNotes() {
     } finally {
       setBulkDeleteLoading(false)
     }
+  }
+
+  // Context controls handlers
+  const handleContextConfigChange = (config: SummaryContextConfig) => {
+    setContextConfig(config)
+  }
+
+  const handlePreviewGeneration = async () => {
+    if (!contextConfig) return
+
+    try {
+      setPreviewLoading(true)
+      setGenerationError(null)
+
+      const response = await apiFetch('/api/summary-notes/preview', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ context_config: contextConfig })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate preview: ${response.status}`)
+      }
+
+      const data: SummaryGenerationPlan = await response.json()
+      setPreviewData(data)
+    } catch (error) {
+      console.error('Error generating preview:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to generate preview'
+      setGenerationError(errorMsg)
+      alert(errorMsg)
+    } finally {
+      setPreviewLoading(false)
+    }
+  }
+
+  const handleGenerateWithContext = async () => {
+    if (!previewData) return
+
+    try {
+      setIsGenerating(true)
+      setGenerationError(null)
+      setShowGenerationProgress(true)
+
+      const response = await apiFetch('/api/summary-notes/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          content: '', // Let the backend generate content
+          context_config: previewData.context_config
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to generate summary: ${response.status}`)
+      }
+
+      // Wait a moment for the summary to be generated
+      await new Promise(resolve => setTimeout(resolve, 2000))
+
+      // Refresh the summaries list
+      await fetchSummaries()
+
+      // Reset state
+      setShowContextControls(false)
+      setPreviewData(null)
+      setContextConfig(null)
+    } catch (error) {
+      console.error('Error generating summary:', error)
+      const errorMsg = error instanceof Error ? error.message : 'Failed to generate summary'
+      setGenerationError(errorMsg)
+    } finally {
+      setIsGenerating(false)
+    }
+  }
+
+  const handleAdjustFilters = () => {
+    // Go back to context controls from preview
+    setPreviewData(null)
+  }
+
+  const handleGenerationComplete = () => {
+    setShowGenerationProgress(false)
+    setIsGenerating(false)
+    fetchSummaries() // Refresh summaries
+  }
+
+  const handleGenerationError = (error: string) => {
+    setGenerationError(error)
+    setShowGenerationProgress(false)
+    setIsGenerating(false)
+  }
+
+  const handleCancelGeneration = () => {
+    setShowGenerationProgress(false)
+    setIsGenerating(false)
   }
 
   const handleSummaryGeneration = async () => {
@@ -1012,6 +1125,19 @@ export default function SummaryNotes() {
                   )}
                 </div>
               </button>
+
+              {/* Configure Summary Button */}
+              <button
+                onClick={() => setShowContextControls(!showContextControls)}
+                disabled={loading}
+                className="relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group bg-white/20 hover:bg-white/30 border border-white/30 hover:shadow-lg"
+                title="Configure summary with custom filters"
+              >
+                <div className="relative flex items-center space-x-2">
+                  <FilterIcon className="h-4 w-4" />
+                  <span>{showContextControls ? 'Hide Filters' : 'Configure Summary'}</span>
+                </div>
+              </button>
             </div>
           </div>
         </div>
@@ -1327,6 +1453,60 @@ export default function SummaryNotes() {
           onToggleExpanded={() => setIsFiltersExpanded(!isFiltersExpanded)}
         />
       </div>
+
+      {/* Context Controls - Show when user clicks Configure Summary */}
+      {showContextControls && !previewData && (
+        <div className="mb-6">
+          <SummaryContextControls
+            onConfigChange={handleContextConfigChange}
+            isCollapsed={false}
+          />
+          {contextConfig && (
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={handlePreviewGeneration}
+                disabled={previewLoading}
+                className="px-6 py-3 text-sm font-semibold rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'white',
+                }}
+              >
+                {previewLoading ? (
+                  <span className="flex items-center space-x-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></div>
+                    <span>Loading Preview...</span>
+                  </span>
+                ) : (
+                  'Preview Generation'
+                )}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Generation Preview - Show after preview is generated */}
+      {previewData && (
+        <div className="mb-6">
+          <GenerationPreview
+            previewData={previewData}
+            isLoading={previewLoading}
+            onGenerate={handleGenerateWithContext}
+            onAdjustFilters={handleAdjustFilters}
+            summaryType="note"
+          />
+        </div>
+      )}
+
+      {/* Generation Progress Modal */}
+      <GenerationProgress
+        isOpen={showGenerationProgress}
+        summaryType="note"
+        onComplete={handleGenerationComplete}
+        onError={handleGenerationError}
+        onCancel={handleCancelGeneration}
+      />
 
       {/* Content Area - Conditional based on view mode */}
       {viewMode === 'grid' ? (
