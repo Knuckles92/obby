@@ -248,6 +248,14 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'Context metadata migration failed: {e}', exc_info=True)
 
+    try:
+        from database.migration_agent_transparency import apply_migration as apply_agent_transparency_migration
+        if apply_agent_transparency_migration():
+            logger.info('Agent transparency migration completed')
+        else:
+            logger.error('Agent transparency migration returned False')
+    except Exception as e:
+        logger.error(f'Agent transparency migration failed: {e}', exc_info=True)
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:

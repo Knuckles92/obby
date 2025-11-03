@@ -5,6 +5,7 @@ import { apiRequest, apiFetch } from '../utils/api'
 import ThemeSwitcher from '../components/ThemeSwitcher'
 import StatCard from '../components/admin/StatCard'
 import ActionButton from '../components/admin/ActionButton'
+import { AgentLogsViewer } from '../components/admin/AgentLogsViewer'
 import type { SystemStats, DatabaseStats } from '../types/admin'
 
 export default function Settings() {
@@ -47,7 +48,8 @@ export default function Settings() {
     { id: 'watch-ignore', label: 'Watch & Ignore', icon: FolderOpen },
     { id: 'system-overview', label: 'System Overview', icon: Monitor },
     { id: 'database', label: 'Database', icon: Database },
-    { id: 'system-config', label: 'System Configuration', icon: Cpu }
+    { id: 'system-config', label: 'System Configuration', icon: Cpu },
+    { id: 'agent-activity', label: 'Agent Activity', icon: Activity }
   ]
 
   useEffect(() => {
@@ -1267,6 +1269,13 @@ export default function Settings() {
               </div>
             </div>
 
+          </div>
+        )
+
+      case 'agent-activity':
+        return (
+          <div>
+            <AgentLogsViewer />
           </div>
         )
 

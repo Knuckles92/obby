@@ -68,3 +68,18 @@ AI_SOURCES_FALLBACK_ENABLED = False  # Keep OFF - validation should catch missin
 FILE_SIZE_CHANGE_VALIDATION = True  # Check file size before processing changes
 FILE_MTIME_CHANGE_VALIDATION = True  # Check modification time before processing changes
 CONTENT_HASH_VALIDATION = True  # Always validate content hash (recommended)
+
+# ============================================================================
+# AGENT LOGGING - Transparency and Debugging
+# ============================================================================
+
+# Agent logging configuration
+AGENT_LOGGING_ENABLED = True  # Enable comprehensive agent logging to database
+AGENT_LOG_VERBOSITY = 'normal'  # Verbosity level: 'minimal', 'normal', 'verbose'
+AGENT_LOG_INCLUDE_PROMPTS = False  # Include full prompts in logs (for 'verbose' mode)
+AGENT_LOG_INCLUDE_RESPONSES = False  # Include full responses in logs (for 'verbose' mode)
+
+# Log retention (manual cleanup via admin panel)
+# No automatic cleanup - logs are retained indefinitely until manually deleted
+AGENT_LOG_AUTO_CLEANUP_ENABLED = False  # Disable automatic cleanup by default
+AGENT_LOG_RETENTION_DAYS = None  # No automatic retention limit (manual cleanup only)

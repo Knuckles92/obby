@@ -26,9 +26,8 @@ class SessionSummaryService:
         self.session_summary_path = Path(session_summary_path)
         self.settings_path = Path('config/session_summary_settings.json')
         self.format_path = Path('config/format.md')
-        # Initialize Claude Agent client
-        self.claude_client = ClaudeAgentClient(working_dir=Path.cwd())
-        logger.info("Session summary service initialized with Claude Agent SDK")
+        # Note: Don't initialize Claude client here - we create it per-operation with session_id for logging
+        logger.info("Session summary service initialized")
         # Ensure format.md is in config if legacy file exists
         try:
             from utils.migrations import migrate_format_md
@@ -574,18 +573,42 @@ class SessionSummaryService:
                     logger.info("Session summary: includePreviousSummaries enabled but summary file doesn't exist yet")
 
             # Call Claude to generate session summary by exploring files
+            # Create a new client with session_id for logging
+            import uuid
+            operation_session_id = str(uuid.uuid4())
+
+            logger.info(f"Session summary: creating Claude client with session_id={operation_session_id} for logging")
+            claude_client_with_logging = ClaudeAgentClient(
+                working_dir=Path.cwd(),
+                session_id=operation_session_id
+            )
+            logger.info(f"Session summary: Claude client initialized, logging_service={'enabled' if claude_client_with_logging.logging_service else 'disabled'}")
+
+            # Test: Log operation directly to verify logging works
+            if claude_client_with_logging.logging_service:
+                try:
+                    test_log = claude_client_with_logging.logging_service.log_operation(
+                        session_id=operation_session_id,
+                        phase='data_collection',
+                        operation='Session Summary Started',
+                        details={'files_count': len(changed_files), 'time_range': time_range}
+                    )
+                    logger.info(f"Session summary: Direct test log result: {test_log}")
+                except Exception as e:
+                    logger.error(f"Session summary: Failed to log test operation: {e}")
+
             t_claude_start = time.perf_counter()
             claude_summary_md = ""
 
             try:
-                logger.info(f"Session summary: calling Claude to explore {len(changed_files)} files...")
+                logger.info(f"Session summary: calling Claude to explore {len(changed_files)} files (session_id={operation_session_id})...")
                 logger.info(f"Session summary: time range = '{time_range}'")
                 if context_metadata:
                     logger.info(f"Session summary: passing context metadata with {len(context_metadata.get('filters_applied', []))} filters")
                 if previous_summaries:
                     logger.info(f"Session summary: including previous summaries ({len(previous_summaries)} characters)")
 
-                claude_summary_md = await self.claude_client.summarize_session(
+                claude_summary_md = await claude_client_with_logging.summarize_session(
                     changed_files=changed_files,
                     time_range=time_range,
                     working_dir=Path.cwd(),

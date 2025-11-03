@@ -186,6 +186,50 @@ Obby is a web-based note monitoring application:
 - **Special query syntax**: `topic:name`, `keyword:term` filters
 - **Real-time results**: Debounced search with instant updates
 
+### Agent Logging & Transparency
+
+Obby includes comprehensive logging of all Claude Agent SDK operations for debugging and transparency.
+
+#### Configuration (`config/settings.py`)
+- `AGENT_LOGGING_ENABLED`: Enable/disable agent logging (default: True)
+- `AGENT_LOG_VERBOSITY`: Log verbosity level - 'minimal', 'normal', 'verbose' (default: 'normal')
+- `AGENT_LOG_INCLUDE_PROMPTS`: Include full prompts in logs (default: False)
+- `AGENT_LOG_INCLUDE_RESPONSES`: Include full responses in logs (default: False)
+
+#### Features
+- **Automatic logging**: All agent operations (summaries, chat, insights) are logged to database
+- **Operation tracking**: Tracks phases (data_collection, file_exploration, analysis, generation, error)
+- **Tool usage**: Logs all tool calls (Read, Grep, Glob, Bash, Write, Edit) with parameters
+- **File exploration**: Tracks which files Claude examines during operations
+- **Timing data**: Records operation duration and performance metrics
+- **Error logging**: Captures and stores error details for debugging
+
+#### Database Storage
+- **Table**: `agent_action_logs` with indexed queries for fast retrieval
+- **Retention**: Indefinite by default (manual cleanup via admin panel)
+- **Session tracking**: Each operation has a unique session_id for correlation
+
+#### Admin Panel Access
+Navigate to **Settings → Agent Activity** to:
+- View session history with timing and file counts
+- Browse operation statistics (tool usage, operation types, durations)
+- Filter logs by operation type (summary, chat, insights) or phase
+- Review detailed session timelines showing all operations
+- Manually delete logs by session, date range, or clear all
+
+#### API Endpoints (`routes/admin.py`)
+- `GET /api/admin/agent-logs` - Paginated logs with filtering
+- `GET /api/admin/agent-logs/session/{session_id}` - Session-specific timeline
+- `GET /api/admin/agent-logs/stats` - Usage statistics
+- `GET /api/admin/agent-logs/sessions` - List all sessions
+- `POST /api/admin/agent-logs/clear` - Manual cleanup
+
+#### Code References
+- Service layer: `services/agent_logging_service.py`
+- Integration: `ai/claude_agent_client.py` lines 125-146
+- Chat logging: `routes/chat.py` lines 223-240, 453-467
+- Summary logging: `services/session_summary_service.py` lines 577-583
+
 ## Development Notes
 
 ### Database Operations

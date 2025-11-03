@@ -6,7 +6,6 @@ import {
   Filter,
   FileText,
   Settings,
-  Calendar,
   Folder,
   X,
   Tag,
@@ -46,7 +45,7 @@ interface WatchedFileNode {
 
 export interface SummaryContextConfig {
   timeWindow: {
-    preset: 'last_hour' | '6_hours' | '24_hours' | '7_days' | 'custom'
+    preset: 'last_hour' | '12_hours' | '24_hours' | '7_days' | 'custom' | 'auto' | 'changes_since_last'
     customStart?: Date
     customEnd?: Date
     includePreviouslyCovered?: boolean
@@ -190,7 +189,7 @@ export default function SummaryContextControls({
     setConfig((prev) => ({
       ...prev,
       [section]: {
-        ...prev[section],
+        ...(prev[section] as any),
         ...updates,
       },
     }))
@@ -220,36 +219,36 @@ export default function SummaryContextControls({
   // Filter notes based on fuzzy search query
   const filterNotes = (nodes: WatchedFileNode[], query: string): WatchedFileNode[] => {
     if (!query.trim()) return nodes
-    
+
     return nodes.map(dir => {
       // Fuzzy match files in directory
       const filesWithScores = (dir.children || []).map(file => {
         const nameMatch = fuzzyMatch(query, file.name)
         const pathMatch = fuzzyMatch(query, file.path)
-        
+
         // Use the best match score (filename matches weighted higher)
-        const score = nameMatch.matches 
-          ? nameMatch.score * 2 
-          : pathMatch.matches 
-            ? pathMatch.score 
+        const score = nameMatch.matches
+          ? nameMatch.score * 2
+          : pathMatch.matches
+            ? pathMatch.score
             : -1
-        
+
         return { file, score }
       }).filter(item => item.score >= 0)
-      
+
       // Sort by score descending
       filesWithScores.sort((a, b) => b.score - a.score)
-      
+
       const matchingFiles = filesWithScores.map(item => item.file)
-      
+
       // Check if directory name matches
       const dirMatch = fuzzyMatch(query, dir.name)
-      
+
       if (matchingFiles.length > 0 || dirMatch.matches) {
         return { ...dir, children: matchingFiles }
       }
       return null
-    }).filter((node): node is WatchedFileNode => node !== null)
+    }).filter((node) => node !== null) as WatchedFileNode[]
   }
 
   // Format file size
@@ -285,23 +284,6 @@ export default function SummaryContextControls({
     }
   }
 
-  // Handle custom date selection
-  const handleCustomToggle = () => {
-    const isEnabling = !showCustomRange
-    setShowCustomRange(isEnabling)
-
-    if (isEnabling) {
-      const end = new Date()
-      const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
-      updateConfig('timeWindow', {
-        preset: 'custom',
-        customStart: start,
-        customEnd: end,
-      })
-    } else {
-      updateConfig('timeWindow', { preset: '24_hours' })
-    }
-  }
 
   // Add focus area
   const addFocusArea = () => {

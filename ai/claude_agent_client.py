@@ -14,6 +14,9 @@ from pathlib import Path
 from datetime import datetime
 import json
 
+# Import agent logging service (deferred to avoid circular imports)
+_agent_logging_service = None
+
 try:
     from claude_agent_sdk import (
         query,
@@ -71,6 +74,17 @@ class ClaudeAgentClient:
         self.session_id = session_id or (str(uuid.uuid4()) if progress_callback else None)
         self.store_agent_logs = bool(progress_callback)  # Only store logs if progress callback is provided
 
+        # Initialize agent logging service for database logging
+        self.logging_service = None
+        if self.session_id:
+            try:
+                from services.agent_logging_service import get_agent_logging_service
+                self.logging_service = get_agent_logging_service()
+                if self.logging_service.enabled:
+                    logger.debug(f"Agent logging service initialized for session {self.session_id}")
+            except Exception as e:
+                logger.warning(f"Failed to initialize agent logging service: {e}")
+
         if not self.api_key:
             logger.warning("No ANTHROPIC_API_KEY found. Set it via environment variable.")
 
@@ -95,10 +109,7 @@ class ClaudeAgentClient:
     def _emit_progress_event(self, phase: str, operation: str, details: Dict[str, Any] = None,
                            files_processed: int = 0, total_files: int = None,
                            current_file: str = None, timing: Dict[str, Any] = None):
-        """Emit a progress event during AI operations."""
-        if not self.progress_callback:
-            return
-
+        """Emit a progress event during AI operations and log to database."""
         event = {
             'timestamp': datetime.utcnow().isoformat(),
             'phase': phase,  # 'data_collection', 'file_exploration', 'analysis', 'generation'
@@ -111,11 +122,28 @@ class ClaudeAgentClient:
             'session_id': self.session_id  # Include session ID in event
         }
 
-        try:
-            # Emit to callback for real-time updates
-            self.progress_callback(event)
-        except Exception as e:
-            logger.error(f"Error emitting progress event: {e}")
+        # Log to database via agent logging service
+        if self.logging_service and self.session_id:
+            try:
+                self.logging_service.log_operation(
+                    session_id=self.session_id,
+                    phase=phase,
+                    operation=operation,
+                    details=details,
+                    files_processed=files_processed,
+                    total_files=total_files,
+                    current_file=current_file,
+                    timing=timing
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log agent operation to database: {e}")
+
+        # Emit to callback for real-time updates (if callback provided)
+        if self.progress_callback:
+            try:
+                self.progress_callback(event)
+            except Exception as e:
+                logger.error(f"Error emitting progress event: {e}")
 
     def _track_operation_start(self, operation_name: str, details: Dict[str, Any] = None):
         """Track the start of an AI operation."""

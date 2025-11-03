@@ -234,3 +234,237 @@ async def reset_database(request: Request):
     except Exception as e:
         logger.error(f"Failed to reset database: {e}")
         return JSONResponse({'success': False, 'error': f'Server error during database reset: {str(e)}'}, status_code=500)
+
+
+# ============================================================================
+# AGENT LOGGING ENDPOINTS
+# ============================================================================
+
+@admin_bp.get('/agent-logs')
+async def get_agent_logs(request: Request):
+    """
+    Get paginated agent logs with optional filtering.
+
+    Query params:
+    - page: Page number (default: 1)
+    - page_size: Items per page (default: 50)
+    - operation_type: Filter by operation type (summary, chat, insights)
+    - phase: Filter by phase (data_collection, file_exploration, analysis, generation, error)
+    """
+    try:
+        from services.agent_logging_service import get_agent_logging_service
+
+        # Get query parameters
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 50))
+        operation_type = request.query_params.get('operation_type')
+        phase = request.query_params.get('phase')
+
+        # Validate parameters
+        page = max(1, page)
+        page_size = min(max(1, page_size), 200)  # Cap at 200
+        offset = (page - 1) * page_size
+
+        # Get logs from service
+        logging_service = get_agent_logging_service()
+        logs, total_count = logging_service.get_recent_logs(
+            limit=page_size,
+            offset=offset,
+            operation_type=operation_type,
+            phase=phase
+        )
+
+        # Calculate pagination info
+        total_pages = (total_count + page_size - 1) // page_size
+
+        return {
+            'logs': logs,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total_count': total_count,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_previous': page > 1
+            },
+            'filters': {
+                'operation_type': operation_type,
+                'phase': phase
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get agent logs: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@admin_bp.get('/agent-logs/session/{session_id}')
+async def get_session_logs(session_id: str):
+    """Get all logs for a specific agent session (timeline view)."""
+    try:
+        from services.agent_logging_service import get_agent_logging_service
+
+        logging_service = get_agent_logging_service()
+        logs = logging_service.get_session_logs(session_id)
+
+        return {
+            'session_id': session_id,
+            'logs': logs,
+            'total_operations': len(logs)
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get session logs for {session_id}: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@admin_bp.get('/agent-logs/stats')
+async def get_agent_logs_stats():
+    """Get aggregate statistics on agent operations."""
+    try:
+        from services.agent_logging_service import get_agent_logging_service
+        from datetime import datetime, timedelta
+
+        logging_service = get_agent_logging_service()
+
+        # Get overall stats
+        total_logs = logging_service.count_logs()
+
+        # Get stats for last 24 hours
+        now = datetime.now()
+        yesterday = now - timedelta(days=1)
+        last_week = now - timedelta(days=7)
+
+        recent_stats = logging_service.get_operation_stats(start_time=yesterday, end_time=now)
+        weekly_stats = logging_service.get_operation_stats(start_time=last_week, end_time=now)
+        tool_stats = logging_service.get_tool_usage_stats(start_time=yesterday, end_time=now)
+
+        return {
+            'total_logs': total_logs,
+            'last_24_hours': {
+                'operations': recent_stats['total_operations'],
+                'phase_distribution': recent_stats['phase_distribution'],
+                'operation_types': recent_stats['operation_types'],
+                'avg_duration_ms': recent_stats['avg_duration_ms']
+            },
+            'last_7_days': {
+                'operations': weekly_stats['total_operations'],
+                'phase_distribution': weekly_stats['phase_distribution'],
+                'operation_types': weekly_stats['operation_types'],
+                'avg_duration_ms': weekly_stats['avg_duration_ms']
+            },
+            'tool_usage': tool_stats
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get agent logs stats: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@admin_bp.get('/agent-logs/sessions')
+async def get_agent_sessions(request: Request):
+    """Get list of unique agent sessions with summary information."""
+    try:
+        from services.agent_logging_service import get_agent_logging_service
+
+        # Get query parameters
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 50))
+
+        # Validate parameters
+        page = max(1, page)
+        page_size = min(max(1, page_size), 200)
+        offset = (page - 1) * page_size
+
+        # Get sessions
+        logging_service = get_agent_logging_service()
+        sessions, total_count = logging_service.get_unique_sessions(
+            limit=page_size,
+            offset=offset
+        )
+
+        # Calculate pagination info
+        total_pages = (total_count + page_size - 1) // page_size
+
+        return {
+            'sessions': sessions,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total_count': total_count,
+                'total_pages': total_pages,
+                'has_next': page < total_pages,
+                'has_previous': page > 1
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to get agent sessions: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@admin_bp.post('/agent-logs/clear')
+async def clear_agent_logs(request: Request):
+    """
+    Manual cleanup of agent logs.
+
+    Body params:
+    - action: 'all' | 'before_date' | 'session'
+    - date: ISO date string (required if action='before_date')
+    - session_id: Session ID (required if action='session')
+    """
+    try:
+        from services.agent_logging_service import get_agent_logging_service
+        from datetime import datetime
+
+        data = await request.json()
+        action = data.get('action')
+
+        if not action:
+            return JSONResponse({'error': 'action parameter is required'}, status_code=400)
+
+        logging_service = get_agent_logging_service()
+
+        if action == 'session':
+            session_id = data.get('session_id')
+            if not session_id:
+                return JSONResponse({'error': 'session_id is required for session cleanup'}, status_code=400)
+
+            success = logging_service.delete_session_logs(session_id)
+            if success:
+                return {'success': True, 'message': f'Deleted logs for session {session_id}'}
+            else:
+                return JSONResponse({'error': 'Failed to delete session logs'}, status_code=500)
+
+        elif action == 'before_date':
+            date_str = data.get('date')
+            if not date_str:
+                return JSONResponse({'error': 'date is required for date-based cleanup'}, status_code=400)
+
+            try:
+                timestamp = datetime.fromisoformat(date_str)
+            except ValueError:
+                return JSONResponse({'error': 'Invalid date format. Use ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)'}, status_code=400)
+
+            deleted_count = logging_service.delete_logs_before(timestamp)
+            return {
+                'success': True,
+                'message': f'Deleted {deleted_count} logs before {date_str}',
+                'deleted_count': deleted_count
+            }
+
+        elif action == 'all':
+            # Delete all logs (use far future date)
+            deleted_count = logging_service.delete_logs_before(datetime(2099, 12, 31))
+            return {
+                'success': True,
+                'message': f'Deleted all {deleted_count} agent logs',
+                'deleted_count': deleted_count
+            }
+
+        else:
+            return JSONResponse({'error': f'Invalid action: {action}. Must be one of: all, before_date, session'}, status_code=400)
+
+    except Exception as e:
+        logger.error(f"Failed to clear agent logs: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)

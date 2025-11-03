@@ -220,6 +220,25 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
 
     start_time = time.time()
 
+    # Initialize agent logging service for this chat session
+    agent_logging_service = None
+    if session_id:
+        try:
+            from services.agent_logging_service import get_agent_logging_service
+            agent_logging_service = get_agent_logging_service()
+            if agent_logging_service.enabled:
+                logger.debug(f"Agent logging service initialized for chat session {session_id}")
+                # Log chat start
+                agent_logging_service.log_operation(
+                    session_id=session_id,
+                    phase='data_collection',
+                    operation='Chat Query Started',
+                    details={'message_count': len(messages)},
+                    timing={'start_time': time.time()}
+                )
+        except Exception as e:
+            logger.warning(f"Failed to initialize agent logging service for chat: {e}")
+
     try:
         # Debug: Check current event loop policy and loop type
         current_policy = asyncio.get_event_loop_policy()
@@ -381,11 +400,16 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                             # Handle tool use blocks
                             if block_type == "ToolUseBlock" and hasattr(block, 'name'):
                                 tool_name = block.name
-                                
+
                                 # Create descriptive message with tool arguments
                                 tool_message = f'Claude is using tool: {tool_name}'
+                                tool_details = {'tool': tool_name}
+                                current_file_path = None
+
                                 if hasattr(block, 'input') and block.input:
                                     tool_input = block.input
+                                    tool_details['input'] = str(tool_input)[:200]  # Truncate for storage
+
                                     # Extract key parameters for common tools
                                     if tool_name == 'Read' and isinstance(tool_input, dict):
                                         file_path = tool_input.get('file_path', '')
@@ -393,6 +417,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                                             # Extract just the filename from path
                                             filename = file_path.split('/')[-1].split('\\')[-1]
                                             tool_message = f'Reading file: {filename}'
+                                            current_file_path = file_path
                                     elif tool_name == 'Grep' and isinstance(tool_input, dict):
                                         pattern = tool_input.get('pattern', '')
                                         path = tool_input.get('path', '')
@@ -400,6 +425,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                                             path_desc = f" in {path}" if path else ""
                                             pattern_preview = pattern[:50] + ('...' if len(pattern) > 50 else '')
                                             tool_message = f'Searching for: "{pattern_preview}"{path_desc}'
+                                            current_file_path = path
                                     elif tool_name == 'Bash' and isinstance(tool_input, dict):
                                         command = tool_input.get('command', '')
                                         if command:
@@ -410,6 +436,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                                         if file_path:
                                             filename = file_path.split('/')[-1].split('\\')[-1]
                                             tool_message = f'Editing file: {filename}'
+                                            current_file_path = file_path
                                     elif tool_name == 'Glob' and isinstance(tool_input, dict):
                                         patterns = tool_input.get('patterns', [])
                                         if patterns:
@@ -419,8 +446,23 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                                         if file_path:
                                             filename = file_path.split('/')[-1].split('\\')[-1]
                                             tool_message = f'Writing to file: {filename}'
-                                
+                                            current_file_path = file_path
+
                                 logger.info(f"   🔧 Tool Use: {tool_message}")
+
+                                # Log tool usage to database
+                                if agent_logging_service and session_id:
+                                    try:
+                                        agent_logging_service.log_operation(
+                                            session_id=session_id,
+                                            phase='file_exploration',
+                                            operation=tool_message,
+                                            details=tool_details,
+                                            current_file=current_file_path
+                                        )
+                                    except Exception as e:
+                                        logger.warning(f"Failed to log tool usage: {e}")
+
                                 if session_id:
                                     notify_chat_progress(session_id, 'tool_use', tool_message)
                             
@@ -514,6 +556,27 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                 'elapsed_time': elapsed
             })
 
+        # Log chat completion to database
+        if agent_logging_service and session_id:
+            try:
+                agent_logging_service.log_operation(
+                    session_id=session_id,
+                    phase='generation',
+                    operation='Chat Query Completed',
+                    details={
+                        'message_count': message_count,
+                        'assistant_messages': len(conversation_messages),
+                        'response_length': total_chars
+                    },
+                    timing={
+                        'start_time': start_time,
+                        'end_time': time.time(),
+                        'duration': elapsed
+                    }
+                )
+            except Exception as e:
+                logger.warning(f"Failed to log chat completion: {e}")
+
         # Return conversation array for proper multi-bubble display
         return {
             'reply': conversation_messages[-1]['content'] if conversation_messages else "No response generated",
@@ -535,14 +598,27 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
         logger.error(f"   Error: {str(e)}")
         logger.error(f"   Install Claude Agent SDK: pip install claude-agent-sdk")
         logger.error(f"   Traceback:\n{traceback.format_exc()}")
-        
+
+        # Log error to database
+        if agent_logging_service and session_id:
+            try:
+                agent_logging_service.log_operation(
+                    session_id=session_id,
+                    phase='error',
+                    operation='Chat Query Failed: CLI Not Found',
+                    details={'error': str(e), 'error_type': 'CLINotFoundError'},
+                    timing={'start_time': start_time, 'end_time': time.time(), 'duration': elapsed}
+                )
+            except Exception:
+                pass
+
         # Send error progress update
         if session_id:
             notify_chat_progress(session_id, 'error', f'Claude CLI not found: {str(e)}', {
                 'error_type': 'CLINotFoundError',
                 'elapsed_time': elapsed
             })
-        
+
         return JSONResponse({'error': f'Claude CLI not found: {str(e)}'}, status_code=500)
 
     except CLIConnectionError as e:
@@ -598,6 +674,19 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
         # Try to extract useful debugging info
         if hasattr(e, '__dict__'):
             logger.error(f"   Error attributes: {e.__dict__}")
+
+        # Log error to database
+        if agent_logging_service and session_id:
+            try:
+                agent_logging_service.log_operation(
+                    session_id=session_id,
+                    phase='error',
+                    operation=f'Chat Query Failed: {type(e).__name__}',
+                    details={'error': str(e), 'error_type': type(e).__name__},
+                    timing={'start_time': start_time, 'end_time': time.time(), 'duration': elapsed}
+                )
+            except Exception:
+                pass
 
         # Send error progress update
         if session_id:
