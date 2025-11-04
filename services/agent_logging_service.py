@@ -558,34 +558,47 @@ class AgentLoggingService:
         Parse a database row into a log entry dict.
 
         Args:
-            row: Database row dict
+            row: Database row (sqlite3.Row or dict)
 
         Returns:
             Parsed log entry dict
         """
         try:
+            # Convert sqlite3.Row to dict for easier access
+            # sqlite3.Row doesn't have .get() method, so we need to handle it carefully
+            def safe_get(row, key, default=None):
+                """Safely get value from sqlite3.Row or dict."""
+                try:
+                    return row[key] if row[key] is not None else default
+                except (KeyError, IndexError):
+                    return default
+
             # Parse JSON fields
-            details = json.loads(row['details']) if row.get('details') else None
-            timing = json.loads(row['timing']) if row.get('timing') else None
+            details_raw = safe_get(row, 'details')
+            details = json.loads(details_raw) if details_raw else None
+            
+            timing_raw = safe_get(row, 'timing')
+            timing = json.loads(timing_raw) if timing_raw else None
 
             return {
                 'id': row['id'],
                 'session_id': row['session_id'],
-                'insight_id': row.get('insight_id'),
+                'insight_id': safe_get(row, 'insight_id'),
                 'phase': row['phase'],
                 'operation': row['operation'],
                 'details': details,
-                'files_processed': row.get('files_processed', 0),
-                'total_files': row.get('total_files'),
-                'current_file': row.get('current_file'),
+                'files_processed': safe_get(row, 'files_processed', 0),
+                'total_files': safe_get(row, 'total_files'),
+                'current_file': safe_get(row, 'current_file'),
                 'timing': timing,
                 'timestamp': row['timestamp'],
-                'created_at': row.get('created_at')
+                'created_at': safe_get(row, 'created_at')
             }
 
         except Exception as e:
             logger.error(f"Failed to parse log row: {e}")
-            return row
+            # Return a minimal dict representation
+            return {'error': 'Failed to parse', 'raw': str(row)}
 
 
 # Singleton instance

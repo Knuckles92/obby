@@ -29,14 +29,21 @@ class DatabaseConnection:
     """Thread-safe SQLite connection manager with connection pooling."""
     
     def __init__(self, db_path: str = ".db/obby.db"):
-        self.db_path = db_path
+        configured_path = Path(db_path)
+        if not configured_path.is_absolute():
+            # Anchor relative paths to the project root (two levels up from this file)
+            project_root = Path(__file__).resolve().parents[1]
+            configured_path = project_root / configured_path
+        self.db_path = configured_path
         self._local = threading.local()
         self.schema_path = Path(__file__).parent / "schema.sql"
         self._ensure_database()
     
     def _ensure_database(self):
         """Ensure database exists and schema is applied."""
-        if not Path(self.db_path).exists():
+        db_parent = self.db_path.parent
+        db_parent.mkdir(parents=True, exist_ok=True)
+        if not self.db_path.exists():
             logger.info(f"Creating new database: {self.db_path}")
             self._create_database()
         else:
@@ -44,7 +51,7 @@ class DatabaseConnection:
     
     def _create_database(self):
         """Create database with schema."""
-        with sqlite3.connect(self.db_path) as conn:
+        with sqlite3.connect(str(self.db_path)) as conn:
             conn.executescript(self.schema_path.read_text(encoding='utf-8'))
             logger.info("Database schema applied successfully")
     
@@ -53,7 +60,7 @@ class DatabaseConnection:
         """Get thread-local database connection with automatic cleanup."""
         if not hasattr(self._local, 'connection'):
             self._local.connection = sqlite3.connect(
-                self.db_path,
+                str(self.db_path),
                 check_same_thread=False,
                 timeout=30.0
             )

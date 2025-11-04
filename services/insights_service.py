@@ -252,3 +252,4 @@ def get_insights_service() -> InsightsService:
     return _insights_service
 
 
+
