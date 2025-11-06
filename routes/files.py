@@ -112,6 +112,138 @@ async def get_recent_events(request: Request):
         return JSONResponse({'error': str(e)}, status_code=500)
 
 
+@files_bp.get('/events/{event_id}/details')
+async def get_event_details(event_id: str):
+    """Get detailed information for a specific event including associated diff"""
+    try:
+        # Get the event details
+        event = EventQueries.get_event_by_id(event_id)
+
+        if not event:
+            return JSONResponse({'error': 'Event not found'}, status_code=404)
+
+        # Get diffs for the file around the event timestamp
+        file_path = event.get('path')
+        event_timestamp = event.get('timestamp')
+
+        # Get all recent diffs (not filtered by file path) to find matches
+        # This is needed because events store relative paths but diffs store absolute paths
+        diffs = FileQueries.get_recent_diffs(limit=50)
+
+        # Find the diff closest to the event timestamp
+        associated_diff = None
+        if diffs:
+            # Sort diffs by how close they are to the event timestamp
+            from datetime import datetime
+
+            def parse_timestamp(ts):
+                """Parse timestamp string to datetime for comparison"""
+                if isinstance(ts, str):
+                    # Handle ISO format with or without 'Z'
+                    ts = ts.replace('Z', '+00:00')
+                    return datetime.fromisoformat(ts)
+                return ts
+
+            event_dt = parse_timestamp(event_timestamp)
+
+            # Find the diff with timestamp closest to event timestamp that matches the file path
+            # Handle both absolute and relative paths (events use relative, diffs use absolute)
+            closest_diff = None
+            min_diff_seconds = float('inf')
+
+            for diff in diffs:
+                # Check if this diff matches the event's file path
+                diff_path = diff.get('filePath', '')
+
+                # Match if: diff path ends with event path OR event path ends with diff path
+                # OR they're equal (handle both absolute and relative)
+                path_matches = (
+                    diff_path.endswith(file_path) or
+                    file_path.endswith(diff_path) or
+                    diff_path == file_path or
+                    diff_path.replace('\\', '/').endswith(file_path.replace('\\', '/'))
+                )
+
+                if not path_matches:
+                    continue
+
+                diff_dt = parse_timestamp(diff.get('timestamp'))
+                time_diff = abs((event_dt - diff_dt).total_seconds())
+
+                if time_diff < min_diff_seconds:
+                    min_diff_seconds = time_diff
+                    closest_diff = diff
+
+            # Only include the diff if it's within 60 seconds of the event
+            if closest_diff and min_diff_seconds < 60:
+                associated_diff = closest_diff
+
+        # Format response
+        response = {
+            'event': {
+                'id': str(event['id']),
+                'type': event['type'],
+                'path': event['path'],
+                'timestamp': event['timestamp'],
+                'size': event.get('size'),
+                'processed': event.get('processed', False)
+            },
+            'diff': associated_diff  # Will be None if no close match found
+        }
+
+        logger.info(f"Retrieved event details for ID: {event_id}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Failed to get event details for {event_id}: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@files_bp.get('/activity')
+async def get_recent_activity(request: Request):
+    """Get recent file activity in simplified format for dashboard"""
+    try:
+        limit = int(request.query_params.get('limit', 10))
+
+        # Initialize watch handler to filter by watch patterns
+        watch_handler = None
+        try:
+            from utils.watch_handler import WatchHandler
+            from pathlib import Path
+            root_folder = Path(__file__).parent.parent
+            watch_handler = WatchHandler(root_folder)
+        except Exception as e:
+            logger.warning(f"Could not load watch patterns, showing all activity: {e}")
+
+        # Get recent content diffs
+        diffs = FileQueries.get_recent_diffs(limit=limit, watch_handler=watch_handler)
+
+        # Transform to activity format
+        activities = []
+        for diff in diffs:
+            # Extract file name from path
+            file_path = diff['filePath']
+            file_name = file_path.split('/')[-1]
+
+            activity = {
+                'id': diff['id'],
+                'type': diff['changeType'],
+                'filePath': file_path,
+                'fileName': file_name,
+                'timestamp': diff['timestamp'],
+                'linesAdded': diff.get('linesAdded', 0),
+                'linesRemoved': diff.get('linesRemoved', 0),
+                'hasContent': bool(diff.get('diffContent'))
+            }
+            activities.append(activity)
+
+        return {'activities': activities, 'count': len(activities)}
+
+    except Exception as e:
+        logger.error(f"Failed to get recent activity: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
 @files_bp.get('/diffs')
 async def get_recent_diffs(request: Request):
     """Get recent content diffs from database with pagination support"""
@@ -167,20 +299,53 @@ async def get_full_diff_content(diff_id: str):
     """Get full diff content by ID"""
     try:
         logger.info(f"FULL DIFF CONTENT API CALLED - ID: {diff_id}")
-        
+
         # Get content diff by ID from content_diffs table
         diff_data = FileQueries.get_diff_content(diff_id)
-        
+
         if diff_data is None:
             logger.warning(f"Diff not found: {diff_id}")
             return JSONResponse({'error': 'Diff not found'}, status_code=404)
-        
+
         logger.info(f"Retrieved full diff content for ID: {diff_id}")
         return diff_data
-        
+
     except Exception as e:
         logger.error(f"Error retrieving full diff content: {e}")
         return JSONResponse({'error': 'Failed to retrieve diff content'}, status_code=500)
+
+
+@files_bp.get('/diffs/{diff_id}/details')
+async def get_diff_details(diff_id: str):
+    """Get detailed information for a specific diff (for EventDetailsModal)"""
+    try:
+        # Get the diff content
+        diff_data = FileQueries.get_diff_content(diff_id)
+
+        if diff_data is None:
+            logger.warning(f"Diff not found: {diff_id}")
+            return JSONResponse({'error': 'Diff not found'}, status_code=404)
+
+        # Format response to match EventDetailsModal expectations
+        # Create a synthetic event from the diff
+        response = {
+            'event': {
+                'id': str(diff_data['id']),
+                'type': diff_data['changeType'],
+                'path': diff_data['filePath'],
+                'timestamp': diff_data['timestamp'],
+                'size': None,  # Diffs don't track file size
+                'processed': True  # Diffs are by definition processed
+            },
+            'diff': diff_data  # The full diff is already available
+        }
+
+        logger.info(f"Retrieved diff details for ID: {diff_id}")
+        return response
+
+    except Exception as e:
+        logger.error(f"Failed to get diff details for {diff_id}: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
 
 
 @files_bp.get('/changes')
@@ -320,7 +485,7 @@ async def clear_file_data():
     try:
         # Clear all file data
         clear_result = FileQueries.clear_all_file_data()
-        
+
         if clear_result['success']:
             logger.info(f"File data cleared successfully")
             return {
@@ -334,10 +499,35 @@ async def clear_file_data():
             }
         else:
             return JSONResponse({'error': 'Failed to clear file data', 'details': clear_result.get('error', 'Unknown error')}, status_code=500)
-        
+
     except Exception as e:
         logger.error(f"Error clearing file data: {e}")
         return JSONResponse({'error': f'Failed to clear file data: {str(e)}'}, status_code=500)
+
+
+@files_bp.post('/diffs/clear')
+async def clear_diffs():
+    """Clear all content diffs (for Recent Activity clear all button)"""
+    try:
+        # Clear only content diffs
+        from database.models import db
+
+        # Get counts before clearing
+        diffs_result = db.execute_query("SELECT COUNT(*) as count FROM content_diffs")
+        diffs_count = diffs_result[0]['count'] if diffs_result else 0
+
+        # Clear diffs
+        db.execute_update("DELETE FROM content_diffs")
+
+        logger.info(f"Cleared {diffs_count} content diffs")
+        return {
+            'message': 'Content diffs cleared successfully',
+            'clearedRecords': diffs_count
+        }
+
+    except Exception as e:
+        logger.error(f"Error clearing content diffs: {e}")
+        return JSONResponse({'error': f'Failed to clear content diffs: {str(e)}'}, status_code=500)
 
 
 @files_bp.post('/clear-unwatched')

@@ -1410,9 +1410,8 @@ class EventQueries:
         """Get a specific event by ID."""
         try:
             query = """
-                SELECT id, type, path, timestamp, size, processed, created_at,
-                       content, diff_content, summary
-                FROM events 
+                SELECT id, type, path, timestamp, size, processed, created_at
+                FROM events
                 WHERE id = ?
             """
             rows = db.execute_query(query, (event_id,))
@@ -1423,7 +1422,7 @@ class EventQueries:
             else:
                 logger.warning(f"Event not found: {event_id}")
                 return None
-            
+
         except Exception as e:
             logger.error(f"Error retrieving event by ID {event_id}: {e}")
             return None

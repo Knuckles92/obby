@@ -4,6 +4,18 @@ export interface FileEvent {
   path: string;
   timestamp: string;
   size?: number;
+  processed?: boolean;
+}
+
+export interface ActivityItem {
+  id: string;
+  type: 'created' | 'modified' | 'deleted' | 'moved';
+  filePath: string;
+  fileName: string;
+  timestamp: string;
+  linesAdded?: number;
+  linesRemoved?: number;
+  hasContent: boolean;
 }
 
 export interface DiffEntry {

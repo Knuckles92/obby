@@ -14,9 +14,10 @@ import {
   Database,
   Eye
 } from 'lucide-react'
-import { MonitoringStatus, FileEvent, DiffEntry } from '../types'
+import { MonitoringStatus, ActivityItem } from '../types'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import WatchedFilesModal from '../components/WatchedFilesModal'
+import EventDetailsModal from '../components/EventDetailsModal'
 import { apiFetch } from '../utils/api'
 
 export default function Dashboard() {
@@ -26,14 +27,15 @@ export default function Dashboard() {
     totalFiles: 0,
     eventsToday: 0
   })
-  const [recentEvents, setRecentEvents] = useState<FileEvent[]>([])
-  const [recentDiffs, setRecentDiffs] = useState<DiffEntry[]>([])
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [clearEventsDialogOpen, setClearEventsDialogOpen] = useState(false)
-  const [clearEventsLoading, setClearEventsLoading] = useState(false)
+  const [clearActivityDialogOpen, setClearActivityDialogOpen] = useState(false)
+  const [clearActivityLoading, setClearActivityLoading] = useState(false)
   const [monitoringLoading, setMonitoringLoading] = useState(false)
   const [autoStartAttempted, setAutoStartAttempted] = useState(false)
   const [watchedFilesModalOpen, setWatchedFilesModalOpen] = useState(false)
+  const [eventDetailsModalOpen, setEventDetailsModalOpen] = useState(false)
+  const [selectedEventId, setSelectedEventId] = useState<string>('')
   // const [watchedFilesCardHovered, setWatchedFilesCardHovered] = useState(false)
   // const [eventsCardHovered, setEventsCardHovered] = useState(false)
   // const [recentDiffsCardHovered, setRecentDiffsCardHovered] = useState(false)
@@ -58,19 +60,16 @@ export default function Dashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const [statusRes, eventsRes, diffsRes] = await Promise.all([
+      const [statusRes, activityRes] = await Promise.all([
         apiFetch('/api/monitor/status'),
-        apiFetch('/api/files/events?limit=10'),
-        apiFetch('/api/files/diffs?limit=5')
+        apiFetch('/api/files/activity?limit=10')
       ])
 
       const statusData = await statusRes.json()
-      const eventsData = await eventsRes.json()
-      const diffsData = await diffsRes.json()
+      const activityData = await activityRes.json()
 
       setStatus(statusData)
-      setRecentEvents(eventsData.events || [])
-      setRecentDiffs(diffsData.diffs || [])
+      setRecentActivity(activityData.activities || [])
 
       // Auto-start monitoring if it's not active and we haven't tried yet
       if (!statusData.isActive && !autoStartAttempted) {
@@ -108,29 +107,29 @@ export default function Dashboard() {
     }
   }
 
-  const handleClearEvents = async () => {
+  const handleClearActivity = async () => {
     try {
-      setClearEventsLoading(true)
-      const response = await apiFetch('/api/data/events/clear', {
+      setClearActivityLoading(true)
+      const response = await apiFetch('/api/files/diffs/clear', {
         method: 'POST'
       })
-      
+
       if (response.ok) {
         const result = await response.json()
         console.log(result.message)
         // Refresh the dashboard data
         await fetchDashboardData()
-        setClearEventsDialogOpen(false)
+        setClearActivityDialogOpen(false)
       } else {
         const error = await response.json()
-        console.error('Error clearing events:', error.error)
-        alert('Failed to clear events: ' + error.error)
+        console.error('Error clearing activity:', error.error)
+        alert('Failed to clear activity: ' + error.error)
       }
     } catch (error) {
-      console.error('Error clearing events:', error)
-      alert('Failed to clear events. Please try again.')
+      console.error('Error clearing activity:', error)
+      alert('Failed to clear activity. Please try again.')
     } finally {
-      setClearEventsLoading(false)
+      setClearActivityLoading(false)
     }
   }
 
@@ -405,27 +404,27 @@ export default function Dashboard() {
                 className="text-sm font-medium mb-1"
                 style={{ color: 'var(--color-text-secondary)' }}
               >
-                Recent Diffs
+                Recent Activity
               </p>
               <p
                 className="text-2xl font-bold"
                 style={{ color: 'var(--color-text-primary)' }}
               >
-                {recentDiffs.length}
+                {recentActivity.length}
               </p>
               <div className="mt-3 flex items-center space-x-1">
                 <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'var(--color-divider)' }}>
                   <div className="h-full rounded-full transition-all duration-1000"
                        style={{
                          backgroundColor: 'var(--color-success)',
-                         width: `${Math.min((recentDiffs.length / 10) * 100, 100)}%`
+                         width: `${Math.min((recentActivity.length / 10) * 100, 100)}%`
                        }}></div>
                 </div>
                 <span
                   className="text-xs font-medium"
                   style={{ color: 'var(--color-success)' }}
                 >
-                  {recentDiffs.length}
+                  {recentActivity.length}
                 </span>
               </div>
             </div>
@@ -434,24 +433,22 @@ export default function Dashboard() {
       </div>
 
 
-      {/* Enhanced Activity Sections */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Recent Events Section */}
-        <div className="relative overflow-hidden rounded-2xl p-6 shadow-lg border" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--color-info)' }}>
-                  <Activity className="h-5 w-5" style={{ color: 'var(--color-text-inverse)' }} />
-                </div>
-                <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>Recent Events</h3>
+      {/* Recent Activity Section */}
+      <div className="relative overflow-hidden rounded-2xl p-6 shadow-lg border" style={{
+        background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
+        borderColor: 'var(--color-border)'
+      }}>
+        <div className="relative">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--color-info)' }}>
+                <Activity className="h-5 w-5" style={{ color: 'var(--color-text-inverse)' }} />
               </div>
-              {recentEvents.length > 0 && (
+              <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>Recent Activity</h3>
+            </div>
+            {recentActivity.length > 0 && (
                 <button
-                  onClick={() => setClearEventsDialogOpen(true)}
+                  onClick={() => setClearActivityDialogOpen(true)}
                   className="flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 hover:shadow-sm text-white"
                   style={{
                     backgroundColor: 'var(--color-error)',
@@ -467,47 +464,63 @@ export default function Dashboard() {
               )}
             </div>
 
-            {recentEvents.length > 0 ? (
+            {recentActivity.length > 0 ? (
               <div className="space-y-3 max-h-96 overflow-y-auto">
-                {recentEvents.map((event, index) => (
-                  <div key={event.id} className="group/item relative overflow-hidden rounded-xl p-4 shadow-sm border hover:shadow-md transition-all duration-200 hover:-translate-y-0.5" style={{
-                    backgroundColor: 'var(--color-background)',
-                    borderColor: 'var(--color-divider)'
-                  }}>
+                {recentActivity.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="group/item relative overflow-hidden rounded-xl p-4 shadow-sm border hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+                    style={{
+                      backgroundColor: 'var(--color-background)',
+                      borderColor: 'var(--color-divider)'
+                    }}
+                    onClick={() => {
+                      setSelectedEventId(activity.id)
+                      setEventDetailsModalOpen(true)
+                    }}
+                  >
                     <div className="absolute inset-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" style={{
                       background: 'linear-gradient(90deg, transparent, var(--color-surface), transparent)'
                     }}></div>
                     <div className="relative flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 flex-1 min-w-0">
                         <div className="flex-shrink-0 w-3 h-3 rounded-full shadow-sm" style={{
-                          backgroundColor: event.type === 'created' ? 'var(--color-success)' :
-                                           event.type === 'modified' ? 'var(--color-warning)' :
-                                           event.type === 'deleted' ? 'var(--color-error)' :
+                          backgroundColor: activity.type === 'created' ? 'var(--color-success)' :
+                                           activity.type === 'modified' ? 'var(--color-warning)' :
+                                           activity.type === 'deleted' ? 'var(--color-error)' :
                                            'var(--color-info)',
-                          boxShadow: `0 0 0 3px ${event.type === 'created' ? 'var(--color-success)' :
-                                               event.type === 'modified' ? 'var(--color-warning)' :
-                                               event.type === 'deleted' ? 'var(--color-error)' :
+                          boxShadow: `0 0 0 3px ${activity.type === 'created' ? 'var(--color-success)' :
+                                               activity.type === 'modified' ? 'var(--color-warning)' :
+                                               activity.type === 'deleted' ? 'var(--color-error)' :
                                                'var(--color-info)'}15`
                         }} />
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>{event.path.split('/').pop()}</p>
-                          <p className="text-xs capitalize flex items-center" style={{ color: 'var(--color-text-secondary)' }}>
-                            <span className="inline-block w-2 h-2 rounded-full mr-2" style={{
-                              backgroundColor: event.type === 'created' ? 'var(--color-success)' :
-                                               event.type === 'modified' ? 'var(--color-warning)' :
-                                               event.type === 'deleted' ? 'var(--color-error)' :
-                                               'var(--color-info)'
-                            }}></span>
-                            {event.type}
-                          </p>
+                          <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>{activity.fileName}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs capitalize flex items-center" style={{ color: 'var(--color-text-secondary)' }}>
+                              <span className="inline-block w-2 h-2 rounded-full mr-1" style={{
+                                backgroundColor: activity.type === 'created' ? 'var(--color-success)' :
+                                                 activity.type === 'modified' ? 'var(--color-warning)' :
+                                                 activity.type === 'deleted' ? 'var(--color-error)' :
+                                                 'var(--color-info)'
+                              }}></span>
+                              {activity.type}
+                            </p>
+                            {activity.hasContent && (activity.linesAdded > 0 || activity.linesRemoved > 0) && (
+                              <p className="text-xs flex items-center gap-1" style={{ color: 'var(--color-text-secondary)' }}>
+                                <span style={{ color: 'var(--color-success)' }}>+{activity.linesAdded}</span>
+                                <span style={{ color: 'var(--color-error)' }}>-{activity.linesRemoved}</span>
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center text-xs px-2 py-1 rounded-md" style={{
+                      <div className="flex items-center text-xs px-2 py-1 rounded-md ml-3" style={{
                         color: 'var(--color-text-secondary)',
                         backgroundColor: 'var(--color-surface)'
                       }}>
                         <Clock className="h-3 w-3 mr-1" />
-                        {formatTimeAgo(event.timestamp)}
+                        {formatTimeAgo(activity.timestamp)}
                       </div>
                     </div>
                   </div>
@@ -518,98 +531,38 @@ export default function Dashboard() {
                 <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-surface)' }}>
                   <Activity className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
                 </div>
-                <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>No recent events</p>
-                <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>Events will appear here when files are modified</p>
+                <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>No recent activity</p>
+                <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>Activity will appear here when files are modified</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Recent Diffs Section */}
-        <div className="relative overflow-hidden rounded-2xl p-6 shadow-lg border" style={{
-          background: 'linear-gradient(135deg, var(--color-surface) 0%, var(--color-background) 100%)',
-          borderColor: 'var(--color-border)'
-        }}>
-          <div className="relative">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 rounded-lg" style={{ backgroundColor: 'var(--color-success)' }}>
-                  <GitBranch className="h-5 w-5" style={{ color: 'var(--color-text-inverse)' }} />
-                </div>
-                <h3 className="text-xl font-semibold" style={{ color: 'var(--color-text-primary)' }}>Recent Changes</h3>
-              </div>
-              <div className="text-xs px-2 py-1 rounded-md" style={{
-                color: 'var(--color-text-secondary)',
-                backgroundColor: 'var(--color-surface)'
-              }}>
-                Last 5 changes
-              </div>
-            </div>
-
-            {recentDiffs.length > 0 ? (
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {recentDiffs.map((diff, index) => (
-                  <div key={diff.id} className="group/item relative overflow-hidden rounded-xl p-4 shadow-sm border hover:shadow-md transition-all duration-200 hover:-translate-y-0.5" style={{
-                    backgroundColor: 'var(--color-background)',
-                    borderColor: 'var(--color-divider)'
-                  }}>
-                    <div className="absolute inset-0 opacity-0 group-hover/item:opacity-100 transition-opacity duration-300" style={{
-                      background: 'linear-gradient(90deg, transparent, var(--color-surface), transparent)'
-                    }}></div>
-                    <div className="relative">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-medium truncate" style={{ color: 'var(--color-text-primary)' }}>{diff.filePath.split('/').pop()}</p>
-                          <p className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>{diff.filePath.split('/').slice(0, -1).join('/') || 'Root'}</p>
-                        </div>
-                        <div className="flex items-center text-xs px-2 py-1 rounded-md ml-3" style={{
-                          color: 'var(--color-text-secondary)',
-                          backgroundColor: 'var(--color-surface)'
-                        }}>
-                          <Clock className="h-3 w-3 mr-1" />
-                          {formatTimeAgo(diff.timestamp)}
-                        </div>
-                      </div>
-                      <div className="rounded-lg p-3" style={{
-                        backgroundColor: 'var(--color-surface)',
-                        borderLeft: `4px solid var(--color-success)`
-                      }}>
-                        <p className="text-xs leading-relaxed line-clamp-3" style={{ color: 'var(--color-text-primary)' }}>{diff.content}</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4" style={{ backgroundColor: 'var(--color-surface)' }}>
-                  <GitBranch className="h-8 w-8" style={{ color: 'var(--color-text-secondary)' }} />
-                </div>
-                <p className="font-medium" style={{ color: 'var(--color-text-primary)' }}>No recent changes</p>
-                <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>File changes will appear here</p>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Clear Events Confirmation Dialog */}
+      {/* Clear Activity Confirmation Dialog */}
       <ConfirmationDialog
-        isOpen={clearEventsDialogOpen}
-        onClose={() => setClearEventsDialogOpen(false)}
-        onConfirm={handleClearEvents}
-        title="Clear Recent Events"
-        message="Are you sure you want to clear all recent events? This will remove the event history from the dashboard."
-        confirmText="Clear Events"
+        isOpen={clearActivityDialogOpen}
+        onClose={() => setClearActivityDialogOpen(false)}
+        onConfirm={handleClearActivity}
+        title="Clear Recent Activity"
+        message="Are you sure you want to clear all recent activity? This will remove the activity history from the dashboard."
+        confirmText="Clear Activity"
         cancelText="Cancel"
         danger={true}
-        loading={clearEventsLoading}
+        loading={clearActivityLoading}
       />
 
       {/* Watched Files Modal */}
       <WatchedFilesModal
         isOpen={watchedFilesModalOpen}
         onClose={() => setWatchedFilesModalOpen(false)}
+      />
+
+      {/* Event Details Modal */}
+      <EventDetailsModal
+        isOpen={eventDetailsModalOpen}
+        onClose={() => setEventDetailsModalOpen(false)}
+        eventId={selectedEventId}
+        sourceType="diff"
       />
     </div>
   )

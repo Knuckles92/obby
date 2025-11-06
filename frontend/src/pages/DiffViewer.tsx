@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy } from 'lucide-react'
+import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy, CheckCircle } from 'lucide-react'
 import { ContentDiff, FileChange, FileMonitoringStatus, PaginatedDiffsResponse, PaginatedChangesResponse, PaginationMetadata } from '../types'
 import { apiFetch } from '../utils/api'
 import ConfirmationDialog from '../components/ConfirmationDialog'
@@ -27,6 +27,8 @@ export default function DiffViewer() {
   const [refreshing, setRefreshing] = useState(false)
   const [activeTab, setActiveTab] = useState<'diffs' | 'changes'>('diffs')
   const [copied, setCopied] = useState(false)
+  const [copiedItemId, setCopiedItemId] = useState<string | null>(null)
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null)
 
   // Pagination state
   const [diffsPagination, setDiffsPagination] = useState<PaginationMetadata | null>(null)
@@ -368,6 +370,20 @@ export default function DiffViewer() {
     }
   }
 
+  const getFileName = (filePath: string): string => {
+    return filePath.split(/[/\\]/).pop() || filePath
+  }
+
+  const handleCopyPath = async (filePath: string, itemId: string) => {
+    try {
+      await navigator.clipboard.writeText(filePath)
+      setCopiedItemId(itemId)
+      setTimeout(() => setCopiedItemId(null), 2000)
+    } catch (error) {
+      console.error('Failed to copy file path:', error)
+    }
+  }
+
   const renderSelectedContent = () => {
     if (selectedDiff) {
       const formattedTimestamp = new Date(selectedDiff.timestamp).toLocaleString()
@@ -657,6 +673,8 @@ export default function DiffViewer() {
                     <div
                       key={diff.id}
                       onClick={() => handleDiffSelection(diff)}
+                      onMouseEnter={() => setHoveredItemId(diff.id)}
+                      onMouseLeave={() => setHoveredItemId(null)}
                       className={`relative cursor-pointer rounded-2xl border px-4 py-4 transition ${
                         selectedDiff?.id === diff.id
                           ? 'border-blue-400 bg-white shadow-sm'
@@ -664,7 +682,7 @@ export default function DiffViewer() {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                             <span className={`inline-flex items-center rounded-full border border-transparent px-2.5 py-1 font-semibold capitalize ${getChangeTypeColor(diff.changeType)}`}>
                               {diff.changeType}
@@ -675,16 +693,40 @@ export default function DiffViewer() {
                             </span>
                           </div>
                           <p className="text-sm font-semibold leading-snug text-slate-900 break-words">
-                            {diff.filePath}
+                            {getFileName(diff.filePath)}
                           </p>
                           <div className="flex items-center gap-4 text-xs font-mono">
                             <span className="text-emerald-600">+{diff.linesAdded}</span>
                             <span className="text-rose-600">-{diff.linesRemoved}</span>
                           </div>
                         </div>
-                        <code className="rounded-md bg-slate-900/80 px-2 py-1 text-[10px] font-mono text-white shadow-sm">
-                          {String(diff.id).slice(0, 10)}
-                        </code>
+                        <div className="flex flex-col items-end gap-2">
+                          <code className="rounded-md bg-slate-900/80 px-2 py-1 text-[10px] font-mono text-white shadow-sm">
+                            {String(diff.id).slice(0, 10)}
+                          </code>
+                          {hoveredItemId === diff.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCopyPath(diff.filePath, diff.id)
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 shadow-sm"
+                              title="Copy full path"
+                            >
+                              {copiedItemId === diff.id ? (
+                                <>
+                                  <CheckCircle className="h-3 w-3 text-green-600" />
+                                  <span className="text-green-600">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3" />
+                                  <span>Copy Path</span>
+                                </>
+                              )}
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -693,6 +735,8 @@ export default function DiffViewer() {
                     <div
                       key={change.id}
                       onClick={() => handleChangeSelection(change)}
+                      onMouseEnter={() => setHoveredItemId(change.id)}
+                      onMouseLeave={() => setHoveredItemId(null)}
                       className={`relative cursor-pointer rounded-2xl border px-4 py-4 transition ${
                         selectedChange?.id === change.id
                           ? 'border-blue-400 bg-white shadow-sm'
@@ -700,7 +744,7 @@ export default function DiffViewer() {
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
-                        <div className="space-y-3">
+                        <div className="space-y-3 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
                             <span className={`inline-flex items-center rounded-full border border-transparent px-2.5 py-1 font-semibold capitalize ${getChangeTypeColor(change.changeType)}`}>
                               {change.changeType}
@@ -711,7 +755,7 @@ export default function DiffViewer() {
                             </span>
                           </div>
                           <p className="text-sm font-semibold leading-snug text-slate-900 break-words">
-                            {change.filePath}
+                            {getFileName(change.filePath)}
                           </p>
                           {change.newContentHash && (
                             <code className="block truncate text-xs font-mono text-slate-600">
@@ -719,8 +763,30 @@ export default function DiffViewer() {
                             </code>
                           )}
                         </div>
-                        <div className="flex items-center">
+                        <div className="flex flex-col items-end gap-2">
                           <Hash className="h-4 w-4 text-slate-300" />
+                          {hoveredItemId === change.id && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                handleCopyPath(change.filePath, change.id)
+                              }}
+                              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition-colors hover:border-slate-300 hover:text-slate-900 shadow-sm"
+                              title="Copy full path"
+                            >
+                              {copiedItemId === change.id ? (
+                                <>
+                                  <CheckCircle className="h-3 w-3 text-green-600" />
+                                  <span className="text-green-600">Copied!</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Copy className="h-3 w-3" />
+                                  <span>Copy Path</span>
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       </div>
                     </div>
