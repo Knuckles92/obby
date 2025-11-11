@@ -61,9 +61,25 @@ async def lifespan(app: FastAPI):
     """FastAPI lifespan event handler for startup and shutdown."""
     # Startup
     logger.info('Application starting up')
+    
+    # Launch Go services if enabled
+    try:
+        from utils.go_service_launcher import launch_go_services
+        launch_go_services()
+    except Exception as e:
+        logger.warning(f'Failed to launch Go services: {e}')
+    
     yield
-    # Shutdown (if needed in future)
+    
+    # Shutdown
     logger.info('Application shutting down')
+    
+    # Stop Go services
+    try:
+        from utils.go_service_launcher import stop_go_services
+        stop_go_services()
+    except Exception as e:
+        logger.warning(f'Error stopping Go services: {e}')
 
 
 app = FastAPI(title='Obby API', version='1.0.0', lifespan=lifespan)
@@ -309,3 +325,10 @@ if __name__ == '__main__':
         if stop_session_summary_watcher:
             stop_session_summary_watcher()
         cleanup_monitoring()
+        
+        # Ensure Go services are stopped
+        try:
+            from utils.go_service_launcher import stop_go_services
+            stop_go_services()
+        except Exception as e:
+            logger.warning(f'Error stopping Go services during cleanup: {e}')

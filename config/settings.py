@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 
 # File paths
 NOTES_FOLDER = Path("notes")  # Default folder containing all markdown files to monitor
@@ -83,3 +84,23 @@ AGENT_LOG_INCLUDE_RESPONSES = False  # Include full responses in logs (for 'verb
 # No automatic cleanup - logs are retained indefinitely until manually deleted
 AGENT_LOG_AUTO_CLEANUP_ENABLED = False  # Disable automatic cleanup by default
 AGENT_LOG_RETENTION_DAYS = None  # No automatic retention limit (manual cleanup only)
+
+# ============================================================================
+# GO MICROSERVICES - Feature Flags for Gradual Rollout
+# ============================================================================
+
+# Feature flags for gradual rollout
+USE_GO_FILE_WATCHER = os.getenv("USE_GO_FILE_WATCHER", "false").lower() == "true"
+GO_FILE_WATCHER_HOST = os.getenv("GO_FILE_WATCHER_HOST", "localhost")
+GO_FILE_WATCHER_PORT = int(os.getenv("GO_FILE_WATCHER_PORT", "50051"))
+
+USE_GO_CONTENT_TRACKER = os.getenv("USE_GO_CONTENT_TRACKER", "false").lower() == "true"
+GO_CONTENT_TRACKER_HOST = os.getenv("GO_CONTENT_TRACKER_HOST", "localhost")
+GO_CONTENT_TRACKER_PORT = int(os.getenv("GO_CONTENT_TRACKER_PORT", "50052"))
+
+# Rollout percentage (0-100) for gradual migration
+GO_WATCHER_ROLLOUT_PERCENTAGE = int(os.getenv("GO_WATCHER_ROLLOUT_PERCENTAGE", "0"))
+GO_TRACKER_ROLLOUT_PERCENTAGE = int(os.getenv("GO_TRACKER_ROLLOUT_PERCENTAGE", "0"))
+
+# Emergency rollback flag
+EMERGENCY_ROLLBACK_TO_PYTHON = os.getenv("EMERGENCY_ROLLBACK", "false").lower() == "true"
