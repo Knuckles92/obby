@@ -45,6 +45,7 @@ from routes.admin import admin_bp
 from routes.watch_config import watch_config_bp
 from routes.chat import chat_bp
 from routes.insights import insights_bp
+from routes.services import services_bp
 
 from routes.api_monitor import APIObbyMonitor
 
@@ -108,6 +109,7 @@ app.include_router(admin_bp)
 app.include_router(watch_config_bp)
 app.include_router(chat_bp)
 app.include_router(insights_bp)
+app.include_router(services_bp)
 
 
 def run_monitor():
@@ -272,6 +274,15 @@ if __name__ == '__main__':
             logger.error('Agent transparency migration returned False')
     except Exception as e:
         logger.error(f'Agent transparency migration failed: {e}', exc_info=True)
+
+    try:
+        from database.migration_service_monitoring import apply_migration as apply_service_monitoring_migration
+        if apply_service_monitoring_migration():
+            logger.info('Service monitoring migration completed')
+        else:
+            logger.error('Service monitoring migration returned False')
+    except Exception as e:
+        logger.error(f'Service monitoring migration failed: {e}', exc_info=True)
 
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:

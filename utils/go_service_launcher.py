@@ -141,17 +141,17 @@ class GoServiceLauncher:
             if not self._check_port_available(port):
                 logger.info(f"Content Tracker service already running on port {port}")
                 return None
-            
+
             binary = self._find_go_binary("content-tracker")
             if not binary:
                 logger.warning("Content Tracker service not found - skipping launch")
                 return None
-            
+
             # Set up environment
             env = os.environ.copy()
             env["TRACKER_PORT"] = str(port)
             env["DB_PATH"] = str(self.project_root / db_path)
-            
+
             # Launch service
             if binary.suffix == '.go':
                 # Use `go run` for source files
@@ -161,7 +161,7 @@ class GoServiceLauncher:
                 # Use built binary
                 cmd = [str(binary)]
                 cwd = binary.parent
-            
+
             logger.info(f"Launching Content Tracker service on {host}:{port}...")
             process = subprocess.Popen(
                 cmd,
@@ -171,9 +171,9 @@ class GoServiceLauncher:
                 stderr=subprocess.PIPE,
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
             )
-            
+
             self.processes.append(process)
-            
+
             # Wait for service to start
             if self._wait_for_service(port, timeout=5):
                 logger.info(f"Content Tracker service started successfully on port {port}")
@@ -181,9 +181,105 @@ class GoServiceLauncher:
             else:
                 logger.warning(f"Content Tracker service may not have started properly (port {port} not responding)")
                 return process
-                
+
         except Exception as e:
             logger.error(f"Failed to launch Content Tracker service: {e}")
+            return None
+
+    def launch_query_service(self, host: str = "localhost", port: int = 50053, db_path: str = "obby.db") -> Optional[subprocess.Popen]:
+        """Launch the Go Query Service."""
+        try:
+            # Check if already running
+            if not self._check_port_available(port):
+                logger.info(f"Query Service already running on port {port}")
+                return None
+
+            binary = self._find_go_binary("query-service")
+            if not binary:
+                logger.warning("Query Service not found - skipping launch")
+                return None
+
+            # Set up command with flags
+            if binary.suffix == '.go':
+                # Use `go run` for source files
+                cmd = ["go", "run", str(binary), "--port", str(port), "--db", str(self.project_root / db_path)]
+                cwd = binary.parent.parent.parent
+            else:
+                # Use built binary
+                cmd = [str(binary), "--port", str(port), "--db", str(self.project_root / db_path)]
+                cwd = binary.parent
+
+            logger.info(f"Launching Query Service on {host}:{port}...")
+            process = subprocess.Popen(
+                cmd,
+                cwd=str(cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
+            )
+
+            self.processes.append(process)
+
+            # Wait for service to start
+            if self._wait_for_service(port, timeout=5):
+                logger.info(f"Query Service started successfully on port {port}")
+                return process
+            else:
+                logger.warning(f"Query Service may not have started properly (port {port} not responding)")
+                return process
+
+        except Exception as e:
+            logger.error(f"Failed to launch Query Service: {e}")
+            return None
+
+    def launch_sse_hub(self, grpc_host: str = "localhost", grpc_port: int = 50054,
+                       http_host: str = "localhost", http_port: int = 8080) -> Optional[subprocess.Popen]:
+        """Launch the Go SSE Hub service."""
+        try:
+            # Check if already running (check both gRPC and HTTP ports)
+            if not self._check_port_available(grpc_port):
+                logger.info(f"SSE Hub service already running on gRPC port {grpc_port}")
+                return None
+            if not self._check_port_available(http_port):
+                logger.info(f"SSE Hub service already running on HTTP port {http_port}")
+                return None
+
+            binary = self._find_go_binary("sse-hub")
+            if not binary:
+                logger.warning("SSE Hub service not found - skipping launch")
+                return None
+
+            # Set up command with flags
+            if binary.suffix == '.go':
+                # Use `go run` for source files
+                cmd = ["go", "run", str(binary), "--grpc-port", str(grpc_port), "--http-port", str(http_port)]
+                cwd = binary.parent.parent.parent
+            else:
+                # Use built binary
+                cmd = [str(binary), "--grpc-port", str(grpc_port), "--http-port", str(http_port)]
+                cwd = binary.parent
+
+            logger.info(f"Launching SSE Hub service on gRPC:{grpc_host}:{grpc_port}, HTTP:{http_host}:{http_port}...")
+            process = subprocess.Popen(
+                cmd,
+                cwd=str(cwd),
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == 'win32' else 0
+            )
+
+            self.processes.append(process)
+
+            # Wait for both services to start (check gRPC port)
+            if self._wait_for_service(grpc_port, timeout=5):
+                logger.info(f"SSE Hub service started successfully on gRPC port {grpc_port}, HTTP port {http_port}")
+                return process
+            else:
+                logger.warning(f"SSE Hub service may not have started properly (port {grpc_port} not responding)")
+                return process
+
+        except Exception as e:
+            logger.error(f"Failed to launch SSE Hub service: {e}")
             return None
     
     def stop_all(self):
@@ -217,18 +313,34 @@ class GoServiceLauncher:
         from config.settings import (
             USE_GO_FILE_WATCHER, GO_FILE_WATCHER_HOST, GO_FILE_WATCHER_PORT,
             USE_GO_CONTENT_TRACKER, GO_CONTENT_TRACKER_HOST, GO_CONTENT_TRACKER_PORT,
+            USE_GO_QUERY_SERVICE, GO_QUERY_SERVICE_HOST, GO_QUERY_SERVICE_PORT,
+            USE_GO_SSE_HUB, GO_SSE_HUB_GRPC_HOST, GO_SSE_HUB_GRPC_PORT,
+            GO_SSE_HUB_HTTP_HOST, GO_SSE_HUB_HTTP_PORT,
             EMERGENCY_ROLLBACK_TO_PYTHON
         )
-        
+
         if EMERGENCY_ROLLBACK_TO_PYTHON:
             logger.warning("EMERGENCY ROLLBACK activated - Go services will not be launched")
             return
-        
+
+        logger.info("Launching enabled Go services...")
+
         if USE_GO_FILE_WATCHER:
             self.launch_file_watcher(GO_FILE_WATCHER_HOST, GO_FILE_WATCHER_PORT)
-        
+
         if USE_GO_CONTENT_TRACKER:
             self.launch_content_tracker(GO_CONTENT_TRACKER_HOST, GO_CONTENT_TRACKER_PORT)
+
+        if USE_GO_QUERY_SERVICE:
+            self.launch_query_service(GO_QUERY_SERVICE_HOST, GO_QUERY_SERVICE_PORT)
+
+        if USE_GO_SSE_HUB:
+            self.launch_sse_hub(
+                GO_SSE_HUB_GRPC_HOST, GO_SSE_HUB_GRPC_PORT,
+                GO_SSE_HUB_HTTP_HOST, GO_SSE_HUB_HTTP_PORT
+            )
+
+        logger.info("Go service startup complete")
 
 
 # Global launcher instance

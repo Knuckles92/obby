@@ -86,21 +86,38 @@ AGENT_LOG_AUTO_CLEANUP_ENABLED = False  # Disable automatic cleanup by default
 AGENT_LOG_RETENTION_DAYS = None  # No automatic retention limit (manual cleanup only)
 
 # ============================================================================
-# GO MICROSERVICES - Feature Flags for Gradual Rollout
+# GO MICROSERVICES - Standard Protocol (Enabled by Default)
 # ============================================================================
 
-# Feature flags for gradual rollout
-USE_GO_FILE_WATCHER = os.getenv("USE_GO_FILE_WATCHER", "false").lower() == "true"
+# NOTE: All Go services are now the standard protocol and enabled by default.
+# Set any service to "false" to disable, or use EMERGENCY_ROLLBACK for full Python fallback.
+
+# File Watcher Service (gRPC port 50051)
+USE_GO_FILE_WATCHER = os.getenv("USE_GO_FILE_WATCHER", "true").lower() == "true"
 GO_FILE_WATCHER_HOST = os.getenv("GO_FILE_WATCHER_HOST", "localhost")
 GO_FILE_WATCHER_PORT = int(os.getenv("GO_FILE_WATCHER_PORT", "50051"))
 
-USE_GO_CONTENT_TRACKER = os.getenv("USE_GO_CONTENT_TRACKER", "false").lower() == "true"
+# Content Tracker Service (gRPC port 50052)
+USE_GO_CONTENT_TRACKER = os.getenv("USE_GO_CONTENT_TRACKER", "true").lower() == "true"
 GO_CONTENT_TRACKER_HOST = os.getenv("GO_CONTENT_TRACKER_HOST", "localhost")
 GO_CONTENT_TRACKER_PORT = int(os.getenv("GO_CONTENT_TRACKER_PORT", "50052"))
 
-# Rollout percentage (0-100) for gradual migration
-GO_WATCHER_ROLLOUT_PERCENTAGE = int(os.getenv("GO_WATCHER_ROLLOUT_PERCENTAGE", "0"))
-GO_TRACKER_ROLLOUT_PERCENTAGE = int(os.getenv("GO_TRACKER_ROLLOUT_PERCENTAGE", "0"))
+# Query Service (gRPC port 50053)
+USE_GO_QUERY_SERVICE = os.getenv("USE_GO_QUERY_SERVICE", "true").lower() == "true"
+GO_QUERY_SERVICE_HOST = os.getenv("GO_QUERY_SERVICE_HOST", "localhost")
+GO_QUERY_SERVICE_PORT = int(os.getenv("GO_QUERY_SERVICE_PORT", "50053"))
 
-# Emergency rollback flag
+# SSE Hub Service (gRPC port 50054, HTTP port 8080)
+USE_GO_SSE_HUB = os.getenv("USE_GO_SSE_HUB", "true").lower() == "true"
+GO_SSE_HUB_GRPC_HOST = os.getenv("GO_SSE_HUB_GRPC_HOST", "localhost")
+GO_SSE_HUB_GRPC_PORT = int(os.getenv("GO_SSE_HUB_GRPC_PORT", "50054"))
+GO_SSE_HUB_HTTP_HOST = os.getenv("GO_SSE_HUB_HTTP_HOST", "localhost")
+GO_SSE_HUB_HTTP_PORT = int(os.getenv("GO_SSE_HUB_HTTP_PORT", "8080"))
+
+# Emergency rollback flag - disables ALL Go services and uses Python implementations
 EMERGENCY_ROLLBACK_TO_PYTHON = os.getenv("EMERGENCY_ROLLBACK", "false").lower() == "true"
+
+# Service health check settings
+SERVICE_HEALTH_CHECK_INTERVAL = 10  # seconds - how often to check service health
+SERVICE_STARTUP_TIMEOUT = 30  # seconds - max time to wait for service to become healthy
+SERVICE_HEALTH_CHECK_TIMEOUT = 5  # seconds - timeout for individual health checks
