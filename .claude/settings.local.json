@@ -47,7 +47,8 @@
       "Bash(netstat:*)",
       "Bash(git log:*)",
       "Bash(cd:*)",
-      "Bash(npm run lint:*)"
+      "Bash(npm run lint:*)",
+      "Bash(cat:*)"
     ],
     "deny": []
   },
