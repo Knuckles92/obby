@@ -759,13 +759,16 @@ class FileQueries:
 
     @staticmethod
     def clear_semantic_data() -> Dict[str, Any]:
-        """Clear AI semantic summaries (entries, topics, keywords, FTS)."""
+        """Clear AI semantic summaries (entries, topics, keywords, FTS, comprehensive summaries, output files, config values)."""
         try:
             cleared = {
                 'semantic_entries_cleared': 0,
                 'semantic_topics_cleared': 0,
                 'semantic_keywords_cleared': 0,
                 'semantic_search_cleared': 0,
+                'comprehensive_summaries_cleared': 0,
+                'output_files_cleared': 0,
+                'config_values_cleared': 0,
             }
             try:
                 cleared['semantic_topics_cleared'] = db.execute_update("DELETE FROM semantic_topics")
@@ -784,6 +787,16 @@ class FileQueries:
             except Exception:
                 pass
 
+            # Clear comprehensive_summaries table if it exists
+            try:
+                check_query = "SELECT name FROM sqlite_master WHERE type='table' AND name='comprehensive_summaries'"
+                table_exists = db.execute_query(check_query)
+                if table_exists:
+                    cleared['comprehensive_summaries_cleared'] = db.execute_update("DELETE FROM comprehensive_summaries")
+                    logger.info(f"Cleared {cleared['comprehensive_summaries_cleared']} comprehensive summaries")
+            except Exception as e:
+                logger.debug(f"Could not clear comprehensive_summaries table: {e}")
+
             # Also remove on-disk semantic index file if present
             try:
                 from pathlib import Path
@@ -793,6 +806,78 @@ class FileQueries:
                     cleared['semantic_index_removed'] = True
             except Exception:
                 cleared['semantic_index_removed'] = False
+
+            # Clear output markdown files (AI-generated summaries derived from database)
+            try:
+                from pathlib import Path
+                output_daily_cleared = 0
+                output_summaries_cleared = 0
+                session_summary_cleared = 0
+
+                # Clear daily session summaries
+                output_daily_dir = Path('output/daily')
+                if output_daily_dir.exists() and output_daily_dir.is_dir():
+                    for file_path in output_daily_dir.glob('*.md'):
+                        try:
+                            file_path.unlink()
+                            output_daily_cleared += 1
+                        except Exception as file_err:
+                            logger.warning(f"Failed to remove {file_path}: {file_err}")
+
+                # Clear comprehensive summaries markdown files
+                output_summaries_dir = Path('output/summaries')
+                if output_summaries_dir.exists() and output_summaries_dir.is_dir():
+                    for file_path in output_summaries_dir.glob('*.md'):
+                        try:
+                            file_path.unlink()
+                            output_summaries_cleared += 1
+                        except Exception as file_err:
+                            logger.warning(f"Failed to remove {file_path}: {file_err}")
+
+                # Clear single-file session summary if it exists
+                session_summary_path = Path('output/session_summary.md')
+                if session_summary_path.exists():
+                    try:
+                        session_summary_path.unlink()
+                        session_summary_cleared = 1
+                    except Exception as file_err:
+                        logger.warning(f"Failed to remove {session_summary_path}: {file_err}")
+
+                cleared['output_files_cleared'] = output_daily_cleared + output_summaries_cleared + session_summary_cleared
+                cleared['output_files_detail'] = {
+                    'daily': output_daily_cleared,
+                    'summaries': output_summaries_cleared,
+                    'session_summary': session_summary_cleared
+                }
+                if cleared['output_files_cleared'] > 0:
+                    logger.info(f"Cleared {cleared['output_files_cleared']} output markdown files")
+            except Exception as output_err:
+                logger.warning(f"Failed to clear output files: {output_err}")
+                cleared['output_files_cleared'] = 0
+
+            # Clear AI-related config values
+            try:
+                from database.models import ConfigModel
+                ai_config_keys = ['session_summary_last_update', 'last_comprehensive_summary']
+                config_cleared_count = 0
+                for key in ai_config_keys:
+                    try:
+                        # Check if config exists before trying to delete
+                        existing = ConfigModel.get(key)
+                        if existing is not None:
+                            # Delete from config_values table
+                            db.execute_update("DELETE FROM config_values WHERE key = ?", (key,))
+                            config_cleared_count += 1
+                            logger.debug(f"Cleared config value: {key}")
+                    except Exception as config_err:
+                        logger.debug(f"Could not clear config value {key}: {config_err}")
+                
+                cleared['config_values_cleared'] = config_cleared_count
+                if config_cleared_count > 0:
+                    logger.info(f"Cleared {config_cleared_count} AI-related config values")
+            except Exception as config_err:
+                logger.warning(f"Failed to clear AI-related config values: {config_err}")
+                cleared['config_values_cleared'] = 0
 
             return {'success': True, **cleared}
         except Exception as e:
@@ -1857,11 +1942,11 @@ class AnalyticsQueries:
                 'semantic_topics', 
                 'semantic_keywords',
                 
-                # Living note tables
-                'session_summary_sessions',
-                'session_summary_entries',
+                # Comprehensive summaries table
+                'comprehensive_summaries',
                 
                 # (Removed legacy git_* tables)
+                # (Removed legacy session_summary_sessions and session_summary_entries - these tables don't exist)
                 
                 # Metadata tables
                 'migration_log',

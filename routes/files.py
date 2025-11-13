@@ -569,7 +569,7 @@ async def clear_unwatched_file_diffs():
 
 @files_bp.post('/clear-semantic')
 async def clear_semantic_data():
-    """Clear semantic AI data (entries/topics/keywords/FTS) and on-disk semantic index."""
+    """Clear semantic AI data (entries/topics/keywords/FTS/comprehensive summaries) and on-disk semantic index, output files, and AI-related config values."""
     try:
         result = FileQueries.clear_semantic_data()
         if result.get('success'):
@@ -580,8 +580,12 @@ async def clear_semantic_data():
                     'semanticTopics': result.get('semantic_topics_cleared', 0),
                     'semanticKeywords': result.get('semantic_keywords_cleared', 0),
                     'semanticSearch': result.get('semantic_search_cleared', 0),
+                    'comprehensiveSummaries': result.get('comprehensive_summaries_cleared', 0),
+                    'outputFiles': result.get('output_files_cleared', 0),
+                    'configValues': result.get('config_values_cleared', 0),
                 },
-                'semanticIndexRemoved': result.get('semantic_index_removed', False)
+                'semanticIndexRemoved': result.get('semantic_index_removed', False),
+                'outputFilesDetail': result.get('output_files_detail', {})
             }
         return JSONResponse({'error': 'Failed to clear semantic data', 'details': result.get('error')}, status_code=500)
     except Exception as e:
