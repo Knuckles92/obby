@@ -41,8 +41,11 @@ class ServiceStatusService:
             """
             services = db.execute_query(query)
 
+            # Convert Row objects to dictionaries for easier manipulation
+            services_list = [dict(row) for row in services]
+
             # For each service, check real-time status if Go launcher is available
-            for service in services:
+            for service in services_list:
                 if not service.get('status'):
                     # Initialize status if not exists
                     self._initialize_service_status(service['id'])
@@ -64,7 +67,7 @@ class ServiceStatusService:
                         service['status'] = 'stopped'
                         service['health'] = 'unknown'
 
-            return services
+            return services_list
 
         except Exception as e:
             logger.error(f"Failed to get all services: {e}")

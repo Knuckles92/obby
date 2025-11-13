@@ -1,5 +1,6 @@
 import sys
 import asyncio
+import signal
 
 # CRITICAL: Set Windows event loop policy FIRST, before any other imports
 # This must be at the very top to work with uvicorn reload mode
@@ -220,6 +221,36 @@ def cleanup_monitoring():
         logger.error(f'Error stopping monitoring system: {e}')
 
 
+# Global reference for signal handler access
+stop_session_summary_watcher_ref = None
+
+def signal_handler(signum, frame):
+    """Handle SIGINT (Ctrl+C) and SIGTERM for graceful shutdown."""
+    logger.info(f'Received signal {signum} ({signal.Signals(signum).name}), shutting down gracefully...')
+
+    # Stop session summary watcher if running
+    if stop_session_summary_watcher_ref:
+        try:
+            stop_session_summary_watcher_ref()
+            logger.info('Session summary watcher stopped')
+        except Exception as e:
+            logger.error(f'Error stopping session summary watcher: {e}')
+
+    # Stop file monitoring system
+    cleanup_monitoring()
+
+    # Stop Go services
+    try:
+        from utils.go_service_launcher import stop_go_services
+        stop_go_services()
+        logger.info('Go services stopped')
+    except Exception as e:
+        logger.warning(f'Error stopping Go services: {e}')
+
+    logger.info('Shutdown complete')
+    sys.exit(0)
+
+
 if __name__ == '__main__':
     logger.info('Starting Obby API server on http://localhost:8001')
 
@@ -284,6 +315,15 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'Service monitoring migration failed: {e}', exc_info=True)
 
+    try:
+        from database.migration_semantic_analysis import apply_migration as apply_semantic_analysis_migration
+        if apply_semantic_analysis_migration():
+            logger.info('Semantic analysis table migration completed')
+        else:
+            logger.error('Semantic analysis table migration returned False')
+    except Exception as e:
+        logger.error(f'Semantic analysis table migration failed: {e}', exc_info=True)
+
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:
         logger.warning('File monitoring system failed to initialize - continuing without it')
@@ -294,8 +334,14 @@ if __name__ == '__main__':
         from routes.session_summary import start_session_summary_watcher, stop_session_summary_watcher as _stop
         start_session_summary_watcher()
         stop_session_summary_watcher = _stop
+        stop_session_summary_watcher_ref = _stop
     else:
         logger.info('Session summary watcher disabled (SESSION_SUMMARY_WATCHER_ENABLED=false)')
+
+    # Register signal handlers for graceful shutdown on Ctrl+C
+    signal.signal(signal.SIGINT, signal_handler)
+    signal.signal(signal.SIGTERM, signal_handler)
+    logger.info('Signal handlers registered for graceful shutdown')
 
     try:
         # On Windows, disable reload to avoid event loop policy issues with Claude SDK

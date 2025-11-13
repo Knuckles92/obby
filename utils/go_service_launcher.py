@@ -19,10 +19,11 @@ logger = logging.getLogger(__name__)
 
 class GoServiceLauncher:
     """Manages launching and stopping Go microservices."""
-    
+
     def __init__(self):
         self.processes: List[subprocess.Popen] = []
         self.project_root = Path(__file__).parent.parent
+        self.pending_services: List[tuple[str, int]] = []  # (service_name, port)
         
     def _check_port_available(self, port: int) -> bool:
         """Check if a port is available (not in use)."""
@@ -127,6 +128,7 @@ class GoServiceLauncher:
                 return process
             else:
                 logger.warning(f"File Watcher service may not have started properly (port {port} not responding)")
+                self.pending_services.append(("File Watcher", port))
                 # Don't kill it - it might still be starting
                 return process
                 
@@ -180,6 +182,7 @@ class GoServiceLauncher:
                 return process
             else:
                 logger.warning(f"Content Tracker service may not have started properly (port {port} not responding)")
+                self.pending_services.append(("Content Tracker", port))
                 return process
 
         except Exception as e:
@@ -226,6 +229,7 @@ class GoServiceLauncher:
                 return process
             else:
                 logger.warning(f"Query Service may not have started properly (port {port} not responding)")
+                self.pending_services.append(("Query Service", port))
                 return process
 
         except Exception as e:
@@ -276,12 +280,34 @@ class GoServiceLauncher:
                 return process
             else:
                 logger.warning(f"SSE Hub service may not have started properly (port {grpc_port} not responding)")
+                self.pending_services.append(("SSE Hub", grpc_port))
                 return process
 
         except Exception as e:
             logger.error(f"Failed to launch SSE Hub service: {e}")
             return None
-    
+
+    def _verify_pending_services(self, retry_timeout: int = 10):
+        """Verify pending services that didn't respond during initial launch."""
+        if not self.pending_services:
+            return
+
+        logger.info("Verifying pending services...")
+        time.sleep(2)  # Brief delay to allow services to initialize
+
+        verified = []
+        still_pending = []
+
+        for service_name, port in self.pending_services:
+            if self._wait_for_service(port, timeout=retry_timeout):
+                logger.info(f"✓ {service_name} service verified on port {port}")
+                verified.append((service_name, port))
+            else:
+                logger.warning(f"✗ {service_name} service still not responding on port {port}")
+                still_pending.append((service_name, port))
+
+        self.pending_services = still_pending
+
     def stop_all(self):
         """Stop all launched services."""
         for process in self.processes:
@@ -339,6 +365,9 @@ class GoServiceLauncher:
                 GO_SSE_HUB_GRPC_HOST, GO_SSE_HUB_GRPC_PORT,
                 GO_SSE_HUB_HTTP_HOST, GO_SSE_HUB_HTTP_PORT
             )
+
+        # Verify any services that didn't respond immediately
+        self._verify_pending_services()
 
         logger.info("Go service startup complete")
 
