@@ -1,107 +1,77 @@
-# 📝 Obby - Intelligent Note Change Tracker & AI Memory Builder
+# Obby
 
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![React 18+](https://img.shields.io/badge/react-18+-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Obby** is a sophisticated, modern web-based note change tracker and AI-assisted memory builder that monitors your Markdown notes in real-time, maintains a high-performance SQLite database with full-text search, and uses **Claude Agent SDK** to create intelligent summaries of your work. Built with React, TypeScript, and a comprehensive theme system for a beautiful, accessible user experience.
+Obby monitors Markdown files in real-time, tracks changes in a SQLite database, and uses Claude Agent SDK to generate summaries of your work. The web interface is built with React and TypeScript.
 
-## 🎯 Core Features
+## Features
 
-### ✅ **Advanced Database Architecture**
-- **SQLite with FTS5**: High-performance full-text search engine for semantic content discovery
-- **Normalized Schema**: Optimized database design with foreign keys and proper indexing
-- **Connection Pooling**: Thread-safe database access with automatic cleanup and WAL mode
-- **Migration System**: Database versioning with migration scripts for schema updates
-- **Content Deduplication**: SHA-256 hash-based duplicate detection for efficient storage
-- **Performance Monitoring**: Database optimization tools with vacuum and analyze capabilities
+### File Monitoring
+- Real-time file watching with `watchdog` library
+- Periodic scanning as backup detection
+- Configurable watch paths via `.obbywatch`
+- Ignore patterns via `.obbyignore`
+- SHA-256 content hashing for change detection
+- Tracks file creation, deletion, and moves
 
-### ✅ **Sophisticated Theme System** 
-- **11 Beautiful Themes**: Professionally designed themes across 4 categories
-  - **Professional**: Corporate, Minimal, Classic
-  - **Creative**: Cyberpunk, Forest, Ocean  
-  - **Accessible**: High Contrast, Large Text
-  - **Special**: Vintage, Neon, Winter
-- **Advanced Effects**: Glassmorphism, animations, particle systems, gradient overlays
-- **Accessibility First**: WCAG compliance with contrast ratings, motion safety, cognitive load optimization
-- **Dynamic Switching**: Auto-switch by time, category filtering, random themes
-- **Custom Variables**: User-defined CSS variables for personalization
+### Database
+- SQLite with FTS5 full-text search
+- Connection pooling for thread safety
+- WAL mode enabled
+- Schema migration system
+- Stores file versions, diffs, and metadata
 
-### ✅ **Intelligent Search & Discovery**
-- **Semantic Search**: SQLite FTS5-powered full-text search with relevance ranking
-- **Advanced Query Syntax**: Support for `topic:name`, `keyword:term`, `impact:level` filtering
-- **Real-time Indexing**: Automatic content indexing with topics and keywords extraction
-- **Faceted Search**: Filter by topics, keywords, impact level, date ranges
-- **Search Analytics**: Query performance metrics and result optimization
-- **Export Capabilities**: Save search results for further analysis
+### AI Integration
+- Claude Agent SDK for summaries and chat
+- Interactive chat with tool access (Read, Grep, Glob, Bash, Edit, Write)
+- Models: haiku, sonnet, opus
+- 30-second debounce for real-time processing
+- Claude autonomously explores files using tools
+- Structured output with metadata fields
 
-### ✅ **Real-time File Monitoring**
-- **Dual Detection System**: Real-time event monitoring + periodic scanning for reliability
-- **Smart File Watching**: Configurable via `.obbywatch` with glob pattern support
-- **Intelligent Filtering**: Advanced `.obbyignore` patterns with recursive directory support
-- **Content Change Tracking**: SHA-256 content hashing for precise change detection
-- **File Tree Monitoring**: Creation, deletion, and move operations tracking
-- **Performance Optimized**: Debounced events and efficient batch processing
+### Search
+- FTS5 full-text search
+- Query syntax: `topic:name`, `keyword:term`, `impact:level`
+- Topic and keyword extraction
+- Date range filtering
+- Export results
 
-### ✅ **AI-Enhanced Analysis**
-- **Claude-Only Architecture**: Anthropic Claude Agent SDK powers summaries, monitoring, and interactive chat
-- **Claude Models**: haiku, sonnet, opus models for autonomous file exploration
-- **Autonomous Exploration**: Claude uses Read/Grep/Glob tools to analyze files independently
-- **Real-time Processing**: 30-second debounce window for responsive summaries
-- **Rich Metadata**: 9 structured fields including scope, complexity, risk, patterns, and sources
+### Web Interface
+- React 18 + TypeScript + Tailwind CSS
+- Real-time updates via Server-Sent Events
+- Interactive chat interface with Claude
+- 11 themes with accessibility options
+- Responsive design
+- Markdown rendering with syntax highlighting
 
-### ✅ **Modern Web Interface**
-- **React + TypeScript**: Type-safe, component-based architecture
-- **Tailwind CSS**: Utility-first styling with comprehensive design system
-- **Real-time Updates**: Server-Sent Events for live data synchronization
-- **Responsive Design**: Mobile-first design that works on all devices
-- **Accessibility**: Screen reader support, keyboard navigation, focus management
-- **Performance**: Optimized rendering with React hooks and efficient state management
-
-### ✅ **Production-Ready Architecture**
-- **FastAPI Server**: RESTful API with automatic docs (OpenAPI/Swagger)
-- **Error Handling**: Graceful error recovery with detailed logging
-- **Security**: Input validation, SQL injection prevention, XSS protection
-- **Monitoring**: Application health checks and performance metrics
-- **Local-First**: All data stored locally with optional cloud AI integration
-- **Scalable**: Designed for handling large note collections efficiently
-
-## 🚀 Quick Start
+## Installation
 
 ### Prerequisites
-- **Python 3.8+** with pip
-- **Node.js 16+** with npm
-- **Claude Code CLI** (required for summary features)
-- **Anthropic API Key** (required for AI features)
+- Python 3.8+
+- Node.js 16+
+- Anthropic API Key (for AI features)
 
-### Installation & Setup
+### Setup
 
-1. **Clone and Setup Backend**
+1. Clone and install backend:
    ```bash
    git clone <repository-url>
    cd obby
-   
-   # Create virtual environment (recommended)
+
    python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   
-   # Install dependencies
+   source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
    ```
 
-2. **Install Claude Code CLI and Configure APIs** (required for AI features)
+2. Configure API key:
    ```bash
-   # Install Claude Code CLI for summary features
-   npm install -g @anthropic-ai/claude-code
-   
-   # Configure API keys
-   export ANTHROPIC_API_KEY="your-anthropic-key-here"
-   
-   # Or set via web interface after startup
+   export ANTHROPIC_API_KEY="your-key-here"
    ```
 
-3. **Install and Build Frontend**
+3. Build frontend:
    ```bash
    cd frontend
    npm install
@@ -109,429 +79,163 @@
    cd ..
    ```
 
-4. **Initialize Database**
+4. Start the server:
    ```bash
-   # Database and directories are created automatically on first run
    python backend.py
    ```
 
-### Running the Application
+   Open http://localhost:8001
 
-**Production Mode (Recommended)**
+### Development Mode
+
+Run backend and frontend separately for hot reload:
+
 ```bash
-# Start the combined API + Frontend server
+# Terminal 1
 python backend.py
 
-# Open http://localhost:8001 in your browser
-```
-
-**Development Mode**
-```bash
-# Terminal 1: Backend API with auto-reload
-python backend.py
-
-# Terminal 2: Frontend development server with hot reload
+# Terminal 2
 cd frontend
 npm run dev
-# Access frontend at http://localhost:5173
-# API available at http://localhost:8001
 ```
 
-### First Run Experience
-Obby automatically sets up your environment:
-- Creates `notes/` directory for your Markdown files
-- Creates `output/` directory for generated summaries
-- Initializes SQLite database with optimized schema and FTS5 search
-- Starts with default watch patterns (can be configured via web interface)
-- Monitoring begins automatically once watch patterns are set
+Frontend: http://localhost:5173
+Backend API: http://localhost:8001
 
-## 📁 Project Architecture
+### First Run
 
-```
-obby/
-├── 🔧 Backend (Python)
-│   ├── backend.py                 # FastAPI server + SPA host (port 8001)
-│   ├── config/
-│   │   ├── settings.py            # Core configuration
-│   │   └── session_summary_settings.json # AI behavior configuration
-│   ├── core/
-│   │   ├── monitor.py             # File monitoring orchestration
-│   │   └── file_tracker.py        # On-demand directory scanning
-│   ├── ai/
-│   │   └── claude_agent_client.py  # Claude Agent SDK integration (summaries & chat)
-│   ├── routes/
-│   │   ├── monitoring.py          # /api/monitor/* (control, status, manual scans)
-│   │   ├── files.py               # /api/files/* (events, diffs, tree, scans)
-│   │   ├── session_summary.py     # /api/session-summary/* (content, settings, SSE)
-│   │   ├── search.py              # /api/search/* (semantic, topics, keywords)
-│   │   ├── config.py              # /api/config/* (settings, models)
-│   │   ├── data.py                # /api/data/* (clear data)
-│   │   └── admin.py               # /api/admin/* (system/db stats)
-│   ├── database/
-│   │   ├── models.py              # SQLite models with FTS5
-│   │   ├── queries.py             # Optimized query layer
-│   │   ├── schema.sql             # Database schema with FTS5
-│   │   ├── migration_*.py         # Migration scripts for schema updates
-│   │   └── migrations.py          # Migration utilities
-│   ├── services/
-│   │   ├── session_summary_service.py # Session summary business logic
-│   │   ├── summary_note_service.py     # Summary note generation
-│   │   └── comprehensive_summary_service.py # Batch summaries
-│   ├── utils/
-│   │   ├── claude_summary_parser.py # Parse Claude's structured output
-│   │   ├── file_helpers.py         # File system utilities
-│   │   ├── file_watcher.py         # Real-time monitoring
-│   │   ├── ignore_handler.py       # Pattern matching utilities
-│   │   ├── watch_handler.py        # Directory management utilities
-│   │   ├── migrations.py          # Migration utilities
-│   │   └── session_summary_path.py # Living note path resolution
-│   ├── specs/
-│   │   ├── CLAUDE_OUTPUT_FORMAT.md # Claude output specifications
-│   │   └── TEST_IMPLEMENTATION_SUMMARY.md # Testing documentation
-│   └── docs/
-│       ├── examples/               # Claude SDK examples
-│       └── WATCH_FILTERING.md      # Watch filtering documentation
-│
-├── 🎨 Frontend (React + TypeScript)
-│   ├── src/
-│   │   ├── components/            # Reusable UI components
-│   │   │   ├── Search.tsx         # Advanced search interface (386 lines)
-│   │   │   ├── SearchResults.tsx  # Search results display (356 lines)
-│   │   │   ├── FilterPanel.tsx    # Search filters (360 lines)
-│   │   │   ├── ThemeSwitcher.tsx  # Theme selection (366 lines)
-│   │   │   ├── ThemeEffects.tsx   # Visual theme effects (374 lines)
-│   │   │   └── Sidebar.tsx        # Navigation sidebar (185 lines)
-│   │   ├── pages/                 # Main application pages
-│   │   │   ├── Dashboard.tsx      # Real-time monitoring dashboard
-│   │   │   ├── SearchPage.tsx     # Semantic search interface (148 lines)
-│   │   │   ├── DiffViewer.tsx     # Change history viewer
-│   │   │   ├── SessionSummary.tsx     # AI-generated summaries
-│   │   │   └── Settings.tsx       # Configuration management
-│   │   ├── contexts/
-│   │   │   └── ThemeContext.tsx   # Theme state management (292 lines)
-│   │   ├── themes/
-│   │   │   ├── index.ts           # Theme definitions (1044 lines)
-│   │   │   ├── css-variables.ts   # CSS variable management
-│   │   │   └── utils.ts           # Theme utilities (244 lines)
-│   │   ├── types/
-│   │   │   └── index.ts           # TypeScript definitions (280 lines)
-│   │   └── utils/
-│   │       └── api.ts             # API client with type safety
-│   └── dist/                      # Built frontend assets
-│
-├── 🗄️ Data Storage
-│   ├── obby.db                   # Main SQLite database with FTS5
-│   ├── notes/                    # Watched markdown files
-│   │   └── daily/                # Daily Session Summaries (auto-generated)
-│   │       └── Session Summary - YYYY-MM-DD.md
-│   └── output/
-│       ├── daily/                # Daily summary exports
-│       └── summaries/            # Comprehensive summary exports
-│
-├── ⚙️ Configuration
-│   ├── config/settings.py       # Core configuration
-│   ├── config/session_summary_settings.json # AI behavior configuration
-│   └── database/config_values   # Runtime settings (stored in DB)
-│
-```
+On first startup, Obby creates:
+- `notes/` directory for Markdown files
+- `output/` directory for summaries
+- SQLite database with FTS5 search enabled
+- Default watch patterns (configurable via web interface)
 
-## 🌐 Advanced Web Interface
+## Configuration
 
-### 📊 **Real-time Dashboard**
-- **Live Monitoring Status**: Current state, watched paths, active file counts
-- **Activity Stream**: Real-time feed of file change events with timestamps
-- **Performance Metrics**: Events today, database size, search index statistics
-- **Quick Controls**: Start/stop monitoring, force refresh, system health checks
+### Watch Configuration
+Configure via web interface or API:
+- `.obbywatch`: Define directories to monitor
+- `.obbyignore`: Define patterns to exclude
 
-### **Professional Themes**
-- **Corporate**: Clean, business-focused design with high contrast
-- **Minimal**: Ultra-clean interface maximizing content focus
-- **Classic**: Traditional design with warm tones and serif typography
+### AI Configuration
+- Model selection: haiku, sonnet, opus
+- Debounce window: Default 30 seconds
+- API key: Set via environment or web interface
 
-### **Creative Themes**
-- **Cyberpunk**: Futuristic neon aesthetic with glow effects and animations
-- **Forest**: Nature-inspired design with organic textures and calming greens
-- **Ocean**: Deep blue aquatic theme with fluid animations and wave effects
-
-### **Accessible Themes**
-- **High Contrast**: Maximum visibility with WCAG AAA compliance
-- **Large Text**: Enhanced readability with larger fonts and generous spacing
-
-### **Special Themes**
-- **Vintage**: Retro design with sepia tones and nostalgic elements
-- **Neon**: Vibrant electric theme with dramatic glow effects
-- **Winter**: Cool theme with icy blues and snowflake animations
-
-### **Theme Features**
-- **Glassmorphism**: Modern translucent effects with backdrop blur
-- **Particle Systems**: Animated backgrounds for immersive experiences
-- **Accessibility Ratings**: Color contrast, motion safety, cognitive load assessments
-- **Custom Effects**: Theme-specific animations and visual enhancements
-
-## 🔍 Advanced Search Capabilities
-
-### **Semantic Search Engine**
-```javascript
-// Query examples
-"machine learning algorithms"           // Natural language
-topic:ai AND keyword:neural            // Boolean operators  
-impact:significant date:2024-01-01     // Metadata filters
-"exact phrase" OR similar              // Phrase matching
-```
-
-### **Search Features**
-- **FTS5 Ranking**: Relevance-based result ordering with BM25 algorithm
-- **Topic Extraction**: AI-powered topic identification and categorization
-- **Keyword Analysis**: Automatic keyword extraction with frequency analysis
-- **Impact Assessment**: AI-generated significance levels (brief, moderate, significant)
-- **Date Range Filtering**: Flexible time-based search with calendar picker
-- **Export Results**: Save search results for analysis and reporting
-
-### **Performance Optimization**
-- **Index Optimization**: Automatic FTS5 index maintenance and rebuilding
-- **Query Caching**: Intelligent caching of frequent search patterns
-- **Result Pagination**: Efficient large result set handling
-- **Search Analytics**: Query performance monitoring and optimization
-
-## ⚙️ AI Integration
-
-### **Hybrid Architecture**
-Obby uses a sophisticated hybrid AI approach that combines the strengths of different AI systems:
-
-- **Claude Agent SDK** 🎯 → Summary generation, monitoring analysis, and interactive chat
-
-### **Claude Agent SDK (Summary Features)**
-
-#### **Available Models**
-- **haiku**: Fast and efficient for quick summaries
-- **sonnet**: Balanced performance for detailed analysis  
-- **opus**: Maximum capability for complex projects
-
-#### **Key Features**
-- **Autonomous File Exploration**: Claude independently explores your codebase using Read/Grep/Glob tools
-- **Real-time Processing**: 30-second debounce window for responsive updates
-- **Structured Output**: Rich metadata with 9 fields (scope, complexity, risk, patterns, relationships, sources, etc.)
-- **Sources Section**: Shows exactly which files Claude examined and why
-- **Smart Context**: Understands project structure and development patterns
-
-### **AI Processing Workflow**
-
-1. **File Change Detected** → Triggers monitoring system
-2. **Claude Analysis** → Autonomous exploration and summary generation (30s debounce)
-3. **Interactive Chat** → Use Claude Agent SDK for conversational assistance
-4. **Rich Metadata** → Structured metadata saved to the database
-
-### **Setup Requirements**
-
-```bash
-# Required for Claude summaries
-export ANTHROPIC_API_KEY="your-anthropic-key"
-npm install -g @anthropic-ai/claude-code
-```
-
-## 🛠️ Configuration System
-
-### **Watch Configuration**
-Watch patterns are configured via the web interface or API endpoints:
-- **Watch Patterns**: Define which directories to monitor (`/api/watch-config/watch-patterns`)
-- **Ignore Patterns**: Define which files/patterns to exclude (`/api/watch-config/ignore-patterns`)
-
-### **AI Configuration**
-AI settings are managed through the web interface:
-- **Claude Model Selection**: Choose between haiku, sonnet, or opus models
-- **Debounce Window**: Configure real-time processing delay (default: 30 seconds)
-- **API Keys**: Set Anthropic API key through the settings interface
-- **Processing Limits**: Configure maximum files per session and exploration depth
-
-### **Session Summary Settings**
+### Session Summary Settings
 ```json
 {
   "updateFrequency": "realtime",
-  "summaryLength": "moderate", 
+  "summaryLength": "moderate",
   "writingStyle": "technical",
   "includeMetrics": true,
-  "maxSections": 10,
-  "focusAreas": ["algorithms", "architecture", "performance"],
-  "enableSources": true,
-  "enableQuestions": true
+  "maxSections": 10
 }
 ```
 
-## 📡 Complete API Reference
+## Search
 
-### **Monitoring Endpoints**
-```http
-GET    /api/monitor/status         # Monitoring status and statistics
-POST   /api/monitor/start          # Start file monitoring
-POST   /api/monitor/stop           # Stop monitoring
-POST   /api/monitor/scan           # Manually scan files for changes
-
+Query examples:
+```
+"machine learning algorithms"           # Natural language
+topic:ai AND keyword:neural            # Boolean operators
+impact:significant date:2024-01-01     # Metadata filters
+"exact phrase" OR similar              # Phrase matching
 ```
 
-### **File Endpoints**
-```http
-GET    /api/files/events                 # Recent file events
-GET    /api/files/diffs                  # Recent content diffs (limit, offset, file_path)
-GET    /api/files/diffs/{id}             # Full diff content by ID
-GET    /api/files/changes                # Recent file changes (pagination)
-GET    /api/files/recent-changes         # Alias for /changes
-POST   /api/files/scan                   # Manually scan files (JSON: directory, recursive)
-POST   /api/files/clear                  # Clear all file tracking data
-POST   /api/files/clear-unwatched        # Clear diffs for unwatched files
-GET    /api/files/{path}/history         # Version history for a file
-GET    /api/files/{path}/diff?version1=&version2= # Diff between versions
-GET    /api/files/{path}/state           # Current state of a file
-GET    /api/files/tree                   # File tree structure
-GET    /api/files/watched                # Watched files with metadata
-```
+Features:
+- FTS5 full-text search with BM25 ranking
+- Topic and keyword extraction
+- Impact level filtering (brief, moderate, significant)
+- Date range filtering
+- Export results
 
-### **Data Management Endpoints**
-```http
-POST   /api/data/files/clear            # Clear file records (files, events)
-POST   /api/data/events/clear           # Clear all events
-POST   /api/data/diffs/clear            # Clear file-based diffs
-```
+## AI Integration
 
-### **Search Endpoints**
-```http
-GET    /api/search/                # Search with query params
-  ?q=query                         # Required query string
-  &limit=20                        # Result limit (default 20)
-  &type=content|tree               # Optional change type filter
+Uses Claude Agent SDK for summaries, analysis, and interactive chat.
 
-POST   /api/search/semantic        # Search via JSON body
-  { "query": "text", "limit": 10 }
+Available models:
+- haiku: Fast summaries
+- sonnet: Balanced analysis
+- opus: Detailed summaries
 
-GET    /api/search/topics          # All topics with counts
-GET    /api/search/keywords        # All keywords with frequency
-```
+### Summaries
+1. File change detected
+2. 30-second debounce window
+3. Claude explores files using Read/Grep/Glob tools
+4. Generates structured summary with metadata
+5. Saves to database
 
-### **Session Summary Endpoints**
-```http
-GET    /api/session-summary/           # Get current session summary content (root)
-GET    /api/session-summary/content    # Get current session summary content
-POST   /api/session-summary/clear      # Clear session summary content
-POST   /api/session-summary/update     # Update/regenerate from AI (JSON: { force: boolean })
-GET    /api/session-summary/events     # Server-Sent Events stream for updates
-GET    /api/session-summary/settings   # Get session summary settings
-POST   /api/session-summary/settings   # Save session summary settings
-```
+### Chat
+- Interactive conversations with Claude
+- Claude has access to Read, Grep, Glob, Bash, Edit, Write tools
+- Can explore codebase and answer questions
+- Real-time progress updates via SSE
 
-### **Configuration Endpoints**
-```http
-GET    /api/config                 # Get current configuration
-PUT    /api/config                 # Update configuration
-GET    /api/config/models          # Get available AI models
-```
-
-### **Admin/System Endpoints**
-```http
-GET    /api/admin/system/stats      # System statistics
-GET    /api/admin/system/health     # System health check
-POST   /api/admin/system/clear-logs # Clear system logs (backs up first)
-POST   /api/admin/database/optimize # Database maintenance
-GET    /api/admin/database/stats    # Database statistics
-```
-
-## 🚀 Development & Deployment
-
-### **Development Setup**
+Setup:
 ```bash
-# Backend development with auto-reload
-pip install -r requirements.txt
-python backend.py
-
-# Frontend development with hot reload
-cd frontend
-npm install
-npm run dev
-
-# Database development
-# Schema defined in database/schema.sql with migration scripts in database/migration_*.py
+export ANTHROPIC_API_KEY="your-key-here"
 ```
 
-### **Testing**
+## API Reference
 
-**Backend Tests (pytest)**
+FastAPI automatically generates interactive API documentation:
+
+- **Swagger UI**: http://localhost:8001/docs
+- **ReDoc**: http://localhost:8001/redoc
+
+Both include all endpoints, request/response schemas, and allow you to test the API directly from your browser.
+
+## Development
+
+### Testing
+
+Backend (pytest):
 ```bash
-# Run all backend tests
 pytest
-
-# Run with coverage report
-pytest --cov=. --cov-report=html --cov-report=term
-
-# Run specific test categories
-pytest -m unit          # Unit tests only
-pytest -m api           # API endpoint tests
-pytest -m database      # Database tests only
-
-# See tests/README.md for detailed documentation
+pytest --cov=. --cov-report=html
+pytest -m unit          # Unit tests
+pytest -m api           # API tests
+pytest -m database      # Database tests
 ```
 
-**Frontend Tests (Vitest + React Testing Library)**
+Frontend (Vitest):
 ```bash
 cd frontend
-
-# Run tests in watch mode
-npm test
-
-# Run tests once
-npm run test:run
-
-# Generate coverage report
-npm run test:coverage
-
-# Run with UI
-npm run test:ui
-
-# See frontend/src/__tests__/README.md for detailed documentation
+npm test                # Watch mode
+npm run test:run        # Run once
+npm run test:coverage   # Coverage report
 ```
 
-**Test Documentation**
-- **Backend Guide**: `tests/README.md` - Comprehensive pytest guide with fixtures, markers, and best practices
-- **Frontend Guide**: `frontend/src/__tests__/README.md` - Vitest and React Testing Library patterns
-- **Test Summary**: `/specs/TEST_IMPLEMENTATION_SUMMARY.md` - Full test implementation documentation
+### Deployment
 
-### **Production Deployment**
-
-**Docker Deployment**
+Docker:
 ```dockerfile
 FROM python:3.9-slim
-
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install -r requirements.txt
-
 COPY . .
 RUN cd frontend && npm install && npm run build
-
 EXPOSE 8001
 CMD ["python", "backend.py"]
 ```
 
-**Manual Deployment**
+Production server:
 ```bash
-# Production build
 cd frontend && npm run build && cd ..
-
-# Production server
 pip install gunicorn
 gunicorn -w 4 -b 0.0.0.0:8001 backend:app
-
-# Environment variables
-export FLASK_ENV=production
-export ANTHROPIC_API_KEY="your-key"
 ```
 
-**System Service**
+Systemd service:
 ```ini
 [Unit]
-Description=Obby Note Tracker
+Description=Obby
 After=network.target
 
 [Service]
 Type=simple
-User=obby
 WorkingDirectory=/opt/obby
 ExecStart=/opt/obby/venv/bin/python backend.py
 Restart=always
@@ -540,116 +244,16 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-## 🔬 Advanced Usage
+## Contributing
 
-### **Custom AI Prompts**
-Create custom format templates in `format.md`:
-```markdown
-# Custom Analysis Format
+i don't care
 
-When analyzing code changes, focus on:
-- Performance implications
-- Security considerations  
-- Architecture patterns
-- Testing requirements
+## License
 
-Generate structured output with:
-- Summary (max 100 words)
-- Key topics (max 5)
-- Impact level (brief/moderate/significant)
-- Recommendations (max 3)
-```
+MIT License - see LICENSE file for details.
 
-### **Search Automation**
-```python
-# Programmatic search API usage
-import requests
+## Tech Stack
 
-response = requests.get('http://localhost:8001/api/search', {
-    'q': 'machine learning',
-    'topics': 'ai,algorithms',
-    'limit': 100
-})
-
-results = response.json()
-for result in results['results']:
-    print(f"{result['timestamp']}: {result['summary']}")
-```
-
-### **Database Optimization**
-```python
-# Manual database maintenance
-from database.models import PerformanceModel
-
-# Get statistics
-stats = PerformanceModel.get_stats()
-print(f"Database size: {stats['database_size_bytes']} bytes")
-
-# Optimize database
-PerformanceModel.vacuum()  # Reclaim space
-PerformanceModel.analyze() # Update query planner stats
-```
-
-### **Theme Development**
-```typescript
-// Create custom theme
-const customTheme: Theme = {
-  id: 'custom-dark',
-  name: 'Custom Dark',
-  category: 'professional',
-  description: 'My custom dark theme',
-  colors: {
-    primary: '#6366f1',
-    background: '#0f172a',
-    // ... define all required colors
-  },
-  // ... other theme properties
-};
-
-// Register theme
-themes.push(customTheme);
-```
-
-## 🤝 Contributing
-
-### **Development Workflow**
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Run tests (`npm test && python -m pytest`)
-4. Commit changes (`git commit -m 'Add amazing feature'`)
-5. Push to branch (`git push origin feature/amazing-feature`)
-6. Open Pull Request
-
-### **Code Standards**
-- **Python**: Follow PEP 8, use type hints, comprehensive docstrings
-- **TypeScript**: Strict mode enabled, comprehensive interfaces
-- **Testing**: Unit tests for all new features, integration tests for API endpoints
-- **Documentation**: Update README for new features, inline code documentation
-
-### **Architecture Guidelines**
-- **Database**: Use normalized schema, proper indexing, type-safe queries
-- **API**: RESTful design, comprehensive error handling, input validation
-- **Frontend**: Component-based architecture, accessibility compliance
-- **Themes**: Follow accessibility guidelines, test with screen readers
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-## 🙏 Acknowledgments
-
-**Built with modern technologies:**
-- **Backend**: Python, FastAPI, SQLite with FTS5, Claude Agent SDK
-- **Frontend**: React 18, TypeScript 5, Tailwind CSS, Vite
-- **Architecture**: RESTful API, real-time updates, responsive design
-- **AI**: Anthropic Claude models for intelligent content analysis
-
-**Designed for developers who value:**
-- **Performance**: Optimized database queries and efficient frontend rendering
-- **Accessibility**: WCAG compliance and comprehensive theme system
-- **Flexibility**: Configurable monitoring, AI behavior, and visual themes
-- **Reliability**: Robust error handling and production-ready architecture
-
----
-
-**Transform your note-taking workflow with intelligent monitoring and AI-powered analysis! 📝✨**
+- Backend: Python, GO, FastAPI, SQLite
+- Frontend: React, TypeScript, Tailwind CSS, Vite
+- AI: Claude Agent SDK
