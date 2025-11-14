@@ -1,6 +1,6 @@
 # Obby
 
-[![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.x](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/downloads/)
 [![React 18+](https://img.shields.io/badge/react-18+-blue.svg)](https://reactjs.org/)
 [![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -50,7 +50,7 @@ Obby monitors Markdown files in real-time, tracks changes in a SQLite database, 
 ## Installation
 
 ### Prerequisites
-- Python 3.8+
+- Python 3.x
 - Node.js 16+
 - Anthropic API Key (for AI features)
 
@@ -209,18 +209,6 @@ npm run test:coverage   # Coverage report
 
 ### Deployment
 
-Docker:
-```dockerfile
-FROM python:3.9-slim
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
-RUN cd frontend && npm install && npm run build
-EXPOSE 8001
-CMD ["python", "backend.py"]
-```
-
 Production server:
 ```bash
 cd frontend && npm run build && cd ..
@@ -244,13 +232,9 @@ Restart=always
 WantedBy=multi-user.target
 ```
 
-## Contributing
-
-i don't care
-
 ## License
 
-MIT License - see LICENSE file for details.
+do whatever you want
 
 ## Tech Stack
 
