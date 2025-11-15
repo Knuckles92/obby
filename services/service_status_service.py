@@ -43,7 +43,7 @@ class ServiceStatusService:
             # Convert Row objects to dictionaries for easier manipulation
             services_list = [dict(row) for row in services]
 
-            # For each service, check real-time status if Go launcher is available
+            # For each service, check real-time status
             for service in services_list:
                 if not service.get('status'):
                     # Initialize status if not exists

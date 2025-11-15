@@ -1090,7 +1090,7 @@ class FileQueries:
                 # Apply content type filters
                 if content_type_filters:
                     # File type filtering
-                    is_code = any(file_path.endswith(ext) for ext in ['.py', '.ts', '.tsx', '.js', '.jsx', '.java', '.cpp', '.c', '.go', '.rs'])
+                    is_code = any(file_path.endswith(ext) for ext in ['.py', '.ts', '.tsx', '.js', '.jsx', '.java', '.cpp', '.c', '.rs'])
                     is_doc = file_path.endswith('.md')
 
                     if not content_type_filters.include_code_files and is_code:

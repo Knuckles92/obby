@@ -2,7 +2,7 @@
 Database migration for service monitoring and management
 ========================================================
 
-This migration adds support for tracking and managing Go microservices
+This migration adds support for tracking and managing Python services
 with real-time status monitoring, health checks, and event logging.
 """
 
@@ -31,7 +31,7 @@ def apply_migration():
             CREATE TABLE service_registry (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 name TEXT NOT NULL UNIQUE,
-                service_type TEXT NOT NULL CHECK (service_type IN ('python', 'go')),
+                service_type TEXT NOT NULL CHECK (service_type IN ('python')),
                 description TEXT,
                 binary_path TEXT,
                 grpc_port INTEGER,
@@ -189,14 +189,6 @@ def populate_default_services():
                     service['auto_start'],
                     existing_id
                 ))
-
-        # Remove any GO services that may exist from previous migrations
-        go_services_query = "SELECT id, name FROM service_registry WHERE service_type = 'go'"
-        go_services = db.execute_query(go_services_query)
-        for go_service in go_services:
-            delete_query = "DELETE FROM service_registry WHERE id = ?"
-            db.execute_update(delete_query, (go_service['id'],))
-            logger.info(f"Removed GO service: {go_service['name']}")
 
         logger.info("Default services populated successfully")
 

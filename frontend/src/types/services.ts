@@ -5,7 +5,7 @@
 export interface Service {
   id: number
   name: string
-  service_type: 'python' | 'go'
+  service_type: 'python'
   description: string
   binary_path?: string
   grpc_port?: number
