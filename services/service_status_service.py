@@ -11,7 +11,6 @@ import time
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from database.models import db
-from utils.go_service_launcher import get_launcher
 import threading
 
 logger = logging.getLogger(__name__)
@@ -57,15 +56,6 @@ class ServiceStatusService:
                     # Backend is obviously running if we can execute this code
                     service['status'] = 'running'
                     service['health'] = 'healthy'
-                elif service['service_type'] == 'go':
-                    # Check if Go service is running via port check
-                    port = service['grpc_port'] or service['http_port']
-                    if port and self._check_port_in_use(port):
-                        service['status'] = 'running'
-                        service['health'] = 'healthy'
-                    else:
-                        service['status'] = 'stopped'
-                        service['health'] = 'unknown'
 
             return services_list
 
@@ -199,17 +189,6 @@ class ServiceStatusService:
             if service['service_type'] == 'python' and service['name'] == 'backend':
                 return {'healthy': True, 'message': 'Backend is running'}
 
-            # For Go services, check port availability
-            if service['service_type'] == 'go':
-                port = service['grpc_port'] or service['http_port']
-                if not port:
-                    return {'healthy': False, 'message': 'No port configured'}
-
-                if self._check_port_in_use(port):
-                    return {'healthy': True, 'message': f'Service responding on port {port}'}
-                else:
-                    return {'healthy': False, 'message': f'Port {port} not responding'}
-
             return {'healthy': False, 'message': 'Unknown service type'}
 
         except Exception as e:
@@ -229,23 +208,6 @@ class ServiceStatusService:
             # Backend can't restart itself
             if service['service_type'] == 'python' and service['name'] == 'backend':
                 return {'success': False, 'message': 'Cannot restart backend from within itself'}
-
-            # For Go services, use the launcher
-            if service['service_type'] == 'go':
-                launcher = get_launcher()
-                service_name = service['name']
-
-                # Stop the service
-                stop_result = self._stop_go_service(service_name, launcher)
-                if not stop_result['success']:
-                    return stop_result
-
-                # Wait a moment
-                time.sleep(1)
-
-                # Start the service
-                start_result = self._start_go_service(service_name, launcher, service)
-                return start_result
 
             return {'success': False, 'message': 'Unknown service type'}
 
@@ -267,11 +229,6 @@ class ServiceStatusService:
             if service['service_type'] == 'python' and service['name'] == 'backend':
                 return {'success': False, 'message': 'Cannot stop backend from within itself'}
 
-            # For Go services, use the launcher
-            if service['service_type'] == 'go':
-                launcher = get_launcher()
-                return self._stop_go_service(service['name'], launcher)
-
             return {'success': False, 'message': 'Unknown service type'}
 
         except Exception as e:
@@ -291,11 +248,6 @@ class ServiceStatusService:
             # Backend is already running
             if service['service_type'] == 'python' and service['name'] == 'backend':
                 return {'success': True, 'message': 'Backend is already running'}
-
-            # For Go services, use the launcher
-            if service['service_type'] == 'go':
-                launcher = get_launcher()
-                return self._start_go_service(service['name'], launcher, service)
 
             return {'success': False, 'message': 'Unknown service type'}
 
@@ -329,46 +281,6 @@ class ServiceStatusService:
         except Exception:
             return False
 
-    def _start_go_service(self, service_name: str, launcher, service: Dict[str, Any]) -> Dict[str, Any]:
-        """Start a Go service using the launcher."""
-        try:
-            # Map service names to launcher methods
-            if service_name == 'file-watcher':
-                result = launcher.launch_file_watcher(service.get('grpc_port') or 50051)
-            elif service_name == 'content-tracker':
-                result = launcher.launch_content_tracker(service.get('grpc_port') or 50052)
-            elif service_name == 'query-service':
-                result = launcher.launch_query_service(service.get('grpc_port') or 50053)
-            elif service_name == 'sse-hub':
-                result = launcher.launch_sse_hub(
-                    grpc_port=service.get('grpc_port') or 50054,
-                    http_port=service.get('http_port') or 8080
-                )
-            else:
-                return {'success': False, 'message': f'Unknown service: {service_name}'}
-
-            if result:
-                # Update status
-                self.update_service_status(service['id'], 'running', 'healthy', result.pid)
-                return {'success': True, 'message': f'{service_name} started successfully'}
-            else:
-                return {'success': False, 'message': f'Failed to start {service_name}'}
-
-        except Exception as e:
-            logger.error(f"Failed to start Go service {service_name}: {e}")
-            return {'success': False, 'message': str(e)}
-
-    def _stop_go_service(self, service_name: str, launcher) -> Dict[str, Any]:
-        """Stop a Go service (note: launcher.stop_all() stops all services)."""
-        try:
-            # The current launcher doesn't support stopping individual services
-            # We would need to track individual processes and stop them
-            # For now, we'll just check if it's stopped
-            return {'success': False, 'message': 'Individual service stop not yet implemented - use EMERGENCY_ROLLBACK to disable all Go services'}
-
-        except Exception as e:
-            logger.error(f"Failed to stop Go service {service_name}: {e}")
-            return {'success': False, 'message': str(e)}
 
     def start_health_monitoring(self, interval_seconds: int = 10):
         """Start background health monitoring thread."""

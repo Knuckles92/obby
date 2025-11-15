@@ -150,56 +150,12 @@ def populate_default_services():
                 'http_port': 8001,
                 'enabled': 1,
                 'auto_start': 1
-            },
-            # Go File Watcher
-            {
-                'name': 'file-watcher',
-                'service_type': 'go',
-                'description': 'Real-time file monitoring service',
-                'binary_path': 'go-services/file-watcher',
-                'grpc_port': 50051,
-                'http_port': None,
-                'enabled': 1,
-                'auto_start': 1
-            },
-            # Go Content Tracker
-            {
-                'name': 'content-tracker',
-                'service_type': 'go',
-                'description': 'Content hashing and diff generation service',
-                'binary_path': 'go-services/content-tracker',
-                'grpc_port': 50052,
-                'http_port': None,
-                'enabled': 1,
-                'auto_start': 1
-            },
-            # Go Query Service
-            {
-                'name': 'query-service',
-                'service_type': 'go',
-                'description': 'High-performance database query service',
-                'binary_path': 'go-services/query-service',
-                'grpc_port': 50053,
-                'http_port': None,
-                'enabled': 1,
-                'auto_start': 1
-            },
-            # Go SSE Hub
-            {
-                'name': 'sse-hub',
-                'service_type': 'go',
-                'description': 'Server-Sent Events hub for real-time updates',
-                'binary_path': 'go-services/sse-hub',
-                'grpc_port': 50054,
-                'http_port': 8080,
-                'enabled': 1,
-                'auto_start': 1
             }
         ]
 
         for service in default_services:
             # Check if service already exists
-            check_query = "SELECT id FROM service_registry WHERE name = ?"
+            check_query = "SELECT id, enabled FROM service_registry WHERE name = ?"
             existing = db.execute_query(check_query, (service['name'],))
 
             if not existing:
@@ -219,6 +175,28 @@ def populate_default_services():
                     service['auto_start']
                 ))
                 logger.info(f"Added service to registry: {service['name']}")
+            else:
+                # Update existing service if needed
+                existing_id = existing[0]['id']
+                update_query = """
+                    UPDATE service_registry
+                    SET description = ?, enabled = ?, auto_start = ?
+                    WHERE id = ?
+                """
+                db.execute_update(update_query, (
+                    service['description'],
+                    service['enabled'],
+                    service['auto_start'],
+                    existing_id
+                ))
+
+        # Remove any GO services that may exist from previous migrations
+        go_services_query = "SELECT id, name FROM service_registry WHERE service_type = 'go'"
+        go_services = db.execute_query(go_services_query)
+        for go_service in go_services:
+            delete_query = "DELETE FROM service_registry WHERE id = ?"
+            db.execute_update(delete_query, (go_service['id'],))
+            logger.info(f"Removed GO service: {go_service['name']}")
 
         logger.info("Default services populated successfully")
 

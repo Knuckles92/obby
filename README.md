@@ -238,6 +238,6 @@ do whatever you want
 
 ## Tech Stack
 
-- Backend: Python, GO, FastAPI, SQLite
+- Backend: Python, FastAPI, SQLite
 - Frontend: React, TypeScript, Tailwind CSS, Vite
 - AI: Claude Agent SDK

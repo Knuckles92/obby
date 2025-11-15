@@ -23,6 +23,15 @@ files_bp = APIRouter(prefix='/api/files', tags=['files'])
 file_update_clients = {}
 file_update_lock = threading.Lock()
 
+# File tree cache with debounced invalidation
+file_tree_cache = {
+    'tree': None,
+    'timestamp': None,
+    'invalidation_timer': None
+}
+file_tree_cache_lock = threading.Lock()
+FILE_TREE_CACHE_DEBOUNCE_SECONDS = 15
+
 
 def notify_file_update(file_path: str, event_type: str = 'modified', content: str = None):
     """Notify SSE clients of file content updates"""
@@ -57,6 +66,51 @@ def notify_file_update(file_path: str, event_type: str = 'modified', content: st
 
     except Exception as e:
         logger.error(f"[File Updates] Failed to notify: {e}")
+
+
+def _invalidate_file_tree_cache():
+    """Internal function to actually clear the file tree cache"""
+    with file_tree_cache_lock:
+        file_tree_cache['tree'] = None
+        file_tree_cache['timestamp'] = None
+        file_tree_cache['invalidation_timer'] = None
+        logger.info("[File Tree Cache] Cache invalidated")
+
+    # Notify SSE clients that file tree should be refreshed
+    try:
+        cache_event = {
+            'type': 'file_tree_invalidated',
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+
+        with file_update_lock:
+            for client_id, client_queue in file_update_clients.items():
+                try:
+                    client_queue.put_nowait(cache_event)
+                except queue.Full:
+                    pass
+                except Exception:
+                    pass
+
+        logger.info(f"[File Tree Cache] Sent invalidation event to {len(file_update_clients)} clients")
+    except Exception as e:
+        logger.error(f"[File Tree Cache] Failed to send invalidation event: {e}")
+
+
+def invalidate_file_tree_cache_debounced():
+    """Invalidate file tree cache with debouncing (15 second delay)"""
+    with file_tree_cache_lock:
+        # Cancel existing timer if any
+        if file_tree_cache['invalidation_timer'] is not None:
+            file_tree_cache['invalidation_timer'].cancel()
+            logger.debug("[File Tree Cache] Cancelled existing invalidation timer")
+
+        # Schedule new invalidation
+        timer = threading.Timer(FILE_TREE_CACHE_DEBOUNCE_SECONDS, _invalidate_file_tree_cache)
+        timer.daemon = True
+        timer.start()
+        file_tree_cache['invalidation_timer'] = timer
+        logger.debug(f"[File Tree Cache] Scheduled invalidation in {FILE_TREE_CACHE_DEBOUNCE_SECONDS}s")
 
 
 @files_bp.get('/updates/stream')
@@ -664,14 +718,53 @@ async def get_file_state(file_path: str):
 
 @files_bp.get('/tree')
 async def get_file_tree():
-    """Get file tree structure"""
+    """Get file tree structure with caching"""
     try:
+        # Check cache first
+        with file_tree_cache_lock:
+            if file_tree_cache['tree'] is not None:
+                logger.info("[File Tree Cache] Returning cached tree")
+                return {
+                    'tree': file_tree_cache['tree'],
+                    'cached': True,
+                    'timestamp': file_tree_cache['timestamp']
+                }
+
+        # Build fresh tree if cache miss
         from config.settings import get_configured_notes_folder
         root_path = get_configured_notes_folder()
+        logger.info("[File Tree Cache] Building fresh tree (cache miss)")
         tree = build_file_tree(root_path)
-        return {'tree': tree}
+
+        # Cache the result
+        with file_tree_cache_lock:
+            file_tree_cache['tree'] = tree
+            file_tree_cache['timestamp'] = datetime.utcnow().isoformat() + 'Z'
+
+        logger.info("[File Tree Cache] Tree built and cached")
+        return {
+            'tree': tree,
+            'cached': False,
+            'timestamp': file_tree_cache['timestamp']
+        }
     except Exception as e:
         logger.error(f"Failed to build file tree: {e}")
+        return JSONResponse({'error': str(e)}, status_code=500)
+
+
+@files_bp.post('/tree/refresh')
+async def refresh_file_tree():
+    """Manually refresh file tree cache"""
+    try:
+        # Clear cache immediately (no debounce for manual refresh)
+        _invalidate_file_tree_cache()
+        logger.info("[File Tree Cache] Manual refresh triggered")
+        return {
+            'message': 'File tree cache cleared successfully',
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        logger.error(f"Failed to refresh file tree: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
 
 

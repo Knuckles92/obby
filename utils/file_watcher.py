@@ -240,7 +240,7 @@ class NoteChangeHandler(FileSystemEventHandler):
         """Broadcast file update to SSE clients."""
         try:
             # Import here to avoid circular dependency
-            from routes.files import notify_file_update
+            from routes.files import notify_file_update, invalidate_file_tree_cache_debounced
 
             # Calculate relative path from root folder for consistency with frontend
             try:
@@ -265,6 +265,9 @@ class NoteChangeHandler(FileSystemEventHandler):
             notify_file_update(path_str, event_type=change_type, content=content)
             logging.info(f"[WATCHDOG] Broadcasted {change_type} update for: {path_str}")
 
+            # Invalidate file tree cache with debounce
+            invalidate_file_tree_cache_debounced()
+
         except Exception as e:
             logging.error(f"[WATCHDOG] Failed to broadcast file update: {e}")
     
@@ -274,17 +277,26 @@ class NoteChangeHandler(FileSystemEventHandler):
         try:
             # Create a summary of the tree change
             path_type = "directory" if is_directory else "file"
-            
+
             if event_type == "moved":
                 change_summary = f"File tree change: {path_type} moved from {src_path} to {dest_path}"
             else:
                 change_summary = f"File tree change: {path_type} {event_type} at {src_path}"
-            
+
             logging.info(f"{change_summary}")
-            
+
+            # Invalidate file tree cache when directory structure changes
+            if is_directory:
+                try:
+                    from routes.files import invalidate_file_tree_cache_debounced
+                    invalidate_file_tree_cache_debounced()
+                    logging.debug(f"[WATCHDOG] Scheduled file tree cache invalidation for directory {event_type}")
+                except Exception as e:
+                    logging.error(f"[WATCHDOG] Failed to invalidate file tree cache: {e}")
+
             # Note: AI processing has been decoupled from file monitoring
             # Tree change logging is preserved but AI analysis will be handled separately
-                
+
         except Exception as e:
             logging.error(f"Error processing tree change: {e}")
 

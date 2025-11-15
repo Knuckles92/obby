@@ -102,11 +102,7 @@ export default function Services() {
   }
 
   const getServiceTypeIcon = (type: string) => {
-    return type === 'python' ? (
-      <Terminal className="w-5 h-5 text-blue-500" />
-    ) : (
-      <Server className="w-5 h-5 text-cyan-500" />
-    )
+    return <Terminal className="w-5 h-5 text-blue-500" />
   }
 
   const formatUptime = (seconds?: number) => {
@@ -279,48 +275,6 @@ export default function Services() {
 
             {/* Action Buttons */}
             <div className="flex gap-2">
-              {service.status === 'stopped' && service.service_type === 'go' && (
-                <button
-                  onClick={() => handleServiceAction(service.id, 'start')}
-                  disabled={actionLoading === service.id}
-                  className="flex-1 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm transition-colors"
-                >
-                  {actionLoading === service.id ? (
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Play className="w-4 h-4" />
-                  )}
-                  Start
-                </button>
-              )}
-              {service.status === 'running' && service.service_type === 'go' && (
-                <>
-                  <button
-                    onClick={() => handleServiceAction(service.id, 'restart')}
-                    disabled={actionLoading === service.id}
-                    className="flex-1 px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm transition-colors"
-                  >
-                    {actionLoading === service.id ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <RotateCw className="w-4 h-4" />
-                    )}
-                    Restart
-                  </button>
-                  <button
-                    onClick={() => handleServiceAction(service.id, 'stop')}
-                    disabled={actionLoading === service.id}
-                    className="flex-1 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm transition-colors"
-                  >
-                    {actionLoading === service.id ? (
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                    ) : (
-                      <Square className="w-4 h-4" />
-                    )}
-                    Stop
-                  </button>
-                </>
-              )}
               {service.service_type === 'python' && (
                 <div className="flex-1 px-3 py-2 bg-gray-100 text-gray-500 rounded text-center text-sm">
                   Cannot control backend

@@ -4,6 +4,7 @@
  */
 
 import { apiRequest } from './api'
+import { getCachedFileTree, setCachedFileTree, clearFileTreeCache } from './fileTreeCache'
 
 /**
  * File metadata and content response
@@ -129,13 +130,68 @@ export const searchFiles = async (
 }
 
 /**
- * Get file tree structure
+ * Get file tree structure with client-side caching
  *
- * @returns Hierarchical file tree
+ * @param forceRefresh - If true, bypasses cache and fetches fresh data
+ * @returns Hierarchical file tree and metadata
  */
-export const getFileTree = async (): Promise<FileTreeNode> => {
-  const response = await apiRequest<{ tree: FileTreeNode }>('/api/files/tree')
-  return response.tree
+export const getFileTree = async (forceRefresh: boolean = false): Promise<{
+  tree: FileTreeNode
+  cached: boolean
+  timestamp: string
+}> => {
+  // Check localStorage cache first (unless force refresh)
+  if (!forceRefresh) {
+    const cachedData = getCachedFileTree()
+    if (cachedData) {
+      console.log('[File Tree] Using cached data from localStorage')
+      return {
+        tree: cachedData.tree,
+        cached: true,
+        timestamp: cachedData.timestamp
+      }
+    }
+  }
+
+  // Fetch from server
+  console.log('[File Tree] Fetching from server...')
+  const response = await apiRequest<{
+    tree: FileTreeNode
+    cached: boolean
+    timestamp: string
+  }>('/api/files/tree')
+
+  // Cache the result in localStorage if it's fresh from the server
+  if (!response.cached && response.tree) {
+    setCachedFileTree(response.tree, response.timestamp)
+  }
+
+  return response
+}
+
+/**
+ * Manually refresh file tree cache
+ * Clears both client and server cache and fetches fresh data
+ *
+ * @returns Fresh file tree data
+ */
+export const refreshFileTree = async (): Promise<{
+  tree: FileTreeNode
+  cached: boolean
+  timestamp: string
+}> => {
+  // Clear client cache
+  clearFileTreeCache()
+
+  // Trigger server cache refresh
+  try {
+    await apiRequest('/api/files/tree/refresh', { method: 'POST' })
+  } catch (error) {
+    console.warn('[File Tree] Failed to refresh server cache:', error)
+  }
+
+  // Fetch fresh data
+  return getFileTree(true)
 }
 
 /**

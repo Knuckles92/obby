@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FolderTree, Search, ChevronLeft, ChevronRight, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import FileTree from './FileTree'
 import FuzzySearch from './FuzzySearch'
-import { getFileTree, FileTreeNode } from '../utils/fileOperations'
+import { getFileTree, FileTreeNode, refreshFileTree } from '../utils/fileOperations'
+import { hasCachedFileTree, clearFileTreeCache } from '../utils/fileTreeCache'
 
 interface FileBrowserProps {
   isOpen: boolean
@@ -20,6 +21,48 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
   const [tree, setTree] = useState<FileTreeNode | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isFirstLoad, setIsFirstLoad] = useState(false)
+  const sseRef = useRef<EventSource | null>(null)
+
+  // Subscribe to SSE for cache invalidation
+  useEffect(() => {
+    // Connect to file updates SSE
+    const sse = new EventSource('/api/files/updates/stream')
+
+    sse.addEventListener('message', (event) => {
+      try {
+        const data = JSON.parse(event.data)
+
+        // Handle file tree invalidation events
+        if (data.type === 'file_tree_invalidated') {
+          console.log('[File Browser] Cache invalidated by server, clearing client cache')
+          clearFileTreeCache()
+
+          // Reload tree if currently viewing it
+          if (isOpen && mode === 'tree') {
+            loadFileTree()
+          }
+        }
+      } catch (err) {
+        console.error('[File Browser] Error processing SSE event:', err)
+      }
+    })
+
+    sse.addEventListener('error', (err) => {
+      console.error('[File Browser] SSE connection error:', err)
+      // Connection will auto-reconnect
+    })
+
+    sseRef.current = sse
+
+    // Cleanup on unmount
+    return () => {
+      if (sseRef.current) {
+        sseRef.current.close()
+        sseRef.current = null
+      }
+    }
+  }, [isOpen, mode])
 
   // Load file tree when sidebar opens or when switching to tree mode
   useEffect(() => {
@@ -32,11 +75,30 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
     setLoading(true)
     setError(null)
 
+    // Check if this is the first time loading (no cache exists)
+    const hasCache = hasCachedFileTree()
+    setIsFirstLoad(!hasCache)
+
     try {
-      const fileTree = await getFileTree()
-      setTree(fileTree)
+      const response = await getFileTree()
+      setTree(response.tree)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load file tree')
+    } finally {
+      setLoading(false)
+      setIsFirstLoad(false)
+    }
+  }
+
+  const handleRefresh = async () => {
+    setLoading(true)
+    setError(null)
+
+    try {
+      const response = await refreshFileTree()
+      setTree(response.tree)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh file tree')
     } finally {
       setLoading(false)
     }
@@ -85,7 +147,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
           </h2>
           <div className="flex items-center space-x-2">
             <button
-              onClick={loadFileTree}
+              onClick={handleRefresh}
               className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
               title="Refresh file tree"
               disabled={loading}
@@ -139,9 +201,18 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
       <div className="flex-1 overflow-hidden">
         {mode === 'tree' ? (
           loading ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">
+            <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 px-6">
               <Loader2 className="h-8 w-8 animate-spin mb-3" />
-              <p className="text-sm">Loading files...</p>
+              {isFirstLoad ? (
+                <div className="text-center space-y-2">
+                  <p className="text-sm font-medium">Building file index...</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                    This will be faster next time!
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm">Loading files...</p>
+              )}
             </div>
           ) : error ? (
             <div className="h-full flex flex-col items-center justify-center text-red-600 dark:text-red-400 px-4">
