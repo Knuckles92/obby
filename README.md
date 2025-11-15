@@ -7,6 +7,13 @@
 
 Obby monitors Markdown files in real-time, tracks changes in a SQLite database, and uses Claude Agent SDK to generate summaries of your work. The web interface is built with React and TypeScript.
 
+## Architecture Snapshot
+- **Backend**: `backend.py` launches the FastAPI service, the Python file watcher, diff tracker, and SSE publishers that power the UI and database synchronization.
+- **Frontend**: React + TypeScript + Vite with Tailwind CSS, receiving real-time updates over SSE and hosting the Claude-driven chat summaries.
+- **Data & storage**: `notes/` stores the Markdown payloads, `output/` collects AI artifacts, and `obby.db` holds SQLite FTS5 search, event history, and change metadata.
+- **AI & summaries**: Claude Agent SDK (haiku/sonnet/opus) explores the repository with Read/Grep/Glob tools, respecting `.obbywatch`/`.obbyignore`, to produce structured metadata with a Sources section.
+- **No Go services**: The Go microservices referenced in older docs have been removed; all APIs and watchers now run in Python (see `.env.example` for the current environment variables).
+
 ## Features
 
 ### File Monitoring
@@ -116,6 +123,7 @@ On first startup, Obby creates:
 Configure via web interface or API:
 - `.obbywatch`: Define directories to monitor
 - `.obbyignore`: Define patterns to exclude
+- Environment config is now limited to the Python stack; the Go microservice flags in earlier versions were removed (see `.env.example` for the current keys).
 
 ### AI Configuration
 - Model selection: haiku, sonnet, opus
@@ -149,6 +157,11 @@ Features:
 - Impact level filtering (brief, moderate, significant)
 - Date range filtering
 - Export results
+
+## Performance & Scalability
+- Backend dashboards now cache expensive filesystem stats, add targeted indexes, and apply watch filters earlier to keep `/api/monitor/status` and related endpoints responsive (see `docs/PERFORMANCE_IMPROVEMENT_PLAN.md` for the current strategy).
+- Frontend dashboards progressively load critical sections, debounce repeated polling, and avoid blocking rendering until high-priority data arrives.
+- Keep the watch configuration lean via `.obbywatch` and TTL-based caching to stay within the 500 ms time-to-interactive goal outlined in the plan.
 
 ## AI Integration
 
