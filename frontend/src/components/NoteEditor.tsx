@@ -242,7 +242,7 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   // Empty state
   if (!filePath) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400">
+      <div className="h-full flex flex-col items-center justify-center bg-[var(--color-surface)] text-[var(--color-text-secondary)]">
         <FileText className="h-16 w-16 mb-4 opacity-50" />
         <p className="text-lg font-medium">No file selected</p>
         <p className="text-sm mt-2">Select a file from the sidebar to view or edit</p>
@@ -253,9 +253,9 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   // Loading state
   if (loading) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-        <p className="mt-4 text-sm text-gray-500">Loading file...</p>
+      <div className="h-full flex flex-col items-center justify-center bg-[var(--color-surface)]">
+        <Loader2 className="h-8 w-8 animate-spin text-[var(--color-primary)]" />
+        <p className="mt-4 text-sm text-[var(--color-text-secondary)]">Loading file...</p>
       </div>
     )
   }
@@ -263,15 +263,15 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   // Error state
   if (error) {
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
-        <p className="text-lg font-medium text-gray-900 dark:text-gray-100">Failed to load file</p>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 mb-4">{error}</p>
+      <div className="h-full flex flex-col items-center justify-center bg-[var(--color-surface)]">
+        <AlertCircle className="h-12 w-12 text-[var(--color-error)] mb-4" />
+        <p className="text-lg font-medium text-[var(--color-text-primary)]">Failed to load file</p>
+        <p className="text-sm text-[var(--color-text-secondary)] mt-2 mb-4">{error}</p>
         <div className="flex gap-2">
           {onClose && (
             <button
               onClick={onClose}
-              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+              className="px-4 py-2 bg-[var(--color-secondary)] text-[var(--color-text-inverse)] rounded-md hover:bg-[color-mix(in_srgb,var(--color-secondary)_80%,black)]"
             >
               Close
             </button>
@@ -281,13 +281,13 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
               setFileNotFound(false)
               setError(null)
             }}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+            className="px-4 py-2 bg-[var(--color-primary)] text-[var(--color-text-inverse)] rounded-md hover:bg-[color-mix(in_srgb,var(--color-primary)_80%,black)]"
           >
             Retry
           </button>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700"
+            className="px-4 py-2 bg-[var(--color-secondary)] text-[var(--color-text-inverse)] rounded-md hover:bg-[color-mix(in_srgb,var(--color-secondary)_80%,black)]"
           >
             Refresh Page
           </button>
@@ -297,18 +297,18 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
   }
 
   return (
-    <div className="h-full flex flex-col bg-white dark:bg-gray-900">
+    <div className="h-full flex flex-col bg-[var(--color-background)]">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+      <div className="flex-shrink-0 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
         <div className="px-6 py-4">
           {/* File info */}
           <div className="flex items-center justify-between mb-3">
             <div className="flex-1 min-w-0">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
+              <h2 className="text-lg font-semibold text-[var(--color-text-primary)] truncate">
                 {fileName}
               </h2>
               {lastModified && (
-                <div className="flex items-center mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <div className="flex items-center mt-1 text-sm text-[var(--color-text-secondary)]">
                   <Clock className="h-3.5 w-3.5 mr-1" />
                   <span>Modified {formatFileDate(lastModified)}</span>
                 </div>
@@ -318,15 +318,15 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
             <div className="ml-4 flex items-center gap-2">
               {/* Live update indicator */}
               {liveUpdateReceived && (
-                <div className="px-3 py-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 text-xs font-medium rounded-full flex items-center gap-1.5 animate-pulse">
-                  <div className="w-1.5 h-1.5 bg-green-500 rounded-full"></div>
+                <div className="px-3 py-1 bg-[color-mix(in_srgb,var(--color-success)_20%,transparent)] text-[var(--color-success)] text-xs font-medium rounded-full flex items-center gap-1.5 animate-pulse">
+                  <div className="w-1.5 h-1.5 bg-[var(--color-success)] rounded-full"></div>
                   Live update
                 </div>
               )}
 
               {/* Unsaved indicator */}
               {isDirty && (
-                <div className="px-3 py-1 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100 text-xs font-medium rounded-full">
+                <div className="px-3 py-1 bg-[color-mix(in_srgb,var(--color-warning)_20%,transparent)] text-[var(--color-warning)] text-xs font-medium rounded-full">
                   Unsaved changes
                 </div>
               )}
@@ -343,8 +343,8 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
                   flex items-center px-3 py-1.5 rounded-md text-sm font-medium
                   transition-colors duration-150
                   ${mode === 'preview'
-                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100'
-                    : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    ? 'bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]'
+                    : 'bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-hover)] border border-[var(--color-border)]'
                   }
                 `}
               >
@@ -365,12 +365,12 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
             {/* Save button */}
             <div className="flex items-center space-x-2">
               {saveSuccess && (
-                <span className="text-sm text-green-600 dark:text-green-400 font-medium">
+                <span className="text-sm text-[var(--color-success)] font-medium">
                   Saved!
                 </span>
               )}
               {error && content && (
-                <span className="text-sm text-red-600 dark:text-red-400">
+                <span className="text-sm text-[var(--color-error)]">
                   {error}
                 </span>
               )}
@@ -381,8 +381,8 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
                   flex items-center px-4 py-2 rounded-md text-sm font-medium
                   transition-colors duration-150
                   ${isDirty && !saving
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    ? 'bg-[var(--color-primary)] text-[var(--color-text-inverse)] hover:bg-[color-mix(in_srgb,var(--color-primary)_80%,black)]'
+                    : 'bg-[var(--color-disabled)] text-[var(--color-text-secondary)] cursor-not-allowed'
                   }
                 `}
               >
@@ -410,13 +410,13 @@ export default function NoteEditor({ filePath, onClose, onSave }: NoteEditorProp
             ref={textareaRef}
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            className="w-full h-full p-6 font-mono text-sm bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 resize-none focus:outline-none"
+            className="w-full h-full p-6 font-mono text-sm bg-[var(--color-background)] text-[var(--color-text-primary)] resize-none focus:outline-none"
             spellCheck={false}
             placeholder="Start writing..."
           />
         ) : (
           <div className="w-full h-full overflow-auto p-6">
-            <div className="prose dark:prose-invert max-w-none w-full">
+            <div className="prose max-w-none w-full" style={{ color: 'var(--color-text-primary)' }}>
               <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
                 {content || '*No content*'}
               </ReactMarkdown>

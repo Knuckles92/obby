@@ -76,8 +76,8 @@ function TreeNode({ node, onFileSelect, selectedFile, contextFiles, onContextTog
           flex items-center px-2 py-1.5 cursor-pointer rounded-md group
           transition-colors duration-150
           ${isSelected
-            ? 'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-100'
-            : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+            ? 'bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)]'
+            : 'hover:bg-[var(--color-hover)] text-[var(--color-text-primary)]'
           }
         `}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
@@ -128,14 +128,14 @@ function TreeNode({ node, onFileSelect, selectedFile, contextFiles, onContextTog
 
         {/* Context indicator for files */}
         {!isDirectory && isInContext && (
-          <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded flex-shrink-0">
+          <span className="ml-2 text-xs bg-[color-mix(in_srgb,var(--color-info)_20%,transparent)] text-[var(--color-info)] px-2 py-0.5 rounded flex-shrink-0">
             Context
           </span>
         )}
 
         {/* File count badge for directories */}
         {isDirectory && hasChildren && (
-          <span className="ml-2 text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">
+          <span className="ml-2 text-xs text-[var(--color-text-secondary)] flex-shrink-0">
             {node.childCount || node.children?.length}
           </span>
         )}
@@ -164,7 +164,7 @@ function TreeNode({ node, onFileSelect, selectedFile, contextFiles, onContextTog
 export default function FileTree({ tree, onFileSelect, selectedFile, contextFiles = [], onContextToggle, depth = 0 }: FileTreeProps) {
   if (!tree) {
     return (
-      <div className="p-4 text-center text-gray-500 dark:text-gray-400">
+      <div className="p-4 text-center text-[var(--color-text-secondary)]">
         <FileText className="h-12 w-12 mx-auto mb-2 opacity-50" />
         <p className="text-sm">No files found</p>
       </div>

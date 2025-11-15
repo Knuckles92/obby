@@ -121,10 +121,10 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
           onClick={onToggle}
           className="
             mt-4 ml-2 p-2 rounded-md
-            bg-white dark:bg-gray-800
-            border border-gray-300 dark:border-gray-600
-            text-gray-700 dark:text-gray-300
-            hover:bg-gray-50 dark:hover:bg-gray-700
+            bg-[var(--color-background)]
+            border border-[var(--color-border)]
+            text-[var(--color-text-primary)]
+            hover:bg-[var(--color-hover)]
             transition-colors duration-150
             shadow-sm
           "
@@ -138,17 +138,17 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
 
   // Expanded state
   return (
-    <div className="h-full w-full flex-shrink-0 border-r border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col">
+    <div className="h-full w-full flex-shrink-0 border-r border-[var(--color-border)] bg-[var(--color-background)] flex flex-col">
       {/* Header */}
-      <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex-shrink-0 border-b border-[var(--color-border)]">
         <div className="flex items-center justify-between px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
+          <h2 className="text-sm font-semibold text-[var(--color-text-primary)] uppercase tracking-wide">
             Files
           </h2>
           <div className="flex items-center space-x-2">
             <button
               onClick={handleRefresh}
-              className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1.5 rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-hover)] transition-colors"
               title="Refresh file tree"
               disabled={loading}
             >
@@ -156,7 +156,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
             </button>
             <button
               onClick={onToggle}
-              className="p-1.5 rounded-md text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              className="p-1.5 rounded-md text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-hover)] transition-colors"
               title="Close sidebar (Cmd/Ctrl+B)"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -165,7 +165,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
         </div>
 
         {/* Mode toggle tabs */}
-        <div className="flex border-t border-gray-200 dark:border-gray-700">
+        <div className="flex border-t border-[var(--color-border)]">
           <button
             onClick={() => handleModeChange('tree')}
             className={`
@@ -201,12 +201,12 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
       <div className="flex-1 overflow-hidden">
         {mode === 'tree' ? (
           loading ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 px-6">
+            <div className="h-full flex flex-col items-center justify-center text-[var(--color-text-secondary)] px-6">
               <Loader2 className="h-8 w-8 animate-spin mb-3" />
               {isFirstLoad ? (
                 <div className="text-center space-y-2">
                   <p className="text-sm font-medium">Building file index...</p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500">
+                  <p className="text-xs text-[var(--color-text-secondary)]">
                     This will be faster next time!
                   </p>
                 </div>
@@ -215,7 +215,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
               )}
             </div>
           ) : error ? (
-            <div className="h-full flex flex-col items-center justify-center text-red-600 dark:text-red-400 px-4">
+            <div className="h-full flex flex-col items-center justify-center text-[var(--color-error)] px-4">
               <AlertCircle className="h-8 w-8 mb-3" />
               <p className="text-sm text-center mb-4">{error}</p>
               <button
@@ -234,7 +234,7 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
               onContextToggle={onContextToggle}
             />
           ) : (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 dark:text-gray-400 px-4">
+            <div className="h-full flex flex-col items-center justify-center text-[var(--color-text-secondary)] px-4">
               <FolderTree className="h-12 w-12 mb-3 opacity-50" />
               <p className="text-sm text-center">No files found</p>
             </div>
@@ -248,10 +248,10 @@ export default function FileBrowser({ isOpen, onToggle, onFileSelect, selectedFi
       </div>
 
       {/* Footer with hint */}
-      <div className="flex-shrink-0 px-4 py-2 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
-        <p className="text-xs text-gray-500 dark:text-gray-400">
+      <div className="flex-shrink-0 px-4 py-2 border-t border-[var(--color-border)] bg-[var(--color-surface)]">
+        <p className="text-xs text-[var(--color-text-secondary)]">
           {mode === 'tree' ? (
-            <>Press <kbd className="px-1.5 py-0.5 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded text-xs font-mono">Cmd/Ctrl+P</kbd> for quick search</>
+            <>Press <kbd className="px-1.5 py-0.5 bg-[var(--color-background)] border border-[var(--color-border)] rounded text-xs font-mono">Cmd/Ctrl+P</kbd> for quick search</>
           ) : (
             <>Use fuzzy matching to find files quickly</>
           )}

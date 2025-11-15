@@ -1015,7 +1015,7 @@ Guidelines:
       {/* Header */}
       <div className={`flex-shrink-0 transition-all duration-300 ${
         headerMinimized 
-          ? 'border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900' 
+          ? 'border-b border-[var(--color-border)] bg-[var(--color-background)]' 
           : ''
       }`}>
         {headerMinimized ? (
@@ -1023,15 +1023,15 @@ Guidelines:
           <div className="px-4 py-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3">
-                <div className="p-1.5 bg-blue-100 dark:bg-blue-900 rounded-lg">
-                  <MessageSquare className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <div className="p-1.5 bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] rounded-lg">
+                  <MessageSquare className="h-4 w-4 text-[var(--color-primary)]" />
                 </div>
-                <span className="font-medium text-gray-900 dark:text-gray-100">
+                <span className="font-medium text-[var(--color-text-primary)]">
                   Chat
                   {currentModel && (
                     <>
                       {' '}
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                      <span className="text-xs text-[var(--color-text-secondary)]">
                         (Claude {getDisplayModel()})
                       </span>
                     </>
@@ -1085,7 +1085,7 @@ Guidelines:
                 
                 <button
                   onClick={() => setHeaderMinimized(false)}
-                  className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400"
+                  className="p-1.5 rounded-lg hover:bg-[var(--color-hover)] text-[var(--color-text-secondary)]"
                   title="Expand header"
                 >
                   <Maximize2 className="h-4 w-4" />
@@ -1262,31 +1262,31 @@ Guidelines:
         {/* Chat Panel (right, resizable width) */}
         <div 
           style={{ width: `${chatPanelWidth}px` }} 
-          className="flex-shrink-0 border-l border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex flex-col"
+          className="flex-shrink-0 border-l border-[var(--color-border)] bg-[var(--color-background)] flex flex-col"
         >
           {showSettings && (
-            <div className="flex-shrink-0 bg-gray-50 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 p-4">
-              <h3 className="font-semibold mb-3 text-gray-900 dark:text-gray-100">Chat Settings</h3>
+            <div className="flex-shrink-0 bg-[var(--color-surface)] border-b border-[var(--color-border)] p-4">
+              <h3 className="font-semibold mb-3 text-[var(--color-text-primary)]">Chat Settings</h3>
               <div className="space-y-4">
                 <div>
-                  <div className="text-sm font-medium mb-2">AI Provider</div>
-                  <p className="text-sm text-gray-600 dark:text-gray-300">
+                  <div className="text-sm font-medium mb-2 text-[var(--color-text-primary)]">AI Provider</div>
+                  <p className="text-sm text-[var(--color-text-secondary)]">
                     Chat now runs exclusively on the Claude Agent SDK.
                   </p>
                 </div>
 
                 {availableTools.length > 0 && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <div className="text-sm font-medium mb-2">Available Tools</div>
-                    <div className="text-xs text-gray-600 mb-2">
+                  <div className="pt-2 border-t border-[var(--color-border)]">
+                    <div className="text-sm font-medium mb-2 text-[var(--color-text-primary)]">Available Tools</div>
+                    <div className="text-xs text-[var(--color-text-secondary)] mb-2">
                       Claude Agent SDK can use these tools for enhanced functionality
                     </div>
                     <ul className="space-y-1">
                       {availableTools.map((tool) => (
-                        <li key={tool.name} className="rounded border border-gray-200 bg-white px-2 py-1">
-                          <div className="text-xs font-semibold text-gray-800">{tool.name}</div>
+                        <li key={tool.name} className="rounded border border-[var(--color-border)] bg-[var(--color-background)] px-2 py-1">
+                          <div className="text-xs font-semibold text-[var(--color-text-primary)]">{tool.name}</div>
                           {tool.description && (
-                            <div className="text-xs text-gray-600">{tool.description}</div>
+                            <div className="text-xs text-[var(--color-text-secondary)]">{tool.description}</div>
                           )}
                         </li>
                       ))}
@@ -1297,13 +1297,13 @@ Guidelines:
             </div>
           )}
 
-          <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto p-4 bg-gray-50 dark:bg-gray-950">
+          <div ref={scrollRef} className="flex-1 min-h-0 overflow-auto p-4 bg-[var(--color-surface)]">
             {messages.filter((m) => m.role !== 'system' && m.role !== 'tool').length === 0 && (
-              <div className="text-gray-500 dark:text-gray-400 text-sm text-center py-8">
+              <div className="text-[var(--color-text-secondary)] text-sm text-center py-8">
                 <MessageSquare className="h-12 w-12 mx-auto mb-3 opacity-50" />
                 <p>Start a conversation</p>
                 {contextFiles.length > 0 && (
-                  <p className="text-xs mt-2 text-blue-600 dark:text-blue-400">
+                  <p className="text-xs mt-2 text-[var(--color-info)]">
                     📄 {contextFiles.length === 1 ? 'Note context' : 'Multiple notes'} will be included in the background
                   </p>
                 )}
@@ -1323,7 +1323,7 @@ Guidelines:
                     </div>
                   ) : (
                     <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
-                      <div className="prose prose-sm dark:prose-invert max-w-none">
+                      <div className="prose prose-sm max-w-none" style={{ color: 'var(--color-text-primary)' }}>
                         <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                           {m.content}
                         </ReactMarkdown>
@@ -1336,7 +1336,7 @@ Guidelines:
               {isStreaming && streamingMessage && (
                 <div className="flex justify-start">
                   <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
-                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                    <div className="prose prose-sm max-w-none" style={{ color: 'var(--color-text-primary)' }}>
                       <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                         {streamingMessage}
                       </ReactMarkdown>
@@ -1347,12 +1347,12 @@ Guidelines:
               {/* Show loading animation when streaming (new turn) or waiting for response */}
               {(isStreaming || loading) && <LoadingIndicator />}
               {error && (
-                <div className="text-red-600 text-sm">{error}</div>
+                <div className="text-[var(--color-error)] text-sm">{error}</div>
               )}
             </div>
           </div>
 
-          <div className="flex-shrink-0 p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
+          <div className="flex-shrink-0 p-4 border-t border-[var(--color-border)] bg-[var(--color-background)]">
             <div className="flex flex-col gap-2">
               <input
                 className="w-full border border-[var(--color-border)] rounded-md px-3 py-2 bg-[var(--color-surface)] text-[var(--color-text-primary)] focus:outline-none focus:ring-2 focus:ring-[var(--color-focus)] text-sm"
@@ -1385,7 +1385,7 @@ Guidelines:
                 <button
                   onClick={() => setShowClearChatConfirmation(true)}
                   disabled={loading || messages.filter((m) => m.role !== 'system').length === 0}
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-[var(--color-surface)] text-[var(--color-text-primary)] hover:bg-[var(--color-hover)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium border border-[var(--color-border)]"
                   title="Clear chat history"
                 >
                   <Trash2 className="h-4 w-4" />
