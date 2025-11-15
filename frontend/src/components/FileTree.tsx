@@ -21,7 +21,7 @@ interface TreeNodeProps {
 }
 
 function TreeNode({ node, onFileSelect, selectedFile, contextFiles, onContextToggle, depth }: TreeNodeProps) {
-  const [isExpanded, setIsExpanded] = useState(depth < 2) // Auto-expand first 2 levels
+  const [isExpanded, setIsExpanded] = useState(depth < 1) // Auto-expand only root level (notes folder)
 
   const isDirectory = node.type === 'directory'
   const isSelected = selectedFile === node.path || selectedFile === node.relativePath
@@ -45,9 +45,11 @@ function TreeNode({ node, onFileSelect, selectedFile, contextFiles, onContextTog
   }
 
   const handleClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget || (e.target as HTMLElement).closest('.file-content')) {
-      handleFileClick(e)
+    // Don't handle clicks on checkboxes (they have their own handler)
+    if ((e.target as HTMLElement).type === 'checkbox') {
+      return
     }
+    handleFileClick(e)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

@@ -190,3 +190,4 @@ CREATE INDEX IF NOT EXISTS idx_events_timestamp_date ON events(DATE(timestamp));
 - Backward compatibility must be maintained
 - Consider feature flags for gradual rollout
 
+

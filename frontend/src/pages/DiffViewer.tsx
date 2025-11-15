@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy, CheckCircle } from 'lucide-react'
 import { ContentDiff, FileChange, FileMonitoringStatus, PaginatedDiffsResponse, PaginatedChangesResponse, PaginationMetadata } from '../types'
 import { apiFetch } from '../utils/api'
@@ -35,11 +35,11 @@ export default function DiffViewer() {
   const [changesPagination, setChangesPagination] = useState<PaginationMetadata | null>(null)
   const [loadingMore, setLoadingMore] = useState(false)
 
-  useEffect(() => {
-    fetchFileData()
-  }, [])
+  // SSE connection for real-time updates
+  const sseRef = useRef<EventSource | null>(null)
+  const isLoadingRef = useRef(false)
 
-  const fetchFileData = async (reset: boolean = true) => {
+  const fetchFileData = useCallback(async (reset: boolean = true) => {
     try {
       setError(null)
       
@@ -85,7 +85,86 @@ export default function DiffViewer() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchFileData()
+  }, [fetchFileData])
+
+  // Update ref when loading state changes
+  useEffect(() => {
+    isLoadingRef.current = loading || refreshing
+  }, [loading, refreshing])
+
+  // Set up SSE connection for real-time diff updates
+  useEffect(() => {
+    const connectToFileUpdates = () => {
+      // Don't reconnect if already connected
+      if (sseRef.current) {
+        return
+      }
+
+      try {
+        const eventSource = new EventSource('/api/files/updates/stream')
+        sseRef.current = eventSource
+
+        eventSource.onopen = () => {
+          console.log('[DiffViewer] Connected to file updates stream')
+        }
+
+        eventSource.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            const eventType = data.type
+
+            // Ignore keepalive and connection messages
+            if (!eventType || eventType === 'keepalive' || eventType === 'connected') {
+              return
+            }
+
+            // When a file is modified, created, or deleted, refresh the diff/changes lists
+            if (eventType === 'modified' || eventType === 'created' || eventType === 'deleted') {
+              console.log(`[DiffViewer] File ${eventType}: ${data.filePath}, refreshing diffs and changes`)
+              
+              // Debounce: Only refresh if we're not already loading
+              if (!isLoadingRef.current) {
+                // Refresh without resetting pagination to preserve scroll position
+                fetchFileData(false)
+              }
+            }
+          } catch (error) {
+            console.error('[DiffViewer] Error parsing file update SSE message:', error)
+          }
+        }
+
+        eventSource.onerror = (error) => {
+          console.error('[DiffViewer] File updates SSE connection error:', error)
+          // If connection closed, clean up and allow reconnection
+          if (sseRef.current?.readyState === EventSource.CLOSED) {
+            disconnectFileUpdates()
+          }
+        }
+      } catch (error) {
+        console.error('[DiffViewer] Failed to establish file updates SSE connection:', error)
+      }
+    }
+
+    const disconnectFileUpdates = () => {
+      if (sseRef.current) {
+        sseRef.current.close()
+        sseRef.current = null
+        console.log('[DiffViewer] Disconnected from file updates stream')
+      }
+    }
+
+    // Connect on mount
+    connectToFileUpdates()
+
+    // Cleanup on unmount
+    return () => {
+      disconnectFileUpdates()
+    }
+  }, [fetchFileData])
 
   const handleRefresh = async () => {
     setRefreshing(true)
