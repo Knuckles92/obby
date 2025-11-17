@@ -65,9 +65,33 @@ async def lifespan(app: FastAPI):
     logger.info('Application starting up')
 
     yield
-    
+
     # Shutdown
-    logger.info('Application shutting down')
+    logger.info('Application shutting down - starting cleanup')
+
+    # Step 1: Close all active SSE connections
+    try:
+        cleanup_sse_clients()
+        logger.info('SSE clients cleanup completed')
+    except Exception as e:
+        logger.error(f'Error cleaning up SSE clients: {e}')
+
+    # Step 2: Stop monitoring system
+    try:
+        cleanup_monitoring()
+        logger.info('Monitoring cleanup completed')
+    except Exception as e:
+        logger.error(f'Error cleaning up monitoring: {e}')
+
+    # Step 3: Close database connections
+    try:
+        from database.models import db
+        db.close()
+        logger.info('Database connections closed')
+    except Exception as e:
+        logger.error(f'Error closing database connections: {e}')
+
+    logger.info('Application shutdown complete')
 
 
 app = FastAPI(title='Obby API', version='1.0.0', lifespan=lifespan)
@@ -83,6 +107,31 @@ app.add_middleware(
 monitor_instance = None
 monitor_thread = None
 monitoring_active = False
+
+# Global SSE client tracking for graceful shutdown
+sse_clients = set()
+sse_clients_lock = threading.Lock()
+
+def register_sse_client(client_id: str):
+    """Register an active SSE client for tracking."""
+    with sse_clients_lock:
+        sse_clients.add(client_id)
+        logger.debug(f'SSE client registered: {client_id} (total: {len(sse_clients)})')
+
+def unregister_sse_client(client_id: str):
+    """Unregister an SSE client when connection closes."""
+    with sse_clients_lock:
+        sse_clients.discard(client_id)
+        logger.debug(f'SSE client unregistered: {client_id} (total: {len(sse_clients)})')
+
+def cleanup_sse_clients():
+    """Force cleanup of all active SSE clients during shutdown."""
+    with sse_clients_lock:
+        if sse_clients:
+            logger.info(f'Cleaning up {len(sse_clients)} active SSE clients')
+            sse_clients.clear()
+        else:
+            logger.info('No active SSE clients to cleanup')
 
 # Include routers
 app.include_router(monitoring_bp)
@@ -336,24 +385,27 @@ if __name__ == '__main__':
             # Pass app object directly when reload is disabled
             app_ref = app
         
+        # Graceful shutdown timeout - configurable via environment variable
+        # Default to 15 seconds to allow time for multiple SSE streams to close (5s each)
+        graceful_shutdown_timeout = float(os.getenv('GRACEFUL_SHUTDOWN_TIMEOUT', '15.0'))
+
         uvicorn_config = {
             'app': app_ref,
             'host': '0.0.0.0',
             'port': 8001,
             'reload': reload_enabled,
+            'timeout_graceful_shutdown': graceful_shutdown_timeout,
         }
-        
+
         # On Windows, explicitly specify loop implementation for subprocess support
         if sys.platform == 'win32':
             uvicorn_config['loop'] = 'asyncio'  # Use asyncio (with our ProactorEventLoopPolicy)
             logger.info('Windows: Using asyncio loop with WindowsProactorEventLoopPolicy for Claude SDK support')
             logger.info('Windows: Reload disabled to prevent event loop policy conflicts')
+            logger.info(f'Windows: Graceful shutdown timeout set to {graceful_shutdown_timeout}s')
         else:
-            # For WSL/Linux: Add timeout to prevent reloader from hanging on SSE connections
-            # This forces shutdown after 5 seconds if connections don't close gracefully
-            uvicorn_config['timeout_graceful_shutdown'] = 5.0
             logger.info('Non-Windows: Using default uvicorn configuration with reload enabled')
-            logger.info('Non-Windows: Graceful shutdown timeout set to 5 seconds to prevent reloader hangs')
+            logger.info(f'Non-Windows: Graceful shutdown timeout set to {graceful_shutdown_timeout}s to prevent reloader hangs')
         
         uvicorn.run(**uvicorn_config)
     finally:

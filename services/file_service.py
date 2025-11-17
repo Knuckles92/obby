@@ -211,9 +211,6 @@ class FileService:
             # Trigger file monitoring system to detect the change
             try:
                 from core.file_tracker import file_tracker
-                # Give filesystem a moment to settle
-                import time
-                time.sleep(0.1)
                 # Trigger scan of this specific file
                 file_tracker.process_file_change(str(validated_path), 'modified')
                 logger.debug(f"Triggered monitoring for: {validated_path}")

@@ -393,9 +393,18 @@ class FileWatcher:
         """Stop watching for file changes."""
         if not self.is_running:
             return
-            
+
         self.observer.stop()
-        self.observer.join()
+
+        # Join with timeout to prevent hanging on shutdown
+        self.observer.join(timeout=5.0)
+
+        # Check if join timed out
+        if self.observer.is_alive():
+            logging.warning("File watcher observer did not stop within timeout (5s)")
+        else:
+            logging.info("File watcher observer stopped successfully")
+
         self.is_running = False
         logging.info("File watcher stopped")
         

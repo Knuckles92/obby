@@ -9,7 +9,27 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8001',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        ws: true, // Enable WebSocket proxying
+        configure: (proxy, _options) => {
+          proxy.on('error', (err, _req, res) => {
+            // Handle proxy errors gracefully for SSE streams
+            if (res && !res.headersSent) {
+              res.writeHead(500, {
+                'Content-Type': 'text/plain',
+              })
+              res.end('Proxy error: ' + err.message)
+            }
+          })
+          proxy.on('proxyReq', (proxyReq, req, res) => {
+            // Set longer timeout for SSE streams
+            if (req.url?.includes('/stream') || req.url?.includes('/events')) {
+              proxyReq.setTimeout(0) // No timeout for SSE streams
+            } else {
+              proxyReq.setTimeout(300000) // 5 minutes for regular requests
+            }
+          })
+        },
       }
     }
   },

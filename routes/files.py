@@ -8,12 +8,21 @@ from fastapi.responses import JSONResponse, StreamingResponse
 import logging
 import os
 import json
-import queue
+import asyncio
 import threading
 from datetime import datetime
 from pathlib import Path
 from database.queries import FileQueries, EventQueries
 from services.file_service import get_file_service
+
+# Import SSE client tracking from backend
+import sys
+if 'backend' in sys.modules:
+    from backend import register_sse_client, unregister_sse_client
+else:
+    # Fallback if backend module not available (e.g., during testing)
+    def register_sse_client(client_id: str): pass
+    def unregister_sse_client(client_id: str): pass
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +30,7 @@ files_bp = APIRouter(prefix='/api/files', tags=['files'])
 
 # SSE client management for file content updates
 file_update_clients = {}
-file_update_lock = threading.Lock()
+file_update_lock = asyncio.Lock()
 
 # File tree cache with debounced invalidation
 file_tree_cache = {
@@ -33,7 +42,7 @@ file_tree_cache_lock = threading.Lock()
 FILE_TREE_CACHE_DEBOUNCE_SECONDS = 15
 
 
-def notify_file_update(file_path: str, event_type: str = 'modified', content: str = None):
+async def notify_file_update(file_path: str, event_type: str = 'modified', content: str = None):
     """Notify SSE clients of file content updates"""
     try:
         event = {
@@ -46,13 +55,13 @@ def notify_file_update(file_path: str, event_type: str = 'modified', content: st
 
         logger.info(f"[File Updates] Broadcasting update for: {file_path} to {len(file_update_clients)} clients")
 
-        with file_update_lock:
+        async with file_update_lock:
             disconnected_clients = []
             for client_id, client_queue in file_update_clients.items():
                 try:
                     client_queue.put_nowait(event)
                     logger.debug(f"[File Updates] Sent to client {client_id}: {file_path}")
-                except queue.Full:
+                except asyncio.QueueFull:
                     logger.warning(f"[File Updates] Queue full for client {client_id}")
                     disconnected_clients.append(client_id)
                 except Exception as e:
@@ -76,25 +85,33 @@ def _invalidate_file_tree_cache():
         file_tree_cache['invalidation_timer'] = None
         logger.info("[File Tree Cache] Cache invalidated")
 
-    # Notify SSE clients that file tree should be refreshed
+    # Notify SSE clients that file tree should be refreshed (async)
+    async def send_notification():
+        try:
+            cache_event = {
+                'type': 'file_tree_invalidated',
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }
+
+            async with file_update_lock:
+                for client_id, client_queue in file_update_clients.items():
+                    try:
+                        client_queue.put_nowait(cache_event)
+                    except asyncio.QueueFull:
+                        pass
+                    except Exception:
+                        pass
+
+            logger.info(f"[File Tree Cache] Sent invalidation event to {len(file_update_clients)} clients")
+        except Exception as e:
+            logger.error(f"[File Tree Cache] Failed to send invalidation event: {e}")
+
+    # Schedule the async notification without blocking
     try:
-        cache_event = {
-            'type': 'file_tree_invalidated',
-            'timestamp': datetime.utcnow().isoformat() + 'Z'
-        }
-
-        with file_update_lock:
-            for client_id, client_queue in file_update_clients.items():
-                try:
-                    client_queue.put_nowait(cache_event)
-                except queue.Full:
-                    pass
-                except Exception:
-                    pass
-
-        logger.info(f"[File Tree Cache] Sent invalidation event to {len(file_update_clients)} clients")
-    except Exception as e:
-        logger.error(f"[File Tree Cache] Failed to send invalidation event: {e}")
+        asyncio.create_task(send_notification())
+    except RuntimeError:
+        # If no event loop is running, just skip the notification
+        logger.debug("[File Tree Cache] Skipped notification - no event loop running")
 
 
 def invalidate_file_tree_cache_debounced():
@@ -114,13 +131,16 @@ def invalidate_file_tree_cache_debounced():
 
 
 @files_bp.get('/updates/stream')
-async def file_updates_stream():
+async def file_updates_stream(request: Request):
     """SSE endpoint for real-time file content updates"""
-    def event_stream():
-        client_id = f"client-{datetime.now().timestamp()}"
-        client_queue = queue.Queue(maxsize=100)
+    async def event_stream():
+        client_id = f"files-{datetime.now().timestamp()}"
+        client_queue = asyncio.Queue(maxsize=100)
 
-        with file_update_lock:
+        # Register client for global tracking
+        register_sse_client(client_id)
+
+        async with file_update_lock:
             file_update_clients[client_id] = client_queue
 
         logger.info(f"[File Updates] New client connected: {client_id}")
@@ -130,27 +150,40 @@ async def file_updates_stream():
             yield f"data: {json.dumps({'type': 'connected', 'clientId': client_id, 'message': 'Connected to file updates'})}\n\n"
 
             while True:
+                # Check if client disconnected BEFORE blocking operation
+                if await request.is_disconnected():
+                    logger.info(f"[File Updates] Client {client_id} disconnected (detected)")
+                    break
+
                 try:
-                    # Wait for events with timeout
-                    event = client_queue.get(timeout=30)
+                    # Wait for events with shorter timeout for faster shutdown (5s instead of 30s)
+                    event = await asyncio.wait_for(client_queue.get(), timeout=5.0)
                     yield f"data: {json.dumps(event)}\n\n"
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     # Send keepalive
                     yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+                except (BrokenPipeError, ConnectionResetError, OSError) as e:
+                    # Client disconnected - this is normal, just log and exit
+                    logger.debug(f"[File Updates] Client {client_id} disconnected: {e}")
+                    break
                 except Exception as e:
-                    logger.error(f"File update SSE stream error: {e}")
+                    logger.error(f"[File Updates] SSE stream error for {client_id}: {e}")
                     break
         finally:
-            # Remove client from list when disconnected
-            with file_update_lock:
+            # Remove client from local list
+            async with file_update_lock:
                 if client_id in file_update_clients:
                     del file_update_clients[client_id]
-                    logger.info(f"File update client {client_id} disconnected")
+                    logger.info(f"[File Updates] Client {client_id} cleaned up from local list")
+
+            # Unregister from global tracking
+            unregister_sse_client(client_id)
 
     return StreamingResponse(event_stream(), media_type='text/event-stream', headers={
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': '*',
+        'X-Accel-Buffering': 'no'  # Disable buffering for nginx/proxy compatibility
     })
 
 
@@ -864,9 +897,21 @@ async def get_file_content(file_path: str):
     """Read file content with metadata"""
     try:
         file_service = get_file_service()
-        result = file_service.read_file_content(file_path)
-        logger.info(f"Successfully read file: {file_path}")
-        return result
+
+        # Wrap synchronous file read in thread with timeout to prevent hanging on slow I/O
+        try:
+            result = await asyncio.wait_for(
+                asyncio.to_thread(file_service.read_file_content, file_path),
+                timeout=10.0  # 10 second timeout for file reads
+            )
+            logger.info(f"Successfully read file: {file_path}")
+            return result
+        except asyncio.TimeoutError:
+            logger.error(f"File read timeout after 10s: {file_path}")
+            return JSONResponse({
+                'error': 'File read operation timed out. The file may be on a slow network drive or the system is under heavy load.'
+            }, status_code=504)
+
     except FileNotFoundError as e:
         logger.warning(f"File not found: {file_path}")
         return JSONResponse({'error': str(e)}, status_code=404)
@@ -894,7 +939,7 @@ async def write_file_content(file_path: str, request: Request):
         # This ensures consistency with frontend file paths
         notification_path = result.get('relativePath', file_path)
         logger.info(f"Sending file update notification for: {notification_path}")
-        notify_file_update(notification_path, event_type='modified', content=content)
+        await notify_file_update(notification_path, event_type='modified', content=content)
 
         return result
     except ValueError as e:

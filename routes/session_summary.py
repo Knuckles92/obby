@@ -19,11 +19,21 @@ from config.settings import (
 from utils.session_summary_path import resolve_session_summary_path
 from services.session_summary_service import SessionSummaryService
 import queue
+import asyncio
 from datetime import datetime
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 import threading
 import time
+
+# Import SSE client tracking from backend
+import sys
+if 'backend' in sys.modules:
+    from backend import register_sse_client, unregister_sse_client
+else:
+    # Fallback if backend module not available (e.g., during testing)
+    def register_sse_client(client_id: str): pass
+    def unregister_sse_client(client_id: str): pass
 
 logger = logging.getLogger(__name__)
 
@@ -213,36 +223,56 @@ async def trigger_session_summary_update(request: Request):
 
 
 @session_summary_bp.get('/events')
-async def session_summary_events():
+async def session_summary_events(request: Request):
     """SSE endpoint for session summary updates"""
-    def event_stream():
-        client_queue = queue.Queue()
+    async def event_stream():
+        client_id = f"session-{datetime.now().timestamp()}"
+        client_queue = asyncio.Queue(maxsize=100)
+
+        # Register client for global tracking
+        register_sse_client(client_id)
         sse_clients.append(client_queue)
-        
+
+        logger.info(f"[Session Summary] New client connected: {client_id}")
+
         try:
             # Send initial connection message
-            yield f"data: {json.dumps({'type': 'connected', 'message': 'Connected to session summary updates'})}\n\n"
-            
+            yield f"data: {json.dumps({'type': 'connected', 'clientId': client_id, 'message': 'Connected to session summary updates'})}\n\n"
+
             while True:
+                # Check if client disconnected BEFORE blocking operation
+                if await request.is_disconnected():
+                    logger.info(f"[Session Summary] Client {client_id} disconnected (detected)")
+                    break
+
                 try:
-                    # Wait for events with timeout
-                    event = client_queue.get(timeout=30)
+                    # Wait for events with shorter timeout for faster shutdown (5s instead of 30s)
+                    event = await asyncio.wait_for(client_queue.get(), timeout=5.0)
                     yield f"data: {json.dumps(event)}\n\n"
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     # Send keepalive
                     yield f"data: {json.dumps({'type': 'keepalive'})}\n\n"
+                except (BrokenPipeError, ConnectionResetError, OSError) as e:
+                    # Client disconnected - this is normal, just log and exit
+                    logger.debug(f"[Session Summary] Client {client_id} disconnected: {e}")
+                    break
                 except Exception as e:
-                    logger.error(f"SSE stream error: {e}")
+                    logger.error(f"[Session Summary] SSE stream error for {client_id}: {e}")
                     break
         finally:
-            # Remove client from list when disconnected
+            # Remove client from local list
             if client_queue in sse_clients:
                 sse_clients.remove(client_queue)
-    
+                logger.info(f"[Session Summary] Client {client_id} cleaned up from local list")
+
+            # Unregister from global tracking
+            unregister_sse_client(client_id)
+
     return StreamingResponse(event_stream(), media_type='text/event-stream', headers={
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': '*',
+        'X-Accel-Buffering': 'no'  # Disable buffering for nginx/proxy compatibility
     })
 
 
@@ -277,7 +307,7 @@ def notify_session_summary_change():
         for client_queue in sse_clients:
             try:
                 client_queue.put_nowait(event)
-            except queue.Full:
+            except asyncio.QueueFull:
                 # Mark client for removal if queue is full
                 disconnected_clients.append(client_queue)
             except Exception as e:

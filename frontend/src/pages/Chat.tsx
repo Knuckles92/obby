@@ -6,6 +6,7 @@ import NoteEditor from '../components/NoteEditor'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import LoadingIndicator from '../components/LoadingIndicator'
 import { ContextModal } from '../components/ContextModal'
+import FileReference from '../components/FileReference'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
@@ -13,12 +14,18 @@ import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism'
 
 type Role = 'system' | 'user' | 'assistant' | 'tool'
 
+interface FileReference {
+  path: string
+  action?: 'read' | 'modified' | 'mentioned' | 'created'
+}
+
 interface ChatMessage {
   role: Role
   content: string
   tool_calls?: any[]
   tool_call_id?: string
   name?: string
+  fileReferences?: FileReference[]
 }
 
 interface ToolSchema {
@@ -143,6 +150,7 @@ export default function Chat() {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [headerMinimized, setHeaderMinimized] = useState(false)
   const [streamingMessage, setStreamingMessage] = useState<string>('')
+  const [streamingFileReferences, setStreamingFileReferences] = useState<FileReference[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
 
   // File browser and note editor state
@@ -252,7 +260,28 @@ Guidelines:
 - Do not query SQLite or other databases unless the notes search clearly cannot answer the question.
 - When using tools, proceed without announcing your actions
 - Synthesize results rather than listing raw data
-- Focus on answering the user's question efficiently`
+- Focus on answering the user's question efficiently
+
+Response Format:
+When you reference, read, modify, or create files during your response, you MUST return a structured JSON response with the following format:
+{
+  "message": "Your response text in markdown format",
+  "fileReferences": [
+    {
+      "path": "relative/path/to/file.md",
+      "action": "read" | "modified" | "created" | "mentioned"
+    }
+  ]
+}
+
+File Reference Actions:
+- "read": Files you read or searched through to answer the question
+- "modified": Files you edited or updated
+- "created": New files you created
+- "mentioned": Files you reference in your response without directly accessing
+
+If you do not reference any files, return a simple text response instead of JSON.
+Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").`
       }
     ])
 
@@ -499,6 +528,16 @@ Guidelines:
             return
           }
 
+          // Handle file references
+          if (eventType === 'file_references') {
+            const fileRefs = data.fileReferences || []
+            if (fileRefs.length > 0) {
+              setStreamingFileReferences(fileRefs)
+              recordAgentAction('progress', `Referenced ${fileRefs.length} file(s)`, null, sessionId)
+            }
+            return
+          }
+
           setProgressMessage(data.message || null)
           setProgressType(eventType)
 
@@ -620,6 +659,7 @@ Guidelines:
 
     // Reset streaming state
     setStreamingMessage('')
+    setStreamingFileReferences([])
     setIsStreaming(false)
 
     // Prepare messages with optional note context
@@ -799,6 +839,7 @@ Guidelines:
 
       // Clear streaming state after final message is received
       setStreamingMessage('')
+      setStreamingFileReferences([])
       setIsStreaming(false)
 
       // Reset context being used indicator
@@ -811,6 +852,7 @@ Guidelines:
         setLoading(false)
         setIsStreaming(false)
         setStreamingMessage('')
+        setStreamingFileReferences([])
         setProgressMessage(null)
         setProgressType(null)
         setContextBeingUsed(false)
@@ -820,6 +862,7 @@ Guidelines:
 
       // Clear streaming state on error
       setStreamingMessage('')
+      setStreamingFileReferences([])
       setIsStreaming(false)
 
       // Reset context being used indicator
@@ -960,7 +1003,28 @@ Guidelines:
 - Do not query SQLite or other databases unless the notes search clearly cannot answer the question.
 - When using tools, proceed without announcing your actions
 - Synthesize results rather than listing raw data
-- Focus on answering the user's question efficiently`
+- Focus on answering the user's question efficiently
+
+Response Format:
+When you reference, read, modify, or create files during your response, you MUST return a structured JSON response with the following format:
+{
+  "message": "Your response text in markdown format",
+  "fileReferences": [
+    {
+      "path": "relative/path/to/file.md",
+      "action": "read" | "modified" | "created" | "mentioned"
+    }
+  ]
+}
+
+File Reference Actions:
+- "read": Files you read or searched through to answer the question
+- "modified": Files you edited or updated
+- "created": New files you created
+- "mentioned": Files you reference in your response without directly accessing
+
+If you do not reference any files, return a simple text response instead of JSON.
+Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").`
       }
     ])
 
@@ -973,6 +1037,7 @@ Guidelines:
     setAgentActions([])
     setCurrentSessionId(null)
     setStreamingMessage('')
+    setStreamingFileReferences([])
     setIsStreaming(false)
     setContextBeingUsed(false)
 
@@ -1328,6 +1393,18 @@ Guidelines:
                           {m.content}
                         </ReactMarkdown>
                       </div>
+                      {m.fileReferences && m.fileReferences.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex flex-wrap gap-2">
+                          {m.fileReferences.map((ref, refIdx) => (
+                            <FileReference
+                              key={`${ref.path}-${refIdx}`}
+                              path={ref.path}
+                              action={ref.action}
+                              onClick={handleFileSelect}
+                            />
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1341,6 +1418,18 @@ Guidelines:
                         {streamingMessage}
                       </ReactMarkdown>
                     </div>
+                    {streamingFileReferences && streamingFileReferences.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex flex-wrap gap-2">
+                        {streamingFileReferences.map((ref, refIdx) => (
+                          <FileReference
+                            key={`streaming-${ref.path}-${refIdx}`}
+                            path={ref.path}
+                            action={ref.action}
+                            onClick={handleFileSelect}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

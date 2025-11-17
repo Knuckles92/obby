@@ -1,11 +1,5 @@
 # Obby
-
-[![Python 3.x](https://img.shields.io/badge/python-3.x-blue.svg)](https://www.python.org/downloads/)
-[![React 18+](https://img.shields.io/badge/react-18+-blue.svg)](https://reactjs.org/)
-[![TypeScript](https://img.shields.io/badge/typescript-5.0+-blue.svg)](https://www.typescriptlang.org/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
-Obby monitors Markdown files in real-time, tracks changes in a SQLite database, and uses Claude Agent SDK to generate summaries of your work. The web interface is built with React and TypeScript.
+Obby is an AI agent that lives in your notes, keeps up with every change in real time, and lets you chat, ask questions, and have it do work directly in your files.
 
 ## Architecture Snapshot
 - **Backend**: `backend.py` launches the FastAPI service, the Python file watcher, diff tracker, and SSE publishers that power the UI and database synchronization.

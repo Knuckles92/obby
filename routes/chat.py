@@ -17,6 +17,15 @@ from pathlib import Path
 from typing import Dict, List, Any
 from config import settings as cfg
 
+# Import SSE client tracking from backend
+import sys
+if 'backend' in sys.modules:
+    from backend import register_sse_client, unregister_sse_client
+else:
+    # Fallback if backend module not available (e.g., during testing)
+    def register_sse_client(client_id: str): pass
+    def unregister_sse_client(client_id: str): pass
+
 logger = logging.getLogger(__name__)
 
 # Try to import Claude Agent SDK (optional dependency)
@@ -72,39 +81,59 @@ async def chat_ping():
 
 
 @chat_bp.get('/progress/{session_id}')
-async def chat_progress_events(session_id: str):
+async def chat_progress_events(session_id: str, request: Request):
     """SSE endpoint for chat progress updates"""
-    def event_stream():
-        client_queue = queue.Queue()
-        
+    async def event_stream():
+        client_id = f"chat-{session_id}"
+        client_queue = asyncio.Queue(maxsize=100)
+
+        # Register client for global tracking
+        register_sse_client(client_id)
+
         with chat_sse_lock:
             chat_sse_clients[session_id] = client_queue
-        
+
+        logger.info(f"[Chat Progress] New client connected: {client_id}")
+
         try:
             # Send initial connection message
-            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id, 'message': 'Connected to chat progress updates'})}\n\n"
-            
+            yield f"data: {json.dumps({'type': 'connected', 'session_id': session_id, 'clientId': client_id, 'message': 'Connected to chat progress updates'})}\n\n"
+
             while True:
+                # Check if client disconnected BEFORE blocking operation
+                if await request.is_disconnected():
+                    logger.info(f"[Chat Progress] Client {client_id} disconnected (detected)")
+                    break
+
                 try:
-                    # Wait for events with timeout
-                    event = client_queue.get(timeout=30)
+                    # Wait for events with shorter timeout for faster shutdown (5s instead of 30s)
+                    event = await asyncio.wait_for(client_queue.get(), timeout=5.0)
                     yield f"data: {json.dumps(event)}\n\n"
-                except queue.Empty:
+                except asyncio.TimeoutError:
                     # Send keepalive
                     yield f"data: {json.dumps({'type': 'keepalive', 'session_id': session_id})}\n\n"
+                except (BrokenPipeError, ConnectionResetError, OSError) as e:
+                    # Client disconnected - this is normal, just log and exit
+                    logger.debug(f"[Chat Progress] Client {client_id} disconnected: {e}")
+                    break
                 except Exception as e:
-                    logger.error(f"Chat SSE stream error: {e}")
+                    logger.error(f"[Chat Progress] SSE stream error for {client_id}: {e}")
                     break
         finally:
-            # Remove client from list when disconnected
+            # Remove client from local list
             with chat_sse_lock:
                 if session_id in chat_sse_clients:
                     del chat_sse_clients[session_id]
-    
+                    logger.info(f"[Chat Progress] Client {client_id} cleaned up from local list")
+
+            # Unregister from global tracking
+            unregister_sse_client(client_id)
+
     return StreamingResponse(event_stream(), media_type='text/event-stream', headers={
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive',
-        'Access-Control-Allow-Origin': '*'
+        'Access-Control-Allow-Origin': '*',
+        'X-Accel-Buffering': 'no'  # Disable buffering for nginx/proxy compatibility
     })
 
 
@@ -126,7 +155,7 @@ def notify_chat_progress(session_id: str, event_type: str, message: str, data: D
                 try:
                     chat_sse_clients[session_id].put_nowait(event)
                     logger.debug(f"Sent chat progress event to session {session_id}: {event_type}")
-                except queue.Full:
+                except asyncio.QueueFull:
                     logger.warning(f"Chat SSE queue full for session {session_id}")
                 except Exception as e:
                     logger.warning(f"Failed to notify chat SSE client {session_id}: {e}")
@@ -185,8 +214,37 @@ async def chat_with_history(request: Request):
             active_agent_tasks[session_id] = task
         
         try:
+            # Monitor for client disconnection while waiting for task
+            disconnect_check = asyncio.create_task(_check_client_disconnected(request))
+            done, pending = await asyncio.wait(
+                [task, disconnect_check],
+                return_when=asyncio.FIRST_COMPLETED
+            )
+            
+            # Check which task completed first
+            if disconnect_check in done:
+                # Client disconnected - cancel the agent task
+                logger.info(f"Client disconnected during chat query for session {session_id}")
+                task.cancel()
+                try:
+                    await task
+                except asyncio.CancelledError:
+                    pass
+                return JSONResponse({
+                    'error': 'Client disconnected',
+                    'cancelled': True
+                }, status_code=499)  # 499 Client Closed Request
+            
+            # Agent task completed - cancel disconnect check and return result
+            disconnect_check.cancel()
+            try:
+                await disconnect_check
+            except asyncio.CancelledError:
+                pass
+            
             result = await task
             return result
+                
         except asyncio.CancelledError:
             logger.info(f"Agent task cancelled for session {session_id}")
             if session_id:
@@ -208,6 +266,14 @@ async def chat_with_history(request: Request):
             if session_id in active_agent_tasks:
                 del active_agent_tasks[session_id]
         return JSONResponse({'error': str(e)}, status_code=500)
+
+
+async def _check_client_disconnected(request: Request):
+    """Helper coroutine to check if client disconnected"""
+    while True:
+        await asyncio.sleep(1)  # Check every second
+        if await request.is_disconnected():
+            return True
 
 
 async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) -> Dict:
@@ -314,6 +380,16 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                 "You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure."
                 " Always begin your investigation by searching the notes directory using the Grep tool before considering any other data sources."
                 " Only run SQL or other database queries as a last resort when the notes search cannot provide the required context."
+                "\n\nResponse Format:"
+                " When you reference, read, modify, or create files during your response, you MUST return a structured JSON response with the following format:"
+                ' {"message": "Your response text in markdown format", "fileReferences": [{"path": "relative/path/to/file.md", "action": "read" | "modified" | "created" | "mentioned"}]}'
+                "\n\nFile Reference Actions:"
+                " - read: Files you read or searched through to answer the question"
+                " - modified: Files you edited or updated"
+                " - created: New files you created"
+                " - mentioned: Files you reference in your response without directly accessing"
+                "\n\nIf you do not reference any files, return a simple text response instead of JSON."
+                " Always use relative paths from the project root (e.g., 'notes/summary.md' not '/full/path/to/notes/summary.md')."
             )
         )
 
@@ -528,9 +604,32 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
 
         # Save final message if we have accumulated text blocks
         if current_message_parts:
+            final_content = '\n'.join(current_message_parts)
+            file_references = []
+
+            # Try to parse as structured JSON response
+            try:
+                parsed_response = json.loads(final_content)
+                if isinstance(parsed_response, dict) and 'message' in parsed_response:
+                    # Extract message and file references from structured response
+                    final_content = parsed_response['message']
+                    file_references = parsed_response.get('fileReferences', [])
+                    logger.info(f"📋 Parsed structured response with {len(file_references)} file references")
+
+                    # Notify frontend about file references
+                    if session_id and file_references:
+                        notify_chat_progress(session_id, 'file_references', 'File references available', {
+                            'fileReferences': file_references
+                        })
+            except (json.JSONDecodeError, TypeError, ValueError):
+                # Not JSON or not our expected structure, use as-is
+                logger.debug("Response is not structured JSON, using as plain text")
+                pass
+
             conversation_messages.append({
                 'role': 'assistant',
-                'content': '\n'.join(current_message_parts)
+                'content': final_content,
+                'fileReferences': file_references if file_references else None
             })
 
         # Calculate total characters across all messages
