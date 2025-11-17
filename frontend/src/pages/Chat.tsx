@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2, XCircle } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
@@ -137,6 +138,7 @@ const shortSessionLabel = (sessionId?: string) => {
 }
 
 export default function Chat() {
+  const location = useLocation()
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -196,6 +198,21 @@ export default function Chat() {
     localStorage.setItem('chatFileBrowserWidth', fileBrowserWidth.toString())
     localStorage.setItem('chatPanelWidth', chatPanelWidth.toString())
   }, [fileBrowserWidth, chatPanelWidth])
+
+  // Handle file selection from navigation state (e.g., from Summary Notes links)
+  // Note: handleFileSelect is defined later in the component, but useCallback ensures stable reference
+  useEffect(() => {
+    if ((location.state as any)?.selectedFile) {
+      // Select file by setting state directly to avoid dependency issues
+      setSelectedFile((location.state as any).selectedFile)
+      setRecentlyViewedFiles(prev => {
+        const updated = [(location.state as any).selectedFile, ...prev.filter((f) => f !== (location.state as any).selectedFile)]
+        return updated.slice(0, 8)
+      })
+      // Clear the state so it doesn't persist on navigation
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state?.selectedFile])
 
   // Load watched files for context modal
   useEffect(() => {
@@ -281,7 +298,12 @@ File Reference Actions:
 - "mentioned": Files you reference in your response without directly accessing
 
 If you do not reference any files, return a simple text response instead of JSON.
-Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").`
+Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").
+
+IMPORTANT: When mentioning file paths in your message text, format them as clickable markdown links:
+- Correct: [filename.md](path/to/filename.md)
+- Incorrect: path/to/filename.md (plain text)
+This allows users to click file paths directly to open them.`
       }
     ])
 
@@ -496,19 +518,18 @@ Always use relative paths from the project root (e.g., "notes/summary.md" not "/
           if (eventType === 'assistant_message_start') {
             // Reset streaming state for new turn
             setStreamingMessage('')
+            setStreamingFileReferences([])
             setIsStreaming(true)
             return
           }
 
-          // Handle assistant message turn completing
-          if (eventType === 'assistant_message_complete') {
-            const content = data.content || streamingMessage
-            if (content) {
-              // Add completed message to conversation
-              setMessages((prev) => [...prev, { role: 'assistant', content }])
-              setStreamingMessage('')
+          // Handle file references (may come before or during message)
+          if (eventType === 'file_references') {
+            const fileRefs = data.fileReferences || []
+            if (fileRefs.length > 0) {
+              setStreamingFileReferences(fileRefs)
+              recordAgentAction('progress', `Referenced ${fileRefs.length} file(s)`, null, sessionId)
             }
-            setIsStreaming(false)
             return
           }
 
@@ -528,13 +549,20 @@ Always use relative paths from the project root (e.g., "notes/summary.md" not "/
             return
           }
 
-          // Handle file references
-          if (eventType === 'file_references') {
-            const fileRefs = data.fileReferences || []
-            if (fileRefs.length > 0) {
-              setStreamingFileReferences(fileRefs)
-              recordAgentAction('progress', `Referenced ${fileRefs.length} file(s)`, null, sessionId)
+          // Handle assistant message turn completing
+          if (eventType === 'assistant_message_complete') {
+            const content = data.content || streamingMessage
+            if (content) {
+              // Add completed message to conversation with any accumulated file references
+              setMessages((prev) => [...prev, { 
+                role: 'assistant', 
+                content,
+                fileReferences: streamingFileReferences.length > 0 ? streamingFileReferences : undefined
+              }])
+              setStreamingMessage('')
+              setStreamingFileReferences([])
             }
+            setIsStreaming(false)
             return
           }
 
@@ -822,12 +850,15 @@ Always use relative paths from the project root (e.g., "notes/summary.md" not "/
             return !existingMessageIds.includes(messageId)
           })
 
-          // Clean user messages to match displayMessage
+          // Clean user messages to match displayMessage, but preserve fileReferences for assistant messages
           const currentDisplayMessage = displayMessage // Capture current value to avoid stale closure
-          const cleanNewMessages = newMessages.map(msg =>
-            msg.role === 'user' && msg.content !== currentDisplayMessage ?
-              { ...msg, content: currentDisplayMessage } : msg
-          )
+          const cleanNewMessages = newMessages.map(msg => {
+            if (msg.role === 'user' && msg.content !== currentDisplayMessage) {
+              return { ...msg, content: currentDisplayMessage }
+            }
+            // Preserve all fields including fileReferences
+            return msg
+          })
           
           return [...prevMessages, ...cleanNewMessages]
         })
@@ -1024,7 +1055,12 @@ File Reference Actions:
 - "mentioned": Files you reference in your response without directly accessing
 
 If you do not reference any files, return a simple text response instead of JSON.
-Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").`
+Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").
+
+IMPORTANT: When mentioning file paths in your message text, format them as clickable markdown links:
+- Correct: [filename.md](path/to/filename.md)
+- Incorrect: path/to/filename.md (plain text)
+This allows users to click file paths directly to open them.`
       }
     ])
 
@@ -1071,6 +1107,53 @@ Always use relative paths from the project root (e.g., "notes/summary.md" not "/
         <code className={className} {...props}>
           {children}
         </code>
+      )
+    },
+    a({ node, children, href, ...props }: any) {
+      // Check if the link looks like a file path (no protocol, contains path separators or file extensions)
+      const isFilePath = href && !href.match(/^[a-z]+:\/\//) && (
+        href.includes('/') ||
+        href.includes('\\') ||
+        href.match(/\.[a-z]{2,}$/i)
+      )
+
+      if (isFilePath) {
+        // Normalize the file path to match what the file tree expects
+        let normalizedPath = href
+
+        // Convert backslashes to forward slashes (Windows paths)
+        normalizedPath = normalizedPath.replace(/\\/g, '/')
+
+        // Remove common absolute path prefixes
+        // Handle Windows absolute paths (e.g., D:/Python Projects/obby/frontend/src/...)
+        normalizedPath = normalizedPath.replace(/^[A-Z]:[\/].*?obby[\/]/i, '')
+
+        // Handle Unix absolute paths (e.g., /mnt/d/Python Projects/obby/frontend/src/...)
+        normalizedPath = normalizedPath.replace(/^\/mnt\/[a-z]\/.*?obby[\/]/i, '')
+        normalizedPath = normalizedPath.replace(/^\/.*?obby[\/]/i, '')
+
+        // Remove leading slash if present (make it relative)
+        normalizedPath = normalizedPath.replace(/^\/+/, '')
+
+        return (
+          <button
+            onClick={(e) => {
+              e.preventDefault()
+              handleFileSelect(normalizedPath)
+            }}
+            className="text-[var(--color-primary)] hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+            title={`Click to open: ${normalizedPath}`}
+          >
+            {children}
+          </button>
+        )
+      }
+
+      // Regular external links
+      return (
+        <a href={href} {...props} target="_blank" rel="noopener noreferrer">
+          {children}
+        </a>
       )
     }
   }

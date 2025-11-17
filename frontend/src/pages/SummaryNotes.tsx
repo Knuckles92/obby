@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { FileText, Trash2, ChevronLeft, ChevronRight, Grid, Square, Search, Zap, Clock, CheckCircle, AlertCircle, Filter as FilterIcon } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -79,6 +80,7 @@ interface GenerationStatusState {
 }
 
 export default function SummaryNotes() {
+  const navigate = useNavigate()
   const [summaries, setSummaries] = useState<SummaryNote[]>([])
   const [pagination, setPagination] = useState<SummaryPaginationInfo>({
     current_page: 1,
@@ -1036,6 +1038,42 @@ export default function SummaryNotes() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [viewMode, isSelectMode, selectedItems])
 
+  // Markdown components with custom link handler
+  const markdownComponents = {
+    code: CodeBlock,
+    a({ node, children, href, ...props }: any) {
+      // Check if the link looks like a file path (no protocol, contains path separators or file extensions)
+      const isFilePath = href && !href.match(/^[a-z]+:\/\//) && (
+        href.includes('/') || 
+        href.includes('\\') || 
+        href.match(/\.[a-z]{2,}$/i)
+      )
+      
+      if (isFilePath) {
+        return (
+          <button
+            onClick={(e: React.MouseEvent) => {
+              e.preventDefault()
+              // Navigate to Chat page with file selected
+              navigate('/chat', { state: { selectedFile: href } })
+            }}
+            className="text-[var(--color-primary)] hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
+            title={`Click to open: ${href}`}
+          >
+            {children}
+          </button>
+        )
+      }
+      
+      // Regular external links
+      return (
+        <a href={href} {...props} target="_blank" rel="noopener noreferrer">
+          {children}
+        </a>
+      )
+    }
+  }
+
   if (hasError) {
     return (
       <div className="space-y-6">
@@ -1576,7 +1614,7 @@ export default function SummaryNotes() {
                   <div className="relative prose prose-gray max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-strong:text-gray-900 prose-code:text-blue-600 prose-code:bg-blue-50 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-pre:bg-gray-900 prose-pre:text-gray-100 prose-ul:mt-2 prose-li:my-1 marker:text-gray-500">
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
-                      components={{ code: CodeBlock }}
+                      components={markdownComponents}
                     >
                       {currentSummaryContent.content}
                     </ReactMarkdown>
