@@ -380,16 +380,22 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                 "You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure."
                 " Always begin your investigation by searching the notes directory using the Grep tool before considering any other data sources."
                 " Only run SQL or other database queries as a last resort when the notes search cannot provide the required context."
+                "\n\nFile References:"
+                " When mentioning files in your response, format them as inline code with the full relative path:"
+                " - Correct format: `frontend/src/Chat.tsx` or `backend.py` or `routes/chat.py`"
+                " - Incorrect format: frontend/src/Chat.tsx (plain text without backticks)"
+                " - Always use project-relative paths (e.g., `frontend/src/Chat.tsx` not `/mnt/d/Python Projects/obby/frontend/src/Chat.tsx`)"
+                " - Include the path when useful for clarity (e.g., `routes/chat.py` instead of just `chat.py` if there are multiple chat.py files)"
+                " - Never include absolute path prefixes like '/mnt/d/', 'D:/', or '/obby/'"
                 "\n\nResponse Format:"
                 " When you reference, read, modify, or create files during your response, you MUST return a structured JSON response with the following format:"
-                ' {"message": "Your response text in markdown format", "fileReferences": [{"path": "relative/path/to/file.md", "action": "read" | "modified" | "created" | "mentioned"}]}'
+                ' {"message": "Your response text in markdown format with inline code file references", "fileReferences": [{"path": "relative/path/to/file.md", "action": "read" | "modified" | "created" | "mentioned"}]}'
                 "\n\nFile Reference Actions:"
                 " - read: Files you read or searched through to answer the question"
                 " - modified: Files you edited or updated"
                 " - created: New files you created"
                 " - mentioned: Files you reference in your response without directly accessing"
                 "\n\nIf you do not reference any files, return a simple text response instead of JSON."
-                " Always use relative paths from the project root (e.g., 'notes/summary.md' not '/full/path/to/notes/summary.md')."
             )
         )
 

@@ -279,10 +279,18 @@ Guidelines:
 - Synthesize results rather than listing raw data
 - Focus on answering the user's question efficiently
 
+File References:
+When mentioning files in your response, format them as inline code with the full relative path:
+- Correct format: \`frontend/src/Chat.tsx\` or \`backend.py\` or \`routes/chat.py\`
+- Incorrect format: frontend/src/Chat.tsx (plain text without backticks)
+- Always use project-relative paths (e.g., \`frontend/src/Chat.tsx\` not \`/mnt/d/Python Projects/obby/frontend/src/Chat.tsx\`)
+- Include the path when useful for clarity (e.g., \`routes/chat.py\` instead of just \`chat.py\` if there are multiple chat.py files)
+- Never include absolute path prefixes like '/mnt/d/', 'D:/', or '/obby/'
+
 Response Format:
 When you reference, read, modify, or create files during your response, you MUST return a structured JSON response with the following format:
 {
-  "message": "Your response text in markdown format",
+  "message": "Your response text in markdown format with inline code file references",
   "fileReferences": [
     {
       "path": "relative/path/to/file.md",
@@ -297,13 +305,7 @@ File Reference Actions:
 - "created": New files you created
 - "mentioned": Files you reference in your response without directly accessing
 
-If you do not reference any files, return a simple text response instead of JSON.
-Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").
-
-IMPORTANT: When mentioning file paths in your message text, format them as clickable markdown links:
-- Correct: [filename.md](path/to/filename.md)
-- Incorrect: path/to/filename.md (plain text)
-This allows users to click file paths directly to open them.`
+If you do not reference any files, return a simple text response instead of JSON.`
       }
     ])
 
@@ -915,6 +917,35 @@ This allows users to click file paths directly to open them.`
     })
   }, [])
 
+  /**
+   * showFile - Primary method for opening files from links and references
+   * Normalizes file paths and displays them in the file viewer
+   * @param path - File path (can be absolute or relative)
+   */
+  const showFile = useCallback((path: string) => {
+    if (!path) return
+
+    // Normalize the file path
+    let normalizedPath = path
+
+    // Convert backslashes to forward slashes (Windows paths)
+    normalizedPath = normalizedPath.replace(/\\/g, '/')
+
+    // Remove common absolute path prefixes to get project-relative path
+    // Handle Windows absolute paths (e.g., D:/Python Projects/obby/frontend/src/...)
+    normalizedPath = normalizedPath.replace(/^[A-Z]:[\/].*?obby[\/]/i, '')
+
+    // Handle Unix absolute paths (e.g., /mnt/d/Python Projects/obby/frontend/src/...)
+    normalizedPath = normalizedPath.replace(/^\/mnt\/[a-z]\/.*?obby[\/]/i, '')
+    normalizedPath = normalizedPath.replace(/^\/.*?obby[\/]/i, '')
+
+    // Remove leading slash if present (ensure it's relative)
+    normalizedPath = normalizedPath.replace(/^\/+/, '')
+
+    // Call the file selection handler
+    handleFileSelect(normalizedPath)
+  }, [handleFileSelect])
+
   const handleFileBrowserToggle = useCallback(() => {
     setFileBrowserOpen(prev => !prev)
   }, [])
@@ -1036,10 +1067,18 @@ Guidelines:
 - Synthesize results rather than listing raw data
 - Focus on answering the user's question efficiently
 
+File References:
+When mentioning files in your response, format them as inline code with the full relative path:
+- Correct format: \`frontend/src/Chat.tsx\` or \`backend.py\` or \`routes/chat.py\`
+- Incorrect format: frontend/src/Chat.tsx (plain text without backticks)
+- Always use project-relative paths (e.g., \`frontend/src/Chat.tsx\` not \`/mnt/d/Python Projects/obby/frontend/src/Chat.tsx\`)
+- Include the path when useful for clarity (e.g., \`routes/chat.py\` instead of just \`chat.py\` if there are multiple chat.py files)
+- Never include absolute path prefixes like '/mnt/d/', 'D:/', or '/obby/'
+
 Response Format:
 When you reference, read, modify, or create files during your response, you MUST return a structured JSON response with the following format:
 {
-  "message": "Your response text in markdown format",
+  "message": "Your response text in markdown format with inline code file references",
   "fileReferences": [
     {
       "path": "relative/path/to/file.md",
@@ -1054,13 +1093,7 @@ File Reference Actions:
 - "created": New files you created
 - "mentioned": Files you reference in your response without directly accessing
 
-If you do not reference any files, return a simple text response instead of JSON.
-Always use relative paths from the project root (e.g., "notes/summary.md" not "/full/path/to/notes/summary.md").
-
-IMPORTANT: When mentioning file paths in your message text, format them as clickable markdown links:
-- Correct: [filename.md](path/to/filename.md)
-- Incorrect: path/to/filename.md (plain text)
-This allows users to click file paths directly to open them.`
+If you do not reference any files, return a simple text response instead of JSON.`
       }
     ])
 
@@ -1094,16 +1127,43 @@ This allows users to click file paths directly to open them.`
   const markdownComponents = {
     code({ node, inline, className, children, ...props }: any) {
       const match = /language-(\w+)/.exec(className || '')
-      return !inline && match ? (
-        <SyntaxHighlighter
-          style={oneDark}
-          language={match[1]}
-          PreTag="div"
-          {...props}
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
+
+      // Handle code blocks (not inline)
+      if (!inline && match) {
+        return (
+          <SyntaxHighlighter
+            style={oneDark}
+            language={match[1]}
+            PreTag="div"
+            {...props}
+          >
+            {String(children).replace(/\n$/, '')}
+          </SyntaxHighlighter>
+        )
+      }
+
+      // Handle inline code - check if it looks like a file path
+      if (inline) {
+        const codeText = String(children)
+        const isFilePath = codeText.match(/^[\w\-./]+\.(tsx?|jsx?|py|md|json|ya?ml|txt|css|html|sh|rs|go|java|c|cpp|h|hpp)$/i) ||
+                          codeText.match(/^[\w\-]+\/[\w\-./]+$/) // paths with directories
+
+        if (isFilePath) {
+          return (
+            <code
+              className={`${className || ''} cursor-pointer hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)] transition-colors px-2 py-0.5 rounded bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)] font-mono text-sm`}
+              onClick={() => showFile(codeText)}
+              title={`Click to open: ${codeText}`}
+              {...props}
+            >
+              {children}
+            </code>
+          )
+        }
+      }
+
+      // Regular inline code (not a file path)
+      return (
         <code className={className} {...props}>
           {children}
         </code>
@@ -1118,31 +1178,14 @@ This allows users to click file paths directly to open them.`
       )
 
       if (isFilePath) {
-        // Normalize the file path to match what the file tree expects
-        let normalizedPath = href
-
-        // Convert backslashes to forward slashes (Windows paths)
-        normalizedPath = normalizedPath.replace(/\\/g, '/')
-
-        // Remove common absolute path prefixes
-        // Handle Windows absolute paths (e.g., D:/Python Projects/obby/frontend/src/...)
-        normalizedPath = normalizedPath.replace(/^[A-Z]:[\/].*?obby[\/]/i, '')
-
-        // Handle Unix absolute paths (e.g., /mnt/d/Python Projects/obby/frontend/src/...)
-        normalizedPath = normalizedPath.replace(/^\/mnt\/[a-z]\/.*?obby[\/]/i, '')
-        normalizedPath = normalizedPath.replace(/^\/.*?obby[\/]/i, '')
-
-        // Remove leading slash if present (make it relative)
-        normalizedPath = normalizedPath.replace(/^\/+/, '')
-
         return (
           <button
             onClick={(e) => {
               e.preventDefault()
-              handleFileSelect(normalizedPath)
+              showFile(href)
             }}
             className="text-[var(--color-primary)] hover:underline cursor-pointer bg-transparent border-none p-0 font-inherit"
-            title={`Click to open: ${normalizedPath}`}
+            title={`Click to open: ${href}`}
           >
             {children}
           </button>
@@ -1483,7 +1526,7 @@ This allows users to click file paths directly to open them.`
                               key={`${ref.path}-${refIdx}`}
                               path={ref.path}
                               action={ref.action}
-                              onClick={handleFileSelect}
+                              onClick={showFile}
                             />
                           ))}
                         </div>
@@ -1508,7 +1551,7 @@ This allows users to click file paths directly to open them.`
                             key={`streaming-${ref.path}-${refIdx}`}
                             path={ref.path}
                             action={ref.action}
-                            onClick={handleFileSelect}
+                            onClick={showFile}
                           />
                         ))}
                       </div>
