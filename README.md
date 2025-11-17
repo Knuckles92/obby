@@ -1,5 +1,6 @@
 # Obby
-Obby is an AI agent powered by Claude Agent SDK that lives in your Obsidian notes, keeps up with every change in real time, and lets you chat, ask questions, and have it do work directly in your files. 
+Obby is an AI agent powered by Claude Agent SDK that lives in your Obsidian Obsidian notes, keeps up with every change in real time, and lets you chat, ask questions, and have it do work directly in your files. 
+<img width="1920" height="925" alt="image" src="https://github.com/user-attachments/assets/27683f88-946f-4b7e-b3f3-be4591eb3bcf" />
 
 ## Architecture Snapshot
 - **Backend**: `backend.py` launches the FastAPI service, the Python file watcher, diff tracker, and SSE publishers that power the UI and database synchronization.
