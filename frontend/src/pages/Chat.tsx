@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2, XCircle } from 'lucide-react'
 import { apiRequest } from '../utils/api'
@@ -1123,6 +1123,119 @@ If you do not reference any files, return a simple text response instead of JSON
     }
   }
 
+  /**
+   * Determines if a string looks like a file path that should be clickable.
+   * Used to make file references in AI responses interactive.
+   */
+  const isFilePathLike = (text: string): boolean => {
+    if (!text || text.length < 2) return false
+    
+    // Exclude obvious non-paths
+    // - Pure numbers or simple numeric expressions
+    if (/^\d+(\.\d+)?$/.test(text)) return false
+    // - Common code literals
+    if (/^(true|false|null|undefined|NaN|Infinity|None|True|False)$/i.test(text)) return false
+    // - Shell commands (without looking like paths)
+    if (/^(npm|yarn|pnpm|pip|git|cd|ls|rm|mv|cp|mkdir|cat|echo|grep|curl|wget|node|python|ruby)\s/i.test(text)) return false
+    // - Function calls like `functionName()` or `func(args)`
+    if (/^\w+\([^)]*\)$/.test(text)) return false
+    // - Variable assignments or comparisons
+    if (/[=<>!]/.test(text)) return false
+    // - Array/object literals
+    if (/^[\[{]/.test(text) || /[\]}]$/.test(text)) return false
+    // - Strings with spaces (usually not file paths in this context)
+    if (/\s/.test(text)) return false
+    
+    // Comprehensive file extension list
+    const fileExtensions = /\.(tsx?|jsx?|mjs|cjs|py|pyw|pyi|md|mdx|markdown|json|jsonc|ya?ml|txt|text|css|scss|sass|less|styl|html?|htm|xml|xsl|xslt|sh|bash|zsh|fish|ps1|bat|cmd|rs|go|mod|sum|java|kt|kts|scala|sbt|c|cpp|cc|cxx|h|hpp|hxx|hh|cs|csx|fs|fsx|fsi|vb|vbs|rb|rake|gemspec|php|phtml|pl|pm|t|lua|r|rmd|jl|swift|m|mm|sql|sqlite|db|sqlite3|toml|ini|cfg|conf|config|env|local|example|sample|lock|log|csv|tsv|xml|svg|wasm|wat|proto|graphql|gql|tf|tfvars|hcl|dockerfile|makefile|cmake|ninja|gradle|pom|cabal|cargo|mix|rebar|gitignore|gitattributes|gitmodules|dockerignore|editorconfig|prettierrc|prettierignore|eslintrc|eslintignore|babelrc|nvmrc|npmrc|yarnrc|browserslistrc|stylelintrc|obbywatch|obbyignore)$/i
+
+    // Check 1: Has a recognized file extension with valid path characters
+    if (fileExtensions.test(text)) {
+      // Valid path characters (alphanumeric, dots, hyphens, underscores, slashes)
+      return /^[\w.\-/\\@]+$/.test(text)
+    }
+    
+    // Check 2: Dot-files without extension (like .gitignore, .env, .obbywatch)
+    if (/^\.[\w][\w.-]*$/.test(text) && !text.includes('/') && !text.includes('\\')) {
+      return true
+    }
+    
+    // Check 3: Path with directory separators (like frontend/src/utils)
+    if ((text.includes('/') || text.includes('\\')) && /^[\w.\-/\\@]+$/.test(text)) {
+      const segments = text.split(/[/\\]/).filter(Boolean)
+      // At least one segment that looks like a directory/file name
+      if (segments.length >= 1 && segments.every(s => s.length > 0 && !/^\.{2,}$/.test(s))) {
+        // Ensure at least one segment has a letter (not just dots/numbers)
+        return segments.some(s => /[a-zA-Z]/.test(s))
+      }
+    }
+    
+    return false
+  }
+
+  /**
+   * Parses text and returns an array of React nodes with file paths made clickable.
+   * Detects file paths in quotes ("path/to/file.tsx" or 'path/to/file.tsx')
+   * and standalone paths that look like file references.
+   */
+  const renderTextWithClickableFilePaths = (text: string): React.ReactNode[] => {
+    const result: React.ReactNode[] = []
+    
+    // Pattern to match:
+    // 1. Quoted paths: "path/to/file.ext" or 'path/to/file.ext'
+    // 2. Standalone paths with directory structure and extension
+    const filePathPattern = /["']([^"'\s]+)["']|(?<![a-zA-Z0-9_])([a-zA-Z0-9_@][a-zA-Z0-9_\-./@\\]*[a-zA-Z0-9_])(?![a-zA-Z0-9_])/g
+    
+    let lastIndex = 0
+    let match: RegExpExecArray | null
+    let keyIndex = 0
+    
+    while ((match = filePathPattern.exec(text)) !== null) {
+      // Get the captured path (either from quoted group or standalone group)
+      const capturedPath = match[1] || match[2]
+      
+      // Skip if the captured text doesn't look like a file path
+      if (!capturedPath || !isFilePathLike(capturedPath)) {
+        continue
+      }
+      
+      // Add text before this match
+      if (match.index > lastIndex) {
+        const beforeText = text.slice(lastIndex, match.index)
+        result.push(beforeText)
+      }
+      
+      // Determine if it was quoted (match[1] is the quoted capture group)
+      const wasQuoted = match[1] !== undefined
+      
+      // Add the clickable file path element
+      result.push(
+        <span
+          key={`file-${keyIndex++}`}
+          className="cursor-pointer hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)] transition-colors px-1 py-0.5 rounded bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)] font-mono text-sm"
+          onClick={() => showFile(capturedPath)}
+          title={`Click to open: ${capturedPath}`}
+        >
+          {wasQuoted ? `"${capturedPath}"` : capturedPath}
+        </span>
+      )
+      
+      lastIndex = match.index + match[0].length
+    }
+    
+    // Add any remaining text after the last match
+    if (lastIndex < text.length) {
+      result.push(text.slice(lastIndex))
+    }
+    
+    // If no matches were found, return the original text
+    if (result.length === 0) {
+      return [text]
+    }
+    
+    return result
+  }
+
   // Markdown components for chat messages
   const markdownComponents = {
     code({ node, inline, className, children, ...props }: any) {
@@ -1145,10 +1258,8 @@ If you do not reference any files, return a simple text response instead of JSON
       // Handle inline code - check if it looks like a file path
       if (inline) {
         const codeText = String(children)
-        const isFilePath = codeText.match(/^[\w\-./]+\.(tsx?|jsx?|py|md|json|ya?ml|txt|css|html|sh|rs|go|java|c|cpp|h|hpp)$/i) ||
-                          codeText.match(/^[\w\-]+\/[\w\-./]+$/) // paths with directories
 
-        if (isFilePath) {
+        if (isFilePathLike(codeText)) {
           return (
             <code
               className={`${className || ''} cursor-pointer hover:bg-[var(--color-primary)] hover:text-[var(--color-text-inverse)] transition-colors px-2 py-0.5 rounded bg-[color-mix(in_srgb,var(--color-primary)_20%,transparent)] text-[var(--color-primary)] font-mono text-sm`}
@@ -1170,14 +1281,10 @@ If you do not reference any files, return a simple text response instead of JSON
       )
     },
     a({ node, children, href, ...props }: any) {
-      // Check if the link looks like a file path (no protocol, contains path separators or file extensions)
-      const isFilePath = href && !href.match(/^[a-z]+:\/\//) && (
-        href.includes('/') ||
-        href.includes('\\') ||
-        href.match(/\.[a-z]{2,}$/i)
-      )
+      // Check if the link looks like a file path (no protocol, and passes file path detection)
+      const looksLikeFilePath = href && !href.match(/^[a-z]+:\/\//) && isFilePathLike(href)
 
-      if (isFilePath) {
+      if (looksLikeFilePath) {
         return (
           <button
             onClick={(e) => {
@@ -1198,6 +1305,26 @@ If you do not reference any files, return a simple text response instead of JSON
           {children}
         </a>
       )
+    },
+    p({ children, ...props }: any) {
+      // Process paragraph children to make file paths clickable
+      const processChildren = (childElements: React.ReactNode): React.ReactNode => {
+        return React.Children.map(childElements, (child, index) => {
+          // Only process string children (text nodes)
+          if (typeof child === 'string') {
+            const processed = renderTextWithClickableFilePaths(child)
+            // If processing returned multiple elements or different content, wrap in fragment
+            if (processed.length === 1 && processed[0] === child) {
+              return child // No changes needed
+            }
+            return <React.Fragment key={`text-${index}`}>{processed}</React.Fragment>
+          }
+          // Return other elements (like code, links, etc.) unchanged
+          return child
+        })
+      }
+
+      return <p {...props}>{processChildren(children)}</p>
     }
   }
 

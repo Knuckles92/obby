@@ -9,6 +9,7 @@ import time
 from ai.claude_agent_client import ClaudeAgentClient
 from utils.claude_summary_parser import ClaudeSummaryParser
 from utils.summary_context import SummaryContextConfig
+from utils.watch_handler import WatchHandler
 
 
 logger = logging.getLogger(__name__)
@@ -26,9 +27,18 @@ class SessionSummaryService:
         self.session_summary_path = Path(session_summary_path)
         self.settings_path = Path('config/session_summary_settings.json')
         self.format_path = Path('config/format.md')
-        # Initialize Claude Agent client
-        self.claude_client = ClaudeAgentClient(working_dir=Path.cwd())
-        logger.info("Session summary service initialized with Claude Agent SDK")
+        
+        # Initialize WatchHandler for directory restrictions
+        root_folder = Path(__file__).parent.parent
+        self.watch_handler = WatchHandler(root_folder)
+        logger.info(f"Session summary service: WatchHandler initialized with patterns: {self.watch_handler.watch_patterns}")
+        
+        # Initialize Claude Agent client with watch restrictions
+        self.claude_client = ClaudeAgentClient(
+            working_dir=Path.cwd(),
+            watch_handler=self.watch_handler
+        )
+        logger.info("Session summary service initialized with Claude Agent SDK (watch-restricted)")
         # Ensure format.md is in config if legacy file exists
         try:
             from utils.migrations import migrate_format_md
@@ -219,14 +229,8 @@ class SessionSummaryService:
             if context_config is None:
                 context_config = SummaryContextConfig.default()
 
-            # Initialize watch handler
-            watch_handler = None
-            try:
-                from utils.watch_handler import WatchHandler
-                root_folder = Path(__file__).parent.parent
-                watch_handler = WatchHandler(root_folder)
-            except Exception as e:
-                logger.debug(f"Watch patterns unavailable: {e}")
+            # Use the shared watch handler
+            watch_handler = self.watch_handler
 
             # Get preview data from FileQueries
             from database.queries import FileQueries
@@ -343,16 +347,9 @@ class SessionSummaryService:
                 minutes = time_elapsed.seconds // 60
                 time_range = f"last {minutes} minutes"
 
-            # Optional file filtering
-            watch_handler = None
-            try:
-                from utils.watch_handler import WatchHandler
-                root_folder = Path(__file__).parent.parent
-                watch_handler = WatchHandler(root_folder)
-                logger.info(f"Session summary: initialized WatchHandler with root_folder: {root_folder}")
-                logger.info(f"Session summary: loaded watch patterns: {watch_handler.watch_patterns}")
-            except Exception as e:
-                logger.debug(f"Watch patterns unavailable, proceeding without filter: {e}")
+            # Use the shared watch handler for file filtering
+            watch_handler = self.watch_handler
+            logger.info(f"Session summary: using WatchHandler with patterns: {watch_handler.watch_patterns}")
 
             # Fetch changed files using appropriate method based on context_config
             from database.queries import FileQueries

@@ -1,6 +1,8 @@
 """
 Chat API routes (FastAPI)
 Provides chat completion endpoints backed by the Claude Agent SDK.
+
+IMPORTANT: File access is restricted to watch directories configured in .obbywatch.
 """
 
 from fastapi import APIRouter, Request
@@ -16,6 +18,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any
 from config import settings as cfg
+from utils.watch_handler import WatchHandler
 
 # Import SSE client tracking from backend
 import sys
@@ -361,11 +364,54 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
         # Configure Claude with built-in tools only
         logger.info("🔧 Configuring Claude with built-in tools...")
         
+        # Initialize WatchHandler to get watch directory restrictions
+        project_root = Path.cwd()
+        watch_handler = WatchHandler(project_root)
+        watch_directories = []
+        restricted_cwd = project_root
+        
+        # Get watch directories
+        try:
+            watch_dirs = watch_handler.get_watch_directories(project_root)
+            for wd in watch_dirs:
+                try:
+                    rel_path = wd.relative_to(project_root)
+                    watch_directories.append(str(rel_path))
+                except ValueError:
+                    watch_directories.append(str(wd))
+            
+            if not watch_directories:
+                # Fallback to watch patterns if no directories resolved
+                watch_directories = list(watch_handler.watch_patterns)
+            
+            # Set restricted cwd to first watch directory
+            if watch_directories:
+                first_watch_dir = watch_directories[0].rstrip('/')
+                potential_cwd = project_root / first_watch_dir
+                if potential_cwd.exists() and potential_cwd.is_dir():
+                    restricted_cwd = potential_cwd
+            
+            logger.info(f"🔒 Watch directories configured: {watch_directories}")
+            logger.info(f"🔒 Restricted cwd: {restricted_cwd}")
+        except Exception as e:
+            logger.warning(f"Failed to initialize watch restrictions: {e}")
+        
+        # Build watch restriction prompt
+        watch_restriction = ""
+        if watch_directories:
+            dirs_list = ', '.join([f'`{d}`' for d in watch_directories])
+            watch_restriction = (
+                f"\n\nIMPORTANT FILE ACCESS RESTRICTION:"
+                f"\nYou may ONLY access files within these directories: {dirs_list}"
+                f"\nDo NOT read, search, or modify files outside these boundaries."
+                f"\nIf asked to access files outside these directories, politely explain that you can only work within the configured watch directories."
+            )
+        
         # Get model from environment or config (default: haiku for cost efficiency)
         claude_model = os.getenv("OBBY_CLAUDE_MODEL", cfg.CLAUDE_MODEL)
         
         options = ClaudeAgentOptions(
-            cwd=str(Path.cwd()),
+            cwd=str(restricted_cwd),
             allowed_tools=[
                 "Read",      # Read file contents
                 "Write",     # Write to files
@@ -378,6 +424,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
             model=claude_model,  # "sonnet", "opus", or "haiku"
             system_prompt=(
                 "You are a helpful assistant for the Obby file monitoring system. You have access to the file system and can read files, search for content, run commands, and explore the project structure."
+                + watch_restriction +
                 " Always begin your investigation by searching the notes directory using the Grep tool before considering any other data sources."
                 " Only run SQL or other database queries as a last resort when the notes search cannot provide the required context."
                 "\n\nFile References:"
@@ -399,7 +446,7 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
             )
         )
 
-        logger.info(f"⚙️  Claude options: model={claude_model}, max_turns=25, tools={options.allowed_tools}, cwd={options.cwd}")
+        logger.info(f"⚙️  Claude options: model={claude_model}, max_turns=25, tools={options.allowed_tools}, cwd={options.cwd}, watch_dirs={watch_directories}")
 
         # Send progress update with tool list
         if session_id:

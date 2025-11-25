@@ -3,16 +3,23 @@ Claude Agent SDK Integration for Obby
 ======================================
 
 Provides agentic AI capabilities using Anthropic's Claude Agent SDK.
+
+IMPORTANT: File access is restricted to watch directories configured in .obbywatch.
+The agent will only operate within these boundaries for security and focus.
 """
 
 import os
 import logging
 import asyncio
 import uuid
-from typing import Optional, List, Dict, Any, AsyncIterator, Callable
+from typing import Optional, List, Dict, Any, AsyncIterator, Callable, TYPE_CHECKING
 from pathlib import Path
 from datetime import datetime
 import json
+
+# Type hint for WatchHandler without circular import
+if TYPE_CHECKING:
+    from utils.watch_handler import WatchHandler
 
 # Import agent logging service (deferred to avoid circular imports)
 _agent_logging_service = None
@@ -51,7 +58,8 @@ class ClaudeAgentClient:
 
     def __init__(self, api_key: Optional[str] = None, working_dir: Optional[Path] = None,
                  progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
-                 session_id: Optional[str] = None):
+                 session_id: Optional[str] = None,
+                 watch_handler: Optional['WatchHandler'] = None):
         """
         Initialize Claude Agent Client.
 
@@ -60,6 +68,7 @@ class ClaudeAgentClient:
             working_dir: Working directory for file operations (defaults to current dir)
             progress_callback: Optional callback for progress events during AI operations
             session_id: Optional session ID for tracking agent actions (auto-generated if not provided)
+            watch_handler: Optional WatchHandler to restrict file access to watch directories
         """
         if not CLAUDE_SDK_AVAILABLE:
             raise ImportError(
@@ -69,6 +78,11 @@ class ClaudeAgentClient:
         self.api_key = api_key or os.getenv("ANTHROPIC_API_KEY")
         self.working_dir = working_dir or Path.cwd()
         self.progress_callback = progress_callback
+        
+        # Store watch handler for directory restrictions
+        self.watch_handler = watch_handler
+        self.watch_directories: List[str] = []
+        self._initialize_watch_directories()
 
         # Generate session ID for agent transparency tracking
         self.session_id = session_id or (str(uuid.uuid4()) if progress_callback else None)
@@ -96,15 +110,88 @@ class ClaudeAgentClient:
             logger.warning("CLAUDE_MODEL setting not found. Using default.")
             self.model = None
 
-        # Create default options with specified model
+        # Create default options with specified model and restricted cwd
         self.default_options = ClaudeAgentOptions(
-            cwd=str(self.working_dir),
+            cwd=str(self._get_restricted_cwd()),
             allowed_tools=["Read"],  # Safe default: only allow reading files
             max_turns=10,
             model=self.model,  # Use model from settings
         )
 
-        logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir}, model={self.model or 'default'}, session_id={self.session_id})")
+        logger.info(f"Claude Agent Client initialized (working_dir={self.working_dir}, restricted_cwd={self._get_restricted_cwd()}, watch_dirs={self.watch_directories}, model={self.model or 'default'}, session_id={self.session_id})")
+    
+    def _initialize_watch_directories(self) -> None:
+        """Initialize the list of allowed watch directories from WatchHandler."""
+        if self.watch_handler is None:
+            # Try to create a WatchHandler if not provided
+            try:
+                from utils.watch_handler import WatchHandler
+                self.watch_handler = WatchHandler(self.working_dir)
+                logger.info(f"Auto-initialized WatchHandler for directory restrictions")
+            except Exception as e:
+                logger.warning(f"Could not initialize WatchHandler: {e}. File access will not be restricted.")
+                return
+        
+        # Get watch directories from handler
+        try:
+            watch_dirs = self.watch_handler.get_watch_directories(self.working_dir)
+            # Convert to relative paths for clarity
+            self.watch_directories = []
+            for wd in watch_dirs:
+                try:
+                    rel_path = wd.relative_to(self.working_dir)
+                    self.watch_directories.append(str(rel_path))
+                except ValueError:
+                    # If not relative to working_dir, use absolute path
+                    self.watch_directories.append(str(wd))
+            
+            if not self.watch_directories:
+                # Fallback to watch patterns if no directories resolved
+                self.watch_directories = list(self.watch_handler.watch_patterns)
+            
+            logger.info(f"Watch directories configured: {self.watch_directories}")
+        except Exception as e:
+            logger.warning(f"Failed to get watch directories: {e}")
+    
+    def _get_restricted_cwd(self) -> Path:
+        """
+        Get the restricted working directory for Claude operations.
+        
+        Returns the first watch directory if available, otherwise falls back
+        to the configured working directory.
+        """
+        if self.watch_directories:
+            # Use the first watch directory as the restricted cwd
+            first_watch_dir = self.watch_directories[0].rstrip('/')
+            restricted_path = self.working_dir / first_watch_dir
+            if restricted_path.exists() and restricted_path.is_dir():
+                return restricted_path
+        
+        # Fallback to configured working directory
+        return self.working_dir
+    
+    def _get_watch_restriction_prompt(self) -> str:
+        """
+        Generate the file access restriction instruction for system prompts.
+        
+        Returns a string to be included in system prompts that instructs Claude
+        to only access files within the configured watch directories.
+        """
+        if not self.watch_directories:
+            return ""
+        
+        dirs_list = ', '.join([f'`{d}`' for d in self.watch_directories])
+        
+        return f"""
+IMPORTANT FILE ACCESS RESTRICTION:
+You may ONLY access files within these directories: {dirs_list}
+Do NOT read, search, or modify files outside these boundaries.
+If asked to access files outside these directories, politely explain that you can only work within the configured watch directories.
+"""
+    
+    def has_watch_restrictions(self) -> bool:
+        """Check if watch directory restrictions are configured."""
+        return bool(self.watch_directories)
 
     def _emit_progress_event(self, phase: str, operation: str, details: Dict[str, Any] = None,
                            files_processed: int = 0, total_files: int = None,
@@ -200,12 +287,16 @@ class ClaudeAgentClient:
             if context:
                 prompt += f"\n\nAdditional context:\n{context}"
             
+            # Build system prompt with watch restrictions
+            system_prompt = "You are a code analysis assistant. Provide concise, technical summaries."
+            system_prompt += self._get_watch_restriction_prompt()
+            
             options = ClaudeAgentOptions(
-                cwd=str(self.working_dir),
+                cwd=str(self._get_restricted_cwd()),
                 allowed_tools=["Read"],
                 max_turns=3,
                 model=self.model,
-                system_prompt="You are a code analysis assistant. Provide concise, technical summaries."
+                system_prompt=system_prompt
             )
             
             result = []
@@ -266,11 +357,15 @@ class ClaudeAgentClient:
                 f"{context}"
             )
             
+            # Build system prompt with watch restrictions
+            system_prompt = self._get_watch_restriction_prompt() if self.has_watch_restrictions() else None
+            
             options = ClaudeAgentOptions(
-                cwd=str(self.working_dir),
+                cwd=str(self._get_restricted_cwd()),
                 allowed_tools=["Read"],
                 max_turns=2,
                 model=self.model,
+                system_prompt=system_prompt,
             )
             
             result = []
@@ -310,12 +405,16 @@ class ClaudeAgentClient:
             if allow_file_edits:
                 tools.append("Write")
             
+            # Build system prompt with watch restrictions
+            system_prompt = self._get_watch_restriction_prompt() if self.has_watch_restrictions() else None
+            
             options = ClaudeAgentOptions(
-                cwd=str(self.working_dir),
+                cwd=str(self._get_restricted_cwd()),
                 allowed_tools=tools,
                 permission_mode='acceptEdits' if allow_file_edits else 'ask',
                 max_turns=20,
                 model=self.model,
+                system_prompt=system_prompt,
             )
             
             async with ClaudeSDKClient(options=options) as client:
@@ -351,11 +450,15 @@ class ClaudeAgentClient:
             if context:
                 prompt = f"Context:\n{context}\n\nQuestion: {question}"
             
+            # Build system prompt with watch restrictions
+            system_prompt = self._get_watch_restriction_prompt() if self.has_watch_restrictions() else None
+            
             options = ClaudeAgentOptions(
-                cwd=str(self.working_dir),
+                cwd=str(self._get_restricted_cwd()),
                 allowed_tools=["Read"],
                 max_turns=3,
                 model=self.model,
+                system_prompt=system_prompt,
             )
             
             result = []
@@ -562,12 +665,16 @@ Diff excerpts:
 Analyze the highlights to describe substantive modifications, naming new sections, behaviors, or documentation themes rather than just counting files.
 	"""
 
+            # Build system prompt with watch restrictions
+            system_prompt = "You are a technical code analyst who delivers concise, structured summaries. Analyze the provided context and respond immediately in the requested format without planning language or describing your process."
+            system_prompt += self._get_watch_restriction_prompt()
+
             base_options = ClaudeAgentOptions(
-                cwd=str(self.working_dir),
+                cwd=str(self._get_restricted_cwd()),
                 allowed_tools=[],  # No tools needed - all context is provided
                 max_turns=1,  # Direct response expected, no tool calls
                 model=self.model,
-                system_prompt="You are a technical code analyst who delivers concise, structured summaries. Analyze the provided context and respond immediately in the requested format without planning language or describing your process."
+                system_prompt=system_prompt
             )
 
             response_text = await self._execute_summary_query(prompt, base_options)
@@ -652,14 +759,22 @@ Analyze the highlights to describe substantive modifications, naming new section
             # Build system prompt with optional context metadata section
             system_prompt_parts = [
                 "You are a technical code analyst for the Obby file monitoring system. Your role is to investigate file changes and produce structured summaries.",
-                "",
+                ""
+            ]
+            
+            # Add watch directory restrictions if configured
+            if self.has_watch_restrictions():
+                system_prompt_parts.append(self._get_watch_restriction_prompt())
+                system_prompt_parts.append("")
+            
+            system_prompt_parts.extend([
                 "IMPORTANT INSTRUCTIONS:",
                 "1. Use the Read, Grep, and Glob tools to explore files autonomously",
                 "2. Focus on understanding WHAT changed and WHY it matters",
                 "3. Always follow the exact output format specified below",
                 "4. Include a Sources section listing every file you examined",
                 "5. Be concise but insightful in your analysis"
-            ]
+            ])
 
             # Add context metadata instructions if provided
             if context_metadata:
@@ -797,8 +912,11 @@ Analyze the highlights to describe substantive modifications, naming new section
                 }
             )
 
+            # Use restricted cwd if no working_dir override provided
+            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
+            
             options = ClaudeAgentOptions(
-                cwd=str(working_dir or self.working_dir),
+                cwd=str(effective_cwd),
                 allowed_tools=["Read", "Grep", "Glob"],  # Allow autonomous exploration
                 max_turns=15,  # Allow enough turns for exploration
                 model=self.model,  # Use configured model
@@ -857,7 +975,14 @@ Analyze the highlights to describe substantive modifications, naming new section
         try:
             relative_path = self._make_relative(file_path, working_dir)
 
-            system_prompt = """You are a technical code analyst. Analyze a single file change and produce a structured summary.
+            # Build system prompt with watch restrictions
+            system_prompt_parts = []
+            
+            if self.has_watch_restrictions():
+                system_prompt_parts.append(self._get_watch_restriction_prompt())
+                system_prompt_parts.append("")
+            
+            system_prompt_parts.append("""You are a technical code analyst. Analyze a single file change and produce a structured summary.
 
 OUTPUT FORMAT:
 **File Change Summary**
@@ -880,7 +1005,9 @@ INSTRUCTIONS:
 - Use Read tool to examine the file (if it exists)
 - Use Grep to search for references to this file
 - Be specific about what changed and why it matters
-- Do not describe your analysis process"""
+- Do not describe your analysis process""")
+
+            system_prompt = "\n".join(system_prompt_parts)
 
             user_prompt = f"""Analyze this file change:
 
@@ -889,8 +1016,11 @@ CHANGE TYPE: {change_type}
 
 Use your tools to investigate the file and understand the change. Then provide the structured summary."""
 
+            # Use restricted cwd if no working_dir override provided
+            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
+
             options = ClaudeAgentOptions(
-                cwd=str(working_dir or self.working_dir),
+                cwd=str(effective_cwd),
                 allowed_tools=[],  # No tools needed - all context is provided
                 max_turns=1,  # Direct response expected, no tool calls
                 model=self.model,
@@ -924,6 +1054,7 @@ Use your tools to investigate the file and understand the change. Then provide t
         try:
             files_context = "\n".join([f"- {self._make_relative(f)}" for f in changed_files[:10]])
 
+            # Build system prompt (no watch restrictions needed for title generation - no file access)
             system_prompt = """You create concise, punchy titles for development session summaries.
 
 RULES:
@@ -951,7 +1082,7 @@ FILES:
             user_prompt += "\n\nProvide only the title (3-7 words, Title Case)."
 
             options = ClaudeAgentOptions(
-                cwd=str(self.working_dir),
+                cwd=str(self._get_restricted_cwd()),
                 allowed_tools=[],  # No tools needed for title generation
                 max_turns=1,
                 model=self.model,
@@ -995,6 +1126,7 @@ FILES:
         try:
             files_list = "\n".join([f"- `{self._make_relative(f, working_dir)}`" for f in changed_files[:10]])
 
+            # Build system prompt (no watch restrictions needed - no file access)
             system_prompt = """You propose thoughtful follow-up questions to help a user reflect on changes.
 
 RULES:
@@ -1020,8 +1152,11 @@ SUMMARY:
 
 Provide 2-4 specific, actionable questions (each starting with '- ')."""
 
+            # Use restricted cwd if no working_dir override provided
+            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
+
             options = ClaudeAgentOptions(
-                cwd=str(working_dir or self.working_dir),
+                cwd=str(effective_cwd),
                 allowed_tools=[],  # No tools needed
                 max_turns=1,
                 model=self.model,
