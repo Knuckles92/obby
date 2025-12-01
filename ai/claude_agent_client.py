@@ -176,10 +176,28 @@ class ClaudeAgentClient:
         
         Returns a string to be included in system prompts that instructs Claude
         to only access files within the configured watch directories.
+        
+        Note: Since the cwd is typically set to the first watch directory, this prompt
+        clarifies that files can be accessed directly without directory prefixes.
         """
         if not self.watch_directories:
             return ""
         
+        # Check if cwd is set to the watch directory (common case)
+        restricted_cwd = self._get_restricted_cwd()
+        if len(self.watch_directories) == 1:
+            watch_dir = self.watch_directories[0].rstrip('/')
+            expected_restricted = self.working_dir / watch_dir
+            if restricted_cwd == expected_restricted:
+                # CWD is the watch directory - files are relative to it
+                return f"""
+IMPORTANT: Your working directory is already set to the `{watch_dir}` directory.
+All file paths provided to you are relative to this directory.
+Access files directly using their relative paths (e.g., `Daily Notes/2025-01-01.md`, not `{watch_dir}/Daily Notes/2025-01-01.md`).
+Do NOT prefix paths with `{watch_dir}/` - you are already inside that directory.
+"""
+        
+        # Multiple watch directories or cwd not restricted
         dirs_list = ', '.join([f'`{d}`' for d in self.watch_directories])
         
         return f"""
@@ -743,8 +761,11 @@ Analyze the highlights to describe substantive modifications, naming new section
                 }
             )
 
-            # Convert absolute paths to relative paths for readability
-            relative_files = [self._make_relative(f, working_dir) for f in changed_files]
+            # Use restricted cwd if no working_dir override provided
+            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
+            
+            # Convert absolute paths to relative paths from the effective cwd
+            relative_files = [self._make_relative(f, effective_cwd) for f in changed_files]
             files_list = "\n".join([f"- `{f}`" for f in relative_files])
 
             # Track file exploration setup
@@ -752,7 +773,7 @@ Analyze the highlights to describe substantive modifications, naming new section
                 "Preparing File Exploration",
                 details={
                     'files_to_examine': len(relative_files),
-                    'working_directory': str(working_dir or self.working_dir)
+                    'working_directory': str(effective_cwd)
                 }
             )
 
@@ -911,9 +932,6 @@ Analyze the highlights to describe substantive modifications, naming new section
                     'tools_allowed': ['Read', 'Grep', 'Glob']
                 }
             )
-
-            # Use restricted cwd if no working_dir override provided
-            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
             
             options = ClaudeAgentOptions(
                 cwd=str(effective_cwd),
@@ -973,7 +991,9 @@ Analyze the highlights to describe substantive modifications, naming new section
             Structured markdown summary for individual file change
         """
         try:
-            relative_path = self._make_relative(file_path, working_dir)
+            # Use restricted cwd if no working_dir override provided
+            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
+            relative_path = self._make_relative(file_path, effective_cwd)
 
             # Build system prompt with watch restrictions
             system_prompt_parts = []
@@ -1015,9 +1035,6 @@ FILE: `{relative_path}`
 CHANGE TYPE: {change_type}
 
 Use your tools to investigate the file and understand the change. Then provide the structured summary."""
-
-            # Use restricted cwd if no working_dir override provided
-            effective_cwd = working_dir if working_dir else self._get_restricted_cwd()
 
             options = ClaudeAgentOptions(
                 cwd=str(effective_cwd),

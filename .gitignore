@@ -101,3 +101,4 @@ output/daily/Session Summary - *.md
 obby.db.backup_20250817_124404
 AGENTS.md
 obby.db.*
+CLAUDE.md
