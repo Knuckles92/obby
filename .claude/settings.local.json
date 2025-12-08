@@ -48,7 +48,8 @@
       "Bash(git log:*)",
       "Bash(cd:*)",
       "Bash(npm run lint:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(done)"
     ],
     "deny": []
   },

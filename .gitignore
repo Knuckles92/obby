@@ -102,3 +102,6 @@ obby.db.backup_20250817_124404
 AGENTS.md
 obby.db.*
 CLAUDE.md
+bun.lock
+package-lock.json
+package.json
