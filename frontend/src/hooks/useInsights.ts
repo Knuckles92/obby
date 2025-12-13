@@ -252,3 +252,165 @@ export const parseDateRange = (rangeString: string): DateRange => {
 };
 
 export default useInsights;
+
+/**
+ * Semantic Insight types
+ */
+export interface SemanticInsight {
+  id: number;
+  type: string;
+  title: string;
+  summary: string;
+  confidence: number;
+  priority: number;
+  status: string;
+  sourceNotes: Array<{
+    path: string;
+    snippet?: string;
+  }>;
+  evidence: Record<string, any>;
+  actions: string[];
+  createdAt: string;
+  viewedAt?: string;
+  userAction?: string;
+}
+
+export interface SemanticInsightsResponse {
+  success: boolean;
+  insights: SemanticInsight[];
+  meta: {
+    total: number;
+    limit: number;
+    offset: number;
+    byType: Record<string, number>;
+    byStatus: Record<string, number>;
+  };
+}
+
+interface UseSemanticInsightsOptions {
+  type?: string;
+  status?: string;
+  limit?: number;
+  enabled?: boolean;
+}
+
+interface UseSemanticInsightsResult {
+  insights: SemanticInsight[];
+  loading: boolean;
+  error: string | null;
+  meta: SemanticInsightsResponse['meta'] | null;
+  refetch: () => void;
+  performAction: (insightId: number, action: string) => Promise<boolean>;
+  triggerProcessing: () => Promise<void>;
+}
+
+/**
+ * Hook to fetch and manage semantic insights
+ */
+export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): UseSemanticInsightsResult => {
+  const { type, status, limit = 50, enabled = true } = options;
+
+  const [insights, setInsights] = useState<SemanticInsight[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [meta, setMeta] = useState<SemanticInsightsResponse['meta'] | null>(null);
+
+  /**
+   * Fetch semantic insights
+   */
+  const fetchInsights = useCallback(async () => {
+    if (!enabled) return;
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (type) params.append('type', type);
+      if (status) params.append('status', status);
+      params.append('limit', String(limit));
+
+      const response = await fetch(`/api/semantic-insights?${params.toString()}`);
+      const data: SemanticInsightsResponse = await response.json();
+
+      if (!data.success) {
+        throw new Error('Failed to fetch semantic insights');
+      }
+
+      setInsights(data.insights);
+      setMeta(data.meta);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Error fetching semantic insights:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [type, status, limit, enabled]);
+
+  /**
+   * Perform an action on an insight
+   */
+  const performAction = useCallback(async (insightId: number, action: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/semantic-insights/${insightId}/action`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh the list after action
+        await fetchInsights();
+        return true;
+      }
+
+      console.error('Action failed:', data.error);
+      return false;
+    } catch (err) {
+      console.error('Error performing action:', err);
+      return false;
+    }
+  }, [fetchInsights]);
+
+  /**
+   * Trigger semantic processing
+   */
+  const triggerProcessing = useCallback(async () => {
+    try {
+      const response = await fetch('/api/semantic-insights/trigger', {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Refresh insights after processing
+        await fetchInsights();
+      } else {
+        console.error('Processing trigger failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Error triggering processing:', err);
+    }
+  }, [fetchInsights]);
+
+  // Fetch insights on mount and when dependencies change
+  useEffect(() => {
+    fetchInsights();
+  }, [fetchInsights]);
+
+  return {
+    insights,
+    loading,
+    error,
+    meta,
+    refetch: fetchInsights,
+    performAction,
+    triggerProcessing
+  };
+};

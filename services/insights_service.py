@@ -15,6 +15,8 @@ from backend.insights.plugins import (
     PeakActivityInsight,
     TrendingFilesInsight,
     CodeMetricsInsight,
+    StaleTodosInsight,
+    OrphanMentionsInsight,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,17 +37,26 @@ class InsightsService:
 
     def _register_default_plugins(self) -> None:
         """Register all default insight plugins."""
-        default_plugins = [
+        # Activity plugins (Tier 1)
+        activity_plugins = [
             FileActivityInsight(),
             PeakActivityInsight(),
             TrendingFilesInsight(),
             CodeMetricsInsight(),
         ]
 
-        for plugin in default_plugins:
+        # Semantic plugins (Tier 2)
+        semantic_plugins = [
+            StaleTodosInsight(),
+            OrphanMentionsInsight(),
+        ]
+
+        all_plugins = activity_plugins + semantic_plugins
+        for plugin in all_plugins:
             self.register_plugin(plugin)
 
-        logger.info(f"Registered {len(default_plugins)} default insight plugins")
+        logger.info(f"Registered {len(all_plugins)} insight plugins "
+                   f"({len(activity_plugins)} activity, {len(semantic_plugins)} semantic)")
 
     def register_plugin(self, plugin: BaseInsight) -> None:
         """

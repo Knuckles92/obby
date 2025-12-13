@@ -2,13 +2,15 @@
  * MasonryLayout - Real-time insights display with backend data
  *
  * This layout fetches real insights from the backend and displays them
- * using the reusable InsightCard component.
+ * using the reusable InsightCard component. Also includes semantic insights
+ * section for AI-powered analysis.
  */
 
 import React from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import InsightCard from '../insights/InsightCard';
 import { useInsights } from '../../hooks/useInsights';
+import { SemanticInsightsSection } from '../semantic-insights';
 
 interface MasonryLayoutProps {
   dateRange: {
@@ -99,6 +101,19 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
           </div>
         </div>
       )}
+
+      {/* Semantic Insights Section */}
+      <SemanticInsightsSection />
+
+      {/* Activity Insights Header */}
+      <div className="mb-4">
+        <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+          Activity Metrics
+        </h2>
+        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+          File activity and development metrics
+        </p>
+      </div>
 
       {/* Insights Grid */}
       {!loading && insightArray.length > 0 && (
