@@ -247,11 +247,13 @@ class SemanticProcessor:
     def _start_scheduler_run(self) -> int:
         """Start a new scheduler run and return its ID."""
         try:
-            result = db.execute_update("""
+            db.execute_update("""
                 INSERT INTO insight_scheduler_runs (started_at)
                 VALUES (?)
             """, (datetime.now().isoformat(),))
-            return result  # rowcount, we'll need to get last insert id
+            # Get the actual inserted row ID
+            result = db.execute_query("SELECT last_insert_rowid() as id")
+            return result[0]['id'] if result else 0
         except Exception as e:
             logger.error(f"Error starting scheduler run: {e}")
             return 0
@@ -269,13 +271,14 @@ class SemanticProcessor:
                     notes_processed = ?,
                     insights_generated = ?,
                     errors = ?
-                WHERE id = (SELECT MAX(id) FROM insight_scheduler_runs)
+                WHERE id = ?
             """, (
                 summary.get('completed_at'),
                 summary.get('runtime_seconds'),
                 summary.get('notes_processed'),
                 summary.get('insights_generated'),
-                errors_json
+                errors_json,
+                run_id
             ))
         except Exception as e:
             logger.error(f"Error completing scheduler run: {e}")

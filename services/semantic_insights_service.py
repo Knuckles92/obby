@@ -109,7 +109,7 @@ class SemanticInsightsService:
                 WHERE {where_clause}
             """
             count_params = params[:-2]  # Exclude limit and offset
-            count_result = db.execute_query(count_query, tuple(count_params) if count_params else None)
+            count_result = db.execute_query(count_query, tuple(count_params) if count_params else ())
             total = count_result[0]['total'] if count_result else 0
 
             # Format insights
