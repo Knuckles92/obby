@@ -293,10 +293,13 @@ class SemanticProcessor:
         insights_generated = 0
 
         try:
-            # Generate stale todos insights
-            insights_generated += await self._generate_stale_todo_insights()
+            # Immediate insights (no aging required)
+            insights_generated += await self._generate_active_todo_insights()
+            insights_generated += await self._generate_todo_summary_insight()
+            insights_generated += await self._generate_project_overview_insight()
 
-            # Generate orphan mentions insights
+            # Time-based insights (require aging)
+            insights_generated += await self._generate_stale_todo_insights()
             insights_generated += await self._generate_orphan_mention_insights()
 
         except Exception as e:
@@ -431,6 +434,221 @@ class SemanticProcessor:
 
         except Exception as e:
             logger.error(f"Error generating orphan mention insights: {e}")
+            return 0
+
+    async def _generate_active_todo_insights(self) -> int:
+        """Generate insights for active (unchecked) todos - no aging required."""
+        try:
+            import json
+
+            # Find all active todos
+            query = """
+                SELECT ne.note_path, ne.entity_value, ne.context, ne.line_number
+                FROM note_entities ne
+                WHERE ne.entity_type = 'todo'
+                  AND ne.status = 'active'
+                ORDER BY ne.extracted_at DESC
+                LIMIT 20
+            """
+            active_todos = db.execute_query(query)
+
+            count = 0
+            for todo in active_todos:
+                todo_dict = dict(todo)  # Convert Row to dict for .get() support
+
+                # Check if insight already exists for this specific todo
+                existing = db.execute_query("""
+                    SELECT id FROM semantic_insights
+                    WHERE insight_type = 'active_todos'
+                      AND evidence LIKE ?
+                      AND status NOT IN ('dismissed', 'actioned')
+                """, (f'%{todo_dict["entity_value"][:50]}%',))
+
+                if not existing:
+                    # Get note filename for display
+                    note_name = todo_dict['note_path'].split('/')[-1].replace('.md', '')
+
+                    source_notes = json.dumps([{
+                        'path': todo_dict['note_path'],
+                        'snippet': (todo_dict.get('context') or '')[:100]
+                    }])
+
+                    evidence = json.dumps({
+                        'todo_text': todo_dict['entity_value'],
+                        'line_number': todo_dict.get('line_number'),
+                        'note_name': note_name
+                    })
+
+                    db.execute_update("""
+                        INSERT INTO semantic_insights (
+                            insight_type, title, summary, source_notes,
+                            evidence, confidence, priority, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        'active_todos',
+                        f'Action item in {note_name}',
+                        f'{todo_dict["entity_value"][:80]}',
+                        source_notes,
+                        evidence,
+                        1.0,  # confidence - we know it's there
+                        3,    # high priority for active todos
+                        'new'
+                    ))
+                    count += 1
+
+            logger.info(f"Generated {count} active todo insights")
+            return count
+
+        except Exception as e:
+            logger.error(f"Error generating active todo insights: {e}")
+            return 0
+
+    async def _generate_todo_summary_insight(self) -> int:
+        """Generate a summary insight showing todo counts across notes."""
+        try:
+            import json
+
+            # Get todo statistics
+            stats_query = """
+                SELECT
+                    COUNT(*) as total_todos,
+                    SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
+                    SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+                    COUNT(DISTINCT note_path) as notes_with_todos
+                FROM note_entities
+                WHERE entity_type = 'todo'
+            """
+            stats = db.execute_query(stats_query)
+
+            if not stats or stats[0]['total_todos'] == 0:
+                return 0
+
+            stat = stats[0]
+            active = stat['active_count'] or 0
+            completed = stat['completed_count'] or 0
+            notes_count = stat['notes_with_todos'] or 0
+
+            # Check if summary insight already exists (only one at a time)
+            existing = db.execute_query("""
+                SELECT id FROM semantic_insights
+                WHERE insight_type = 'todo_summary'
+                  AND status NOT IN ('dismissed', 'actioned')
+            """)
+
+            if existing:
+                # Update existing summary instead of creating new
+                evidence = json.dumps({
+                    'active_count': active,
+                    'completed_count': completed,
+                    'notes_with_todos': notes_count,
+                    'updated_at': datetime.now().isoformat()
+                })
+
+                db.execute_update("""
+                    UPDATE semantic_insights
+                    SET summary = ?, evidence = ?
+                    WHERE id = ?
+                """, (
+                    f'{active} active, {completed} completed across {notes_count} notes',
+                    evidence,
+                    existing[0]['id']
+                ))
+                return 0  # Updated, not created
+
+            # Create new summary
+            source_notes = json.dumps([])  # No specific source for summary
+
+            evidence = json.dumps({
+                'active_count': active,
+                'completed_count': completed,
+                'notes_with_todos': notes_count
+            })
+
+            db.execute_update("""
+                INSERT INTO semantic_insights (
+                    insight_type, title, summary, source_notes,
+                    evidence, confidence, priority, status
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+                'todo_summary',
+                'Todo Overview',
+                f'{active} active, {completed} completed across {notes_count} notes',
+                source_notes,
+                evidence,
+                1.0,
+                1,  # lower priority - it's informational
+                'new'
+            ))
+
+            logger.info("Generated todo summary insight")
+            return 1
+
+        except Exception as e:
+            logger.error(f"Error generating todo summary insight: {e}")
+            return 0
+
+    async def _generate_project_overview_insight(self) -> int:
+        """Generate insights showing discovered projects."""
+        try:
+            import json
+
+            # Get all projects with their note counts
+            query = """
+                SELECT entity_value, COUNT(DISTINCT note_path) as note_count,
+                       GROUP_CONCAT(DISTINCT note_path) as notes
+                FROM note_entities
+                WHERE entity_type = 'project'
+                GROUP BY entity_value
+                ORDER BY note_count DESC
+                LIMIT 10
+            """
+            projects = db.execute_query(query)
+
+            if not projects:
+                return 0
+
+            count = 0
+            for project in projects:
+                # Check if insight already exists for this project
+                existing = db.execute_query("""
+                    SELECT id FROM semantic_insights
+                    WHERE insight_type = 'project_overview'
+                      AND title LIKE ?
+                      AND status NOT IN ('dismissed', 'actioned')
+                """, (f'%{project["entity_value"]}%',))
+
+                if not existing:
+                    note_list = project['notes'].split(',') if project['notes'] else []
+                    source_notes = json.dumps([{'path': p} for p in note_list[:5]])
+
+                    evidence = json.dumps({
+                        'project_name': project['entity_value'],
+                        'note_count': project['note_count'],
+                        'notes': note_list
+                    })
+
+                    db.execute_update("""
+                        INSERT INTO semantic_insights (
+                            insight_type, title, summary, source_notes,
+                            evidence, confidence, priority, status
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (
+                        'project_overview',
+                        f'Project: {project["entity_value"]}',
+                        f'Found in {project["note_count"]} note{"s" if project["note_count"] > 1 else ""}',
+                        source_notes,
+                        evidence,
+                        0.9,
+                        2,
+                        'new'
+                    ))
+                    count += 1
+
+            logger.info(f"Generated {count} project overview insights")
+            return count
+
+        except Exception as e:
+            logger.error(f"Error generating project overview insights: {e}")
             return 0
 
     def cleanup_expired_insights(self, days_old: int = 30):

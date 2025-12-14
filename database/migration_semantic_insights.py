@@ -127,7 +127,7 @@ def create_semantic_insights_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             viewed_at TIMESTAMP,
             expires_at TIMESTAMP,
-            CHECK (insight_type IN ('stale_todo', 'orphan_mention', 'connection', 'theme', 'knowledge_gap', 'contradiction', 'timeline')),
+            CHECK (insight_type IN ('stale_todo', 'orphan_mention', 'connection', 'theme', 'knowledge_gap', 'contradiction', 'timeline', 'active_todos', 'todo_summary', 'project_overview', 'concept_cluster')),
             CHECK (status IN ('new', 'viewed', 'dismissed', 'pinned', 'actioned')),
             CHECK (confidence >= 0.0 AND confidence <= 1.0)
         )
@@ -224,6 +224,9 @@ def add_missing_tables_and_columns():
                 create_func()
                 logger.info(f"Created missing table: {table_name}")
 
+        # Update semantic_insights table to support new insight types
+        _update_semantic_insights_constraint()
+
         # Ensure all indexes exist
         create_indexes()
 
@@ -233,6 +236,56 @@ def add_missing_tables_and_columns():
     except Exception as e:
         logger.error(f"Failed to update semantic insights tables: {e}")
         return False
+
+
+def _update_semantic_insights_constraint():
+    """Update the CHECK constraint on semantic_insights to allow new insight types."""
+    try:
+        # Check if table needs updating by looking at schema
+        schema_result = db.execute_query(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='semantic_insights'"
+        )
+        if not schema_result:
+            return  # Table doesn't exist, will be created fresh
+
+        current_schema = schema_result[0]['sql']
+
+        # Check if new insight types are already in the constraint
+        if 'active_todos' in current_schema:
+            logger.debug("semantic_insights table already has updated constraint")
+            return
+
+        # Need to recreate table with new constraint
+        # First, backup any existing data
+        count_result = db.execute_query("SELECT COUNT(*) as cnt FROM semantic_insights")
+        row_count = count_result[0]['cnt'] if count_result else 0
+
+        if row_count > 0:
+            # Backup data to temp table
+            db.execute_update("CREATE TABLE semantic_insights_backup AS SELECT * FROM semantic_insights")
+
+        # Drop old table and indexes
+        db.execute_update("DROP INDEX IF EXISTS idx_insights_type")
+        db.execute_update("DROP INDEX IF EXISTS idx_insights_status")
+        db.execute_update("DROP INDEX IF EXISTS idx_insights_created")
+        db.execute_update("DROP INDEX IF EXISTS idx_insights_priority")
+        db.execute_update("DROP TABLE semantic_insights")
+
+        # Create new table with updated constraint
+        create_semantic_insights_table()
+
+        if row_count > 0:
+            # Restore data
+            db.execute_update("""
+                INSERT INTO semantic_insights
+                SELECT * FROM semantic_insights_backup
+            """)
+            db.execute_update("DROP TABLE semantic_insights_backup")
+
+        logger.info("Updated semantic_insights table with new insight type constraint")
+
+    except Exception as e:
+        logger.error(f"Failed to update semantic_insights constraint: {e}")
 
 
 def rollback_migration():

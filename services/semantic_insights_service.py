@@ -346,6 +346,9 @@ class SemanticInsightsService:
 
     def _format_insight(self, row: Dict[str, Any]) -> Dict[str, Any]:
         """Format a database row as an insight dict."""
+        # Convert sqlite3.Row to dict for .get() support
+        row = dict(row)
+
         try:
             source_notes = json.loads(row.get('source_notes', '[]'))
             evidence = json.loads(row.get('evidence', '{}'))
