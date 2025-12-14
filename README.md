@@ -5,7 +5,7 @@ Obby is an AI agent powered by Claude Agent SDK that lives in your Obsidian note
 ## Architecture Snapshot
 - **Backend**: `backend.py` launches the FastAPI service, the Python file watcher, diff tracker, and SSE publishers that power the UI and database synchronization.
 - **Frontend**: React + TypeScript + Vite with Tailwind CSS, receiving real-time updates over SSE and hosting the Claude-driven chat summaries.
-- **Data & storage**: `notes/` stores the Markdown payloads, `output/` collects AI artifacts, and `obby.db` holds SQLite FTS5 search, event history, and change metadata.
+- **Data & storage**: `notes/` stores the Markdown payloads, `output/` collects AI artifacts, and `.db/obby.db` holds SQLite FTS5 search, event history, and change metadata.
 - **AI & summaries**: Claude Agent SDK (haiku/sonnet/opus) explores the repository with Read/Grep/Glob tools, respecting `.obbywatch`/`.obbyignore`, to produce structured metadata with a Sources section.
 - **No Go services**: The Go microservices referenced in older docs have been removed; all APIs and watchers now run in Python (see `.env.example` for the current environment variables).
 

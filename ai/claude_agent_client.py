@@ -1273,7 +1273,7 @@ Provide 2-4 specific, actionable questions (each starting with '- ')."""
 #   - Edit: Edit files
 #
 # For database queries, Claude can use the Bash tool to run sqlite3 commands directly.
-# Example: Bash("sqlite3 obby.db 'SELECT * FROM file_changes LIMIT 10'")
+# Example: Bash("sqlite3 .db/obby.db 'SELECT * FROM file_changes LIMIT 10'")
 
 
 # Example usage function

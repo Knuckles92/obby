@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 MIGRATION_NAME = "update_semantic_impact_constraint"
 MIGRATION_VERSION = "1.0.0"
 
-def apply_migration(db_path: str = "obby.db") -> bool:
+def apply_migration(db_path: str = ".db/obby.db") -> bool:
     """Apply the semantic impact constraint migration."""
     try:
         with sqlite3.connect(db_path) as conn:
@@ -150,7 +150,7 @@ def apply_migration(db_path: str = "obby.db") -> bool:
             
         return False
 
-def rollback_migration(db_path: str = "obby.db") -> bool:
+def rollback_migration(db_path: str = ".db/obby.db") -> bool:
     """Rollback the semantic impact constraint migration (not typically needed)."""
     logger.warning("Rollback for semantic impact constraint migration is not supported")
     logger.warning("If needed, restore from backup or recreate table manually")

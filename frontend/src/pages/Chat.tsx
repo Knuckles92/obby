@@ -1003,7 +1003,7 @@ export default function Chat() {
         role: 'system',
         content: `You are an AI assistant for Obby, a file monitoring and note management system.
 
-Context: Obby tracks file changes in a local repository, stores content in SQLite (obby.db), and provides semantic search through AI-analyzed notes. The notes directory contains documentation and tracked files.
+Context: Obby tracks file changes in a local repository, stores content in SQLite (.db/obby.db), and provides semantic search through AI-analyzed notes. The notes directory contains documentation and tracked files.
 
 Tools available:
 - Grep: Search through notes and documentation with ripgrep

@@ -1834,7 +1834,7 @@ class AnalyticsQueries:
             diffs_count = db.execute_query(diffs_count_query)[0]['count']
             
             # Get database file size (approximate)
-            db_path = db.db_path if hasattr(db, 'db_path') else 'obby.db'
+            db_path = db.db_path if hasattr(db, 'db_path') else '.db/obby.db'
             try:
                 import os
                 db_size_bytes = os.path.getsize(db_path)
@@ -1916,7 +1916,7 @@ class AnalyticsQueries:
             # Create backup if enabled
             if backup_enabled:
                 try:
-                    db_path = db.db_path if hasattr(db, 'db_path') else 'obby.db'
+                    db_path = db.db_path if hasattr(db, 'db_path') else '.db/obby.db'
                     if os.path.exists(db_path):
                         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                         backup_path = f"{db_path}.backup_{timestamp}"

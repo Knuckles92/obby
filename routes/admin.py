@@ -223,7 +223,7 @@ async def reset_database(request: Request):
                 'recovery_info': {
                     'backup_available': reset_results.get('backup_created', False),
                     'backup_location': reset_results.get('backup_path'),
-                    'recovery_instructions': 'To restore, stop the application and replace obby.db with the backup file. Note: Output files (session summaries and comprehensive summaries) cannot be restored from backup.'
+                    'recovery_instructions': 'To restore, stop the application and replace .db/obby.db with the backup file. Note: Output files (session summaries and comprehensive summaries) cannot be restored from backup.'
                 } if reset_results.get('backup_created') else None
             }
         else:
