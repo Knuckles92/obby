@@ -17,6 +17,7 @@ interface SemanticInsightsSectionProps {
 export default function SemanticInsightsSection({ onOpenNote }: SemanticInsightsSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [displayLimit, setDisplayLimit] = useState(6);
 
   const {
     insights,
@@ -26,7 +27,7 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
     refetch,
     performAction,
     triggerProcessing
-  } = useSemanticInsights({ status: undefined }); // Get all non-dismissed insights
+  } = useSemanticInsights({ status: undefined, limit: displayLimit });
 
   // Filter to only show new, viewed, and pinned insights
   const visibleInsights = insights.filter(
@@ -120,6 +121,21 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
 
         {/* Actions */}
         <div className="flex items-center gap-2">
+          <select
+            value={displayLimit}
+            onChange={(e) => setDisplayLimit(Number(e.target.value))}
+            className="px-2 py-1.5 text-sm rounded-lg"
+            style={{
+              backgroundColor: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              border: '1px solid var(--color-border)'
+            }}
+          >
+            <option value={6}>6 items</option>
+            <option value={12}>12 items</option>
+            <option value={18}>18 items</option>
+            <option value={24}>24 items</option>
+          </select>
           <button
             onClick={handleTriggerProcessing}
             disabled={isProcessing}
