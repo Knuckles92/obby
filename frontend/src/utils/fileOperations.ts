@@ -79,9 +79,14 @@ export interface FileTreeNode {
  * @returns File content and metadata
  */
 export const fetchFileContent = async (filePath: string): Promise<FileContent> => {
-  // Encode the file path to handle special characters
-  const encodedPath = filePath.split('/').map(encodeURIComponent).join('/')
-  return apiRequest<FileContent>(`/api/files/content/${encodedPath}`)
+  // Encode the file path but preserve leading slash if present
+  const startsWithSlash = filePath.startsWith('/');
+  const parts = filePath.split('/').filter(p => p !== '');
+  const encodedPath = (startsWithSlash ? '/' : '') + parts.map(encodeURIComponent).join('/');
+  
+  // Ensure we don't have double slashes when joining with /api/files/content/
+  const endpoint = `/api/files/content/${encodedPath.startsWith('/') ? encodedPath.substring(1) : encodedPath}`;
+  return apiRequest<FileContent>(endpoint);
 }
 
 /**
@@ -97,10 +102,14 @@ export const saveFileContent = async (
   content: string,
   createBackup: boolean = true
 ): Promise<FileWriteResponse> => {
-  // Encode the file path to handle special characters
-  const encodedPath = filePath.split('/').map(encodeURIComponent).join('/')
+  // Encode the file path but preserve leading slash if present
+  const startsWithSlash = filePath.startsWith('/');
+  const parts = filePath.split('/').filter(p => p !== '');
+  const encodedPath = (startsWithSlash ? '/' : '') + parts.map(encodeURIComponent).join('/');
 
-  return apiRequest<FileWriteResponse>(`/api/files/content/${encodedPath}`, {
+  const endpoint = `/api/files/content/${encodedPath.startsWith('/') ? encodedPath.substring(1) : encodedPath}`;
+
+  return apiRequest<FileWriteResponse>(endpoint, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json'

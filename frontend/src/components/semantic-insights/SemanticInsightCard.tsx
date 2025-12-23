@@ -140,6 +140,7 @@ export default function SemanticInsightCard({
         <div className="flex items-center gap-1">
           {insight.actions.includes('pin') && (
             <button
+              type="button"
               onClick={(e) => handleAction('pin', e)}
               className="p-1.5 rounded-lg hover:bg-opacity-10 transition-colors"
               style={{ color: 'var(--color-text-secondary)' }}
@@ -150,6 +151,7 @@ export default function SemanticInsightCard({
           )}
           {insight.actions.includes('unpin') && (
             <button
+              type="button"
               onClick={(e) => handleAction('unpin', e)}
               className="p-1.5 rounded-lg hover:bg-opacity-10 transition-colors"
               style={{ color: config.color }}
@@ -160,6 +162,7 @@ export default function SemanticInsightCard({
           )}
           {insight.actions.includes('dismiss') && (
             <button
+              type="button"
               onClick={(e) => handleAction('dismiss', e)}
               className="p-1.5 rounded-lg hover:bg-opacity-10 transition-colors"
               style={{ color: 'var(--color-text-secondary)' }}
@@ -227,6 +230,7 @@ export default function SemanticInsightCard({
         <div className="flex items-center gap-2">
           {insight.actions.includes('mark_done') && (
             <button
+              type="button"
               onClick={(e) => handleAction('mark_done', e)}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
               style={{
@@ -240,6 +244,7 @@ export default function SemanticInsightCard({
           )}
           {insight.actions.includes('restore') && (
             <button
+              type="button"
               onClick={(e) => handleAction('restore', e)}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
               style={{
@@ -253,6 +258,7 @@ export default function SemanticInsightCard({
           )}
           {insight.actions.includes('open_note') && onOpenNote && (
             <button
+              type="button"
               onClick={handleOpenNote}
               className="flex items-center gap-1 px-2 py-1 text-xs rounded transition-colors"
               style={{

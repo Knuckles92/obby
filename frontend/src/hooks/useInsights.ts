@@ -352,6 +352,40 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
    * Perform an action on an insight
    */
   const performAction = useCallback(async (insightId: number, action: string): Promise<boolean> => {
+    // Keep track of original insights for rollback
+    const originalInsights = [...insights];
+
+    // Optimistically update the status if possible
+    setInsights(prevInsights => prevInsights.map(insight => {
+      if (insight.id === insightId) {
+        let newStatus = insight.status;
+        let newActions = [...insight.actions];
+
+        if (action === 'pin') {
+          newStatus = 'pinned';
+          newActions = newActions.filter(a => a !== 'pin');
+          if (!newActions.includes('unpin')) newActions.push('unpin');
+        } else if (action === 'unpin') {
+          newStatus = 'viewed';
+          newActions = newActions.filter(a => a !== 'unpin');
+          if (!newActions.includes('pin')) newActions.push('pin');
+        } else if (action === 'dismiss') {
+          newStatus = 'dismissed';
+        } else if (action === 'mark_done') {
+          newStatus = 'actioned';
+        } else if (action === 'restore') {
+          newStatus = 'new';
+        }
+
+        return {
+          ...insight,
+          status: newStatus,
+          actions: newActions
+        };
+      }
+      return insight;
+    }));
+
     try {
       const response = await fetch(`/api/semantic-insights/${insightId}/action`, {
         method: 'POST',
@@ -364,18 +398,38 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
       const data = await response.json();
 
       if (data.success) {
-        // Refresh the list after action
-        await fetchInsights();
+        // Silently refresh the list after action to ensure consistency
+        // But don't set loading to true to avoid flicker
+        try {
+          const params = new URLSearchParams();
+          if (type) params.append('type', type);
+          if (status) params.append('status', status);
+          params.append('limit', String(limit));
+
+          const refreshResponse = await fetch(`/api/semantic-insights?${params.toString()}`);
+          const refreshData: SemanticInsightsResponse = await refreshResponse.json();
+
+          if (refreshData.success) {
+            setInsights(refreshData.insights);
+            setMeta(refreshData.meta);
+          }
+        } catch (refreshErr) {
+          console.error('Silent refresh failed:', refreshErr);
+        }
         return true;
       }
 
+      // Rollback on failure
+      setInsights(originalInsights);
       console.error('Action failed:', data.error);
       return false;
     } catch (err) {
+      // Rollback on error
+      setInsights(originalInsights);
       console.error('Error performing action:', err);
       return false;
     }
-  }, [fetchInsights]);
+  }, [insights, type, status, limit, fetchInsights]);
 
   /**
    * Trigger semantic processing

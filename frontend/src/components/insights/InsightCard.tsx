@@ -45,13 +45,15 @@ interface InsightCardProps {
   className?: string;
   size?: 'small' | 'medium' | 'large';
   onDrillDown?: () => void;
+  onOpenNote?: (path: string) => void;
 }
 
 export const InsightCard: React.FC<InsightCardProps> = ({
   insight,
   className = '',
   size = 'medium',
-  onDrillDown
+  onDrillDown,
+  onOpenNote
 }) => {
   const { data, metadata, error } = insight;
 
@@ -92,11 +94,11 @@ export const InsightCard: React.FC<InsightCardProps> = ({
 
     switch (type) {
       case 'bar':
-        return <BarChart data={chartData} />;
+        return <BarChart data={chartData} onOpenNote={onOpenNote} />;
       case 'comparison':
         return <ComparisonChart data={chartData} />;
       case 'list':
-        return <ListChart data={chartData} />;
+        return <ListChart data={chartData} onOpenNote={onOpenNote} />;
       default:
         return null;
     }
@@ -200,32 +202,41 @@ export const InsightCard: React.FC<InsightCardProps> = ({
 };
 
 // Bar Chart Component
-const BarChart: React.FC<{ data: any[] }> = ({ data }) => {
+const BarChart: React.FC<{ data: any[]; onOpenNote?: (path: string) => void }> = ({ data, onOpenNote }) => {
   if (!data || data.length === 0) return null;
 
   const maxValue = Math.max(...data.map((d: any) => d.value || 0));
 
   return (
     <div className="space-y-2">
-      {data.slice(0, 7).map((item: any, idx: number) => (
-        <div key={idx} className="flex items-center gap-2">
-          <span className="text-xs w-12" style={{ color: 'var(--color-text-secondary)' }}>
-            {item.hour || item.label}
-          </span>
-          <div className="flex-1 h-6 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden">
-            <div
-              className="h-full transition-all"
-              style={{
-                width: `${(item.value / maxValue) * 100}%`,
-                backgroundColor: 'var(--color-primary)'
-              }}
-            />
+      {data.slice(0, 7).map((item: any, idx: number) => {
+        const path = item.path || item.filePath;
+        const isClickable = !!(path && onOpenNote);
+
+        return (
+          <div 
+            key={idx} 
+            className={`flex items-center gap-2 ${isClickable ? 'cursor-pointer hover:opacity-80' : ''}`}
+            onClick={() => isClickable && onOpenNote(path)}
+          >
+            <span className="text-xs w-12 truncate" style={{ color: 'var(--color-text-secondary)' }} title={item.label || item.hour}>
+              {item.hour || item.label}
+            </span>
+            <div className="flex-1 h-6 bg-gray-100 dark:bg-gray-800 rounded overflow-hidden">
+              <div
+                className="h-full transition-all"
+                style={{
+                  width: `${(item.value / maxValue) * 100}%`,
+                  backgroundColor: 'var(--color-primary)'
+                }}
+              />
+            </div>
+            <span className="text-xs w-8 text-right" style={{ color: 'var(--color-text-secondary)' }}>
+              {item.value}
+            </span>
           </div>
-          <span className="text-xs w-8 text-right" style={{ color: 'var(--color-text-secondary)' }}>
-            {item.value}
-          </span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -263,19 +274,30 @@ const ComparisonChart: React.FC<{ data: any }> = ({ data }) => {
 };
 
 // List Chart Component
-const ListChart: React.FC<{ data: any[] }> = ({ data }) => {
+const ListChart: React.FC<{ data: any[]; onOpenNote?: (path: string) => void }> = ({ data, onOpenNote }) => {
   if (!data || data.length === 0) return null;
 
   return (
     <div className="space-y-2">
-      {data.slice(0, 5).map((item: any, idx: number) => (
-        <div key={idx} className="flex justify-between items-center text-sm">
-          <span style={{ color: 'var(--color-text)' }}>{item.name || item.path}</span>
-          <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>
-            {item.changeCount || item.count}
-          </span>
-        </div>
-      ))}
+      {data.slice(0, 5).map((item: any, idx: number) => {
+        const path = item.path || item.filePath;
+        const isClickable = !!(path && onOpenNote);
+
+        return (
+          <div 
+            key={idx} 
+            className={`flex justify-between items-center text-sm ${isClickable ? 'cursor-pointer hover:underline' : ''}`}
+            onClick={() => isClickable && onOpenNote(path)}
+          >
+            <span style={{ color: 'var(--color-text)' }} className="truncate flex-1 mr-2">
+              {item.name || item.path}
+            </span>
+            <span className="font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+              {item.changeCount || item.count}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 };

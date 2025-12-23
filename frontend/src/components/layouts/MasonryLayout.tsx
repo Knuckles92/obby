@@ -6,11 +6,12 @@
  * section for AI-powered analysis.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import InsightCard from '../insights/InsightCard';
 import { useInsights } from '../../hooks/useInsights';
 import { SemanticInsightsSection } from '../semantic-insights';
+import NoteViewerModal from '../NoteViewerModal';
 
 interface MasonryLayoutProps {
   dateRange: {
@@ -21,10 +22,23 @@ interface MasonryLayoutProps {
 }
 
 export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
+  const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+
   const { insights, loading, error, refetch } = useInsights({
     layoutName: 'masonry',
     dateRange
   });
+
+  const handleOpenNote = (path: string) => {
+    setSelectedNotePath(path);
+    setIsNoteModalOpen(true);
+  };
+
+  const handleCloseNoteModal = () => {
+    setIsNoteModalOpen(false);
+    setSelectedNotePath(null);
+  };
 
   // Convert insights object to sorted array
   const insightArray = Object.values(insights).sort((a, b) => {
@@ -103,7 +117,7 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
       )}
 
       {/* Semantic Insights Section */}
-      <SemanticInsightsSection />
+      <SemanticInsightsSection onOpenNote={handleOpenNote} />
 
       {/* Activity Insights Header */}
       <div className="mb-4">
@@ -116,13 +130,14 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
       </div>
 
       {/* Insights Grid */}
-      {!loading && insightArray.length > 0 && (
+      {insightArray.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {insightArray.map((insight) => (
             <InsightCard
               key={insight.metadata.id}
               insight={insight}
               size="medium"
+              onOpenNote={handleOpenNote}
             />
           ))}
         </div>
@@ -142,6 +157,13 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
           </div>
         </div>
       )}
+
+      {/* Note Viewer Modal */}
+      <NoteViewerModal
+        isOpen={isNoteModalOpen}
+        onClose={handleCloseNoteModal}
+        filePath={selectedNotePath}
+      />
     </div>
   );
 }

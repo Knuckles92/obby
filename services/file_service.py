@@ -59,8 +59,36 @@ class FileService:
         # Normalize path separators (handle both forward and back slashes)
         file_path = file_path.replace('\\', '/')
 
+        # Handle WSL style paths on Windows (/mnt/c/...)
+        if os.name == 'nt' and (file_path.startswith('/mnt/') or file_path.startswith('mnt/')):
+            # Normalize to start with /mnt/
+            wsl_path = file_path if file_path.startswith('/') else '/' + file_path
+            parts = wsl_path.split('/')
+            if len(parts) >= 3:
+                drive_letter = parts[2].upper()
+                remaining_path = '/'.join(parts[3:])
+                file_path = f"{drive_letter}:/{remaining_path}"
+                logger.debug(f"Normalized WSL path {wsl_path} to Windows path {file_path}")
+
         # Convert to Path
         path = Path(file_path)
+
+        # Handle absolute paths that might be missing leading slash due to URL collapsing
+        # e.g. "mnt/d/..." -> "/mnt/d/..."
+        if not path.is_absolute() and os.name != 'nt':
+             if file_path.startswith('mnt/'):
+                 path = Path('/' + file_path)
+        elif not path.is_absolute() and os.name == 'nt':
+            # Check if it looks like a Windows path missing a drive letter but starts with / or \
+            if file_path.startswith('/'):
+                 # It's an absolute path from the current drive root
+                 pass
+            elif len(file_path) > 1 and file_path[1] == ':':
+                 # It's a Windows absolute path
+                 pass
+            else:
+                # Truly relative path
+                pass
 
         # Resolve to absolute path
         if not path.is_absolute():
