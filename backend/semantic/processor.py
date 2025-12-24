@@ -283,13 +283,39 @@ class SemanticProcessor:
         except Exception as e:
             logger.error(f"Error completing scheduler run: {e}")
 
+    def _cleanup_non_pinned_insights(self) -> int:
+        """
+        Delete existing insights that are not pinned.
+        
+        Returns:
+            Number of insights deleted
+        """
+        try:
+            result = db.execute_update("""
+                DELETE FROM semantic_insights
+                WHERE status != 'pinned'
+            """)
+            
+            logger.info(f"Cleaned up {result} non-pinned insights before refresh")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error cleaning up non-pinned insights: {e}")
+            return 0
+
     async def _generate_insights(self) -> int:
         """
         Generate insights from extracted entities.
+        
+        Before generating new insights, deletes all existing insights
+        except those that are pinned.
 
         Returns:
             Number of insights generated
         """
+        # Delete existing insights (except pinned ones) before generating new ones
+        self._cleanup_non_pinned_insights()
+        
         insights_generated = 0
 
         try:

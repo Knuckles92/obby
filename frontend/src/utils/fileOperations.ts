@@ -73,6 +73,36 @@ export interface FileTreeNode {
 }
 
 /**
+ * Check if a file exists
+ *
+ * @param filePath - Relative or absolute path to the file
+ * @returns True if file exists, false otherwise
+ */
+export const checkFileExists = async (filePath: string): Promise<boolean> => {
+  try {
+    // Encode the file path but preserve leading slash if present
+    const startsWithSlash = filePath.startsWith('/');
+    const parts = filePath.split('/').filter(p => p !== '');
+    const encodedPath = (startsWithSlash ? '/' : '') + parts.map(encodeURIComponent).join('/');
+    
+    // Ensure we don't have double slashes when joining with /api/files/content/
+    const endpoint = `/api/files/content/${encodedPath.startsWith('/') ? encodedPath.substring(1) : encodedPath}`;
+    
+    // Try to fetch the file - if it returns 404, file doesn't exist
+    await apiRequest<FileContent>(endpoint);
+    return true;
+  } catch (error: any) {
+    // Check if it's a 404 error (file not found)
+    if (error?.status === 404 || error?.message?.includes('404') || error?.message?.includes('not found')) {
+      return false;
+    }
+    // For other errors, we assume the file might exist but there's a different issue
+    // Return true to avoid blocking file access due to network/permission errors
+    return true;
+  }
+}
+
+/**
  * Fetch file content
  *
  * @param filePath - Relative or absolute path to the file

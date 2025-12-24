@@ -5,6 +5,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3001,
+    hmr: {
+      port: 3001,
+      host: 'localhost',
+    },
+    watch: {
+      usePolling: false,
+      interval: 100,
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8001',

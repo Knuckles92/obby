@@ -11,7 +11,7 @@ import SemanticInsightCard from './SemanticInsightCard';
 import { useSemanticInsights, type SemanticInsight } from '../../hooks/useInsights';
 
 interface SemanticInsightsSectionProps {
-  onOpenNote?: (notePath: string) => void;
+  onOpenNote?: (notePath: string, insightId?: number) => void;
 }
 
 export default function SemanticInsightsSection({ onOpenNote }: SemanticInsightsSectionProps) {
@@ -136,30 +136,46 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
             <option value={18}>18 items</option>
             <option value={24}>24 items</option>
           </select>
-          <button
-            onClick={handleTriggerProcessing}
-            disabled={isProcessing}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              color: 'var(--color-text)',
-              border: '1px solid var(--color-border)'
-            }}
-          >
-            <RefreshCw size={14} className={isProcessing ? 'animate-spin' : ''} />
-            {isProcessing ? 'Processing...' : 'Analyze Notes'}
-          </button>
-          <button
-            onClick={refetch}
-            disabled={loading}
-            className="p-2 rounded-lg transition-colors"
-            style={{
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)'
-            }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
+          <div className="relative group">
+            <button
+              onClick={handleTriggerProcessing}
+              disabled={isProcessing}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors"
+              style={{
+                backgroundColor: 'var(--color-surface)',
+                color: 'var(--color-text)',
+                border: '1px solid var(--color-border)'
+              }}
+            >
+              <RefreshCw size={14} className={isProcessing ? 'animate-spin' : ''} />
+              {isProcessing ? 'Scanning...' : 'Scan Notes for Insights'}
+            </button>
+            {/* Hover tooltip */}
+            <div className="absolute right-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+              <div
+                className="text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs break-words whitespace-normal relative"
+                style={{
+                  backgroundColor: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)'
+                }}
+              >
+                {/* Arrow pointing down */}
+                <div
+                  className="absolute -bottom-1 right-4 w-2 h-2 rotate-45"
+                  style={{
+                    backgroundColor: 'var(--color-surface)',
+                    borderRight: '1px solid var(--color-border)',
+                    borderBottom: '1px solid var(--color-border)'
+                  }}
+                ></div>
+                <div className="font-semibold mb-1">What this does:</div>
+                <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  Triggers AI analysis of your notes to scan for stale todos, orphan mentions, connections, and themes. Generates new insights displayed below.
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

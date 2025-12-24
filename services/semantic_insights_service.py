@@ -415,6 +415,211 @@ class SemanticInsightsService:
         except Exception:
             return {"byType": {}, "byStatus": {}}
 
+    async def generate_suggested_actions(self, insight_id: int) -> Dict[str, Any]:
+        """
+        Generate AI-suggested actions for a todo insight.
+        Returns cached actions if they exist, otherwise generates new ones.
+        
+        Args:
+            insight_id: The insight ID
+            
+        Returns:
+            Dict with success status and list of suggested actions
+        """
+        try:
+            # Get the insight
+            insight = db.execute_query(
+                "SELECT * FROM semantic_insights WHERE id = ?",
+                (insight_id,)
+            )
+            
+            if not insight:
+                return {"success": False, "error": "Insight not found"}
+            
+            insight_row = dict(insight[0])
+            insight_type = insight_row.get('insight_type')
+            
+            # Only generate actions for todo-type insights
+            if insight_type not in ('stale_todo', 'active_todos'):
+                return {"success": False, "error": "Suggested actions only available for todo insights"}
+            
+            # Check if cached suggested actions exist
+            cached_actions = insight_row.get('suggested_actions')
+            if cached_actions:
+                try:
+                    actions = json.loads(cached_actions)
+                    if isinstance(actions, list) and len(actions) > 0:
+                        logger.info(f"Returning cached suggested actions for insight {insight_id}")
+                        return {
+                            "success": True,
+                            "actions": actions,
+                            "cached": True
+                        }
+                except json.JSONDecodeError:
+                    logger.warning(f"Failed to parse cached suggested actions for insight {insight_id}, regenerating")
+            
+            # Parse evidence and source notes
+            try:
+                evidence = json.loads(insight_row.get('evidence', '{}'))
+                source_notes = json.loads(insight_row.get('source_notes', '[]'))
+            except json.JSONDecodeError:
+                return {"success": False, "error": "Invalid insight data"}
+            
+            todo_text = evidence.get('todo_text', '')
+            note_path = source_notes[0].get('path', '') if source_notes else ''
+            note_name = evidence.get('note_name', '')
+            context = source_notes[0].get('snippet', '') if source_notes else ''
+            
+            if not todo_text:
+                return {"success": False, "error": "Todo text not found in insight"}
+            
+            # Use Claude Agent to generate suggested actions
+            try:
+                from claude_agent_sdk import query, ClaudeAgentOptions
+                from pathlib import Path
+                
+                # Build prompt for generating actions
+                prompt = f"""Given this todo item:
+
+Todo: {todo_text}
+Note: {note_path}
+Context: {context[:200] if context else 'No context available'}
+
+Suggest 2-4 actionable next steps the user might want to take with this todo. Each action should be:
+- Specific and actionable
+- Written as a natural language command/question that could be sent to an AI assistant
+- Focused on helping the user make progress on this todo
+
+Return your suggestions as a JSON array of objects with this structure:
+[
+  {{"text": "action text here", "description": "brief description"}},
+  ...
+]
+
+Example format:
+[
+  {{"text": "Break down '{todo_text}' into smaller subtasks", "description": "Decompose into manageable steps"}},
+  {{"text": "Add a deadline for '{todo_text}'", "description": "Set a target completion date"}},
+  {{"text": "Move '{todo_text}' to a project planning note", "description": "Organize into project structure"}}
+]
+
+Generate 2-4 relevant actions now:"""
+
+                system_prompt = """You are a helpful assistant that suggests actionable next steps for todo items. 
+Your suggestions should be practical, specific, and help users make progress on their tasks.
+Return only valid JSON, no additional text."""
+
+                options = ClaudeAgentOptions(
+                    cwd=str(self.working_dir),
+                    allowed_tools=[],  # No file access needed for this
+                    max_turns=2,
+                    system_prompt=system_prompt
+                )
+                
+                result_text = []
+                async for message in query(prompt=prompt, options=options):
+                    message_type = message.__class__.__name__
+                    if message_type == "AssistantMessage":
+                        if hasattr(message, 'content'):
+                            for block in message.content:
+                                if hasattr(block, 'text'):
+                                    result_text.append(block.text)
+                
+                # Parse the JSON response
+                full_response = "\n".join(result_text)
+                
+                # Try to extract JSON from the response
+                import re
+                json_match = re.search(r'\[.*\]', full_response, re.DOTALL)
+                if json_match:
+                    actions_json = json_match.group(0)
+                    actions = json.loads(actions_json)
+                else:
+                    # Fallback: try parsing the whole response
+                    actions = json.loads(full_response)
+                
+                # Validate and format actions
+                if not isinstance(actions, list):
+                    actions = [actions] if isinstance(actions, dict) else []
+                
+                # Ensure we have 2-4 actions
+                actions = actions[:4]  # Limit to 4
+                if len(actions) < 2:
+                    # Fallback actions if AI didn't generate enough
+                    fallback_actions = [
+                        {"text": f"Complete '{todo_text}'", "description": "Mark this todo as done"},
+                        {"text": f"Break down '{todo_text}' into subtasks", "description": "Decompose into smaller steps"}
+                    ]
+                    actions = actions + fallback_actions[:2-len(actions)]
+                
+                # Clean up actions
+                formatted_actions = []
+                for action in actions:
+                    if isinstance(action, dict):
+                        text = action.get('text', '')
+                        description = action.get('description', '')
+                        if text:
+                            formatted_actions.append({
+                                "text": text,
+                                "description": description or text
+                            })
+                
+                if not formatted_actions:
+                    return {"success": False, "error": "Failed to generate valid actions"}
+                
+                # Cache the generated actions in the database
+                actions_to_cache = formatted_actions[:4]  # Ensure max 4
+                try:
+                    db.execute_update(
+                        "UPDATE semantic_insights SET suggested_actions = ? WHERE id = ?",
+                        (json.dumps(actions_to_cache), insight_id)
+                    )
+                    logger.info(f"Cached {len(actions_to_cache)} suggested actions for insight {insight_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to cache suggested actions: {e}")
+                
+                logger.info(f"Generated {len(actions_to_cache)} suggested actions for insight {insight_id}")
+                return {
+                    "success": True,
+                    "actions": actions_to_cache,
+                    "cached": False
+                }
+                
+            except ImportError:
+                logger.warning("Claude Agent SDK not available for generating suggested actions")
+                # Return fallback actions
+                fallback_actions = [
+                    {"text": f"Complete '{todo_text}'", "description": "Mark this todo as done"},
+                    {"text": f"Break down '{todo_text}' into subtasks", "description": "Decompose into smaller steps"},
+                    {"text": f"Add a deadline for '{todo_text}'", "description": "Set a target completion date"},
+                    {"text": f"Move '{todo_text}' to a project planning note", "description": "Organize into project structure"}
+                ]
+                
+                # Cache fallback actions too
+                try:
+                    db.execute_update(
+                        "UPDATE semantic_insights SET suggested_actions = ? WHERE id = ?",
+                        (json.dumps(fallback_actions), insight_id)
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to cache fallback actions: {e}")
+                
+                return {
+                    "success": True,
+                    "actions": fallback_actions,
+                    "cached": False
+                }
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse AI response for suggested actions: {e}")
+                return {"success": False, "error": f"Failed to parse AI response: {str(e)}"}
+            except Exception as e:
+                logger.error(f"Error generating suggested actions: {e}")
+                return {"success": False, "error": str(e)}
+                
+        except Exception as e:
+            logger.error(f"Error generating suggested actions for insight {insight_id}: {e}")
+            return {"success": False, "error": str(e)}
+
 
 # Singleton instance
 _semantic_insights_service: Optional[SemanticInsightsService] = None

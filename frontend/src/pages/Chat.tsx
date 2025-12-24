@@ -221,6 +221,16 @@ export default function Chat() {
     }
   }, [location.state?.selectedFile])
 
+  // Handle pre-filled message from navigation state (e.g., from suggested actions)
+  useEffect(() => {
+    if ((location.state as any)?.initialMessage) {
+      const message = (location.state as any).initialMessage
+      setInput(message)
+      // Clear the state so it doesn't persist on navigation
+      window.history.replaceState({}, document.title)
+    }
+  }, [location.state?.initialMessage])
+
   // Load watched files for context modal
   useEffect(() => {
     const loadWatchedFiles = async () => {

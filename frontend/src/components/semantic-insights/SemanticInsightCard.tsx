@@ -5,7 +5,7 @@
  * with action buttons for dismiss, pin, mark done, etc.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Clock,
   UserX,
@@ -15,14 +15,17 @@ import {
   CheckCircle,
   ExternalLink,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Lightbulb
 } from 'lucide-react';
 import type { SemanticInsight } from '../../hooks/useInsights';
+import { useSuggestedActions } from '../../hooks/useInsights';
+import ActionSelectionModal from './ActionSelectionModal';
 
 interface SemanticInsightCardProps {
   insight: SemanticInsight;
   onAction: (insightId: number, action: string) => Promise<boolean>;
-  onOpenNote?: (notePath: string) => void;
+  onOpenNote?: (notePath: string, insightId?: number) => void;
 }
 
 // Map insight types to icons and colors
@@ -54,12 +57,22 @@ export default function SemanticInsightCard({
   onAction,
   onOpenNote
 }: SemanticInsightCardProps) {
+  const [selectedAction, setSelectedAction] = useState<{ text: string; description: string } | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  
   const config = typeConfig[insight.type] || {
     icon: Sparkles,
     color: 'var(--color-primary)',
     label: insight.type
   };
   const Icon = config.icon;
+
+  // Only fetch suggested actions for todo-type insights
+  const isTodoType = insight.type === 'stale_todo' || insight.type === 'active_todos';
+  const { actions: suggestedActions, loading: actionsLoading } = useSuggestedActions(
+    insight.id,
+    isTodoType
+  );
 
   const handleAction = async (action: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -69,8 +82,19 @@ export default function SemanticInsightCard({
   const handleOpenNote = (e: React.MouseEvent) => {
     e.stopPropagation();
     if (insight.sourceNotes.length > 0 && onOpenNote) {
-      onOpenNote(insight.sourceNotes[0].path);
+      onOpenNote(insight.sourceNotes[0].path, insight.id);
     }
+  };
+
+  const handleSuggestedActionClick = (action: { text: string; description: string }, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedAction(action);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedAction(null);
   };
 
   // Format relative time
@@ -189,6 +213,50 @@ export default function SemanticInsightCard({
       >
         {insight.summary}
       </p>
+
+      {/* Suggested Actions */}
+      {isTodoType && suggestedActions.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1 mb-2">
+            <Lightbulb size={12} style={{ color: 'var(--color-text-secondary)' }} />
+            <span
+              className="text-xs font-medium"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Suggested Actions
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {suggestedActions.map((action, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={(e) => handleSuggestedActionClick(action, e)}
+                className="px-2 py-1 text-xs rounded transition-colors hover:opacity-90"
+                style={{
+                  backgroundColor: `${config.color}15`,
+                  color: config.color,
+                  border: `1px solid ${config.color}30`
+                }}
+                title={action.description}
+              >
+                {action.text}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action Selection Modal */}
+      {selectedAction && (
+        <ActionSelectionModal
+          isOpen={isModalOpen}
+          onClose={handleCloseModal}
+          insightId={insight.id}
+          actionText={selectedAction.text}
+          actionDescription={selectedAction.description}
+        />
+      )}
 
       {/* Source Note Preview */}
       {insight.sourceNotes.length > 0 && (

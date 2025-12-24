@@ -124,6 +124,7 @@ def create_semantic_insights_table():
             priority INTEGER DEFAULT 0,
             status TEXT DEFAULT 'new',
             user_action TEXT,
+            suggested_actions TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             viewed_at TIMESTAMP,
             expires_at TIMESTAMP,
@@ -227,6 +228,9 @@ def add_missing_tables_and_columns():
         # Update semantic_insights table to support new insight types
         _update_semantic_insights_constraint()
 
+        # Add suggested_actions column if it doesn't exist
+        _add_suggested_actions_column()
+
         # Ensure all indexes exist
         create_indexes()
 
@@ -236,6 +240,22 @@ def add_missing_tables_and_columns():
     except Exception as e:
         logger.error(f"Failed to update semantic insights tables: {e}")
         return False
+
+
+def _add_suggested_actions_column():
+    """Add suggested_actions column to semantic_insights table if it doesn't exist."""
+    try:
+        # Check if column already exists
+        pragma_result = db.execute_query("PRAGMA table_info(semantic_insights)")
+        column_names = [row['name'] for row in pragma_result]
+        
+        if 'suggested_actions' not in column_names:
+            db.execute_update("ALTER TABLE semantic_insights ADD COLUMN suggested_actions TEXT")
+            logger.info("Added suggested_actions column to semantic_insights table")
+        else:
+            logger.debug("suggested_actions column already exists")
+    except Exception as e:
+        logger.error(f"Failed to add suggested_actions column: {e}")
 
 
 def _update_semantic_insights_constraint():

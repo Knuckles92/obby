@@ -9,9 +9,11 @@
 import React, { useState } from 'react';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 import InsightCard from '../insights/InsightCard';
-import { useInsights } from '../../hooks/useInsights';
+import { useInsights, useSemanticInsights } from '../../hooks/useInsights';
 import { SemanticInsightsSection } from '../semantic-insights';
 import NoteViewerModal from '../NoteViewerModal';
+import FileNotFoundDialog from '../FileNotFoundDialog';
+import { checkFileExists } from '../../utils/fileOperations';
 
 interface MasonryLayoutProps {
   dateRange: {
@@ -24,13 +26,47 @@ interface MasonryLayoutProps {
 export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
   const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+  const [fileNotFoundDialog, setFileNotFoundDialog] = useState<{
+    isOpen: boolean;
+    filePath: string;
+    insightId: number | null;
+  }>({
+    isOpen: false,
+    filePath: '',
+    insightId: null
+  });
 
   const { insights, loading, error, refetch } = useInsights({
     layoutName: 'masonry',
     dateRange
   });
 
-  const handleOpenNote = (path: string) => {
+  const { performAction, refetch: refetchSemanticInsights } = useSemanticInsights({
+    status: undefined,
+    limit: 50
+  });
+
+  const handleOpenNote = async (path: string, insightId?: number) => {
+    // Check if file exists
+    const fileExists = await checkFileExists(path);
+    
+    if (!fileExists && insightId !== undefined && insightId !== null) {
+      // File doesn't exist and we have an insight ID - show dialog
+      setFileNotFoundDialog({
+        isOpen: true,
+        filePath: path,
+        insightId: insightId
+      });
+      return;
+    }
+    
+    if (!fileExists) {
+      // File doesn't exist but no insight ID - just show error
+      console.warn(`File not found: ${path}`);
+      return;
+    }
+    
+    // File exists - open normally
     setSelectedNotePath(path);
     setIsNoteModalOpen(true);
   };
@@ -38,6 +74,22 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
   const handleCloseNoteModal = () => {
     setIsNoteModalOpen(false);
     setSelectedNotePath(null);
+  };
+
+  const handleCloseFileNotFoundDialog = () => {
+    setFileNotFoundDialog({
+      isOpen: false,
+      filePath: '',
+      insightId: null
+    });
+  };
+
+  const handleDeleteInsight = async () => {
+    if (fileNotFoundDialog.insightId !== null) {
+      await performAction(fileNotFoundDialog.insightId, 'dismiss');
+      await refetchSemanticInsights();
+      handleCloseFileNotFoundDialog();
+    }
   };
 
   // Convert insights object to sorted array
@@ -163,6 +215,14 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
         isOpen={isNoteModalOpen}
         onClose={handleCloseNoteModal}
         filePath={selectedNotePath}
+      />
+
+      {/* File Not Found Dialog */}
+      <FileNotFoundDialog
+        isOpen={fileNotFoundDialog.isOpen}
+        onClose={handleCloseFileNotFoundDialog}
+        onDelete={handleDeleteInsight}
+        filePath={fileNotFoundDialog.filePath}
       />
     </div>
   );

@@ -32,3 +32,53 @@
 - **concepts**: book tinder, AI summaries, daily summaries, real-time updates, semantic search (+1 more)
 
 ---
+
+## 2025-12-24 02:22 - /mnt/d/Python Projects/obby/notes/Common Types of Pancakes.md
+
+- **concepts**: American Pancakes, French Crêpes, Dutch Pancakes, Pannenkoeken, Japanese Soufflé Pancakes (+11 more)
+- **dates**: Hanukkah
+
+---
+
+## 2025-12-24 02:23 - /mnt/d/Python Projects/obby/notes/Home Kitchen Upgrades.md
+
+- **concepts**: Under-cabinet LED strips, Dimmable overhead fixtures, Motion sensor lights, Natural light optimization, Pull-out shelves (+38 more)
+- **todos**: Replace cabinet hardware (knobs, pulls), Add under-cabinet lighting (LED strips), Install a backsplash (peel-and-stick tiles), Add magnetic knife strip or utensil holder, Clean as you cook (+21 more)
+- **projects**: Home Kitchen Upgrades
+
+---
+
+## 2025-12-24 02:24 - /mnt/d/Python Projects/obby/notes/Productivity Workflow Ideas.md
+
+- **concepts**: ultradian rhythm, time blocking, batching, Eisenhower Matrix, Inbox Zero Strategy (+5 more)
+- **projects**: Todoist, Notion, Google Calendar, Obsidian, RescueTime (+2 more)
+- **todos**: Use 90-minute deep work sessions, Schedule breaks between blocks (10-15 minutes), Group similar tasks together (batching), Handle email/social media in dedicated time blocks, Define clear objectives and success criteria (+79 more)
+- **dates**: 2 PM, 24 hours
+
+---
+
+## 2025-12-24 02:24 - /mnt/d/Python Projects/obby/notes/Backpacking list thoughts.md
+
+- **projects**: Backpacking
+- **concepts**: Food, Items, Clothes, Gear, Camping (+1 more)
+
+---
+
+## 2025-12-24 02:24 - /mnt/d/Python Projects/obby/notes/Ant stuff.md
+
+- **concepts**: ant control, Advion, Terro, borax-based solutions, natural repellents (+2 more)
+
+---
+
+## 2025-12-24 02:24 - /mnt/d/Python Projects/obby/notes/App ideas.md
+
+- **projects**: Book swiping app, Task management app with AI summaries, Diff viewer auto-update feature, Note-taking app with semantic search, Personal finance tracker
+- **concepts**: book tinder, AI summaries, daily summaries, real-time updates, semantic search (+2 more)
+
+---
+
+## 2025-12-24 02:46 - /mnt/d/Python Projects/obby/notes/Store list.md
+
+- **todos**: Watermelon, Strawberries, Pork chops, Kale salad, Hot dog buns (+6 more)
+
+---
