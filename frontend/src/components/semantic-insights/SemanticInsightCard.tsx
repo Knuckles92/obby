@@ -21,6 +21,7 @@ import {
 import type { SemanticInsight } from '../../hooks/useInsights';
 import { useSuggestedActions } from '../../hooks/useInsights';
 import ActionSelectionModal from './ActionSelectionModal';
+import SuggestedActionButton from './SuggestedActionButton';
 
 interface SemanticInsightCardProps {
   insight: SemanticInsight;
@@ -59,7 +60,7 @@ export default function SemanticInsightCard({
 }: SemanticInsightCardProps) {
   const [selectedAction, setSelectedAction] = useState<{ text: string; description: string } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  
+
   const config = typeConfig[insight.type] || {
     icon: Sparkles,
     color: 'var(--color-primary)',
@@ -69,7 +70,7 @@ export default function SemanticInsightCard({
 
   // Only fetch suggested actions for todo-type insights
   const isTodoType = insight.type === 'stale_todo' || insight.type === 'active_todos';
-  const { actions: suggestedActions, loading: actionsLoading } = useSuggestedActions(
+  const { actions: suggestedActions } = useSuggestedActions(
     insight.id,
     isTodoType
   );
@@ -113,13 +114,12 @@ export default function SemanticInsightCard({
 
   return (
     <div
-      className={`rounded-lg p-4 transition-all hover:shadow-md ${
-        insight.status === 'pinned' ? 'ring-2' : ''
-      }`}
+      className={`rounded-lg p-4 transition-all hover:shadow-md ${insight.status === 'pinned' ? 'ring-2' : ''
+        }`}
       style={{
         backgroundColor: 'var(--color-surface)',
         border: '1px solid var(--color-border)',
-        ringColor: insight.status === 'pinned' ? config.color : undefined
+        boxShadow: insight.status === 'pinned' ? `0 0 0 2px ${config.color}` : undefined
       }}
     >
       {/* Header */}
@@ -228,20 +228,12 @@ export default function SemanticInsightCard({
           </div>
           <div className="flex flex-wrap gap-2">
             {suggestedActions.map((action, index) => (
-              <button
+              <SuggestedActionButton
                 key={index}
-                type="button"
-                onClick={(e) => handleSuggestedActionClick(action, e)}
-                className="px-2 py-1 text-xs rounded transition-colors hover:opacity-90"
-                style={{
-                  backgroundColor: `${config.color}15`,
-                  color: config.color,
-                  border: `1px solid ${config.color}30`
-                }}
-                title={action.description}
-              >
-                {action.text}
-              </button>
+                action={action}
+                color={config.color}
+                onClick={handleSuggestedActionClick}
+              />
             ))}
           </div>
         </div>

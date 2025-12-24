@@ -1,17 +1,9 @@
-/**
- * ActionSelectionModal - Modal for selecting how to execute a suggested action
- *
- * Shows two options:
- * 1. Complete in popup - Auto-executes with ActivityTimeline
- * 2. Bring to chat - Navigates to chat with pre-filled message
- */
-
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Zap, MessageSquare } from 'lucide-react';
+import { X, Zap, MessageSquare, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
 import BaseModal from '../BaseModal';
 import ActivityTimeline from '../ActivityTimeline';
-import { useActionExecution, type AgentAction } from '../../hooks/useInsights';
+import { useActionExecution } from '../../hooks/useInsights';
 
 interface ActionSelectionModalProps {
   isOpen: boolean;
@@ -31,7 +23,7 @@ export default function ActionSelectionModal({
   const navigate = useNavigate();
   const [executionMode, setExecutionMode] = useState<'idle' | 'executing' | 'completed'>('idle');
   const [timelineExpanded, setTimelineExpanded] = useState(true);
-  const { actions, loading, error, execute, disconnect } = useActionExecution();
+  const { actions, error, execute, disconnect } = useActionExecution();
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -41,28 +33,28 @@ export default function ActionSelectionModal({
     }
   }, [isOpen, disconnect]);
 
+  // Monitor for completion
+  useEffect(() => {
+    if (executionMode === 'executing') {
+      const completed = actions.some(a =>
+        a.type === 'progress' &&
+        a.label.toLowerCase().includes('completed')
+      );
+
+      if (completed) {
+        setExecutionMode('completed');
+      }
+    }
+  }, [actions, executionMode]);
+
   const handleCompleteInPopup = async () => {
     setExecutionMode('executing');
     const executionId = await execute(insightId, actionText);
-    
+
     if (!executionId) {
       setExecutionMode('idle');
       return;
     }
-
-    // Monitor for completion via useEffect
-    useEffect(() => {
-      if (executionMode === 'executing') {
-        const completed = actions.some(a => 
-          a.type === 'progress' && 
-          a.label.toLowerCase().includes('completed')
-        );
-        
-        if (completed) {
-          setExecutionMode('completed');
-        }
-      }
-    }, [actions, executionMode]);
   };
 
   const handleBringToChat = () => {
@@ -72,7 +64,6 @@ export default function ActionSelectionModal({
 
   const handleClose = () => {
     if (executionMode === 'executing') {
-      // Ask for confirmation if execution is in progress
       if (window.confirm('Action execution is in progress. Close anyway?')) {
         disconnect();
         setExecutionMode('idle');
@@ -89,144 +80,122 @@ export default function ActionSelectionModal({
     <BaseModal
       isOpen={isOpen}
       onClose={handleClose}
-      title="Execute Action"
-      maxWidth="max-w-2xl"
+      title="Execute suggested action"
+      maxWidth="max-w-xl"
     >
-      <div className="space-y-4">
-        {/* Action Preview */}
-        <div
-          className="p-3 rounded-lg"
-          style={{
-            backgroundColor: 'var(--color-background)',
-            border: '1px solid var(--color-border)'
-          }}
-        >
-          <p
-            className="text-sm font-medium mb-1"
-            style={{ color: 'var(--color-text-primary)' }}
-          >
-            {actionText}
-          </p>
-          {actionDescription && (
-            <p
-              className="text-xs"
-              style={{ color: 'var(--color-text-secondary)' }}
-            >
-              {actionDescription}
-            </p>
-          )}
-        </div>
-
-        {/* Options (only show if not executing) */}
-        {executionMode === 'idle' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <button
-              onClick={handleCompleteInPopup}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg transition-all hover:shadow-md"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                border: '2px solid var(--color-border)',
-                color: 'var(--color-text-primary)'
-              }}
-            >
-              <div
-                className="p-3 rounded-full"
-                style={{ backgroundColor: 'var(--color-primary)20' }}
-              >
-                <Zap size={24} style={{ color: 'var(--color-primary)' }} />
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="p-6 space-y-6">
+          {/* Action Header / Preview */}
+          <div className="relative overflow-hidden p-5 rounded-2xl bg-gradient-to-br from-primary/10 via-background to-background border border-border/50 shadow-sm">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Zap size={64} className="text-primary" />
+            </div>
+            <div className="relative z-10">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-primary mb-2 opacity-80">
+                Suggested Action
               </div>
-              <div className="text-center">
-                <div className="font-semibold mb-1">Complete in popup</div>
-                <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  AI executes automatically with progress shown here
-                </div>
-              </div>
-            </button>
-
-            <button
-              onClick={handleBringToChat}
-              className="flex flex-col items-center gap-2 p-4 rounded-lg transition-all hover:shadow-md"
-              style={{
-                backgroundColor: 'var(--color-surface)',
-                border: '2px solid var(--color-border)',
-                color: 'var(--color-text-primary)'
-              }}
-            >
-              <div
-                className="p-3 rounded-full"
-                style={{ backgroundColor: 'var(--color-primary)20' }}
-              >
-                <MessageSquare size={24} style={{ color: 'var(--color-primary)' }} />
-              </div>
-              <div className="text-center">
-                <div className="font-semibold mb-1">Bring to chat</div>
-                <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  Open chat with this action pre-filled
-                </div>
-              </div>
-            </button>
-          </div>
-        )}
-
-        {/* Activity Timeline (show when executing or completed) */}
-        {(executionMode === 'executing' || executionMode === 'completed') && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h3
-                className="text-sm font-semibold"
-                style={{ color: 'var(--color-text-primary)' }}
-              >
-                Execution Progress
-              </h3>
-              {executionMode === 'completed' && (
-                <span
-                  className="text-xs px-2 py-1 rounded-full"
-                  style={{
-                    backgroundColor: 'var(--color-success)20',
-                    color: 'var(--color-success)'
-                  }}
-                >
-                  Completed
-                </span>
+              <p className="text-lg font-semibold leading-snug tracking-tight text-text-primary">
+                {actionText}
+              </p>
+              {actionDescription && (
+                <p className="mt-2 text-sm text-text-secondary leading-relaxed">
+                  {actionDescription}
+                </p>
               )}
             </div>
-
-            {error && (
-              <div
-                className="p-3 rounded-lg text-sm"
-                style={{
-                  backgroundColor: 'var(--color-error)20',
-                  border: '1px solid var(--color-error)',
-                  color: 'var(--color-error)'
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            <ActivityTimeline
-              actions={actions}
-              isExpanded={timelineExpanded}
-              onToggle={() => setTimelineExpanded(!timelineExpanded)}
-              maxHeight="300px"
-            />
-
-            {executionMode === 'completed' && (
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  onClick={handleClose}
-                  className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                  style={{
-                    backgroundColor: 'var(--color-primary)',
-                    color: 'white'
-                  }}
-                >
-                  Close
-                </button>
-              </div>
-            )}
           </div>
-        )}
+
+          {/* Options Section */}
+          {executionMode === 'idle' && (
+            <div className="space-y-3">
+              <button
+                onClick={handleCompleteInPopup}
+                className="group w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 border border-border hover:border-primary/50 hover:bg-primary/5 bg-surface shadow-sm hover:shadow-md text-left"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
+                  <Zap size={24} />
+                </div>
+                <div className="flex-grow">
+                  <div className="font-bold text-text-primary group-hover:text-primary transition-colors">
+                    Complete in popup
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    AI executes automatically with real-time feedback
+                  </div>
+                </div>
+                <ArrowRight size={18} className="text-text-secondary group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </button>
+
+              <button
+                onClick={handleBringToChat}
+                className="group w-full flex items-center gap-4 p-4 rounded-xl transition-all duration-200 border border-border hover:border-primary/50 hover:bg-primary/5 bg-surface shadow-sm hover:shadow-md text-left"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-200">
+                  <MessageSquare size={24} />
+                </div>
+                <div className="flex-grow">
+                  <div className="font-bold text-text-primary group-hover:text-primary transition-colors">
+                    Bring to chat
+                  </div>
+                  <div className="text-xs text-text-secondary">
+                    Collaborate with the AI in the main chat interface
+                  </div>
+                </div>
+                <ArrowRight size={18} className="text-text-secondary group-hover:text-primary group-hover:translate-x-1 transition-all" />
+              </button>
+            </div>
+          )}
+
+          {/* Execution Progress */}
+          {(executionMode === 'executing' || executionMode === 'completed') && (
+            <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  {executionMode === 'executing' ? (
+                    <Loader2 size={16} className="text-primary animate-spin" />
+                  ) : (
+                    <CheckCircle2 size={16} className="text-success" />
+                  )}
+                  <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
+                    {executionMode === 'executing' ? 'Executing Action...' : 'Action Completed'}
+                  </h3>
+                </div>
+                {executionMode === 'completed' && (
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-success/10 text-success border border-success/20">
+                    FINISHED
+                  </span>
+                )}
+              </div>
+
+              {error && (
+                <div className="mb-4 p-3 rounded-lg bg-error/10 border border-error/20 text-error text-xs flex gap-2 items-center">
+                  <X size={14} />
+                  {error}
+                </div>
+              )}
+
+              <div className="rounded-xl border border-border bg-background/50 overflow-hidden">
+                <ActivityTimeline
+                  actions={actions}
+                  isExpanded={timelineExpanded}
+                  onToggle={() => setTimelineExpanded(!timelineExpanded)}
+                  maxHeight="320px"
+                />
+              </div>
+
+              {executionMode === 'completed' && (
+                <div className="flex justify-end pt-6">
+                  <button
+                    onClick={handleClose}
+                    className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  >
+                    Close & Finish
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </BaseModal>
   );
