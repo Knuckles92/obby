@@ -5,7 +5,6 @@ import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
 import ConfirmationDialog from '../components/ConfirmationDialog'
-import LoadingIndicator from '../components/LoadingIndicator'
 import ActivityTimeline from '../components/ActivityTimeline'
 import { ContextModal } from '../components/ContextModal'
 import FileReference from '../components/FileReference'
@@ -148,8 +147,6 @@ export default function Chat() {
   const [currentModel, setCurrentModel] = useState<string>('')
   const [availableTools, setAvailableTools] = useState<ToolInfo[]>([])
   const [showSettings, setShowSettings] = useState(false)
-  const [progressMessage, setProgressMessage] = useState<string | null>(null)
-  const [, setProgressType] = useState<string | null>(null)
   const [agentActions, setAgentActions] = useState<AgentAction[]>([])
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null)
   const [headerMinimized, setHeaderMinimized] = useState(false)
@@ -423,8 +420,6 @@ export default function Chat() {
       eventSourceRef.current.close()
       eventSourceRef.current = null
     }
-    setProgressMessage(null)
-    setProgressType(null)
   }, [])
 
   const disconnectFileUpdatesSSE = useCallback(() => {
@@ -567,9 +562,6 @@ export default function Chat() {
             return
           }
 
-          setProgressMessage(data.message || null)
-          setProgressType(eventType)
-
           const extras = { ...data }
           delete extras.type
           delete extras.message
@@ -610,8 +602,6 @@ export default function Chat() {
             setLoading(false)
             setIsStreaming(false)
             setStreamingMessage('')
-            setProgressMessage(null)
-            setProgressType(null)
             // Clear cancel timeout if set
             if (cancelTimeoutRef.current) {
               clearTimeout(cancelTimeoutRef.current)
@@ -668,15 +658,6 @@ export default function Chat() {
             }
             setCancelPhase('idle')
             setCancelMessage('')
-            setTimeout(() => {
-              setProgressMessage(null)
-              setProgressType(null)
-            }, 2000)
-          } else if (eventType === 'error') {
-            setTimeout(() => {
-              setProgressMessage(null)
-              setProgressType(null)
-            }, 5000)
           }
         } catch (eventError) {
           console.error('Error parsing chat progress SSE message:', eventError)
@@ -711,8 +692,6 @@ export default function Chat() {
         setLoading(false)
         setIsStreaming(false)
         setStreamingMessage('')
-        setProgressMessage(null)
-        setProgressType(null)
         setCancelPhase('idle')
         setCancelMessage('')
         recordAgentAction('warning', 'Stop timeout - cleared state',
@@ -885,8 +864,6 @@ export default function Chat() {
     const queryPreview = content.length > 80 ? content.slice(0, 80) + '...' : content
     recordAgentAction('progress', `Sending: "${queryPreview}"`, 'Provider: Claude Agent SDK', sessionId)
 
-    setProgressMessage(null)
-    setProgressType(null)
     connectToProgressSSE(sessionId)
 
     try {
@@ -1001,8 +978,6 @@ export default function Chat() {
         setIsStreaming(false)
         setStreamingMessage('')
         setStreamingFileReferences([])
-        setProgressMessage(null)
-        setProgressType(null)
         setContextBeingUsed(false)
         recordAgentAction('warning', 'Agent operation cancelled', 'Operation was stopped', sessionId)
         return
@@ -1219,8 +1194,6 @@ If you do not reference any files, return a simple text response instead of JSON
     setInput('')
     setError(null)
     setLoading(false)
-    setProgressMessage(null)
-    setProgressType(null)
     setAgentActions([])
     setCurrentSessionId(null)
     setStreamingMessage('')
@@ -1838,7 +1811,6 @@ If you do not reference any files, return a simple text response instead of JSON
                     cancelPhase={cancelPhase}
                     cancelMessage={cancelMessage}
                   />
-                  <LoadingIndicator />
                 </div>
               )}
               {error && (
