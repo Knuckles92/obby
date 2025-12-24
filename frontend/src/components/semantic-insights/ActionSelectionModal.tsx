@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Zap, MessageSquare, ArrowRight, Loader2, CheckCircle2 } from 'lucide-react';
+import { X, Zap, MessageSquare, ArrowRight, Loader2, CheckCircle2, Trash2 } from 'lucide-react';
 import BaseModal from '../BaseModal';
 import ActivityTimeline from '../ActivityTimeline';
 import { useActionExecution } from '../../hooks/useInsights';
@@ -11,6 +11,7 @@ interface ActionSelectionModalProps {
   insightId: number;
   actionText: string;
   actionDescription?: string;
+  onRemoveInsight?: () => Promise<void>;
 }
 
 export default function ActionSelectionModal({
@@ -18,11 +19,13 @@ export default function ActionSelectionModal({
   onClose,
   insightId,
   actionText,
-  actionDescription
+  actionDescription,
+  onRemoveInsight
 }: ActionSelectionModalProps) {
   const navigate = useNavigate();
   const [executionMode, setExecutionMode] = useState<'idle' | 'executing' | 'completed'>('idle');
   const [timelineExpanded, setTimelineExpanded] = useState(true);
+  const [isRemoving, setIsRemoving] = useState(false);
   const { actions, error, execute, disconnect } = useActionExecution();
 
   // Reset state when modal opens/closes
@@ -74,6 +77,15 @@ export default function ActionSelectionModal({
       setExecutionMode('idle');
       onClose();
     }
+  };
+
+  const handleRemoveInsight = async () => {
+    if (onRemoveInsight) {
+      setIsRemoving(true);
+      await onRemoveInsight();
+      setIsRemoving(false);
+    }
+    handleClose();
   };
 
   return (
@@ -154,14 +166,21 @@ export default function ActionSelectionModal({
                   {executionMode === 'executing' ? (
                     <Loader2 size={16} className="text-primary animate-spin" />
                   ) : (
-                    <CheckCircle2 size={16} className="text-success" />
+                    <CheckCircle2 size={16} style={{ color: 'var(--color-success)' }} />
                   )}
                   <h3 className="text-sm font-bold text-text-primary uppercase tracking-wide">
                     {executionMode === 'executing' ? 'Executing Action...' : 'Action Completed'}
                   </h3>
                 </div>
                 {executionMode === 'completed' && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-success/10 text-success border border-success/20">
+                  <span
+                    className="text-[10px] font-bold px-2 py-0.5 rounded"
+                    style={{
+                      backgroundColor: 'var(--color-success)1a',
+                      color: 'var(--color-success)',
+                      border: '1px solid var(--color-success)33'
+                    }}
+                  >
                     FINISHED
                   </span>
                 )}
@@ -184,13 +203,34 @@ export default function ActionSelectionModal({
               </div>
 
               {executionMode === 'completed' && (
-                <div className="flex justify-end pt-6">
-                  <button
-                    onClick={handleClose}
-                    className="px-6 py-2.5 rounded-xl bg-primary text-white font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-                  >
-                    Close & Finish
-                  </button>
+                <div className="pt-6 space-y-4">
+                  <p className="text-sm text-text-secondary text-center">
+                    Would you like to remove this insight?
+                  </p>
+                  <div className="flex justify-center gap-3">
+                    <button
+                      onClick={handleClose}
+                      className="px-5 py-2.5 rounded-xl border border-border bg-surface text-text-primary font-medium text-sm hover:bg-surface-hover transition-all"
+                    >
+                      Keep Insight
+                    </button>
+                    <button
+                      onClick={handleRemoveInsight}
+                      disabled={isRemoving}
+                      className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-bold text-sm hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{
+                        backgroundColor: 'var(--color-success)',
+                        boxShadow: '0 10px 15px -3px var(--color-success)33'
+                      }}
+                    >
+                      {isRemoving ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={14} />
+                      )}
+                      Remove Insight
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

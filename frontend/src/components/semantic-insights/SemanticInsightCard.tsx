@@ -98,6 +98,10 @@ export default function SemanticInsightCard({
     setSelectedAction(null);
   };
 
+  const handleRemoveInsight = async () => {
+    await onAction(insight.id, 'mark_done');
+  };
+
   // Format relative time
   const formatRelativeTime = (dateString: string) => {
     const date = new Date(dateString);
@@ -123,45 +127,43 @@ export default function SemanticInsightCard({
       }}
     >
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-3 mb-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
           <div
-            className="p-2 rounded-lg"
+            className="p-2 rounded-lg flex-shrink-0"
             style={{ backgroundColor: `${config.color}20` }}
           >
             <Icon size={18} style={{ color: config.color }} />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className="text-xs font-medium px-2 py-0.5 rounded-full"
-                style={{
-                  backgroundColor: `${config.color}20`,
-                  color: config.color
-                }}
-              >
-                {config.label}
-              </span>
-              {insight.status === 'new' && (
-                <span
-                  className="text-xs px-2 py-0.5 rounded-full"
-                  style={{
-                    backgroundColor: 'var(--color-primary)',
-                    color: 'white'
-                  }}
-                >
-                  New
-                </span>
-              )}
-              {insight.status === 'pinned' && (
-                <Pin size={12} style={{ color: config.color }} />
-              )}
-            </div>
-          </div>
+          {insight.status === 'new' && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 whitespace-nowrap"
+              style={{
+                backgroundColor: 'var(--color-primary)',
+                color: 'white'
+              }}
+            >
+              New
+            </span>
+          )}
+          {insight.status === 'pinned' && (
+            <Pin size={14} style={{ color: config.color }} className="flex-shrink-0" />
+          )}
+          <h3
+            className="font-semibold flex-1 min-w-0"
+            style={{ 
+              color: 'var(--color-text-primary)',
+              wordBreak: 'normal',
+              overflowWrap: 'break-word',
+              hyphens: 'auto'
+            }}
+          >
+            {insight.title}
+          </h3>
         </div>
 
         {/* Quick Actions */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-shrink-0 self-start sm:self-auto">
           {insight.actions.includes('pin') && (
             <button
               type="button"
@@ -197,14 +199,6 @@ export default function SemanticInsightCard({
           )}
         </div>
       </div>
-
-      {/* Title */}
-      <h3
-        className="font-semibold mb-2"
-        style={{ color: 'var(--color-text-primary)' }}
-      >
-        {insight.title}
-      </h3>
 
       {/* Summary */}
       <p
@@ -247,6 +241,7 @@ export default function SemanticInsightCard({
           insightId={insight.id}
           actionText={selectedAction.text}
           actionDescription={selectedAction.description}
+          onRemoveInsight={handleRemoveInsight}
         />
       )}
 

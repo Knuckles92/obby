@@ -219,7 +219,12 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
 
       {/* Insights Grid */}
       {visibleInsights.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div 
+          className="grid gap-4"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 320px), 1fr))'
+          }}
+        >
           {visibleInsights.map((insight) => (
             <SemanticInsightCard
               key={insight.id}
