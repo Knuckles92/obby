@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Dict, List, Any
 from config import settings as cfg
 from utils.watch_handler import WatchHandler
+from services.agent_cancellation_service import get_cancellation_service, find_claude_subprocess
 
 # Import SSE client tracking from backend
 import sys
@@ -399,13 +400,28 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
         # Build watch restriction prompt
         watch_restriction = ""
         if watch_directories:
-            dirs_list = ', '.join([f'`{d}`' for d in watch_directories])
-            watch_restriction = (
-                f"\n\nIMPORTANT FILE ACCESS RESTRICTION:"
-                f"\nYou may ONLY access files within these directories: {dirs_list}"
-                f"\nDo NOT read, search, or modify files outside these boundaries."
-                f"\nIf asked to access files outside these directories, politely explain that you can only work within the configured watch directories."
-            )
+            # Check if cwd is set to the watch directory (common case)
+            if len(watch_directories) == 1:
+                watch_dir = watch_directories[0].rstrip('/')
+                expected_restricted = project_root / watch_dir
+                if restricted_cwd == expected_restricted:
+                    # CWD is the watch directory - files are relative to it
+                    watch_restriction = f"""
+IMPORTANT: Your working directory is already set to the `{watch_dir}` directory.
+All file paths provided to you are relative to this directory.
+Access files directly using their relative paths (e.g., `Daily Notes/2025-01-01.md`, not `{watch_dir}/Daily Notes/2025-01-01.md`).
+Do NOT prefix paths with `{watch_dir}/` - you are already inside that directory.
+"""
+            
+            # If not handled above (multiple directories or cwd not restricted), use general restriction
+            if not watch_restriction:
+                dirs_list = ', '.join([f'`{d}`' for d in watch_directories])
+                watch_restriction = (
+                    f"\n\nIMPORTANT FILE ACCESS RESTRICTION:"
+                    f"\nYou may ONLY access files within these directories: {dirs_list}"
+                    f"\nDo NOT read, search, or modify files outside these boundaries."
+                    f"\nIf asked to access files outside these directories, politely explain that you can only work within the configured watch directories."
+                )
         
         # Get model from environment or config (default: haiku for cost efficiency)
         claude_model = os.getenv("OBBY_CLAUDE_MODEL", cfg.CLAUDE_MODEL)
@@ -697,6 +713,14 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
                 'fileReferences': file_references if file_references else None
             })
 
+            # Signal frontend that the final assistant message is complete
+            if session_id:
+                notify_chat_progress(session_id, 'assistant_message_complete',
+                    'Completed assistant message', {
+                        'content': final_content,
+                        'fileReferences': file_references if file_references else None
+                    })
+
         # Calculate total characters across all messages
         total_chars = sum(len(msg['content']) for msg in conversation_messages)
         elapsed = time.time() - start_time
@@ -864,30 +888,48 @@ async def _chat_with_claude_tools(messages: List[Dict], session_id: str = None) 
 
 @chat_bp.post('/cancel/{session_id}')
 async def cancel_agent(session_id: str):
-    """Cancel an active agent operation."""
+    """Cancel an active agent operation with graceful-then-force approach."""
     try:
         with chat_sse_lock:
             task = active_agent_tasks.get(session_id)
-            
+
             if not task:
                 return JSONResponse({
                     'success': False,
                     'message': f'No active agent task found for session {session_id}'
                 }, status_code=404)
-            
-            # Cancel the task
-            task.cancel()
-            logger.info(f"Cancelling agent task for session {session_id}")
-            
-            # Send cancellation notification via SSE
-            notify_chat_progress(session_id, 'cancelled', 'Agent operation cancelled by user')
-            
-            return {
-                'success': True,
-                'message': f'Agent operation cancelled for session {session_id}'
-            }
+
+        # Find subprocess PID before starting cancellation
+        subprocess_pid = find_claude_subprocess()
+        logger.info(f"Initiating cancellation for session {session_id}, subprocess_pid={subprocess_pid}")
+
+        # Get cancellation service
+        cancellation_service = get_cancellation_service()
+
+        # Check if already cancelling
+        if cancellation_service.is_cancelling(session_id):
+            return JSONResponse({
+                'success': False,
+                'message': f'Cancellation already in progress for session {session_id}'
+            }, status_code=409)
+
+        # Run cancellation in background (don't block the HTTP response)
+        asyncio.create_task(
+            cancellation_service.cancel_agent(
+                session_id=session_id,
+                task=task,
+                subprocess_pid=subprocess_pid,
+                notify_callback=notify_chat_progress
+            )
+        )
+
+        return {
+            'success': True,
+            'message': f'Cancellation initiated for session {session_id}'
+        }
+
     except Exception as e:
-        logger.error(f"Failed to cancel agent for session {session_id}: {e}")
+        logger.error(f"Failed to initiate cancellation for session {session_id}: {e}")
         return JSONResponse({
             'success': False,
             'error': str(e)

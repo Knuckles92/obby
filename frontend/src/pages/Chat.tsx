@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2, XCircle } from 'lucide-react'
+import { Send, MessageSquare, Settings, Wrench, Activity, FileText, X, Minimize2, Maximize2, Trash2, XCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { apiRequest } from '../utils/api'
 import FileBrowser from '../components/FileBrowser'
 import NoteEditor from '../components/NoteEditor'
 import ConfirmationDialog from '../components/ConfirmationDialog'
 import LoadingIndicator from '../components/LoadingIndicator'
+import ActivityTimeline from '../components/ActivityTimeline'
 import { ContextModal } from '../components/ContextModal'
 import FileReference from '../components/FileReference'
 import ReactMarkdown from 'react-markdown'
@@ -20,6 +21,15 @@ interface FileReference {
   action?: 'read' | 'modified' | 'mentioned' | 'created'
 }
 
+interface AgentAction {
+  id: string
+  type: AgentActionType
+  label: string
+  detail?: string
+  timestamp: string
+  sessionId?: string
+}
+
 interface ChatMessage {
   role: Role
   content: string
@@ -27,6 +37,7 @@ interface ChatMessage {
   tool_call_id?: string
   name?: string
   fileReferences?: FileReference[]
+  actions?: AgentAction[]  // Actions that occurred during this turn (for assistant messages)
 }
 
 interface ToolSchema {
@@ -51,16 +62,7 @@ interface WatchedContextNode {
   children?: WatchedContextNode[]
 }
 
-type AgentActionType = 'progress' | 'tool_call' | 'tool_result' | 'warning' | 'error' | 'assistant_thinking'
-
-interface AgentAction {
-  id: string
-  type: AgentActionType
-  label: string
-  detail?: string
-  timestamp: string
-  sessionId?: string
-}
+type CancelPhase = 'idle' | 'cancelling' | 'force-killing' | 'cancelled' | 'failed'
 
 interface AgentActionResponse {
   id: string
@@ -155,6 +157,13 @@ export default function Chat() {
   const [streamingFileReferences, setStreamingFileReferences] = useState<FileReference[]>([])
   const [isStreaming, setIsStreaming] = useState(false)
 
+  // Activity timeline and cancel phase state
+  const [timelineExpanded, setTimelineExpanded] = useState(true)
+  const [expandedHistoryTimelines, setExpandedHistoryTimelines] = useState<Set<number>>(new Set())
+  const [cancelPhase, setCancelPhase] = useState<CancelPhase>('idle')
+  const [cancelMessage, setCancelMessage] = useState('')
+  const cancelTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+
   // File browser and note editor state
   const [fileBrowserOpen, setFileBrowserOpen] = useState(true)
   const [selectedFile, setSelectedFile] = useState<string | null>(null)
@@ -179,6 +188,7 @@ export default function Chat() {
   const eventSourceRef = useRef<EventSource | null>(null)
   const fileUpdateEventSourceRef = useRef<EventSource | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const currentTurnActionsRef = useRef<AgentAction[]>([])  // Track actions for attaching to messages
 
   // Load panel widths from localStorage
   useEffect(() => {
@@ -311,6 +321,34 @@ export default function Chat() {
     }
   }, [messages, loading, streamingMessage])
 
+  // When loading finishes, ensure the last assistant message has actions attached
+  const prevLoadingRef = useRef(loading)
+  useEffect(() => {
+    // Detect when loading transitions from true to false
+    if (prevLoadingRef.current && !loading) {
+      // Delay slightly to allow any pending SSE events to be processed
+      const timeoutId = setTimeout(() => {
+        // Loading just finished - attach actions to last assistant message if missing
+        const actions = [...currentTurnActionsRef.current]
+        if (actions.length > 0) {
+          setMessages(prev => {
+            // Find last assistant message
+            const lastIdx = prev.length - 1
+            if (lastIdx >= 0 && prev[lastIdx].role === 'assistant' && !prev[lastIdx].actions) {
+              // Attach actions to last assistant message
+              const updated = [...prev]
+              updated[lastIdx] = { ...updated[lastIdx], actions }
+              return updated
+            }
+            return prev
+          })
+        }
+      }, 100)
+      return () => clearTimeout(timeoutId)
+    }
+    prevLoadingRef.current = loading
+  }, [loading])
+
   // Get display model name
   const getDisplayModel = () => {
     if (!currentModel) return ''
@@ -329,6 +367,10 @@ export default function Chat() {
   }
 
   const appendAgentAction = useCallback((action: AgentAction) => {
+    // Update ref synchronously BEFORE state update (state callbacks are async)
+    if (!currentTurnActionsRef.current.some((existing) => existing.id === action.id)) {
+      currentTurnActionsRef.current = [...currentTurnActionsRef.current, action].slice(-120)
+    }
     setAgentActions((prev) => {
       if (prev.some((existing) => existing.id === action.id)) {
         return prev
@@ -507,11 +549,16 @@ export default function Chat() {
           if (eventType === 'assistant_message_complete') {
             const content = data.content || streamingMessage
             if (content) {
-              // Add completed message to conversation with any accumulated file references
-              setMessages((prev) => [...prev, { 
-                role: 'assistant', 
+              // Capture current actions for this turn
+              const turnActions = [...currentTurnActionsRef.current]
+              // Use file references from event data or accumulated ones
+              const fileRefs = data.fileReferences || (streamingFileReferences.length > 0 ? streamingFileReferences : undefined)
+              // Add completed message to conversation with any accumulated file references and actions
+              setMessages((prev) => [...prev, {
+                role: 'assistant',
                 content,
-                fileReferences: streamingFileReferences.length > 0 ? streamingFileReferences : undefined
+                fileReferences: fileRefs,
+                actions: turnActions.length > 0 ? turnActions : undefined
               }])
               setStreamingMessage('')
               setStreamingFileReferences([])
@@ -540,15 +587,43 @@ export default function Chat() {
             actionType = 'error'
           } else if (eventType === 'warning') {
             actionType = 'warning'
+          } else if (eventType === 'cancelling') {
+            actionType = 'warning'
+            // Handle cancellation in progress
+            const phase = extras.phase
+            if (phase === 'graceful') {
+              setCancelPhase('cancelling')
+              setCancelMessage('Stopping agent...')
+            } else if (phase === 'force') {
+              setCancelPhase('force-killing')
+              setCancelMessage("Agent didn't respond, forcing stop...")
+            }
+            recordAgentAction('warning', data.message || 'Cancellation in progress', `Phase: ${phase}`, sessionId)
+            return // Don't record duplicate action below
           } else if (eventType === 'cancelled') {
             actionType = 'warning'
-            // Handle cancellation
+            // Handle cancellation complete
+            const phase = extras.phase || 'unknown'
+            const wasForced = phase.includes('force')
+            setCancelPhase('cancelled')
+            setCancelMessage(wasForced ? 'Agent force stopped' : 'Agent stopped')
             setLoading(false)
             setIsStreaming(false)
             setStreamingMessage('')
             setProgressMessage(null)
             setProgressType(null)
-            recordAgentAction('warning', 'Agent operation cancelled', 'Operation was stopped by user', sessionId)
+            // Clear cancel timeout if set
+            if (cancelTimeoutRef.current) {
+              clearTimeout(cancelTimeoutRef.current)
+              cancelTimeoutRef.current = null
+            }
+            recordAgentAction('warning', 'Agent operation cancelled', `Phase: ${phase}`, sessionId)
+            // Reset cancel phase after delay
+            setTimeout(() => {
+              setCancelPhase('idle')
+              setCancelMessage('')
+            }, 2000)
+            return // Don't record duplicate action below
           } else if (eventType === 'validating' || eventType === 'configuring' || eventType === 'connecting' || eventType === 'sending') {
             actionType = 'progress'
           }
@@ -586,6 +661,13 @@ export default function Chat() {
           recordAgentAction(actionType, label, detail, sessionId)
 
           if (eventType === 'completed') {
+            // Reset cancel phase on normal completion
+            if (cancelTimeoutRef.current) {
+              clearTimeout(cancelTimeoutRef.current)
+              cancelTimeoutRef.current = null
+            }
+            setCancelPhase('idle')
+            setCancelMessage('')
             setTimeout(() => {
               setProgressMessage(null)
               setProgressType(null)
@@ -617,32 +699,78 @@ export default function Chat() {
 
   const cancelAgent = useCallback(async () => {
     if (!currentSessionId || !loading) return
-    
+    // Prevent multiple cancel requests
+    if (cancelPhase !== 'idle') return
+
+    setCancelPhase('cancelling')
+    setCancelMessage('Stopping agent...')
+
+    // Safety timeout - force clear loading state after 15 seconds if SSE events never arrive
+    cancelTimeoutRef.current = setTimeout(() => {
+      if (loading) {
+        setLoading(false)
+        setIsStreaming(false)
+        setStreamingMessage('')
+        setProgressMessage(null)
+        setProgressType(null)
+        setCancelPhase('idle')
+        setCancelMessage('')
+        recordAgentAction('warning', 'Stop timeout - cleared state',
+          'Backend may still be processing. If issues persist, please refresh.', currentSessionId)
+      }
+    }, 15000)
+
     try {
       const response = await apiRequest(`/api/chat/cancel/${currentSessionId}`, {
         method: 'POST'
       })
-      
+
       if (response.success) {
         recordAgentAction('warning', 'Agent cancellation requested', 'Waiting for operation to stop...', currentSessionId)
       } else {
+        // Clear timeout on failure
+        if (cancelTimeoutRef.current) {
+          clearTimeout(cancelTimeoutRef.current)
+          cancelTimeoutRef.current = null
+        }
+        setCancelPhase('failed')
+        setCancelMessage('Failed to stop')
         recordAgentAction('error', 'Failed to cancel agent', response.message || 'Unknown error', currentSessionId)
+        // Reset failed state after delay
+        setTimeout(() => {
+          setCancelPhase('idle')
+          setCancelMessage('')
+        }, 3000)
       }
     } catch (error: any) {
+      // Clear timeout on error
+      if (cancelTimeoutRef.current) {
+        clearTimeout(cancelTimeoutRef.current)
+        cancelTimeoutRef.current = null
+      }
       console.error('Failed to cancel agent:', error)
+      setCancelPhase('failed')
+      setCancelMessage('Failed to stop')
       recordAgentAction('error', 'Failed to cancel agent', error?.message || 'Unknown error', currentSessionId)
+      // Reset failed state after delay
+      setTimeout(() => {
+        setCancelPhase('idle')
+        setCancelMessage('')
+      }, 3000)
     }
-  }, [currentSessionId, loading, recordAgentAction])
+  }, [currentSessionId, loading, cancelPhase, recordAgentAction])
 
   const sendMessage = async () => {
     const content = input.trim()
     if (!content || loading) return
     setError(null)
 
-    // Reset streaming state
+    // Reset streaming state and clear actions for new turn
     setStreamingMessage('')
     setStreamingFileReferences([])
     setIsStreaming(false)
+    setAgentActions([])  // Clear actions for new turn
+    currentTurnActionsRef.current = []  // Clear ref too
 
     // Prepare messages with optional note context
     let messagesToSend = [...messages]
@@ -794,32 +922,67 @@ export default function Chat() {
         })
       }
 
+      // Capture current actions for this turn before adding messages
+      const turnActions = [...currentTurnActionsRef.current]
+
       // Handle conversation responses (multiple messages)
+      // Note: SSE may have already added the assistant message - we need robust deduplication
       if (Array.isArray(res.conversation) && res.conversation.length > 0) {
         setMessages((prevMessages) => {
-          const existingMessageIds = prevMessages.map((m, idx) => `${m.role}:${m.content.substring(0, 50)}`)
-          
+          // Create fingerprints using more content for better deduplication
+          const createFingerprint = (m: ChatMessage) => `${m.role}:${m.content.substring(0, 200)}`
+          const existingFingerprints = new Set(prevMessages.map(createFingerprint))
+
+          // Filter to only truly new messages
           const newMessages = (res.conversation || []).filter(msg => {
-            const messageId = `${msg.role}:${msg.content.substring(0, 50)}`
-            return !existingMessageIds.includes(messageId)
+            const fingerprint = createFingerprint(msg as ChatMessage)
+            return !existingFingerprints.has(fingerprint)
           })
 
+          // If no new messages, don't modify state
+          if (newMessages.length === 0) {
+            return prevMessages
+          }
+
           // Clean user messages to match displayMessage, but preserve fileReferences for assistant messages
+          // Also attach actions to the last assistant message (only if it doesn't already have actions)
           const currentDisplayMessage = displayMessage // Capture current value to avoid stale closure
+          const assistantMsgCount = newMessages.filter(m => m.role === 'assistant').length
+          let assistantIdx = 0
           const cleanNewMessages = newMessages.map(msg => {
             if (msg.role === 'user' && msg.content !== currentDisplayMessage) {
               return { ...msg, content: currentDisplayMessage }
             }
+            // Attach actions to the last assistant message of this turn (only if not already present)
+            if (msg.role === 'assistant') {
+              assistantIdx++
+              if (assistantIdx === assistantMsgCount && turnActions.length > 0 && !msg.actions) {
+                return { ...msg, actions: turnActions }
+              }
+            }
             // Preserve all fields including fileReferences
             return msg
           })
-          
+
           return [...prevMessages, ...cleanNewMessages]
         })
       }
-      // Handle single reply responses
+      // Handle single reply responses (only if not already added by SSE)
       else if (reply) {
-        setMessages((prev) => [...prev, { role: 'assistant', content: reply }])
+        setMessages((prev) => {
+          // Check if this reply was already added by SSE
+          const alreadyExists = prev.some(m =>
+            m.role === 'assistant' && m.content.substring(0, 200) === reply.substring(0, 200)
+          )
+          if (alreadyExists) {
+            return prev
+          }
+          return [...prev, {
+            role: 'assistant',
+            content: reply,
+            actions: turnActions.length > 0 ? turnActions : undefined
+          }]
+        })
       }
 
       // Clear streaming state after final message is received
@@ -856,7 +1019,10 @@ export default function Chat() {
       recordAgentAction('error', 'Chat request failed', errorMessage, sessionId)
     } finally {
       setLoading(false)
-      disconnectProgressSSE()
+      // Delay disconnecting SSE to allow pending events to be processed
+      setTimeout(() => {
+        disconnectProgressSSE()
+      }, 500)
     }
   }
 
@@ -1061,6 +1227,8 @@ If you do not reference any files, return a simple text response instead of JSON
     setStreamingFileReferences([])
     setIsStreaming(false)
     setContextBeingUsed(false)
+    setExpandedHistoryTimelines(new Set())
+    currentTurnActionsRef.current = []
 
     // Disconnect SSE connections
     disconnectProgressSSE()
@@ -1581,38 +1749,59 @@ If you do not reference any files, return a simple text response instead of JSON
             )}
             <div className="space-y-3">
               {messages.filter((m) => m.role !== 'system' && m.role !== 'tool').map((m, idx) => (
-                <div key={idx} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  {m.role === 'user' ? (
-                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-[var(--color-primary)] text-[var(--color-text-inverse)] relative">
-                      {m.content}
-                      {contextBeingUsed && idx === messages.filter((msg) => msg.role !== 'system' && msg.role !== 'tool').length - 1 && (
-                        <div className="absolute -top-2 -right-2 w-4 h-4 bg-[var(--color-accent)] rounded-full animate-pulse" title="Context included in background">
-                          <FileText className="h-2.5 w-2.5 text-[var(--color-text-inverse)] mx-auto mt-0.5" />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
-                      <div className="prose prose-sm max-w-none" style={{ color: 'var(--color-text-primary)' }}>
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                          {m.content}
-                        </ReactMarkdown>
-                      </div>
-                      {m.fileReferences && m.fileReferences.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex flex-wrap gap-2">
-                          {m.fileReferences.map((ref, refIdx) => (
-                            <FileReference
-                              key={`${ref.path}-${refIdx}`}
-                              path={ref.path}
-                              action={ref.action}
-                              onClick={showFile}
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                <React.Fragment key={idx}>
+                  {/* For assistant messages, show activity timeline BEFORE the response */}
+                  {m.role === 'assistant' && m.actions && m.actions.length > 0 && (
+                    <ActivityTimeline
+                      actions={m.actions}
+                      isExpanded={expandedHistoryTimelines.has(idx)}
+                      onToggle={() => {
+                        setExpandedHistoryTimelines(prev => {
+                          const next = new Set(prev)
+                          if (next.has(idx)) {
+                            next.delete(idx)
+                          } else {
+                            next.add(idx)
+                          }
+                          return next
+                        })
+                      }}
+                      maxHeight="150px"
+                    />
                   )}
-                </div>
+                  <div className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    {m.role === 'user' ? (
+                      <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap bg-[var(--color-primary)] text-[var(--color-text-inverse)] relative">
+                        {m.content}
+                        {contextBeingUsed && idx === messages.filter((msg) => msg.role !== 'system' && msg.role !== 'tool').length - 1 && (
+                          <div className="absolute -top-2 -right-2 w-4 h-4 bg-[var(--color-accent)] rounded-full animate-pulse" title="Context included in background">
+                            <FileText className="h-2.5 w-2.5 text-[var(--color-text-inverse)] mx-auto mt-0.5" />
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="max-w-[85%] px-3 py-2 rounded-lg text-sm bg-[var(--color-surface)] text-[var(--color-text-primary)] border border-[var(--color-border)]">
+                        <div className="prose prose-sm max-w-none" style={{ color: 'var(--color-text-primary)' }}>
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {m.content}
+                          </ReactMarkdown>
+                        </div>
+                        {m.fileReferences && m.fileReferences.length > 0 && (
+                          <div className="mt-3 pt-3 border-t border-[var(--color-border)] flex flex-wrap gap-2">
+                            {m.fileReferences.map((ref, refIdx) => (
+                              <FileReference
+                                key={`${ref.path}-${refIdx}`}
+                                path={ref.path}
+                                action={ref.action}
+                                onClick={showFile}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </React.Fragment>
               ))}
               {/* Show current streaming turn if we have content */}
               {isStreaming && streamingMessage && (
@@ -1638,8 +1827,20 @@ If you do not reference any files, return a simple text response instead of JSON
                   </div>
                 </div>
               )}
-              {/* Show loading animation when streaming (new turn) or waiting for response */}
-              {(isStreaming || loading) && <LoadingIndicator />}
+              {/* Show activity timeline and loading animation when streaming or waiting */}
+              {(isStreaming || loading) && (
+                <div className="space-y-2">
+                  <ActivityTimeline
+                    actions={agentActions}
+                    isExpanded={timelineExpanded}
+                    onToggle={() => setTimelineExpanded(!timelineExpanded)}
+                    maxHeight="200px"
+                    cancelPhase={cancelPhase}
+                    cancelMessage={cancelMessage}
+                  />
+                  <LoadingIndicator />
+                </div>
+              )}
               {error && (
                 <div className="text-[var(--color-error)] text-sm">{error}</div>
               )}
@@ -1660,11 +1861,22 @@ If you do not reference any files, return a simple text response instead of JSON
                 {loading ? (
                   <button
                     onClick={cancelAgent}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-                    title="Stop agent operation"
+                    disabled={cancelPhase !== 'idle' && cancelPhase !== 'failed'}
+                    className={`flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 rounded-md transition-colors text-sm font-medium ${
+                      cancelPhase === 'force-killing'
+                        ? 'bg-orange-600 text-white cursor-wait'
+                        : cancelPhase === 'cancelling'
+                        ? 'bg-yellow-600 text-white cursor-wait'
+                        : cancelPhase === 'failed'
+                        ? 'bg-red-800 text-white hover:bg-red-900'
+                        : 'bg-red-600 text-white hover:bg-red-700'
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                    title={cancelMessage || "Stop agent operation"}
                   >
-                    <XCircle className="h-4 w-4" />
-                    Stop Agent
+                    {cancelPhase === 'cancelling' && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {cancelPhase === 'force-killing' && <AlertTriangle className="h-4 w-4" />}
+                    {(cancelPhase === 'idle' || cancelPhase === 'failed' || cancelPhase === 'cancelled') && <XCircle className="h-4 w-4" />}
+                    {cancelPhase === 'idle' ? 'Stop Agent' : cancelMessage || 'Stop Agent'}
                   </button>
                 ) : (
                   <button
