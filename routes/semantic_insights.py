@@ -93,10 +93,10 @@ async def get_semantic_insights(
         )
 
         logger.info(f"Retrieved {len(result.get('insights', []))} semantic insights")
-        return {
-            'success': True,
-            **result
-        }
+        return JSONResponse(
+            content={'success': True, **result},
+            headers={'Cache-Control': 'private, max-age=30'}
+        )
 
     except Exception as e:
         logger.error(f"Error retrieving semantic insights: {e}")
@@ -117,10 +117,10 @@ async def get_semantic_insights_stats():
         service = get_semantic_insights_service()
         stats = service.get_stats()
 
-        return {
-            'success': True,
-            'stats': stats
-        }
+        return JSONResponse(
+            content={'success': True, 'stats': stats},
+            headers={'Cache-Control': 'private, max-age=60'}
+        )
 
     except Exception as e:
         logger.error(f"Error getting semantic insights stats: {e}")
@@ -273,13 +273,61 @@ async def get_suggested_actions(insight_id: int):
                 status_code=400 if result.get('error') else 500
             )
         
-        return {
-            'success': True,
-            'actions': result.get('actions', [])
-        }
-        
+        return JSONResponse(
+            content={
+                'success': True,
+                'actions': result.get('actions', []),
+                'cached': result.get('cached', False)
+            },
+            headers={'Cache-Control': 'private, max-age=300'}  # 5 minutes
+        )
+
     except Exception as e:
         logger.error(f"Error getting suggested actions for insight {insight_id}: {e}")
+        return JSONResponse(
+            {'success': False, 'error': str(e)},
+            status_code=500
+        )
+
+
+class BatchSuggestedActionsRequest(BaseModel):
+    """Request body for batch suggested actions."""
+    insight_ids: list[int]
+
+
+@semantic_insights_bp.post('/batch-suggested-actions')
+async def get_batch_suggested_actions(request: BatchSuggestedActionsRequest):
+    """
+    Get AI-generated suggested actions for multiple todo insights in a single request.
+
+    Reduces N+1 API calls to a single batch request.
+    Returns a map of insight_id -> suggested actions.
+    """
+    try:
+        service = get_semantic_insights_service()
+        results = {}
+
+        for insight_id in request.insight_ids:
+            result = await service.generate_suggested_actions(insight_id)
+            if result.get('success'):
+                results[insight_id] = {
+                    'actions': result.get('actions', []),
+                    'cached': result.get('cached', False)
+                }
+            else:
+                results[insight_id] = {
+                    'actions': [],
+                    'error': result.get('error', 'Unknown error')
+                }
+
+        logger.info(f"Batch fetched suggested actions for {len(request.insight_ids)} insights")
+        return {
+            'success': True,
+            'results': results
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting batch suggested actions: {e}")
         return JSONResponse(
             {'success': False, 'error': str(e)},
             status_code=500

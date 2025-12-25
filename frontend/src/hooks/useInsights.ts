@@ -294,6 +294,63 @@ interface UseSemanticInsightsOptions {
   enabled?: boolean;
 }
 
+// ========================================
+// INSIGHTS CACHE (Stale-While-Revalidate)
+// ========================================
+
+interface CacheEntry<T> {
+  data: T;
+  expires: number;
+}
+
+const INSIGHTS_CACHE_TTL = 30 * 1000; // 30 seconds
+const insightsCache = new Map<string, CacheEntry<SemanticInsightsResponse>>();
+
+function getInsightsCacheKey(type?: string, status?: string, limit?: number): string {
+  return JSON.stringify({ type, status, limit });
+}
+
+function getCachedInsights(key: string): SemanticInsightsResponse | null {
+  const entry = insightsCache.get(key);
+  if (entry && Date.now() < entry.expires) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setCachedInsights(key: string, data: SemanticInsightsResponse): void {
+  insightsCache.set(key, {
+    data,
+    expires: Date.now() + INSIGHTS_CACHE_TTL
+  });
+}
+
+function invalidateInsightsCache(): void {
+  insightsCache.clear();
+}
+
+// ========================================
+// SUGGESTED ACTIONS CACHE
+// ========================================
+
+const SUGGESTED_ACTIONS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const suggestedActionsCache = new Map<number, CacheEntry<SuggestedAction[]>>();
+
+function getCachedSuggestedActions(insightId: number): SuggestedAction[] | null {
+  const entry = suggestedActionsCache.get(insightId);
+  if (entry && Date.now() < entry.expires) {
+    return entry.data;
+  }
+  return null;
+}
+
+function setCachedSuggestedActions(insightId: number, actions: SuggestedAction[]): void {
+  suggestedActionsCache.set(insightId, {
+    data: actions,
+    expires: Date.now() + SUGGESTED_ACTIONS_CACHE_TTL
+  });
+}
+
 interface UseSemanticInsightsResult {
   insights: SemanticInsight[];
   loading: boolean;
@@ -306,6 +363,7 @@ interface UseSemanticInsightsResult {
 
 /**
  * Hook to fetch and manage semantic insights
+ * Uses stale-while-revalidate caching pattern for better performance
  */
 export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): UseSemanticInsightsResult => {
   const { type, status, limit = 50, enabled = true } = options;
@@ -314,12 +372,61 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [meta, setMeta] = useState<SemanticInsightsResponse['meta'] | null>(null);
+  const fetchInProgressRef = useRef(false);
 
   /**
-   * Fetch semantic insights
+   * Fetch semantic insights with stale-while-revalidate caching
    */
-  const fetchInsights = useCallback(async () => {
+  const fetchInsights = useCallback(async (skipCache: boolean = false) => {
     if (!enabled) return;
+
+    const cacheKey = getInsightsCacheKey(type, status, limit);
+
+    // Check cache first (stale-while-revalidate)
+    if (!skipCache) {
+      const cached = getCachedInsights(cacheKey);
+      if (cached) {
+        // Return cached data immediately
+        setInsights(cached.insights);
+        setMeta(cached.meta);
+        setLoading(false);
+
+        // Revalidate in background (but don't duplicate requests)
+        if (!fetchInProgressRef.current) {
+          fetchInProgressRef.current = true;
+          // Background revalidate after a short delay
+          setTimeout(async () => {
+            try {
+              const params = new URLSearchParams();
+              if (type) params.append('type', type);
+              if (status) params.append('status', status);
+              params.append('limit', String(limit));
+
+              const response = await fetch(`/api/semantic-insights?${params.toString()}`);
+              const data: SemanticInsightsResponse = await response.json();
+
+              if (data.success) {
+                setCachedInsights(cacheKey, data);
+                // Only update if data changed
+                if (JSON.stringify(data.insights) !== JSON.stringify(cached.insights)) {
+                  setInsights(data.insights);
+                  setMeta(data.meta);
+                }
+              }
+            } catch (err) {
+              console.error('Background revalidation failed:', err);
+            } finally {
+              fetchInProgressRef.current = false;
+            }
+          }, 100);
+        }
+        return;
+      }
+    }
+
+    // No cache or skip cache - fetch fresh data
+    if (fetchInProgressRef.current) return;
+    fetchInProgressRef.current = true;
 
     setLoading(true);
     setError(null);
@@ -337,6 +444,9 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
         throw new Error('Failed to fetch semantic insights');
       }
 
+      // Cache the response
+      setCachedInsights(cacheKey, data);
+
       setInsights(data.insights);
       setMeta(data.meta);
     } catch (err) {
@@ -345,6 +455,7 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
       console.error('Error fetching semantic insights:', err);
     } finally {
       setLoading(false);
+      fetchInProgressRef.current = false;
     }
   }, [type, status, limit, enabled]);
 
@@ -398,6 +509,9 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
       const data = await response.json();
 
       if (data.success) {
+        // Invalidate cache since data changed
+        invalidateInsightsCache();
+
         // Silently refresh the list after action to ensure consistency
         // But don't set loading to true to avoid flicker
         try {
@@ -410,6 +524,9 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
           const refreshData: SemanticInsightsResponse = await refreshResponse.json();
 
           if (refreshData.success) {
+            // Update cache with fresh data
+            const cacheKey = getInsightsCacheKey(type, status, limit);
+            setCachedInsights(cacheKey, refreshData);
             setInsights(refreshData.insights);
             setMeta(refreshData.meta);
           }
@@ -443,8 +560,9 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
       const data = await response.json();
 
       if (data.success) {
-        // Refresh insights after processing
-        await fetchInsights();
+        // Invalidate cache and refresh insights after processing
+        invalidateInsightsCache();
+        await fetchInsights(true); // Skip cache to get fresh data
       } else {
         console.error('Processing trigger failed:', data.error);
       }
@@ -525,6 +643,123 @@ export const useSuggestedActions = (insightId: number, enabled: boolean = true):
     loading,
     error,
     refetch: fetchActions
+  };
+};
+
+/**
+ * Batch suggested actions response type
+ */
+interface BatchSuggestedActionsResponse {
+  success: boolean;
+  results: Record<number, {
+    actions: SuggestedAction[];
+    cached?: boolean;
+    error?: string;
+  }>;
+}
+
+/**
+ * Hook to fetch suggested actions for multiple insights in a single batch request.
+ * Significantly reduces N+1 API calls when displaying multiple todo insights.
+ */
+interface UseBatchSuggestedActionsResult {
+  actionsMap: Record<number, SuggestedAction[]>;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+export const useBatchSuggestedActions = (
+  insightIds: number[],
+  enabled: boolean = true
+): UseBatchSuggestedActionsResult => {
+  const [actionsMap, setActionsMap] = useState<Record<number, SuggestedAction[]>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const fetchInProgressRef = useRef(false);
+
+  const fetchBatchActions = useCallback(async () => {
+    if (!enabled || insightIds.length === 0) return;
+    if (fetchInProgressRef.current) return;
+
+    // Check which insight IDs need fetching (not in cache)
+    const uncachedIds: number[] = [];
+    const cachedResults: Record<number, SuggestedAction[]> = {};
+
+    for (const id of insightIds) {
+      const cached = getCachedSuggestedActions(id);
+      if (cached) {
+        cachedResults[id] = cached;
+      } else {
+        uncachedIds.push(id);
+      }
+    }
+
+    // If all are cached, just return cached results
+    if (uncachedIds.length === 0) {
+      setActionsMap(cachedResults);
+      setLoading(false);
+      return;
+    }
+
+    // Set loading only if we need to fetch
+    setLoading(true);
+    setError(null);
+    fetchInProgressRef.current = true;
+
+    try {
+      const response = await fetch('/api/semantic-insights/batch-suggested-actions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ insight_ids: uncachedIds })
+      });
+
+      const data: BatchSuggestedActionsResponse = await response.json();
+
+      if (!data.success) {
+        throw new Error('Failed to fetch batch suggested actions');
+      }
+
+      // Merge cached and fresh results
+      const mergedResults = { ...cachedResults };
+      for (const [idStr, result] of Object.entries(data.results)) {
+        const id = parseInt(idStr, 10);
+        if (result.actions && result.actions.length > 0) {
+          mergedResults[id] = result.actions;
+          // Cache the fetched actions
+          setCachedSuggestedActions(id, result.actions);
+        } else {
+          mergedResults[id] = [];
+        }
+      }
+
+      setActionsMap(mergedResults);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+      setError(errorMessage);
+      console.error('Error fetching batch suggested actions:', err);
+      // Still set cached results even on error
+      setActionsMap(cachedResults);
+    } finally {
+      setLoading(false);
+      fetchInProgressRef.current = false;
+    }
+  }, [insightIds, enabled]);
+
+  // Fetch when insight IDs change
+  useEffect(() => {
+    if (enabled && insightIds.length > 0) {
+      fetchBatchActions();
+    }
+  }, [fetchBatchActions, enabled, insightIds.length]);
+
+  return {
+    actionsMap,
+    loading,
+    error,
+    refetch: fetchBatchActions
   };
 };
 

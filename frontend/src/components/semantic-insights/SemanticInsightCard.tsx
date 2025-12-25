@@ -18,8 +18,7 @@ import {
   Sparkles,
   Lightbulb
 } from 'lucide-react';
-import type { SemanticInsight } from '../../hooks/useInsights';
-import { useSuggestedActions } from '../../hooks/useInsights';
+import type { SemanticInsight, SuggestedAction } from '../../hooks/useInsights';
 import ActionSelectionModal from './ActionSelectionModal';
 import SuggestedActionButton from './SuggestedActionButton';
 
@@ -27,6 +26,8 @@ interface SemanticInsightCardProps {
   insight: SemanticInsight;
   onAction: (insightId: number, action: string) => Promise<boolean>;
   onOpenNote?: (notePath: string, insightId?: number) => void;
+  /** Pre-fetched suggested actions from batch request */
+  suggestedActions?: SuggestedAction[];
 }
 
 // Map insight types to icons and colors
@@ -56,7 +57,8 @@ const typeConfig: Record<string, { icon: React.ElementType; color: string; label
 export default function SemanticInsightCard({
   insight,
   onAction,
-  onOpenNote
+  onOpenNote,
+  suggestedActions = []
 }: SemanticInsightCardProps) {
   const [selectedAction, setSelectedAction] = useState<{ text: string; description: string } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,12 +70,8 @@ export default function SemanticInsightCard({
   };
   const Icon = config.icon;
 
-  // Only fetch suggested actions for todo-type insights
+  // Check if this is a todo-type insight (for showing suggested actions)
   const isTodoType = insight.type === 'stale_todo' || insight.type === 'active_todos';
-  const { actions: suggestedActions } = useSuggestedActions(
-    insight.id,
-    isTodoType
-  );
 
   const handleAction = async (action: string, e: React.MouseEvent) => {
     e.stopPropagation();

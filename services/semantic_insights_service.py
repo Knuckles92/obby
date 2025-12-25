@@ -11,6 +11,7 @@ Service layer for managing semantic insights:
 
 import json
 import logging
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pathlib import Path
@@ -40,6 +41,8 @@ class SemanticInsightsService:
         """
         self.working_dir = working_dir or Path.cwd()
         self._scheduler = None
+        # TTL cache for meta stats (60 second TTL)
+        self._meta_stats_cache: Dict[str, Any] = {"data": None, "expires": 0}
 
     @property
     def scheduler(self):
@@ -236,6 +239,9 @@ class SemanticInsightsService:
                     (f'opened_note:{datetime.now().isoformat()}', insight_id)
                 )
 
+            # Invalidate meta stats cache since status changed
+            self._invalidate_meta_stats_cache()
+
             logger.info(f"Performed action '{action}' on insight {insight_id}")
             return {"success": True, "action": action, "insight_id": insight_id}
 
@@ -393,8 +399,14 @@ class SemanticInsightsService:
         return actions
 
     def _get_meta_stats(self) -> Dict[str, Any]:
-        """Get counts by type and status for metadata."""
+        """Get counts by type and status for metadata. Cached for 60 seconds."""
         try:
+            # Check cache first
+            now = time.time()
+            if self._meta_stats_cache["data"] and now < self._meta_stats_cache["expires"]:
+                logger.debug("Returning cached meta stats")
+                return self._meta_stats_cache["data"]
+
             type_counts = db.execute_query("""
                 SELECT insight_type, COUNT(*) as count
                 FROM semantic_insights
@@ -408,12 +420,23 @@ class SemanticInsightsService:
                 GROUP BY status
             """)
 
-            return {
+            result = {
                 "byType": {r['insight_type']: r['count'] for r in type_counts},
                 "byStatus": {r['status']: r['count'] for r in status_counts}
             }
+
+            # Cache for 60 seconds
+            self._meta_stats_cache = {"data": result, "expires": now + 60}
+            logger.debug("Cached meta stats for 60 seconds")
+
+            return result
         except Exception:
             return {"byType": {}, "byStatus": {}}
+
+    def _invalidate_meta_stats_cache(self):
+        """Invalidate the meta stats cache."""
+        self._meta_stats_cache = {"data": None, "expires": 0}
+        logger.debug("Invalidated meta stats cache")
 
     async def generate_suggested_actions(self, insight_id: int) -> Dict[str, Any]:
         """

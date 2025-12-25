@@ -5,10 +5,10 @@
  * with actions and processing controls.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
 import SemanticInsightCard from './SemanticInsightCard';
-import { useSemanticInsights, type SemanticInsight } from '../../hooks/useInsights';
+import { useSemanticInsights, useBatchSuggestedActions, type SemanticInsight } from '../../hooks/useInsights';
 
 interface SemanticInsightsSectionProps {
   onOpenNote?: (notePath: string, insightId?: number) => void;
@@ -32,6 +32,19 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
   // Filter to only show new, viewed, and pinned insights
   const visibleInsights = insights.filter(
     i => ['new', 'viewed', 'pinned'].includes(i.status)
+  );
+
+  // Collect IDs of todo-type insights for batch suggested actions fetch
+  const todoInsightIds = useMemo(() => {
+    return visibleInsights
+      .filter(i => i.type === 'stale_todo' || i.type === 'active_todos')
+      .map(i => i.id);
+  }, [visibleInsights]);
+
+  // Batch fetch suggested actions for all todo insights at once
+  const { actionsMap: suggestedActionsMap } = useBatchSuggestedActions(
+    todoInsightIds,
+    todoInsightIds.length > 0
   );
 
   const newCount = meta?.byStatus?.new || 0;
@@ -231,6 +244,7 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
               insight={insight}
               onAction={handleAction}
               onOpenNote={onOpenNote}
+              suggestedActions={suggestedActionsMap[insight.id]}
             />
           ))}
         </div>
