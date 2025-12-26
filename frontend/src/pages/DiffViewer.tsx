@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy, CheckCircle } from 'lucide-react'
 import { ContentDiff, FileChange, FileMonitoringStatus, PaginatedDiffsResponse, PaginatedChangesResponse, PaginationMetadata } from '../types'
 import { apiFetch } from '../utils/api'
-import ConfirmationDialog from '../components/ConfirmationDialog'
+import { ConfirmationDialog } from '../components/modals'
 
 type DiffLine = {
   type: 'addition' | 'deletion' | 'hunk'

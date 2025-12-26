@@ -240,7 +240,7 @@ class NoteChangeHandler(FileSystemEventHandler):
         """Broadcast file update to SSE clients."""
         try:
             # Import here to avoid circular dependency
-            from routes.files import notify_file_update, invalidate_file_tree_cache_debounced
+            from services.sse_notifications import notify_file_update, invalidate_file_tree_cache_debounced
 
             # Calculate relative path from root folder for consistency with frontend
             try:
@@ -288,7 +288,7 @@ class NoteChangeHandler(FileSystemEventHandler):
             # Invalidate file tree cache when directory structure changes
             if is_directory:
                 try:
-                    from routes.files import invalidate_file_tree_cache_debounced
+                    from services.sse_notifications import invalidate_file_tree_cache_debounced
                     invalidate_file_tree_cache_debounced()
                     logging.debug(f"[WATCHDOG] Scheduled file tree cache invalidation for directory {event_type}")
                 except Exception as e:

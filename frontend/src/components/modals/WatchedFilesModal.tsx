@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, FolderOpen, FileText, Clock, HardDrive } from 'lucide-react'
-import { apiFetch } from '../utils/api'
+import { apiFetch } from '../../utils/api'
 
 interface WatchedFile {
   name: string

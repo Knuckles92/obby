@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useState } from 'react'
 import { ThemeProvider } from './contexts/ThemeContext'
 import Sidebar from './components/Sidebar'
-import ThemeEffects from './components/ThemeEffects'
+import { ThemeEffects } from './components/ui'
 import Dashboard from './pages/Dashboard'
 import DiffViewer from './pages/DiffViewer'
 import SessionSummary from './pages/SessionSummary'

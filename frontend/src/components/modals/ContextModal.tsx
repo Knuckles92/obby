@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { X, Search, Plus, Minus, FileText, RefreshCw } from 'lucide-react'
-import { fuzzyMatch, fuzzyFilterPaths, getHighlightedSegments } from '../utils/fuzzyMatch'
+import { fuzzyMatch, fuzzyFilterPaths, getHighlightedSegments } from '../../utils/fuzzyMatch'
 
 interface ContextFile {
   path: string

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useTheme, useThemeFeature } from '../contexts/ThemeContext';
+import { useTheme, useThemeFeature } from '../../contexts/ThemeContext';
 
 interface ThemeEffectsProps {
   className?: string;

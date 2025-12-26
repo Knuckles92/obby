@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Zap, MessageSquare, ArrowRight, Loader2, CheckCircle2, Trash2 } from 'lucide-react';
-import BaseModal from '../BaseModal';
+import { BaseModal } from '../modals';
 import ActivityTimeline from '../ActivityTimeline';
 import { useActionExecution } from '../../hooks/useInsights';
 
@@ -26,7 +26,7 @@ export default function ActionSelectionModal({
   const [executionMode, setExecutionMode] = useState<'idle' | 'executing' | 'completed'>('idle');
   const [timelineExpanded, setTimelineExpanded] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
-  const { actions, error, execute, disconnect } = useActionExecution();
+  const { actions, error, result, execute, disconnect } = useActionExecution();
 
   // Reset state when modal opens/closes
   useEffect(() => {
@@ -204,6 +204,18 @@ export default function ActionSelectionModal({
 
               {executionMode === 'completed' && (
                 <div className="pt-6 space-y-4">
+                  {/* Result Display */}
+                  {result && (
+                    <div className="p-4 rounded-xl border border-border bg-surface">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-text-secondary mb-2">
+                        Result
+                      </div>
+                      <div className="text-sm text-text-primary whitespace-pre-wrap leading-relaxed">
+                        {result}
+                      </div>
+                    </div>
+                  )}
+
                   <p className="text-sm text-text-secondary text-center">
                     Would you like to remove this insight?
                   </p>

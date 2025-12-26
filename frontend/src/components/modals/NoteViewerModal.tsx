@@ -1,6 +1,6 @@
 import React from 'react';
 import BaseModal from './BaseModal';
-import NoteEditor from './NoteEditor';
+import NoteEditor from '../NoteEditor';
 
 interface NoteViewerModalProps {
   isOpen: boolean;

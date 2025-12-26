@@ -945,7 +945,7 @@ class SessionSummaryService:
         """Notify summary note SSE clients about new summary creation."""
         try:
             # Import here to avoid circular imports
-            from routes.summary_note import notify_summary_note_change
+            from services.sse_notifications import notify_summary_note_change
             notify_summary_note_change('created')
         except Exception as e:
             logger.debug(f"Failed to notify summary note clients: {e}")

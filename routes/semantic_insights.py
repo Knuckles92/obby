@@ -544,23 +544,30 @@ async def _execute_action_async(insight_id: int, insight: dict, action_text: str
         except Exception as e:
             logger.warning(f"Failed to initialize watch restrictions: {e}")
         
-        # Build prompt
+        # Build prompt with explicit instructions for multi-step execution and summary
         prompt = f"""You are helping to execute an action on a todo item.
 
 Todo: {todo_text}
 Note: {note_path}
 Action requested: {action_text}
 
-Please execute this action contextually. You may need to:
-- Read the note file to understand context
-- Make changes to files if needed
-- Break down tasks, add deadlines, move items, etc.
+Execute this action step by step:
+1. First, read the note file to understand the current context
+2. Make the necessary changes to complete the action (edit the file)
+3. After completing the action, provide a clear summary of what you did
 
-Execute the action now and provide a summary of what you did."""
+IMPORTANT: You MUST complete all steps. After making changes, always provide a final text response that summarizes:
+- What file was modified
+- What specific changes were made
+- The outcome of the action"""
 
         system_prompt = """You are a helpful assistant that executes actions on todo items.
 You have access to file reading, writing, and editing tools.
-Execute actions contextually and provide clear feedback about what you did."""
+
+CRITICAL INSTRUCTIONS:
+1. Always complete the full action - don't stop after just reading a file
+2. After using tools to make changes, you MUST provide a final summary in plain text
+3. Be specific about what you changed and why"""
 
         claude_model = os.getenv("OBBY_CLAUDE_MODEL", cfg.CLAUDE_MODEL)
         
@@ -573,62 +580,83 @@ Execute actions contextually and provide clear feedback about what you did."""
         )
         
         notify_action_progress(execution_id, 'progress', 'Connecting to Claude Agent...')
-        
+
         # Execute with Claude Agent SDK
         result_text = []
+        tool_actions = []  # Track tool actions for building a summary
+
         async with ClaudeSDKClient(options=options) as client:
             notify_action_progress(execution_id, 'progress', 'Sending request to Claude...')
             await client.query(prompt)
-            
+
             notify_action_progress(execution_id, 'progress', 'Claude is processing your request...')
-            
+
             async for message in client.receive_response():
                 message_type = message.__class__.__name__
-                
+                logger.debug(f"Action execution received message: {message_type}")
+
                 if message_type == "AssistantMessage":
                     if hasattr(message, 'content'):
                         for block in message.content:
                             if hasattr(block, 'text'):
-                                result_text.append(block.text)
-                                notify_action_progress(execution_id, 'progress', 'Agent processing...')
+                                text = block.text.strip()
+                                if text:
+                                    result_text.append(text)
+                                    # Show a preview of the text response
+                                    preview = text[:100] + "..." if len(text) > 100 else text
+                                    notify_action_progress(execution_id, 'progress', f'Claude: {preview}')
                             elif hasattr(block, 'name'):  # ToolUseBlock
                                 tool_name = block.name
                                 tool_message = f'Using tool: {tool_name}'
-                                
+                                tool_details = {'tool': tool_name}
+
                                 # Extract file path if available
                                 if hasattr(block, 'input') and isinstance(block.input, dict):
                                     file_path = block.input.get('file_path', '')
                                     if file_path:
                                         filename = file_path.split('/')[-1].split('\\')[-1]
+                                        tool_details['file'] = filename
                                         if tool_name == 'Read':
                                             tool_message = f'Reading file: {filename}'
                                         elif tool_name == 'Edit':
                                             tool_message = f'Editing file: {filename}'
                                         elif tool_name == 'Write':
                                             tool_message = f'Writing to file: {filename}'
-                                
+
+                                # Track the action for building a summary
+                                tool_actions.append({
+                                    'tool': tool_name,
+                                    'message': tool_message,
+                                    'details': tool_details
+                                })
+
                                 notify_action_progress(
                                     execution_id,
                                     'tool_call',
                                     tool_message,
-                                    {'tool': tool_name}
+                                    tool_details
                                 )
-                
-                elif message_type == "ToolResultBlock":
-                    notify_action_progress(
-                        execution_id,
-                        'tool_result',
-                        'Tool execution completed',
-                        {}
-                    )
-        
+
+        # Build comprehensive result
         full_response = "\n".join(result_text)
-        
+
+        # If no text response but tools were used, build a summary from tool actions
+        if not full_response.strip() and tool_actions:
+            action_summaries = [f"• {action['message']}" for action in tool_actions]
+            full_response = "Actions completed:\n" + "\n".join(action_summaries)
+
+        # Determine success message based on what happened
+        if tool_actions:
+            tools_used = list(set(action['tool'] for action in tool_actions))
+            completion_message = f'Action completed using {", ".join(tools_used)}'
+        else:
+            completion_message = 'Action execution completed'
+
         notify_action_progress(
             execution_id,
             'completed',
-            'Action execution completed successfully',
-            {'result': full_response[:500]}  # Truncate for SSE
+            completion_message,
+            {'result': full_response[:1000] if full_response else 'No result text generated'}  # Increased limit
         )
         
     except Exception as e:

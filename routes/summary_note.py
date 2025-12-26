@@ -11,6 +11,7 @@ import asyncio
 import json
 from datetime import datetime
 from services.summary_note_service import SummaryNoteService
+from services.sse_notifications import summary_sse_clients, notify_summary_note_change
 
 # Import SSE client tracking from backend
 import sys
@@ -25,8 +26,6 @@ logger = logging.getLogger(__name__)
 
 summary_note_bp = APIRouter(prefix='/api/summary-notes', tags=['summary-notes'])
 
-# SSE client management for summary notes
-summary_sse_clients = []
 summary_note_service = SummaryNoteService()
 
 
@@ -274,42 +273,3 @@ async def get_summary_stats():
     except Exception as e:
         logger.error(f"Failed to get summary stats: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
-
-
-def notify_summary_note_change(action: str, filename: str = None):
-    """Notify all SSE clients of summary note changes
-    
-    Args:
-        action: Type of change ('created', 'deleted', 'updated')
-        filename: Name of the affected file
-    """
-    try:
-        # Create notification event
-        event = {
-            'type': 'summary_note_changed',
-            'action': action,
-            'filename': filename,
-            'timestamp': datetime.now().isoformat()
-        }
-        
-        # Send to all connected SSE clients
-        disconnected_clients = []
-        for client_queue in summary_sse_clients:
-            try:
-                client_queue.put_nowait(event)
-            except asyncio.QueueFull:
-                # Mark client for removal if queue is full
-                disconnected_clients.append(client_queue)
-            except Exception as e:
-                logger.warning(f"Failed to notify summary SSE client: {e}")
-                disconnected_clients.append(client_queue)
-        
-        # Remove disconnected clients
-        for client in disconnected_clients:
-            if client in summary_sse_clients:
-                summary_sse_clients.remove(client)
-        
-        logger.info(f"Notified {len(summary_sse_clients)} SSE clients of summary note {action}: {filename}")
-        
-    except Exception as e:
-        logger.error(f"Failed to notify summary SSE clients: {e}")

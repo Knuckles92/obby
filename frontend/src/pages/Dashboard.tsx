@@ -15,9 +15,7 @@ import {
   Eye
 } from 'lucide-react'
 import { MonitoringStatus, ActivityItem } from '../types'
-import ConfirmationDialog from '../components/ConfirmationDialog'
-import WatchedFilesModal from '../components/WatchedFilesModal'
-import EventDetailsModal from '../components/EventDetailsModal'
+import { ConfirmationDialog, WatchedFilesModal, EventDetailsModal } from '../components/modals'
 import { apiFetch } from '../utils/api'
 
 export default function Dashboard() {

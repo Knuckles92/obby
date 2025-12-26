@@ -16,8 +16,8 @@ import {
   useThemesByCategory, 
   useThemeClasses,
   useThemeFeature 
-} from '../contexts/ThemeContext';
-import { Theme, ThemeCategory } from '../types';
+} from '../../contexts/ThemeContext';
+import { Theme, ThemeCategory } from '../../types';
 
 interface ThemeSwitcherProps {
   className?: string;

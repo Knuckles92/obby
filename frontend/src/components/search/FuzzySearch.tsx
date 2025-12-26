@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Search, FileText, Loader2, X } from 'lucide-react'
-import { searchFiles, FileSearchResult, formatFileDate } from '../utils/fileOperations'
-import { debounce } from '../utils/fuzzyMatch'
+import { searchFiles, FileSearchResult, formatFileDate } from '../../utils/fileOperations'
+import { debounce } from '../../utils/fuzzyMatch'
 
 interface FuzzySearchProps {
   onFileSelect: (filePath: string) => void

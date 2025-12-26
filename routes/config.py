@@ -24,7 +24,6 @@ async def get_config_root():
         return config_data
     except Exception as e:
         logger.error(f"Error loading config from database: {e}")
-        # Fallback to defaults
         from config.settings import (
             CLAUDE_MODEL,
             get_configured_notes_folder,
@@ -42,9 +41,7 @@ async def get_config_root():
 async def update_config_root(request: Request):
     """Update configuration in database (root endpoint)"""
     data = await request.json()
-    
     try:
-        # Validate the configuration data
         valid_fields = [
             'aiModel',
             'ignorePatterns',
@@ -52,84 +49,61 @@ async def update_config_root(request: Request):
             'periodicCheckEnabled',
         ]
         config_data = {}
-        
         for field in valid_fields:
             if field in data:
                 config_data[field] = data[field]
-        
-        # Validate specific fields
+
         if 'ignorePatterns' in config_data:
             if not isinstance(config_data['ignorePatterns'], list):
                 return JSONResponse({'error': 'Ignore patterns must be a list'}, status_code=400)
-        
+
         if 'monitoringDirectory' in config_data:
             if not isinstance(config_data['monitoringDirectory'], str):
                 return JSONResponse({'error': 'monitoringDirectory must be a string'}, status_code=400)
-            
-            # Prevent setting monitoring directory to output to avoid feedback loops
+
             monitoring_dir = config_data['monitoringDirectory'].strip()
             if not monitoring_dir:
                 return JSONResponse({'error': 'monitoringDirectory cannot be empty'}, status_code=400)
-            
-            # Check for potential feedback loops
             if monitoring_dir.startswith('output') or monitoring_dir == 'output':
                 return JSONResponse({'error': 'Cannot monitor the output directory to prevent feedback loops'}, status_code=400)
-            
-            # Normalize the path
             from pathlib import Path
             try:
                 normalized_path = str(Path(monitoring_dir))
                 config_data['monitoringDirectory'] = normalized_path
             except Exception as e:
                 return JSONResponse({'error': f'Invalid directory path: {str(e)}'}, status_code=400)
-        
+
         if 'periodicCheckEnabled' in config_data:
             if not isinstance(config_data['periodicCheckEnabled'], bool):
                 return JSONResponse({'error': 'periodicCheckEnabled must be a boolean'}, status_code=400)
-        
-        # Update configuration in database
+
         result = ConfigQueries.update_config(config_data)
-        
-        # Update .obbywatch file if monitoring directory changed
+
         if 'monitoringDirectory' in config_data and result.get('success', False):
             try:
                 from utils.watch_handler import WatchHandler
                 from pathlib import Path
-                
-                # Get project root and create watch handler
                 project_root = Path(__file__).parent.parent
                 watch_handler = WatchHandler(project_root)
-                
-                # Remove old patterns and add new monitoring directory
                 monitoring_dir = config_data['monitoringDirectory']
-                
-                # Clear existing patterns and add the new monitoring directory
                 watch_handler.watch_patterns.clear()
                 watch_handler.watch_patterns.add(f"{monitoring_dir}/")
-                
-                # Write updated patterns to .obbywatch file
                 _write_watch_patterns_from_config(watch_handler)
-                
                 logger.info(f"Updated .obbywatch file to monitor: {monitoring_dir}/")
-                
             except Exception as e:
                 logger.error(f"Failed to update .obbywatch file: {e}")
-                # Don't fail the config update just because .obbywatch update failed
-        
-        # Update periodic monitoring if enabled setting changed
+
         if 'periodicCheckEnabled' in config_data and result.get('success', False):
             try:
-                # Get the global monitor instance
                 from backend import global_monitor
                 if global_monitor:
                     global_monitor.set_periodic_check_enabled(config_data['periodicCheckEnabled'])
                     logger.info(f"Updated periodic check enabled to: {config_data['periodicCheckEnabled']}")
             except Exception as e:
                 logger.error(f"Failed to update periodic monitoring: {e}")
-                # Don't fail the config update just because monitoring update failed
-        
+
         return result
-    
+
     except Exception as e:
         return JSONResponse({'error': f'Failed to update configuration: {str(e)}'}, status_code=500)
 
@@ -185,35 +159,31 @@ async def update_config(request: Request):
         data = await request.json()
         if not data:
             return JSONResponse({'error': 'No configuration data provided'}, status_code=400)
-        
-        # Validate required fields
+
         required_fields = ['model', 'check_interval']
         for field in required_fields:
             if field not in data:
                 return JSONResponse({'error': f'Missing required field: {field}'}, status_code=400)
-        
-        # Validate model
+
         valid_models = ['haiku', 'sonnet', 'opus']
         if data['model'] not in valid_models:
             return JSONResponse({'error': f'Invalid model. Must be one of: {", ".join(valid_models)}'}, status_code=400)
-        
-        # Validate check_interval
+
         try:
             check_interval = int(data['check_interval'])
             if check_interval < 1 or check_interval > 3600:
                 return JSONResponse({'error': 'Check interval must be between 1 and 3600 seconds'}, status_code=400)
         except (ValueError, TypeError):
             return JSONResponse({'error': 'Check interval must be a valid integer'}, status_code=400)
-        
-        # Update configuration
+
         success = ConfigQueries.update_config(data)
-        
+
         if success:
             logger.info("Configuration updated successfully")
             return {'success': True, 'message': 'Configuration updated successfully'}
         else:
             return JSONResponse({'error': 'Failed to update configuration'}, status_code=500)
-            
+
     except Exception as e:
         logger.error(f"Failed to update config: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)
@@ -228,12 +198,9 @@ def _write_watch_patterns_from_config(watch_handler):
 # Lines starting with # are comments
 
 """
-        
-        # Add current patterns
         for pattern in sorted(watch_handler.watch_patterns):
             content += f"{pattern}\n"
-        
-        # Add example patterns as comments if file is empty
+
         if not watch_handler.watch_patterns:
             content += """
 # Example patterns:
@@ -245,12 +212,11 @@ def _write_watch_patterns_from_config(watch_handler):
 # writing/
 # *.txt
 """
-        
+
         with open(watch_handler.watch_file, 'w', encoding='utf-8') as f:
             f.write(content)
-        
+
         logger.info(f"Updated .obbywatch file with {len(watch_handler.watch_patterns)} patterns")
-        
     except Exception as e:
         logger.error(f"Error writing watch patterns: {e}")
         raise
@@ -260,10 +226,7 @@ def _write_watch_patterns_from_config(watch_handler):
 async def get_transparency_preferences():
     """Get transparency preferences configuration"""
     try:
-        # Get stored preferences from ConfigModel
         preferences = ConfigModel.get('transparency_preferences', None)
-        
-        # If no preferences exist, return defaults
         if preferences is None:
             preferences = {
                 'progress_display_mode': 'standard',
@@ -287,7 +250,6 @@ async def get_transparency_preferences():
                     'color_code_phases': True
                 }
             }
-        
         return {
             'success': True,
             'data': preferences
@@ -302,27 +264,22 @@ async def save_transparency_preferences(request: Request):
     """Save transparency preferences configuration"""
     try:
         data = await request.json()
-        
-        # Validate required fields
         required_fields = [
             'progress_display_mode', 'show_file_exploration', 'show_ai_reasoning',
             'show_performance_metrics', 'show_data_sources', 'real_time_updates',
             'auto_open_progress', 'store_agent_logs', 'log_retention_days',
             'notification_preferences', 'ui_preferences'
         ]
-        
         for field in required_fields:
             if field not in data:
                 return JSONResponse({'error': f'Missing required field: {field}'}, status_code=400)
-        
-        # Validate progress_display_mode
+
         valid_modes = ['minimal', 'standard', 'detailed']
         if data['progress_display_mode'] not in valid_modes:
             return JSONResponse({
                 'error': f'Invalid progress_display_mode. Must be one of: {", ".join(valid_modes)}'
             }, status_code=400)
-        
-        # Validate log_retention_days
+
         try:
             log_retention_days = int(data['log_retention_days'])
             if log_retention_days < 1 or log_retention_days > 365:
@@ -331,28 +288,23 @@ async def save_transparency_preferences(request: Request):
                 }, status_code=400)
         except (ValueError, TypeError):
             return JSONResponse({'error': 'log_retention_days must be a valid integer'}, status_code=400)
-        
-        # Validate notification_preferences structure
+
         if not isinstance(data['notification_preferences'], dict):
             return JSONResponse({'error': 'notification_preferences must be an object'}, status_code=400)
-        
-        # Validate ui_preferences structure
         if not isinstance(data['ui_preferences'], dict):
             return JSONResponse({'error': 'ui_preferences must be an object'}, status_code=400)
-        
-        # Store preferences in ConfigModel
+
         ConfigModel.set(
             'transparency_preferences',
             data,
             'Transparency preferences configuration'
         )
-        
+
         logger.info("Transparency preferences saved successfully")
         return {
             'success': True,
             'message': 'Transparency preferences saved successfully'
         }
-        
     except Exception as e:
         logger.error(f"Failed to save transparency preferences: {e}")
         return JSONResponse({'error': str(e)}, status_code=500)

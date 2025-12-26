@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Search, Filter, X, Calendar, SortAsc } from 'lucide-react'
-import { SummarySearchFilters } from '../types'
+import { SummarySearchFilters } from '../../types'
 
 interface SearchFiltersProps {
   filters: SummarySearchFilters

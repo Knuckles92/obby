@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { FolderTree, Search, ChevronLeft, ChevronRight, Loader2, AlertCircle, RefreshCw } from 'lucide-react'
 import FileTree from './FileTree'
-import FuzzySearch from './FuzzySearch'
+import { FuzzySearch } from './search'
 import { getFileTree, FileTreeNode, refreshFileTree } from '../utils/fileOperations'
 import { hasCachedFileTree, clearFileTreeCache } from '../utils/fileTreeCache'
 

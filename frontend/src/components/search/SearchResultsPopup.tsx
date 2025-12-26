@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Search, X, Clock, FileText, ChevronUp, ChevronDown } from 'lucide-react'
-import { SummaryNote } from '../types'
+import { SummaryNote } from '../../types'
 
 interface SearchResultsPopupProps {
   isOpen: boolean

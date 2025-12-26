@@ -11,8 +11,7 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 import InsightCard from '../insights/InsightCard';
 import { useInsights, useSemanticInsights } from '../../hooks/useInsights';
 import { SemanticInsightsSection } from '../semantic-insights';
-import NoteViewerModal from '../NoteViewerModal';
-import FileNotFoundDialog from '../FileNotFoundDialog';
+import { NoteViewerModal, FileNotFoundDialog } from '../modals';
 import { checkFileExists } from '../../utils/fileOperations';
 
 interface MasonryLayoutProps {

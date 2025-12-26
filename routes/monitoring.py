@@ -248,7 +248,7 @@ async def generate_comprehensive_summary(request: Request):
     """Generate a comprehensive summary with async worker pattern"""
     try:
         import threading
-        from routes.monitoring_comp_helper import run_comprehensive_worker
+        from services.comprehensive_summary_worker import run_comprehensive_worker
         
         # Get request data
         data = await request.json() if request.headers.get('content-type','').startswith('application/json') else {}
@@ -325,7 +325,7 @@ async def get_comprehensive_summaries(request: Request):
 async def get_comprehensive_status():
     """Get comprehensive summary generation status (for polling)"""
     try:
-        from routes.monitoring_comp_helper import get_comprehensive_status as get_status_data
+        from services.comprehensive_summary_worker import get_comprehensive_status as get_status_data
         return get_status_data()
     except Exception as e:
         logger.error(f"Failed to get comprehensive status: {e}")

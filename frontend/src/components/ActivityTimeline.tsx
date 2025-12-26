@@ -112,9 +112,16 @@ export default function ActivityTimeline({
   }, [actions, isExpanded])
 
   // Filter to show meaningful actions (skip generic progress messages)
-  const meaningfulActions = actions.filter(
-    (a) => a.type !== 'progress' || a.label.toLowerCase().includes('file') || a.label.toLowerCase().includes('tool')
-  )
+  const meaningfulActions = actions.filter((a) => {
+    if (a.type !== 'progress') return true
+    const labelLower = a.label.toLowerCase()
+    // Show file/tool operations, Claude responses, and completion messages
+    return labelLower.includes('file') ||
+           labelLower.includes('tool') ||
+           labelLower.includes('claude:') ||
+           labelLower.includes('completed') ||
+           labelLower.includes('action completed')
+  })
 
   const latestAction = meaningfulActions[meaningfulActions.length - 1]
 

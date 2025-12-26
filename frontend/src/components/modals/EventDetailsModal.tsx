@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X, File, Clock, HardDrive, ExternalLink, Copy, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { apiFetch } from '../utils/api'
-import { FileEvent, ContentDiff } from '../types'
+import { apiFetch } from '../../utils/api'
+import { FileEvent, ContentDiff } from '../../types'
 
 interface EventDetailsResponse {
   event: FileEvent;
