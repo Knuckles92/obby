@@ -41,16 +41,6 @@ export default function ActivityMetricsSection({ dateRange, onOpenNote, onRefetc
 
   return (
     <div>
-      {/* Activity Metrics Header */}
-      <div className="mb-4">
-        <h2 className="text-xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
-          Activity Metrics
-        </h2>
-        <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          File activity and development metrics
-        </p>
-      </div>
-
       {/* Loading State */}
       {loading && insightArray.length === 0 && (
         <div className="flex items-center justify-center h-64">

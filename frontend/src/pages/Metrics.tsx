@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, BarChart3 } from 'lucide-react';
 import ActivityMetricsSection from '../components/metrics/ActivityMetricsSection';
 import { NoteViewerModal, FileNotFoundDialog } from '../components/modals';
 import { checkFileExists } from '../utils/fileOperations';
@@ -105,32 +105,45 @@ export default function Metrics() {
 
   return (
     <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--color-background)' }}>
-      {/* Header */}
-      <div className="mb-8 flex items-start justify-between">
-        <div>
-          <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            Metrics
-          </h1>
-          <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            File activity and development metrics
-            {dateRange.days && ` (Last ${dateRange.days} days)`}
-          </p>
-        </div>
+      {/* Modern Header */}
+      <div className="relative overflow-hidden rounded-2xl mb-8 p-8 text-white shadow-2xl" style={{
+        background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 50%, var(--color-secondary) 100%)'
+      }}>
+        <div className="absolute inset-0 bg-black/10"></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
 
-        {/* Refresh Button */}
-        <button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
-          style={{
-            backgroundColor: 'var(--color-surface)',
-            color: 'var(--color-text)',
-            border: '1px solid var(--color-border)'
-          }}
-        >
-          <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-          Refresh
-        </button>
+        <div className="relative z-10 flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="flex items-center space-x-3">
+              <div className="p-2 bg-white/20 rounded-xl backdrop-blur-sm">
+                <BarChart3 className="h-6 w-6" />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight">Metrics</h1>
+            </div>
+            <p className="text-blue-100 text-lg">
+              File activity and development metrics
+              {dateRange.days && ` (Last ${dateRange.days} days)`}
+            </p>
+          </div>
+
+          {/* Refresh Button */}
+          <button
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className={`relative overflow-hidden px-6 py-3 rounded-xl font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group ${
+              isRefreshing
+                ? 'bg-white/10 border border-white/20 text-white'
+                : 'bg-white/20 hover:bg-white/30 border border-white/30 text-white'
+            }`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+            <div className="relative flex items-center space-x-2">
+              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </div>
+          </button>
+        </div>
       </div>
 
       {/* Activity Metrics Section */}
