@@ -49,11 +49,6 @@ export default function Settings() {
   const [dbResetSuccess, setDbResetSuccess] = useState<any>(null)
   const [dbResetError, setDbResetError] = useState<string | null>(null)
 
-  // Insight context window state
-  const [contextWindowDays, setContextWindowDays] = useState<number>(14)
-  const [contextConfigLoading, setContextConfigLoading] = useState(true)
-  const [contextConfigSaving, setContextConfigSaving] = useState(false)
-
 
   const tabs = [
     { id: 'general', label: 'General', icon: SettingsIcon },
@@ -71,43 +66,7 @@ export default function Settings() {
     fetchModels()
     fetchWatchConfig()
     fetchAdminData()
-    fetchContextConfig()
   }, [])
-
-  const fetchContextConfig = async () => {
-    try {
-      const response = await apiFetch('/api/semantic-insights/context-config')
-      const data = await response.json()
-      if (data.success && data.config) {
-        setContextWindowDays(data.config.contextWindowDays || 14)
-      }
-    } catch (error) {
-      console.error('Error fetching context config:', error)
-    } finally {
-      setContextConfigLoading(false)
-    }
-  }
-
-  const updateContextWindowDays = async (days: number) => {
-    setContextConfigSaving(true)
-    try {
-      const response = await apiFetch('/api/semantic-insights/context-config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ context_window_days: days })
-      })
-      const data = await response.json()
-      if (data.success) {
-        setContextWindowDays(days)
-      } else {
-        console.error('Failed to update context config:', data.error)
-      }
-    } catch (error) {
-      console.error('Error updating context config:', error)
-    } finally {
-      setContextConfigSaving(false)
-    }
-  }
 
   const fetchConfig = async () => {
     try {
@@ -530,46 +489,6 @@ export default function Settings() {
                   )}
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium mb-2" style={{ color: 'var(--color-text-primary)' }}>
-                    <Eye className="h-4 w-4 inline mr-2" />
-                    Insight Context Window
-                  </label>
-                  <p className="text-sm mb-3" style={{ color: 'var(--color-text-secondary)' }}>
-                    How far back should insights look when analyzing your notes? A longer window provides more context but may slow processing.
-                  </p>
-                  <div className="flex gap-2">
-                    {[7, 14, 30].map((days) => (
-                      <button
-                        key={days}
-                        type="button"
-                        onClick={() => updateContextWindowDays(days)}
-                        disabled={contextConfigSaving}
-                        className="flex-1 px-4 py-2 rounded-lg transition-all duration-200 disabled:opacity-50"
-                        style={{
-                          backgroundColor: contextWindowDays === days
-                            ? 'var(--color-primary)'
-                            : 'var(--color-background)',
-                          color: contextWindowDays === days
-                            ? 'white'
-                            : 'var(--color-text-primary)',
-                          border: `1px solid ${contextWindowDays === days ? 'var(--color-primary)' : 'var(--color-border)'}`,
-                          fontWeight: contextWindowDays === days ? 600 : 400
-                        }}
-                      >
-                        {days} days
-                      </button>
-                    ))}
-                  </div>
-                  {contextConfigSaving && (
-                    <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-                      Saving...
-                    </p>
-                  )}
-                  <p className="text-sm mt-2" style={{ color: 'var(--color-text-tertiary)' }}>
-                    Changes take effect on the next insight scan
-                  </p>
-                </div>
 
                 <div className="rounded-xl p-4" style={{
                   backgroundColor: 'var(--color-info-bg, #dbeafe)',

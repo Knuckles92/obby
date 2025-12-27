@@ -6,12 +6,13 @@
  * section for AI-powered analysis.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, RefreshCw, Trash2, FilePlus } from 'lucide-react';
 import { SemanticInsightsSection } from '../semantic-insights';
 import { NoteViewerModal, FileNotFoundDialog } from '../modals';
 import { checkFileExists } from '../../utils/fileOperations';
 import { useSemanticInsights } from '../../hooks/useInsights';
+import { apiFetch } from '../../utils/api';
 
 interface MasonryLayoutProps {
   dateRange: {
@@ -19,9 +20,10 @@ interface MasonryLayoutProps {
     end: string;
     days?: number;
   };
+  onDateRangeChange?: (dateRange: { start: string; end: string; days?: number }) => void;
 }
 
-export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
+export default function MasonryLayout({ dateRange, onDateRangeChange }: MasonryLayoutProps) {
   const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [fileNotFoundDialog, setFileNotFoundDialog] = useState<{
@@ -34,6 +36,8 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
     insightId: null
   });
   const [displayLimit, setDisplayLimit] = useState(6);
+  const [contextWindowDays, setContextWindowDays] = useState<number>(dateRange.days || 7);
+  const [contextConfigSaving, setContextConfigSaving] = useState(false);
   
   // Individual loading states for each button
   const [isClearingInsights, setIsClearingInsights] = useState(false);
@@ -52,6 +56,48 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
 
   // Check if any operation is in progress
   const isAnyProcessing = isClearingInsights || isIncrementalScanning || isFullScanning;
+
+  // Sync contextWindowDays with dateRange prop
+  useEffect(() => {
+    if (dateRange.days) {
+      setContextWindowDays(dateRange.days);
+    }
+  }, [dateRange.days]);
+
+  const updateContextWindowDays = async (days: number) => {
+    setContextConfigSaving(true);
+    try {
+      const response = await apiFetch('/api/semantic-insights/context-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ context_window_days: days })
+      });
+      const data = await response.json();
+      if (data.success) {
+        setContextWindowDays(days);
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - days);
+        const newDateRange = {
+          start: start.toISOString().split('T')[0],
+          end: end.toISOString().split('T')[0],
+          days: days
+        };
+        // Notify parent component of date range change
+        if (onDateRangeChange) {
+          onDateRangeChange(newDateRange);
+        }
+        // Refetch insights when date range changes
+        await refetchSemanticInsights();
+      } else {
+        console.error('Failed to update context config:', data.error);
+      }
+    } catch (error) {
+      console.error('Error updating context config:', error);
+    } finally {
+      setContextConfigSaving(false);
+    }
+  };
 
   const handleClearInsights = async () => {
     setIsClearingInsights(true);
@@ -146,6 +192,24 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
 
           {/* Actions - Button Group */}
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Context Window Selector */}
+            <div className="flex items-center gap-1 bg-white/10 rounded-lg p-1 border border-white/20">
+              {[7, 14, 30].map((days) => (
+                <button
+                  key={days}
+                  onClick={() => updateContextWindowDays(days)}
+                  disabled={contextConfigSaving}
+                  className={`px-3 py-1.5 text-sm rounded-md font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    contextWindowDays === days
+                      ? 'bg-white/30 text-white shadow-sm'
+                      : 'text-white/80 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  {days}d
+                </button>
+              ))}
+            </div>
+
             <select
               value={displayLimit}
               onChange={(e) => setDisplayLimit(Number(e.target.value))}
