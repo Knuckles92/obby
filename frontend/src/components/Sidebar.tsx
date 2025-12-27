@@ -8,7 +8,7 @@ import {
   Activity,
   MessageSquare,
   Sparkles,
-  Server,
+  BarChart,
 } from 'lucide-react'
 import { useTheme, useThemeClasses, useThemeFeature } from '../contexts/ThemeContext'
 
@@ -23,7 +23,7 @@ const navigation = [
   { name: 'Chat', href: '/chat', icon: MessageSquare },
   { name: 'Summary', href: '/summary-notes', icon: FileText },
   { name: 'Insights', href: '/insights', icon: Sparkles },
-  { name: 'Services', href: '/services', icon: Server },
+  { name: 'Metrics', href: '/metrics', icon: BarChart },
   { name: 'Settings', href: '/settings', icon: Settings },
 ]
 

@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { Sparkles, RefreshCw, ChevronDown, ChevronUp, AlertCircle, Trash2, FilePlus } from 'lucide-react';
 import SemanticInsightCard from './SemanticInsightCard';
 import { useSemanticInsights, useBatchSuggestedActions, type SemanticInsight } from '../../hooks/useInsights';
 
@@ -16,8 +16,12 @@ interface SemanticInsightsSectionProps {
 
 export default function SemanticInsightsSection({ onOpenNote }: SemanticInsightsSectionProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [displayLimit, setDisplayLimit] = useState(6);
+
+  // Individual loading states for each button
+  const [isClearingInsights, setIsClearingInsights] = useState(false);
+  const [isIncrementalScanning, setIsIncrementalScanning] = useState(false);
+  const [isFullScanning, setIsFullScanning] = useState(false);
 
   const {
     insights,
@@ -26,7 +30,9 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
     meta,
     refetch,
     performAction,
-    triggerProcessing
+    triggerProcessing,
+    clearInsights,
+    triggerIncrementalProcessing
   } = useSemanticInsights({ status: undefined, limit: displayLimit });
 
   // Filter to only show new, viewed, and pinned insights
@@ -49,10 +55,25 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
 
   const newCount = meta?.byStatus?.new || 0;
 
-  const handleTriggerProcessing = async () => {
-    setIsProcessing(true);
+  // Check if any operation is in progress
+  const isAnyProcessing = isClearingInsights || isIncrementalScanning || isFullScanning;
+
+  const handleClearInsights = async () => {
+    setIsClearingInsights(true);
+    await clearInsights();
+    setIsClearingInsights(false);
+  };
+
+  const handleIncrementalScan = async () => {
+    setIsIncrementalScanning(true);
+    await triggerIncrementalProcessing();
+    setIsIncrementalScanning(false);
+  };
+
+  const handleFullScan = async () => {
+    setIsFullScanning(true);
     await triggerProcessing();
-    setIsProcessing(false);
+    setIsFullScanning(false);
   };
 
   const handleAction = async (insightId: number, action: string) => {
@@ -132,7 +153,7 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
           <ChevronUp size={20} style={{ color: 'var(--color-text-secondary)' }} />
         </div>
 
-        {/* Actions */}
+        {/* Actions - Button Group */}
         <div className="flex items-center gap-2">
           <select
             value={displayLimit}
@@ -149,42 +170,98 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
             <option value={18}>18 items</option>
             <option value={24}>24 items</option>
           </select>
+
+          {/* Clear Insights Button */}
           <div className="relative group">
             <button
-              onClick={handleTriggerProcessing}
-              disabled={isProcessing}
-              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors"
+              onClick={handleClearInsights}
+              disabled={isAnyProcessing || visibleInsights.length === 0}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: 'var(--color-surface)',
-                color: 'var(--color-text)',
-                border: '1px solid var(--color-border)'
+                backgroundColor: 'var(--color-error)',
+                color: 'var(--color-text-inverse)',
+                border: 'none'
               }}
             >
-              <RefreshCw size={14} className={isProcessing ? 'animate-spin' : ''} />
-              {isProcessing ? 'Scanning...' : 'Scan Notes for Insights'}
+              <Trash2 size={14} className={isClearingInsights ? 'animate-pulse' : ''} />
+              {isClearingInsights ? 'Clearing...' : 'Clear'}
             </button>
-            {/* Hover tooltip */}
             <div className="absolute right-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
               <div
-                className="text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs break-words whitespace-normal relative"
+                className="text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs break-words whitespace-normal"
                 style={{
                   backgroundColor: 'var(--color-surface)',
                   color: 'var(--color-text-primary)',
                   border: '1px solid var(--color-border)'
                 }}
               >
-                {/* Arrow pointing down */}
-                <div
-                  className="absolute -bottom-1 right-4 w-2 h-2 rotate-45"
-                  style={{
-                    backgroundColor: 'var(--color-surface)',
-                    borderRight: '1px solid var(--color-border)',
-                    borderBottom: '1px solid var(--color-border)'
-                  }}
-                ></div>
-                <div className="font-semibold mb-1">What this does:</div>
+                <div className="font-semibold mb-1">Clear Insights</div>
                 <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
-                  Triggers AI analysis of your notes to scan for stale todos, orphan mentions, connections, and themes. Generates new insights displayed below.
+                  Remove all non-pinned insights. Pinned insights will be preserved.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Scan for New Notes Button */}
+          <div className="relative group">
+            <button
+              onClick={handleIncrementalScan}
+              disabled={isAnyProcessing}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'var(--color-success)',
+                color: 'var(--color-text-inverse)',
+                border: 'none'
+              }}
+            >
+              <FilePlus size={14} className={isIncrementalScanning ? 'animate-spin' : ''} />
+              {isIncrementalScanning ? 'Scanning...' : 'Scan New'}
+            </button>
+            <div className="absolute right-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+              <div
+                className="text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs break-words whitespace-normal"
+                style={{
+                  backgroundColor: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)'
+                }}
+              >
+                <div className="font-semibold mb-1">Scan for New Notes</div>
+                <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  Process only notes that have changed since last scan. Existing insights are preserved.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Full Scan Button */}
+          <div className="relative group">
+            <button
+              onClick={handleFullScan}
+              disabled={isAnyProcessing}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              style={{
+                backgroundColor: 'var(--color-primary)',
+                color: 'var(--color-text-inverse)',
+                border: 'none'
+              }}
+            >
+              <RefreshCw size={14} className={isFullScanning ? 'animate-spin' : ''} />
+              {isFullScanning ? 'Scanning...' : 'Full Scan'}
+            </button>
+            <div className="absolute right-0 bottom-full mb-2 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 pointer-events-none">
+              <div
+                className="text-xs rounded-lg px-3 py-2 shadow-xl max-w-xs break-words whitespace-normal"
+                style={{
+                  backgroundColor: 'var(--color-surface)',
+                  color: 'var(--color-text-primary)',
+                  border: '1px solid var(--color-border)'
+                }}
+              >
+                <div className="font-semibold mb-1">Full Scan & Replace</div>
+                <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+                  Scan all changed notes and replace all non-pinned insights with fresh analysis.
                 </div>
               </div>
             </div>
@@ -277,15 +354,15 @@ export default function SemanticInsightsSection({ onOpenNote }: SemanticInsights
             Click "Analyze Notes" to scan your vault for stale todos, orphaned mentions, and more.
           </p>
           <button
-            onClick={handleTriggerProcessing}
-            disabled={isProcessing}
+            onClick={handleFullScan}
+            disabled={isAnyProcessing}
             className="px-4 py-2 rounded-lg transition-colors"
             style={{
               backgroundColor: 'var(--color-primary)',
-              color: 'white'
+              color: 'var(--color-text-inverse)'
             }}
           >
-            {isProcessing ? 'Analyzing...' : 'Analyze Notes'}
+            {isFullScanning ? 'Analyzing...' : 'Analyze Notes'}
           </button>
         </div>
       )}

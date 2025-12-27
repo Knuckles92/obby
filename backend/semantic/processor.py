@@ -34,6 +34,9 @@ Your job is to identify actionable insights that matter RIGHT NOW based on:
 
 You are NOT just summarizing - you are identifying things that need attention, decisions, or action.
 
+IMPORTANT - Diversity guidance:
+When generating insights, prefer variety across different files/notes. Avoid generating multiple insights about the same file unless each insight is genuinely distinct and important. If one file has many items, pick only the most significant 1-2 rather than creating several insights about it.
+
 For each insight you generate, you MUST provide:
 
 1. TITLE: Brief description of what you found (5-10 words, be specific)
@@ -237,7 +240,8 @@ class SemanticProcessor:
     async def run_processing_pipeline(
         self,
         max_notes: int = 50,
-        max_runtime_seconds: int = 300
+        max_runtime_seconds: int = 300,
+        cleanup_before_generate: bool = True
     ) -> Dict[str, Any]:
         """
         Run the full processing pipeline.
@@ -245,6 +249,7 @@ class SemanticProcessor:
         Args:
             max_notes: Maximum number of notes to process
             max_runtime_seconds: Maximum runtime in seconds
+            cleanup_before_generate: If True, delete non-pinned insights before generating new ones
 
         Returns:
             Processing run summary
@@ -284,7 +289,7 @@ class SemanticProcessor:
                     })
 
             # Generate insights from extracted entities
-            insights_count = await self._generate_insights()
+            insights_count = await self._generate_insights(cleanup=cleanup_before_generate)
             summary['insights_generated'] = insights_count
 
         except Exception as e:
@@ -362,18 +367,19 @@ class SemanticProcessor:
             logger.error(f"Error cleaning up non-pinned insights: {e}")
             return 0
 
-    async def _generate_insights(self) -> int:
+    async def _generate_insights(self, cleanup: bool = True) -> int:
         """
         Generate contextual insights from extracted entities using AI.
 
-        Before generating new insights, deletes all existing insights
-        except those that are pinned.
+        Args:
+            cleanup: If True, delete non-pinned insights before generating new ones
 
         Returns:
             Number of insights generated
         """
-        # Delete existing insights (except pinned ones) before generating new ones
-        self._cleanup_non_pinned_insights()
+        # Only cleanup if requested (for incremental mode, we keep existing insights)
+        if cleanup:
+            self._cleanup_non_pinned_insights()
 
         insights_generated = 0
 

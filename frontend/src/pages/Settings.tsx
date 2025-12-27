@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Settings as SettingsIcon, Save, Trash2, Palette, FolderOpen, Plus, RefreshCw, FileText, Eye, EyeOff, Monitor, Database, Cpu, HardDrive, Activity, AlertTriangle, Download, Upload, MemoryStick } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
+import { Settings as SettingsIcon, Save, Trash2, Palette, FolderOpen, Plus, RefreshCw, FileText, Eye, EyeOff, Monitor, Database, Cpu, HardDrive, Activity, AlertTriangle, Download, Upload, MemoryStick, Server } from 'lucide-react'
 import { ConfigSettings, ModelsResponse, WatchPatternsResponse, IgnorePatternsResponse, WatchConfigResponse } from '../types'
 import { apiRequest, apiFetch } from '../utils/api'
 import { ThemeSwitcher } from '../components/ui'
@@ -7,8 +8,12 @@ import StatCard from '../components/admin/StatCard'
 import ActionButton from '../components/admin/ActionButton'
 import { AgentLogsViewer } from '../components/admin/AgentLogsViewer'
 import type { SystemStats, DatabaseStats } from '../types/admin'
+import { ServicesContent } from './Services'
 
 export default function Settings() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabParam = searchParams.get('tab')
+  
   const [config, setConfig] = useState<ConfigSettings>({
     aiModel: 'haiku',
     ignorePatterns: [],
@@ -28,8 +33,11 @@ export default function Settings() {
   const [showWatchHelp, setShowWatchHelp] = useState(false)
   const [showIgnoreHelp, setShowIgnoreHelp] = useState(false)
 
-  // Tab management
-  const [activeTab, setActiveTab] = useState('general')
+  // Tab management - initialize from URL parameter if present
+  const [activeTab, setActiveTab] = useState(() => {
+    const validTabIds = ['general', 'appearance', 'watch-ignore', 'system-overview', 'database', 'system-config', 'services', 'agent-activity']
+    return tabParam && validTabIds.includes(tabParam) ? tabParam : 'general'
+  })
 
   // Admin functionality state
   const [systemStats, setSystemStats] = useState<SystemStats | null>(null)
@@ -54,6 +62,7 @@ export default function Settings() {
     { id: 'system-overview', label: 'System Overview', icon: Monitor },
     { id: 'database', label: 'Database', icon: Database },
     { id: 'system-config', label: 'System Configuration', icon: Cpu },
+    { id: 'services', label: 'Services', icon: Server },
     { id: 'agent-activity', label: 'Agent Activity', icon: Activity }
   ]
 
@@ -1354,6 +1363,13 @@ export default function Settings() {
           </div>
         )
 
+      case 'services':
+        return (
+          <div>
+            <ServicesContent />
+          </div>
+        )
+
       case 'agent-activity':
         return (
           <div>
@@ -1420,7 +1436,10 @@ export default function Settings() {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+            onClick={() => {
+              setActiveTab(tab.id)
+              setSearchParams({ tab: tab.id })
+            }}
             className="flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200"
             style={{
               backgroundColor: activeTab === tab.id ? 'var(--color-primary)' : 'transparent',

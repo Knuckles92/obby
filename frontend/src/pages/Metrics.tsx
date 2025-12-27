@@ -1,26 +1,17 @@
-/**
- * MasonryLayout - Real-time insights display with backend data
- *
- * This layout fetches real insights from the backend and displays them
- * using the reusable InsightCard component. Also includes semantic insights
- * section for AI-powered analysis.
- */
+import { useState, useRef } from 'react';
+import { RefreshCw } from 'lucide-react';
+import ActivityMetricsSection from '../components/metrics/ActivityMetricsSection';
+import { NoteViewerModal, FileNotFoundDialog } from '../components/modals';
+import { checkFileExists } from '../utils/fileOperations';
+import { useSemanticInsights } from '../hooks/useInsights';
 
-import React, { useState } from 'react';
-import { SemanticInsightsSection } from '../semantic-insights';
-import { NoteViewerModal, FileNotFoundDialog } from '../modals';
-import { checkFileExists } from '../../utils/fileOperations';
-import { useSemanticInsights } from '../../hooks/useInsights';
-
-interface MasonryLayoutProps {
-  dateRange: {
-    start: string;
-    end: string;
-    days?: number;
-  };
+interface DateRange {
+  start: string;
+  end: string;
+  days?: number;
 }
 
-export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
+export default function Metrics() {
   const [selectedNotePath, setSelectedNotePath] = useState<string | null>(null);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
   const [fileNotFoundDialog, setFileNotFoundDialog] = useState<{
@@ -32,11 +23,27 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
     filePath: '',
     insightId: null
   });
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const metricsRefetchRef = useRef<(() => void) | null>(null);
 
   const { performAction, refetch: refetchSemanticInsights } = useSemanticInsights({
     status: undefined,
     limit: 50
   });
+
+  // Calculate date range - default to last 7 days
+  const getDateRange = (): DateRange => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    return {
+      start: start.toISOString().split('T')[0],
+      end: end.toISOString().split('T')[0],
+      days: 7
+    };
+  };
+
+  const dateRange = getDateRange();
 
   const handleOpenNote = async (path: string, insightId?: number) => {
     // Check if file exists
@@ -84,23 +91,50 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
     }
   };
 
+  const handleRefetchReady = (refetch: () => void) => {
+    metricsRefetchRef.current = refetch;
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    if (metricsRefetchRef.current) {
+      await metricsRefetchRef.current();
+    }
+    setIsRefreshing(false);
+  };
+
   return (
     <div className="min-h-screen p-6" style={{ backgroundColor: 'var(--color-background)' }}>
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-8 flex items-start justify-between">
         <div>
           <h1 className="text-3xl font-bold mb-2" style={{ color: 'var(--color-text-primary)' }}>
-            Insights
+            Metrics
           </h1>
           <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            AI-powered semantic insights and analysis
+            File activity and development metrics
             {dateRange.days && ` (Last ${dateRange.days} days)`}
           </p>
         </div>
+
+        {/* Refresh Button */}
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"
+          style={{
+            backgroundColor: 'var(--color-surface)',
+            color: 'var(--color-text)',
+            border: '1px solid var(--color-border)'
+          }}
+        >
+          <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
+          Refresh
+        </button>
       </div>
 
-      {/* Semantic Insights Section */}
-      <SemanticInsightsSection onOpenNote={handleOpenNote} />
+      {/* Activity Metrics Section */}
+      <ActivityMetricsSection dateRange={dateRange} onOpenNote={handleOpenNote} onRefetchReady={handleRefetchReady} />
 
       {/* Note Viewer Modal */}
       <NoteViewerModal
@@ -119,5 +153,4 @@ export default function MasonryLayout({ dateRange }: MasonryLayoutProps) {
     </div>
   );
 }
-
 

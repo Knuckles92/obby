@@ -129,9 +129,13 @@ class SemanticInsightScheduler:
             }
         }
 
-    async def run_scheduled_processing(self) -> Dict[str, Any]:
+    async def run_scheduled_processing(self, mode: str = "replace") -> Dict[str, Any]:
         """
         Main entry point - run a single processing cycle.
+
+        Args:
+            mode: Processing mode - "replace" cleans up non-pinned insights before
+                  generating new ones, "incremental" keeps existing insights
 
         Returns:
             Processing summary
@@ -144,7 +148,7 @@ class SemanticInsightScheduler:
         self._last_run = datetime.now()
 
         try:
-            logger.info("Starting scheduled semantic processing")
+            logger.info(f"Starting scheduled semantic processing (mode={mode})")
 
             # Emit progress event
             if self.progress_callback:
@@ -156,7 +160,8 @@ class SemanticInsightScheduler:
             # Run the processing pipeline
             summary = await self.processor.run_processing_pipeline(
                 max_notes=self.config['max_notes_per_run'],
-                max_runtime_seconds=self.config['max_runtime_minutes'] * 60
+                max_runtime_seconds=self.config['max_runtime_minutes'] * 60,
+                cleanup_before_generate=(mode == "replace")
             )
 
             # Emit completion event
@@ -182,15 +187,18 @@ class SemanticInsightScheduler:
         finally:
             self._running = False
 
-    async def trigger_manual_run(self) -> Dict[str, Any]:
+    async def trigger_manual_run(self, mode: str = "replace") -> Dict[str, Any]:
         """
         Trigger a manual processing run (ignores schedule).
+
+        Args:
+            mode: Processing mode - "replace" or "incremental"
 
         Returns:
             Processing summary
         """
-        logger.info("Manual processing triggered")
-        return await self.run_scheduled_processing()
+        logger.info(f"Manual processing triggered (mode={mode})")
+        return await self.run_scheduled_processing(mode=mode)
 
     async def start_background_scheduler(self):
         """Start the background scheduler loop."""

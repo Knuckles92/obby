@@ -63,6 +63,11 @@ class ActionRequest(BaseModel):
     data: Optional[dict] = None
 
 
+class TriggerProcessingRequest(BaseModel):
+    """Request body for trigger processing."""
+    mode: str = "replace"  # "replace" or "incremental"
+
+
 @semantic_insights_bp.get('')
 async def get_semantic_insights(
     type: Optional[str] = Query(None, description="Filter by insight type"),
@@ -234,16 +239,22 @@ async def get_processing_status():
 
 
 @semantic_insights_bp.post('/trigger')
-async def trigger_processing():
+async def trigger_processing(request: TriggerProcessingRequest = TriggerProcessingRequest()):
     """
     Manually trigger semantic processing.
 
     Runs a processing cycle immediately, ignoring the normal schedule.
+
+    Parameters:
+    - mode: Processing mode
+      - "replace" (default): Clean up non-pinned insights before generating new ones
+      - "incremental": Keep existing insights, only add new ones for changed notes
+
     Returns processing summary when complete.
     """
     try:
         service = get_semantic_insights_service()
-        result = await service.trigger_processing()
+        result = await service.trigger_processing(mode=request.mode)
 
         if 'error' in result:
             return JSONResponse(
@@ -258,6 +269,31 @@ async def trigger_processing():
 
     except Exception as e:
         logger.error(f"Error triggering processing: {e}")
+        return JSONResponse(
+            {'success': False, 'error': str(e)},
+            status_code=500
+        )
+
+
+@semantic_insights_bp.post('/clear')
+async def clear_insights():
+    """
+    Clear all non-pinned semantic insights.
+
+    Removes all insights except those that have been pinned by the user.
+    Pinned insights are preserved.
+    """
+    try:
+        service = get_semantic_insights_service()
+        result = service.clear_non_pinned_insights()
+
+        return {
+            'success': True,
+            'deleted_count': result.get('deleted_count', 0)
+        }
+
+    except Exception as e:
+        logger.error(f"Error clearing insights: {e}")
         return JSONResponse(
             {'success': False, 'error': str(e)},
             status_code=500

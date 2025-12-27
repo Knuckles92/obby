@@ -56,6 +56,8 @@ interface UseSemanticInsightsResult {
   refetch: () => void;
   performAction: (insightId: number, action: string) => Promise<boolean>;
   triggerProcessing: () => Promise<void>;
+  clearInsights: () => Promise<void>;
+  triggerIncrementalProcessing: () => Promise<void>;
 }
 
 /**
@@ -246,12 +248,16 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
   }, [insights, type, status, limit]);
 
   /**
-   * Trigger semantic processing
+   * Trigger semantic processing (full scan - replaces non-pinned insights)
    */
   const triggerProcessing = useCallback(async () => {
     try {
       const response = await fetch('/api/semantic-insights/trigger', {
-        method: 'POST'
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mode: 'replace' })
       });
 
       const data = await response.json();
@@ -268,6 +274,56 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
     }
   }, [fetchInsights]);
 
+  /**
+   * Clear all non-pinned insights
+   */
+  const clearInsights = useCallback(async () => {
+    try {
+      const response = await fetch('/api/semantic-insights/clear', {
+        method: 'POST'
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Invalidate cache and refresh insights after clearing
+        invalidateInsightsCache();
+        await fetchInsights(true); // Skip cache to get fresh data
+      } else {
+        console.error('Clear insights failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Error clearing insights:', err);
+    }
+  }, [fetchInsights]);
+
+  /**
+   * Trigger incremental processing (keep existing insights)
+   */
+  const triggerIncrementalProcessing = useCallback(async () => {
+    try {
+      const response = await fetch('/api/semantic-insights/trigger', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ mode: 'incremental' })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Invalidate cache and refresh insights after processing
+        invalidateInsightsCache();
+        await fetchInsights(true); // Skip cache to get fresh data
+      } else {
+        console.error('Incremental processing failed:', data.error);
+      }
+    } catch (err) {
+      console.error('Error triggering incremental processing:', err);
+    }
+  }, [fetchInsights]);
+
   // Fetch insights on mount and when dependencies change
   useEffect(() => {
     fetchInsights();
@@ -280,7 +336,9 @@ export const useSemanticInsights = (options: UseSemanticInsightsOptions = {}): U
     meta,
     refetch: fetchInsights,
     performAction,
-    triggerProcessing
+    triggerProcessing,
+    clearInsights,
+    triggerIncrementalProcessing
   };
 };
 

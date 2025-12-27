@@ -322,20 +322,46 @@ class SemanticInsightsService:
             logger.error(f"Error getting stats: {e}")
             return {}
 
-    async def trigger_processing(self) -> Dict[str, Any]:
+    async def trigger_processing(self, mode: str = "replace") -> Dict[str, Any]:
         """
         Trigger a manual processing run.
+
+        Args:
+            mode: Processing mode - "replace" cleans up non-pinned insights,
+                  "incremental" keeps existing insights
 
         Returns:
             Processing status
         """
         try:
-            result = await self.scheduler.trigger_manual_run()
+            result = await self.scheduler.trigger_manual_run(mode=mode)
             return result
 
         except Exception as e:
             logger.error(f"Error triggering processing: {e}")
             return {"error": str(e)}
+
+    def clear_non_pinned_insights(self) -> Dict[str, Any]:
+        """
+        Clear all insights that are not pinned.
+
+        Returns:
+            Dict with deleted_count
+        """
+        try:
+            result = db.execute_update(
+                "DELETE FROM semantic_insights WHERE status != 'pinned'"
+            )
+
+            # Invalidate cache since we deleted insights
+            self._invalidate_meta_stats_cache()
+
+            logger.info(f"Cleared {result} non-pinned insights")
+            return {"deleted_count": result}
+
+        except Exception as e:
+            logger.error(f"Error clearing insights: {e}")
+            return {"deleted_count": 0, "error": str(e)}
 
     def get_processing_status(self) -> Dict[str, Any]:
         """

@@ -3,7 +3,7 @@ import { Server, Activity, Circle, RefreshCw, Play, Square, RotateCw, Clock, Cpu
 import { Service, ServiceEvent, ServicesResponse, ServiceEventsResponse, ServiceActionResponse } from '../types/services'
 import { apiFetch } from '../utils/api'
 
-export default function Services() {
+export function ServicesContent() {
   const [services, setServices] = useState<Service[]>([])
   const [events, setEvents] = useState<ServiceEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -144,7 +144,7 @@ export default function Services() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-12">
         <div className="text-center">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-500" />
           <p className="text-gray-600">Loading services...</p>
@@ -154,7 +154,7 @@ export default function Services() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div>
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -378,6 +378,15 @@ export default function Services() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// Default export for backward compatibility with routing
+export default function Services() {
+  return (
+    <div className="max-w-7xl mx-auto p-6">
+      <ServicesContent />
     </div>
   )
 }
