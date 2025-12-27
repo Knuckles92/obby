@@ -9,6 +9,29 @@ export interface DateRange {
 }
 
 /**
+ * Insight category types
+ */
+export type InsightCategory = 'immediate_action' | 'trend' | 'recommendation' | 'observation';
+
+/**
+ * Context-specific action (replaces generic suggested actions)
+ */
+export interface ContextSpecificAction {
+  text: string;
+  rationale: string;
+  actionType: 'complete' | 'modify' | 'archive' | 'expand' | 'delegate';
+}
+
+/**
+ * Context awareness metadata
+ */
+export interface ContextAwareness {
+  recencyScore?: number;
+  projectContext?: string[];
+  relevanceFactors?: string[];
+}
+
+/**
  * Semantic Insight types
  */
 export interface SemanticInsight {
@@ -16,6 +39,8 @@ export interface SemanticInsight {
   type: string;
   title: string;
   summary: string;
+  reasoning?: string;  // NEW: Explains WHY this insight matters
+  category?: InsightCategory;  // NEW: immediate_action, trend, recommendation, observation
   confidence: number;
   priority: number;
   status: string;
@@ -24,6 +49,8 @@ export interface SemanticInsight {
     snippet?: string;
   }>;
   evidence: Record<string, any>;
+  contextAwareness?: ContextAwareness;  // NEW: recency, project context, relevance
+  contextSpecificActions?: ContextSpecificAction[];  // NEW: Specific actions with rationale
   actions: string[];
   createdAt: string;
   viewedAt?: string;
@@ -70,4 +97,26 @@ export interface AgentAction {
 export interface CacheEntry<T> {
   data: T;
   expires: number;
+}
+
+/**
+ * Options for the useApiCache hook
+ */
+export interface UseApiCacheOptions<T> {
+  cacheKey: string;
+  fetcher: () => Promise<T>;
+  ttl?: number;
+  enabled?: boolean;
+}
+
+/**
+ * Result from the useApiCache hook
+ */
+export interface UseApiCacheResult<T> {
+  data: T | null;
+  loading: boolean;
+  error: string | null;
+  isStale: boolean;
+  refetch: (skipCache?: boolean) => void;
+  invalidate: () => void;
 }

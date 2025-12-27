@@ -16,9 +16,13 @@ import {
   ExternalLink,
   RotateCcw,
   Sparkles,
-  Lightbulb
+  Lightbulb,
+  HelpCircle,
+  AlertCircle,
+  TrendingUp,
+  MessageSquare
 } from 'lucide-react';
-import type { SemanticInsight, SuggestedAction } from '../../hooks/useInsights';
+import type { SemanticInsight, SuggestedAction, ContextSpecificAction } from '../../hooks/useInsights';
 import ActionSelectionModal from './ActionSelectionModal';
 import SuggestedActionButton from './SuggestedActionButton';
 
@@ -37,6 +41,11 @@ const typeConfig: Record<string, { icon: React.ElementType; color: string; label
     color: 'var(--color-amber, #f59e0b)',
     label: 'Stale Todo'
   },
+  active_todos: {
+    icon: CheckCircle,
+    color: 'var(--color-blue, #3b82f6)',
+    label: 'Active Todo'
+  },
   orphan_mention: {
     icon: UserX,
     color: 'var(--color-rose, #f43f5e)',
@@ -51,6 +60,30 @@ const typeConfig: Record<string, { icon: React.ElementType; color: string; label
     icon: Sparkles,
     color: 'var(--color-purple, #8b5cf6)',
     label: 'Theme'
+  }
+};
+
+// Map insight categories to icons and colors
+const categoryConfig: Record<string, { icon: React.ElementType; color: string; label: string }> = {
+  immediate_action: {
+    icon: AlertCircle,
+    color: 'var(--color-error, #ef4444)',
+    label: 'Needs Attention'
+  },
+  trend: {
+    icon: TrendingUp,
+    color: 'var(--color-blue, #3b82f6)',
+    label: 'Trend'
+  },
+  recommendation: {
+    icon: Lightbulb,
+    color: 'var(--color-amber, #f59e0b)',
+    label: 'Recommendation'
+  },
+  observation: {
+    icon: MessageSquare,
+    color: 'var(--color-text-secondary)',
+    label: 'Observation'
   }
 };
 
@@ -198,6 +231,22 @@ export default function SemanticInsightCard({
         </div>
       </div>
 
+      {/* Category Badge for immediate_action */}
+      {insight.category === 'immediate_action' && (
+        <div
+          className="flex items-center gap-1 mb-2 px-2 py-1 rounded-md w-fit"
+          style={{ backgroundColor: `${categoryConfig.immediate_action.color}15` }}
+        >
+          <AlertCircle size={12} style={{ color: categoryConfig.immediate_action.color }} />
+          <span
+            className="text-xs font-medium"
+            style={{ color: categoryConfig.immediate_action.color }}
+          >
+            Needs Attention
+          </span>
+        </div>
+      )}
+
       {/* Summary */}
       <p
         className="text-sm mb-3"
@@ -206,8 +255,76 @@ export default function SemanticInsightCard({
         {insight.summary}
       </p>
 
-      {/* Suggested Actions */}
-      {isTodoType && suggestedActions.length > 0 && (
+      {/* Reasoning Section - Why This Matters */}
+      {insight.reasoning && (
+        <div
+          className="mb-3 p-3 rounded-lg"
+          style={{ backgroundColor: 'var(--color-background)' }}
+        >
+          <div className="flex items-center gap-1 mb-1">
+            <HelpCircle size={12} style={{ color: 'var(--color-primary)' }} />
+            <span
+              className="text-xs font-medium"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Why this matters
+            </span>
+          </div>
+          <p
+            className="text-sm"
+            style={{ color: 'var(--color-text-primary)' }}
+          >
+            {insight.reasoning}
+          </p>
+        </div>
+      )}
+
+      {/* Context-Specific Actions (new AI-generated actions with rationale) */}
+      {insight.contextSpecificActions && insight.contextSpecificActions.length > 0 && (
+        <div className="mb-3">
+          <div className="flex items-center gap-1 mb-2">
+            <Lightbulb size={12} style={{ color: 'var(--color-primary)' }} />
+            <span
+              className="text-xs font-medium"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              Suggested Next Steps
+            </span>
+          </div>
+          <div className="space-y-2">
+            {insight.contextSpecificActions.map((action, index) => (
+              <button
+                key={index}
+                type="button"
+                onClick={(e) => handleSuggestedActionClick({ text: action.text, description: action.rationale }, e)}
+                className="w-full text-left p-2 rounded-lg transition-colors hover:opacity-90"
+                style={{
+                  backgroundColor: `${config.color}10`,
+                  border: `1px solid ${config.color}30`
+                }}
+              >
+                <div
+                  className="font-medium text-sm"
+                  style={{ color: 'var(--color-text-primary)' }}
+                >
+                  {action.text}
+                </div>
+                {action.rationale && (
+                  <div
+                    className="text-xs mt-1"
+                    style={{ color: 'var(--color-text-secondary)' }}
+                  >
+                    {action.rationale}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Legacy Suggested Actions (fallback for old insights) */}
+      {isTodoType && suggestedActions.length > 0 && (!insight.contextSpecificActions || insight.contextSpecificActions.length === 0) && (
         <div className="mb-3">
           <div className="flex items-center gap-1 mb-2">
             <Lightbulb size={12} style={{ color: 'var(--color-text-secondary)' }} />

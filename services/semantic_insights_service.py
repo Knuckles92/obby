@@ -362,16 +362,31 @@ class SemanticInsightsService:
             source_notes = []
             evidence = {}
 
+        # Parse new contextual fields
+        try:
+            context_awareness = json.loads(row.get('context_awareness', '{}') or '{}')
+        except json.JSONDecodeError:
+            context_awareness = {}
+
+        try:
+            context_specific_actions = json.loads(row.get('suggested_actions', '[]') or '[]')
+        except json.JSONDecodeError:
+            context_specific_actions = []
+
         return {
             "id": row['id'],
             "type": row['insight_type'],
             "title": row['title'],
             "summary": row['summary'],
+            "reasoning": row.get('reasoning', ''),  # NEW: Why this insight matters
+            "category": row.get('insight_category', 'observation'),  # NEW: immediate_action, trend, etc.
             "confidence": row.get('confidence', 1.0),
             "priority": row.get('priority', 0),
             "status": row['status'],
             "sourceNotes": source_notes,
             "evidence": evidence,
+            "contextAwareness": context_awareness,  # NEW: recency, project context, relevance
+            "contextSpecificActions": context_specific_actions,  # NEW: Specific actions with rationale
             "actions": self._get_available_actions(row['insight_type'], row['status']),
             "createdAt": row['created_at'],
             "viewedAt": row.get('viewed_at'),

@@ -362,6 +362,15 @@ if __name__ == '__main__':
     except Exception as e:
         logger.error(f'Semantic insights tables migration failed: {e}', exc_info=True)
 
+    try:
+        from database.migration_semantic_insights_v2 import apply_migration as apply_semantic_insights_v2_migration
+        if apply_semantic_insights_v2_migration():
+            logger.info('Semantic insights v2 (contextual) migration completed')
+        else:
+            logger.error('Semantic insights v2 migration returned False')
+    except Exception as e:
+        logger.error(f'Semantic insights v2 migration failed: {e}', exc_info=True)
+
     monitoring_initialized = initialize_monitoring()
     if not monitoring_initialized:
         logger.warning('File monitoring system failed to initialize - continuing without it')

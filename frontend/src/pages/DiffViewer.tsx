@@ -1,8 +1,11 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { FileText, Clock, Hash, RefreshCw, Trash2, Archive, Copy, CheckCircle } from 'lucide-react'
-import { ContentDiff, FileChange, FileMonitoringStatus, PaginatedDiffsResponse, PaginatedChangesResponse, PaginationMetadata } from '../types'
+import { ContentDiff, FileChange } from '../types'
 import { apiFetch } from '../utils/api'
 import { ConfirmationDialog } from '../components/modals'
+import { useDiffs } from '../hooks/useDiffs'
+import { useFileChanges } from '../hooks/useFileChanges'
+import { useMonitoringStatus } from '../hooks/useMonitoringStatus'
 
 type DiffLine = {
   type: 'addition' | 'deletion' | 'hunk'
@@ -15,13 +18,42 @@ type DiffChunk = {
 }
 
 export default function DiffViewer() {
-  const [diffs, setDiffs] = useState<ContentDiff[]>([])
-  const [fileChanges, setFileChanges] = useState<FileChange[]>([])
+  // Use cached hooks for data fetching
+  const {
+    diffs,
+    pagination: diffsPagination,
+    loading: diffsLoading,
+    loadingMore: diffsLoadingMore,
+    error: diffsError,
+    refetch: refetchDiffs,
+    loadMore: loadMoreDiffs,
+    invalidate: invalidateDiffs
+  } = useDiffs({ limit: 50 })
+
+  const {
+    changes: fileChanges,
+    pagination: changesPagination,
+    loading: changesLoading,
+    loadingMore: changesLoadingMore,
+    error: changesError,
+    refetch: refetchChanges,
+    loadMore: loadMoreChanges,
+    invalidate: invalidateChanges
+  } = useFileChanges({ limit: 50 })
+
+  const {
+    status: monitoringStatus,
+    refetch: refetchStatus
+  } = useMonitoringStatus()
+
+  // Derived loading states
+  const loading = diffsLoading || changesLoading
+  const loadingMore = diffsLoadingMore || changesLoadingMore
+  const error = diffsError || changesError
+
+  // Local UI state
   const [selectedDiff, setSelectedDiff] = useState<ContentDiff | null>(null)
   const [selectedChange, setSelectedChange] = useState<FileChange | null>(null)
-  const [monitoringStatus, setMonitoringStatus] = useState<FileMonitoringStatus | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [showClearDialog, setShowClearDialog] = useState(false)
   const [clearing, setClearing] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -30,66 +62,9 @@ export default function DiffViewer() {
   const [copiedItemId, setCopiedItemId] = useState<string | null>(null)
   const [hoveredItemId, setHoveredItemId] = useState<string | null>(null)
 
-  // Pagination state
-  const [diffsPagination, setDiffsPagination] = useState<PaginationMetadata | null>(null)
-  const [changesPagination, setChangesPagination] = useState<PaginationMetadata | null>(null)
-  const [loadingMore, setLoadingMore] = useState(false)
-
   // SSE connection for real-time updates
   const sseRef = useRef<EventSource | null>(null)
   const isLoadingRef = useRef(false)
-
-  const fetchFileData = useCallback(async (reset: boolean = true) => {
-    try {
-      setError(null)
-      
-      // Reset pagination and data if this is a fresh fetch
-      if (reset) {
-        setDiffs([])
-        setFileChanges([])
-        setDiffsPagination(null)
-        setChangesPagination(null)
-      }
-      
-      // Fetch recent diffs
-      const diffsResponse = await apiFetch('/api/files/diffs?limit=50')
-      if (!diffsResponse.ok) {
-        throw new Error(`Failed to fetch diffs: ${diffsResponse.status}`)
-      }
-      const diffsResponseData: PaginatedDiffsResponse = await diffsResponse.json()
-      
-      // Fetch recent file changes
-      const changesResponse = await apiFetch('/api/files/changes?limit=50')
-      if (!changesResponse.ok) {
-        throw new Error(`Failed to fetch changes: ${changesResponse.status}`)
-      }
-      const changesResponseData: PaginatedChangesResponse = await changesResponse.json()
-      
-      // Fetch file monitoring status
-      const statusResponse = await apiFetch('/api/files/monitoring-status') 
-      const statusData = statusResponse.ok ? await statusResponse.json() : null
-      
-      setDiffs(diffsResponseData.diffs || [])
-      setDiffsPagination(diffsResponseData.pagination)
-      setFileChanges(changesResponseData.changes || [])
-      setChangesPagination(changesResponseData.pagination)
-      setMonitoringStatus(statusData)
-      
-    } catch (error) {
-      console.error('Error fetching file data:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load file data')
-      setDiffs([])
-      setFileChanges([])
-      setDiffsPagination(null)
-      setChangesPagination(null)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    fetchFileData()
-  }, [fetchFileData])
 
   // Update ref when loading state changes
   useEffect(() => {
@@ -122,14 +97,15 @@ export default function DiffViewer() {
               return
             }
 
-            // When a file is modified, created, or deleted, refresh the diff/changes lists
+            // When a file is modified, created, or deleted, invalidate caches
+            // The SWR pattern will handle background revalidation
             if (eventType === 'modified' || eventType === 'created' || eventType === 'deleted') {
-              console.log(`[DiffViewer] File ${eventType}: ${data.filePath}, refreshing diffs and changes`)
-              
-              // Debounce: Only refresh if we're not already loading
+              console.log(`[DiffViewer] File ${eventType}: ${data.filePath}, invalidating caches`)
+
+              // Only invalidate if we're not already loading to prevent request flooding
               if (!isLoadingRef.current) {
-                // Refresh without resetting pagination to preserve scroll position
-                fetchFileData(false)
+                invalidateDiffs()
+                invalidateChanges()
               }
             }
           } catch (error) {
@@ -164,66 +140,17 @@ export default function DiffViewer() {
     return () => {
       disconnectFileUpdates()
     }
-  }, [fetchFileData])
+  }, [invalidateDiffs, invalidateChanges])
 
   const handleRefresh = async () => {
     setRefreshing(true)
     try {
-      await fetchFileData()
+      // Force skip cache to get fresh data
+      refetchDiffs(true)
+      refetchChanges(true)
+      refetchStatus(true)
     } finally {
       setRefreshing(false)
-    }
-  }
-
-  const loadMoreDiffs = async () => {
-    if (!diffsPagination?.hasMore || loadingMore) return
-    
-    setLoadingMore(true)
-    try {
-      const offset = diffsPagination.offset + diffsPagination.limit
-      const response = await apiFetch(`/api/files/diffs?limit=50&offset=${offset}`)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch more diffs: ${response.status}`)
-      }
-      
-      const responseData: PaginatedDiffsResponse = await response.json()
-      
-      // Append new diffs to existing ones
-      setDiffs(prevDiffs => [...prevDiffs, ...(responseData.diffs || [])])
-      setDiffsPagination(responseData.pagination)
-      
-    } catch (error) {
-      console.error('Error loading more diffs:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load more diffs')
-    } finally {
-      setLoadingMore(false)
-    }
-  }
-
-  const loadMoreChanges = async () => {
-    if (!changesPagination?.hasMore || loadingMore) return
-    
-    setLoadingMore(true)
-    try {
-      const offset = changesPagination.offset + changesPagination.limit
-      const response = await apiFetch(`/api/files/changes?limit=50&offset=${offset}`)
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch more changes: ${response.status}`)
-      }
-      
-      const responseData: PaginatedChangesResponse = await response.json()
-      
-      // Append new changes to existing ones
-      setFileChanges(prevChanges => [...prevChanges, ...(responseData.changes || [])])
-      setChangesPagination(responseData.pagination)
-      
-    } catch (error) {
-      console.error('Error loading more changes:', error)
-      setError(error instanceof Error ? error.message : 'Failed to load more changes')
-    } finally {
-      setLoadingMore(false)
     }
   }
 
@@ -249,19 +176,20 @@ export default function DiffViewer() {
       const response = await apiFetch('/api/files/clear', {
         method: 'POST'
       })
-      
+
       if (!response.ok) {
         throw new Error(`Failed to clear data: ${response.status}`)
       }
-      
-      await fetchFileData()
+
+      // Invalidate caches to trigger refetch
+      invalidateDiffs()
+      invalidateChanges()
       setSelectedDiff(null)
       setSelectedChange(null)
       setShowClearDialog(false)
-      
+
     } catch (error) {
       console.error('Error clearing data:', error)
-      setError(error instanceof Error ? error.message : 'Failed to clear data')
     } finally {
       setClearing(false)
     }
@@ -740,7 +668,10 @@ export default function DiffViewer() {
                   <p className="text-sm font-semibold text-rose-600">Error loading file activity</p>
                   <p className="mt-2 text-xs text-rose-500">{error}</p>
                   <button
-                    onClick={() => fetchFileData()}
+                    onClick={() => {
+                      refetchDiffs(true)
+                      refetchChanges(true)
+                    }}
                     className="mt-4 inline-flex items-center justify-center rounded-full bg-rose-600 px-4 py-2 text-xs font-semibold text-white transition hover:bg-rose-700"
                   >
                     Retry

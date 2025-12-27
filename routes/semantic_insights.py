@@ -130,6 +130,85 @@ async def get_semantic_insights_stats():
         )
 
 
+class ContextConfigRequest(BaseModel):
+    """Request body for updating context configuration."""
+    context_window_days: int
+
+
+@semantic_insights_bp.get('/context-config')
+async def get_context_config():
+    """
+    Get the current working context configuration.
+
+    Returns the context window setting (how many days of activity to consider).
+    """
+    try:
+        from database.migration_semantic_insights_v2 import get_config
+        config = get_config()
+
+        return {
+            'success': True,
+            'config': {
+                'contextWindowDays': config.get('context_window_days', 14),
+                'lastContextBuild': config.get('last_context_build')
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting context config: {e}")
+        return JSONResponse(
+            {'success': False, 'error': str(e)},
+            status_code=500
+        )
+
+
+@semantic_insights_bp.put('/context-config')
+async def update_context_config(request: ContextConfigRequest):
+    """
+    Update the working context configuration.
+
+    Parameters:
+    - context_window_days: Number of days of activity to consider (7, 14, or 30)
+    """
+    try:
+        from database.migration_semantic_insights_v2 import update_config
+        from services.working_context_service import get_working_context_service
+
+        # Validate the value
+        if request.context_window_days not in [7, 14, 30]:
+            return JSONResponse(
+                {'success': False, 'error': 'context_window_days must be 7, 14, or 30'},
+                status_code=400
+            )
+
+        # Update the config
+        success = update_config(request.context_window_days)
+
+        if success:
+            # Invalidate the working context cache
+            context_service = get_working_context_service()
+            context_service.invalidate_cache()
+
+            return {
+                'success': True,
+                'config': {
+                    'contextWindowDays': request.context_window_days
+                }
+            }
+        else:
+            return JSONResponse(
+                {'success': False, 'error': 'Failed to update configuration'},
+                status_code=500
+            )
+
+    except Exception as e:
+        logger.error(f"Error updating context config: {e}")
+        return JSONResponse(
+            {'success': False, 'error': str(e)},
+            status_code=500
+        )
+
+
 @semantic_insights_bp.get('/processing-status')
 async def get_processing_status():
     """

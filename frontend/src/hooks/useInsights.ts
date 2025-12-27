@@ -9,7 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import type { InsightResult } from '../components/insights/InsightCard';
 
 // Re-export types for backward compatibility
-export type { DateRange, SemanticInsight, SemanticInsightsResponse, SuggestedAction, AgentAction, AgentActionType } from './types';
+export type { DateRange, SemanticInsight, SemanticInsightsResponse, SuggestedAction, AgentAction, AgentActionType, ContextSpecificAction, InsightCategory, ContextAwareness } from './types';
 
 // Re-export hooks for backward compatibility
 export { useLayoutConfig } from './useLayoutConfig';

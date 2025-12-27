@@ -5,13 +5,15 @@ Semantic Processing Pipeline
 Coordinates the semantic analysis pipeline:
 1. Detect changed notes (content hash comparison)
 2. Extract entities (todos, mentions, tags)
-3. Discover relationships between notes
-4. Generate insights
+3. Build working context (recent activity, projects, trajectory)
+4. Generate contextual insights with AI
 5. Cleanup expired insights
 """
 
 import logging
 import hashlib
+import json
+import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from pathlib import Path
@@ -20,6 +22,63 @@ from database.models import db
 from .entity_extractor import EntityExtractor
 
 logger = logging.getLogger(__name__)
+
+
+# Contextual insight generation prompt
+CONTEXTUAL_INSIGHT_SYSTEM_PROMPT = """You are a thoughtful assistant analyzing a user's Obsidian notes to provide helpful, contextual insights.
+
+Your job is to identify actionable insights that matter RIGHT NOW based on:
+- What the user is currently working on (active projects)
+- Recent activity patterns
+- The relationship between items and current focus
+
+You are NOT just summarizing - you are identifying things that need attention, decisions, or action.
+
+For each insight you generate, you MUST provide:
+
+1. TITLE: Brief description of what you found (5-10 words, be specific)
+
+2. REASONING: Explain WHY this matters to the user right now. Consider:
+   - Is this relevant to their active projects?
+   - Is timing significant (deadline, staleness)?
+   - What's the consequence of action/inaction?
+
+3. CONTEXT_SPECIFIC_ACTIONS: Generate 2-3 actions SPECIFIC to THIS item:
+   - NOT generic ("add deadline") but specific to this exact situation
+   - Include rationale for why each action makes sense
+   - Consider the user's current work context
+
+4. CATEGORY: Classify as one of:
+   - immediate_action: Needs attention within 24 hours
+   - trend: Pattern worth noting
+   - recommendation: Suggested improvement
+   - observation: Interesting finding
+
+Return your response as a JSON array of insight objects with this structure:
+{
+  "title": "string",
+  "reasoning": "string (2-3 sentences explaining WHY this matters now)",
+  "category": "immediate_action|trend|recommendation|observation",
+  "insight_type": "stale_todo|active_todos|orphan_mention|connection|theme",
+  "source_note": "path/to/note.md",
+  "todo_text": "the actual todo text if applicable",
+  "context_awareness": {
+    "recency_score": 0.0-1.0,
+    "project_context": ["relevant", "projects"],
+    "relevance_factors": ["why", "this", "matters"]
+  },
+  "context_specific_actions": [
+    {
+      "text": "Specific action description",
+      "rationale": "Why this action makes sense for this situation",
+      "action_type": "complete|modify|archive|expand|delegate"
+    }
+  ],
+  "priority": 1-5,
+  "confidence": 0.0-1.0
+}
+
+Focus on QUALITY over quantity. Only generate insights that truly matter. Maximum 10 insights."""
 
 
 class SemanticProcessor:
@@ -305,8 +364,8 @@ class SemanticProcessor:
 
     async def _generate_insights(self) -> int:
         """
-        Generate insights from extracted entities.
-        
+        Generate contextual insights from extracted entities using AI.
+
         Before generating new insights, deletes all existing insights
         except those that are pinned.
 
@@ -315,23 +374,313 @@ class SemanticProcessor:
         """
         # Delete existing insights (except pinned ones) before generating new ones
         self._cleanup_non_pinned_insights()
-        
+
         insights_generated = 0
 
         try:
-            # Immediate insights (no aging required)
+            # Use the new contextual insight generation
+            insights_generated = await self._generate_contextual_insights()
+
+        except Exception as e:
+            logger.error(f"Error generating contextual insights: {e}")
+            # Fall back to legacy pattern-based insights if AI fails
+            logger.info("Falling back to legacy insight generation")
+            insights_generated = await self._generate_legacy_insights()
+
+        return insights_generated
+
+    async def _generate_legacy_insights(self) -> int:
+        """Legacy pattern-based insight generation (fallback)."""
+        insights_generated = 0
+
+        try:
             insights_generated += await self._generate_active_todo_insights()
             insights_generated += await self._generate_todo_summary_insight()
             insights_generated += await self._generate_project_overview_insight()
-
-            # Time-based insights (require aging)
             insights_generated += await self._generate_stale_todo_insights()
             insights_generated += await self._generate_orphan_mention_insights()
-
         except Exception as e:
-            logger.error(f"Error generating insights: {e}")
+            logger.error(f"Error in legacy insight generation: {e}")
 
         return insights_generated
+
+    async def _generate_contextual_insights(self) -> int:
+        """
+        Generate contextual insights using AI with working context awareness.
+
+        This is the new approach that:
+        1. Builds a working context (recent activity, projects, trajectory)
+        2. Gathers entities to analyze
+        3. Calls Claude with full context to generate intelligent insights
+        4. Stores insights with reasoning and context-specific actions
+
+        Returns:
+            Number of insights generated
+        """
+        try:
+            from services.working_context_service import get_working_context_service
+            from claude_agent_sdk import query, ClaudeAgentOptions
+        except ImportError as e:
+            logger.warning(f"Dependencies not available for contextual insights: {e}")
+            return await self._generate_legacy_insights()
+
+        try:
+            # Step 1: Build working context
+            context_service = get_working_context_service()
+            working_context = await context_service.build_context(force_refresh=True)
+
+            # Step 2: Gather entities to analyze
+            entities_data = self._gather_entities_for_analysis(working_context.context_window_days)
+
+            if not entities_data['todos'] and not entities_data['mentions']:
+                logger.info("No entities to analyze for insights")
+                return 0
+
+            # Step 3: Build the analysis prompt
+            prompt = self._build_contextual_insight_prompt(working_context, entities_data)
+
+            # Step 4: Call Claude for contextual analysis
+            options = ClaudeAgentOptions(
+                cwd=str(self.working_dir),
+                allowed_tools=[],  # No tools needed for analysis
+                max_turns=1,
+                system_prompt=CONTEXTUAL_INSIGHT_SYSTEM_PROMPT
+            )
+
+            result_text = []
+            async for message in query(prompt=prompt, options=options):
+                message_type = message.__class__.__name__
+                if message_type == "AssistantMessage":
+                    if hasattr(message, 'content'):
+                        for block in message.content:
+                            if hasattr(block, 'text'):
+                                result_text.append(block.text)
+
+            full_response = "\n".join(result_text)
+
+            # Step 5: Parse and store insights
+            insights = self._parse_contextual_insights(full_response)
+            stored_count = self._store_contextual_insights(insights)
+
+            logger.info(f"Generated {stored_count} contextual insights")
+            return stored_count
+
+        except Exception as e:
+            logger.error(f"Contextual insight generation failed: {e}", exc_info=True)
+            return await self._generate_legacy_insights()
+
+    def _gather_entities_for_analysis(self, context_window_days: int) -> Dict[str, Any]:
+        """Gather entities within the context window for analysis."""
+        cutoff = (datetime.now() - timedelta(days=context_window_days)).isoformat()
+
+        result = {
+            'todos': [],
+            'mentions': [],
+            'tags': [],
+            'projects': []
+        }
+
+        try:
+            # Get active todos with context
+            todo_query = """
+                SELECT ne.note_path, ne.entity_value, ne.context, ne.status,
+                       ne.extracted_at, fs.last_modified
+                FROM note_entities ne
+                LEFT JOIN file_states fs ON ne.note_path = fs.file_path
+                WHERE ne.entity_type = 'todo'
+                  AND ne.status = 'active'
+                ORDER BY fs.last_modified DESC
+                LIMIT 30
+            """
+            todos = db.execute_query(todo_query)
+            result['todos'] = [dict(t) for t in todos]
+
+            # Get mentions that might be orphaned
+            mention_query = """
+                SELECT entity_value, MIN(note_path) as note_path,
+                       MIN(context) as context, COUNT(*) as occurrence_count
+                FROM note_entities
+                WHERE entity_type IN ('mention', 'person', 'link')
+                  AND extracted_at > ?
+                GROUP BY entity_value
+                HAVING occurrence_count <= 2
+                LIMIT 20
+            """
+            mentions = db.execute_query(mention_query, (cutoff,))
+            result['mentions'] = [dict(m) for m in mentions]
+
+            # Get tag distribution
+            tag_query = """
+                SELECT entity_value, COUNT(*) as count
+                FROM note_entities
+                WHERE entity_type = 'tag'
+                GROUP BY entity_value
+                ORDER BY count DESC
+                LIMIT 15
+            """
+            tags = db.execute_query(tag_query)
+            result['tags'] = [dict(t) for t in tags]
+
+            # Get projects
+            project_query = """
+                SELECT entity_value, COUNT(DISTINCT note_path) as note_count
+                FROM note_entities
+                WHERE entity_type = 'project'
+                GROUP BY entity_value
+                ORDER BY note_count DESC
+                LIMIT 10
+            """
+            projects = db.execute_query(project_query)
+            result['projects'] = [dict(p) for p in projects]
+
+        except Exception as e:
+            logger.error(f"Error gathering entities: {e}")
+
+        return result
+
+    def _build_contextual_insight_prompt(
+        self,
+        working_context: Any,
+        entities_data: Dict[str, Any]
+    ) -> str:
+        """Build the prompt for contextual insight generation."""
+        lines = []
+
+        # Add working context
+        lines.append("=== WORKING CONTEXT ===")
+        lines.append(working_context.to_prompt_context())
+        lines.append("")
+
+        # Add entities to analyze
+        lines.append("=== ITEMS TO ANALYZE ===")
+        lines.append("")
+
+        # Todos
+        if entities_data['todos']:
+            lines.append("PENDING TODOS:")
+            for i, todo in enumerate(entities_data['todos'][:20], 1):
+                age_str = ""
+                if todo.get('extracted_at'):
+                    try:
+                        extracted = datetime.fromisoformat(todo['extracted_at'])
+                        age_days = (datetime.now() - extracted).days
+                        age_str = f" [{age_days} days old]"
+                    except:
+                        pass
+                lines.append(f"  {i}. [{todo['note_path']}]{age_str}")
+                lines.append(f"     Todo: {todo['entity_value'][:100]}")
+                if todo.get('context'):
+                    lines.append(f"     Context: {todo['context'][:150]}")
+                lines.append("")
+
+        # Potential orphan mentions
+        if entities_data['mentions']:
+            lines.append("POTENTIAL ORPHAN MENTIONS (appear 1-2 times):")
+            for m in entities_data['mentions'][:10]:
+                lines.append(f"  - '{m['entity_value']}' in {m['note_path']} "
+                           f"(appears {m['occurrence_count']} time(s))")
+            lines.append("")
+
+        # Tag overview
+        if entities_data['tags']:
+            tag_summary = ", ".join([f"#{t['entity_value']}({t['count']})"
+                                    for t in entities_data['tags'][:10]])
+            lines.append(f"TAG DISTRIBUTION: {tag_summary}")
+            lines.append("")
+
+        lines.append("=== YOUR TASK ===")
+        lines.append("Analyze the items above in the context of the user's recent work.")
+        lines.append("Generate insights that are SPECIFIC and ACTIONABLE.")
+        lines.append("Focus on what matters NOW given their current projects and focus.")
+        lines.append("")
+        lines.append("Return ONLY a JSON array of insights. No other text.")
+
+        return "\n".join(lines)
+
+    def _parse_contextual_insights(self, response: str) -> List[Dict[str, Any]]:
+        """Parse the AI response to extract insight JSON."""
+        insights = []
+
+        # Try to find JSON array in response
+        json_match = re.search(r'\[[\s\S]*\]', response)
+        if json_match:
+            try:
+                raw_insights = json.loads(json_match.group())
+                for insight in raw_insights:
+                    if isinstance(insight, dict) and 'title' in insight:
+                        # Validate and normalize the insight
+                        normalized = {
+                            'title': insight.get('title', 'Untitled Insight'),
+                            'reasoning': insight.get('reasoning', ''),
+                            'summary': insight.get('reasoning', '')[:200],  # Use reasoning as summary
+                            'category': insight.get('category', 'observation'),
+                            'insight_type': insight.get('insight_type', 'active_todos'),
+                            'source_note': insight.get('source_note', ''),
+                            'todo_text': insight.get('todo_text', ''),
+                            'context_awareness': insight.get('context_awareness', {}),
+                            'context_specific_actions': insight.get('context_specific_actions', []),
+                            'priority': insight.get('priority', 2),
+                            'confidence': insight.get('confidence', 0.8)
+                        }
+                        insights.append(normalized)
+            except json.JSONDecodeError as e:
+                logger.error(f"Failed to parse insight JSON: {e}")
+                logger.debug(f"Response was: {response[:500]}")
+        else:
+            logger.warning("No JSON array found in AI response")
+            logger.debug(f"Response was: {response[:500]}")
+
+        return insights
+
+    def _store_contextual_insights(self, insights: List[Dict[str, Any]]) -> int:
+        """Store parsed contextual insights in the database."""
+        stored = 0
+
+        for insight in insights:
+            try:
+                # Prepare source_notes JSON
+                source_notes = []
+                if insight.get('source_note'):
+                    source_notes.append({
+                        'path': insight['source_note'],
+                        'snippet': insight.get('todo_text', '')[:100]
+                    })
+
+                # Prepare evidence JSON
+                evidence = {
+                    'todo_text': insight.get('todo_text', ''),
+                    'generated_by': 'contextual_ai',
+                    'generated_at': datetime.now().isoformat()
+                }
+
+                # Store the insight
+                db.execute_update("""
+                    INSERT INTO semantic_insights (
+                        insight_type, title, summary, source_notes,
+                        evidence, confidence, priority, status,
+                        reasoning, context_awareness, insight_category,
+                        suggested_actions
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    insight['insight_type'],
+                    insight['title'],
+                    insight['summary'],
+                    json.dumps(source_notes),
+                    json.dumps(evidence),
+                    insight['confidence'],
+                    insight['priority'],
+                    'new',
+                    insight['reasoning'],
+                    json.dumps(insight['context_awareness']),
+                    insight['category'],
+                    json.dumps(insight['context_specific_actions'])
+                ))
+                stored += 1
+
+            except Exception as e:
+                logger.error(f"Failed to store insight '{insight.get('title')}': {e}")
+
+        return stored
 
     async def _generate_stale_todo_insights(self, days_threshold: int = 7) -> int:
         """Generate insights for stale todos."""
