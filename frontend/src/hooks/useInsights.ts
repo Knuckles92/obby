@@ -5,8 +5,9 @@
  * Handles loading states, errors, and caching of results.
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import type { InsightResult } from '../components/insights/InsightCard';
+import { useApiCache } from './useApiCache';
 
 // Re-export types for backward compatibility
 export type { DateRange, SemanticInsight, SemanticInsightsResponse, SuggestedAction, AgentAction, AgentActionType, ContextSpecificAction, InsightCategory, ContextAwareness } from './types';
@@ -30,7 +31,7 @@ interface UseInsightsResult {
   insights: Record<string, InsightResult>;
   loading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: (skipCache?: boolean) => void;
   availableInsights: any[];
 }
 
@@ -40,13 +41,11 @@ interface UseInsightsResult {
 export const useInsights = (options: UseInsightsOptions): UseInsightsResult => {
   const { layoutName, dateRange, enabled = true } = options;
 
-  const [insights, setInsights] = useState<Record<string, InsightResult>>({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [availableInsights, setAvailableInsights] = useState<any[]>([]);
 
   /**
    * Fetch available insights metadata
+   * Note: This is relatively static and could also be cached, but it's fast
    */
   const fetchAvailableInsights = useCallback(async () => {
     try {
@@ -64,80 +63,79 @@ export const useInsights = (options: UseInsightsOptions): UseInsightsResult => {
   }, []);
 
   /**
-   * Fetch insights data
+   * Main fetcher function passed to useApiCache
    */
-  const fetchInsights = useCallback(async () => {
-    if (!enabled) return;
+  const insightsFetcher = useCallback(async () => {
+    // 1. Get the layout configuration
+    const configResponse = await fetch(`/api/insights/layout-config?layout=${layoutName}`);
+    const configData = await configResponse.json();
 
-    setLoading(true);
-    setError(null);
-
-    try {
-      // First, get the layout configuration
-      const configResponse = await fetch(`/api/insights/layout-config?layout=${layoutName}`);
-      const configData = await configResponse.json();
-
-      if (!configData.success) {
-        throw new Error('Failed to fetch layout configuration');
-      }
-
-      const config = configData.config;
-      const enabledInsightIds = config.insights
-        .filter((i: any) => i.enabled)
-        .map((i: any) => i.id);
-
-      if (enabledInsightIds.length === 0) {
-        setInsights({});
-        setLoading(false);
-        return;
-      }
-
-      // Build query parameters
-      const params = new URLSearchParams({
-        insight_ids: enabledInsightIds.join(',')
-      });
-
-      // Add date range parameters
-      if (dateRange.days !== undefined) {
-        params.append('days', String(dateRange.days));
-      } else if (dateRange.start && dateRange.end) {
-        params.append('start_date', dateRange.start);
-        params.append('end_date', dateRange.end);
-      }
-
-      // Fetch insights
-      const response = await fetch(`/api/insights/calculate?${params.toString()}`);
-      const data = await response.json();
-
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to calculate insights');
-      }
-
-      setInsights(data.insights);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-      setError(errorMessage);
-      console.error('Error fetching insights:', err);
-    } finally {
-      setLoading(false);
+    if (!configData.success) {
+      throw new Error('Failed to fetch layout configuration');
     }
-  }, [layoutName, dateRange, enabled]);
 
-  // Fetch available insights on mount
-  useEffect(() => {
-    fetchAvailableInsights();
-  }, [fetchAvailableInsights]);
+    const config = configData.config;
+    const enabledInsightIds = config.insights
+      .filter((i: any) => i.enabled)
+      .map((i: any) => i.id);
 
-  // Fetch insights when dependencies change
-  useEffect(() => {
-    fetchInsights();
-  }, [fetchInsights]);
+    if (enabledInsightIds.length === 0) {
+      return {};
+    }
 
-  return {
-    insights,
+    // 2. Build query parameters
+    const params = new URLSearchParams({
+      insight_ids: enabledInsightIds.join(',')
+    });
+
+    if (dateRange.days !== undefined) {
+      params.append('days', String(dateRange.days));
+    } else if (dateRange.start && dateRange.end) {
+      params.append('start_date', dateRange.start);
+      params.append('end_date', dateRange.end);
+    }
+
+    // 3. Fetch insights calculation
+    const response = await fetch(`/api/insights/calculate?${params.toString()}`);
+    const data = await response.json();
+
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to calculate insights');
+    }
+
+    return data.insights as Record<string, InsightResult>;
+  }, [layoutName, dateRange]);
+
+  // Create a stable cache key based on dependencies
+  const cacheKey = useMemo(() => {
+    return JSON.stringify({ layoutName, dateRange });
+  }, [layoutName, dateRange]);
+
+  // Use the generic API cache hook
+  const {
+    data: insightsData,
     loading,
     error,
-    refetch: fetchInsights,
+    refetch
+  } = useApiCache<Record<string, InsightResult>>('insights', {
+    cacheKey,
+    fetcher: insightsFetcher,
+    enabled,
+    ttl: 60 * 1000 // 1 minute cache for activity metrics
+  });
+
+  // Also fetch available insights on mount
+  useEffect(() => {
+    if (enabled) {
+      fetchAvailableInsights();
+    }
+  }, [enabled, fetchAvailableInsights]);
+
+  return {
+    insights: insightsData || {},
+    loading,
+    error,
+    refetch,
     availableInsights
   };
 };
@@ -181,3 +179,4 @@ export const parseDateRange = (rangeString: string): DateRange => {
 };
 
 export default useInsights;
+

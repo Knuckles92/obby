@@ -119,9 +119,8 @@ class TrendingFilesInsight(BaseInsight):
                 "value": str(len(file_metrics)),
                 "label": "active files" if len(file_metrics) != 1 else "active file",
                 "details": {
-                    "topFiles": top_files,
                     "topExtensions": [
-                        {"extension": ext, "count": count}
+                        f"{ext} ({count})"
                         for ext, count in top_extensions
                     ],
                     "totalFilesModified": len(file_metrics)

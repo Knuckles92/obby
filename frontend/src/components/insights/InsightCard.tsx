@@ -214,8 +214,8 @@ const BarChart: React.FC<{ data: any[]; onOpenNote?: (path: string) => void }> =
         const isClickable = !!(path && onOpenNote);
 
         return (
-          <div 
-            key={idx} 
+          <div
+            key={idx}
             className={`flex items-center gap-2 ${isClickable ? 'cursor-pointer hover:opacity-80' : ''}`}
             onClick={() => isClickable && onOpenNote(path)}
           >
@@ -284,8 +284,8 @@ const ListChart: React.FC<{ data: any[]; onOpenNote?: (path: string) => void }> 
         const isClickable = !!(path && onOpenNote);
 
         return (
-          <div 
-            key={idx} 
+          <div
+            key={idx}
             className={`flex justify-between items-center text-sm ${isClickable ? 'cursor-pointer hover:underline' : ''}`}
             onClick={() => isClickable && onOpenNote(path)}
           >
@@ -317,13 +317,35 @@ const DetailsSection: React.FC<{ details: any }> = ({ details }) => {
         const formattedKey = key.replace(/([A-Z])/g, ' $1').trim();
         const capitalizedKey = formattedKey.charAt(0).toUpperCase() + formattedKey.slice(1);
 
+        let displayValue: string;
+        if (Array.isArray(value)) {
+          if (value.length === 0) {
+            displayValue = 'None';
+          } else {
+            displayValue = value
+              .map((item: any) => {
+                if (item && typeof item === 'object') {
+                  return item.name || item.extension || item.label || item.id || 'Object';
+                }
+                return String(item);
+              })
+              .join(', ');
+          }
+        } else {
+          displayValue = typeof value === 'number' ? value.toLocaleString() : String(value);
+        }
+
         return (
-          <div key={key}>
+          <div key={key} className="overflow-hidden">
             <div className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
               {capitalizedKey}
             </div>
-            <div className="font-medium" style={{ color: 'var(--color-text)' }}>
-              {typeof value === 'number' ? value.toLocaleString() : String(value)}
+            <div
+              className="font-medium truncate"
+              style={{ color: 'var(--color-text)' }}
+              title={displayValue}
+            >
+              {displayValue}
             </div>
           </div>
         );
