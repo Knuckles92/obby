@@ -5,7 +5,7 @@
  * with actions and processing controls.
  */
 
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 import SemanticInsightCard from './SemanticInsightCard';
 import { useSemanticInsights, useBatchSuggestedActions } from '../../hooks/useInsights';
@@ -13,28 +13,18 @@ import { useSemanticInsights, useBatchSuggestedActions } from '../../hooks/useIn
 interface SemanticInsightsSectionProps {
   onOpenNote?: (notePath: string, insightId?: number) => void;
   displayLimit: number;
-  onClearInsights: () => Promise<void>;
-  onIncrementalScan: () => Promise<void>;
   onFullScan: () => Promise<void>;
-  isClearingInsights: boolean;
-  isIncrementalScanning: boolean;
   isFullScanning: boolean;
   isAnyProcessing: boolean;
-  visibleInsightsCount: number;
   onRefetch: () => Promise<void>;
 }
 
 export default function SemanticInsightsSection({ 
   onOpenNote,
   displayLimit,
-  onClearInsights,
-  onIncrementalScan,
   onFullScan,
-  isClearingInsights,
-  isIncrementalScanning,
   isFullScanning,
   isAnyProcessing,
-  visibleInsightsCount,
   onRefetch
 }: SemanticInsightsSectionProps) {
   const {
